@@ -27,3 +27,26 @@ dependencyResolutionManagement {
 
 rootProject.name = "Media App"
 include(":app")
+
+include(
+    ":core:common",
+    ":core:model",
+    ":core:designsystem",
+    ":core:ui",
+    ":core:automotive",
+    ":core:vehicle",
+    ":core:carui",
+    ":core:media-adapter",
+    ":core:rust-bridge",
+    ":core:secure-storage-adapter",
+    ":core:telemetry-adapter",
+    ":core:testing",
+    ":feature:home",
+    ":feature:library",
+    ":feature:search",
+    ":feature:nowplaying",
+    ":feature:settings",
+    ":feature:profile",
+    ":feature:auth",
+    ":provider:jamendo",
+)
