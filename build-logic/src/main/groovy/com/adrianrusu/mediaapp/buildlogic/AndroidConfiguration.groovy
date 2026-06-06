@@ -20,6 +20,10 @@ class AndroidConfiguration {
             sourceCompatibility = JavaVersion.VERSION_11
             targetCompatibility = JavaVersion.VERSION_11
         }
+
+        android.buildFeatures {
+            aidl = true
+        }
     }
 
     static String defaultNamespace(Project project) {

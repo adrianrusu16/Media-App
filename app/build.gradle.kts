@@ -5,6 +5,7 @@ plugins {
 dependencies {
     implementation(project(":core:automotive"))
     implementation(project(":core:media-adapter"))
+    implementation(project(":core:rust-bridge"))
     implementation(project(":core:telemetry-adapter"))
     implementation(project(":feature:auth"))
     implementation(project(":feature:home"))
