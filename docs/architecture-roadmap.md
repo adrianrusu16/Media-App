@@ -103,6 +103,11 @@ Rust playback command -> AIDL -> PlatformPlayer -> ExoPlayer/OEM adapter
 Player event -> AIDL -> Rust -> canonical playback snapshot
 ```
 
+The first Android playback foundation is intentionally platform-only: a Media3
+`MediaLibraryService` exposes an `ExoPlayer`-backed session to AAOS and media
+controllers, while library contents and command policy stay reserved for the
+Rust engine wiring milestone.
+
 ## Security Posture
 
 - Never ship Supabase service-role keys or backend-only secrets in the app.
