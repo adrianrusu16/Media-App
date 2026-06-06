@@ -25,11 +25,7 @@ impl Engine {
         &self.snapshot
     }
 
-    pub fn dispatch(
-        &mut self,
-        command: EngineCommand,
-        now_epoch_millis: u64,
-    ) -> EngineOutcome {
+    pub fn dispatch(&mut self, command: EngineCommand, now_epoch_millis: u64) -> EngineOutcome {
         let next_playback_state = match command.command_type {
             EngineCommandType::Play => PlaybackState::Playing,
             EngineCommandType::Pause => PlaybackState::Paused,
@@ -45,9 +41,7 @@ impl Engine {
 
         EngineOutcome {
             snapshot: self.snapshot.clone(),
-            event: EngineEvent::command_applied(Some(
-                command.command_type.as_wire().to_owned(),
-            )),
+            event: EngineEvent::command_applied(Some(command.command_type.as_wire().to_owned())),
         }
     }
 }
@@ -68,10 +62,7 @@ mod tests {
     #[test]
     fn play_command_moves_snapshot_to_playing() {
         let mut engine = Engine::new(100);
-        let outcome = engine.dispatch(
-            EngineCommand::new(EngineCommandType::Play, None),
-            200,
-        );
+        let outcome = engine.dispatch(EngineCommand::new(EngineCommandType::Play, None), 200);
 
         assert_eq!(PlaybackState::Playing, outcome.snapshot.playback_state);
         assert_eq!(200, outcome.snapshot.updated_at_epoch_millis);
@@ -84,10 +75,7 @@ mod tests {
         let mut engine = Engine::new(100);
         engine.dispatch(EngineCommand::new(EngineCommandType::Play, None), 200);
 
-        let outcome = engine.dispatch(
-            EngineCommand::from_wire("future_command", None),
-            300,
-        );
+        let outcome = engine.dispatch(EngineCommand::from_wire("future_command", None), 300);
 
         assert_eq!(PlaybackState::Playing, outcome.snapshot.playback_state);
         assert_eq!(300, outcome.snapshot.updated_at_epoch_millis);

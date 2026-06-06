@@ -35,6 +35,9 @@ EncryptedSecret persisted by Rust-owned storage
 
 - Keystore key material is not exported to Kotlin or Rust.
 - `EncryptedSecret` contains ciphertext and IV only.
+- Keystore aliases are stable identifiers, not secrets. They may later move to a
+  generated namespace or Rust-owned constant map to reduce obvious strings, but
+  hiding aliases is not a security boundary.
 - Callers must not log plaintext, ciphertext, IVs, aliases, or errors with
   secret payloads.
 - This bridge does not store data yet; persistence belongs to a later Rust-owned

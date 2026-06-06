@@ -1,0 +1,189 @@
+use media_app_core::{
+    Engine, EngineCommand, EngineCommandType, EngineEventType, EngineOutcome, EngineSnapshot,
+    PlaybackState, RestrictionState,
+};
+
+pub const FFI_COMMAND_BOOTSTRAP: i32 = 0;
+pub const FFI_COMMAND_PLAY: i32 = 1;
+pub const FFI_COMMAND_PAUSE: i32 = 2;
+pub const FFI_COMMAND_UNKNOWN: i32 = -1;
+
+pub const FFI_PLAYBACK_IDLE: i32 = 0;
+pub const FFI_PLAYBACK_PLAYING: i32 = 1;
+pub const FFI_PLAYBACK_PAUSED: i32 = 2;
+
+pub const FFI_RESTRICTION_UNKNOWN: i32 = 0;
+
+pub const FFI_EVENT_COMMAND_APPLIED: i32 = 0;
+pub const FFI_EVENT_LISTENER_REGISTERED: i32 = 1;
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct FfiEngineSnapshot {
+    pub playback_state: i32,
+    pub restriction_state: i32,
+    pub updated_at_epoch_millis: u64,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct FfiEngineOutcome {
+    pub snapshot: FfiEngineSnapshot,
+    pub event_type: i32,
+    pub applied_command_type: i32,
+}
+
+pub struct MediaAppEngine {
+    engine: Engine,
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn media_app_engine_create(now_epoch_millis: u64) -> *mut MediaAppEngine {
+    Box::into_raw(Box::new(MediaAppEngine {
+        engine: Engine::new(now_epoch_millis),
+    }))
+}
+
+/// # Safety
+///
+/// [engine] must be a pointer returned by [media_app_engine_create] and must not
+/// be used again after this call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn media_app_engine_destroy(engine: *mut MediaAppEngine) {
+    if !engine.is_null() {
+        drop(unsafe { Box::from_raw(engine) });
+    }
+}
+
+/// # Safety
+///
+/// [engine] must be a valid pointer returned by [media_app_engine_create].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn media_app_engine_snapshot(
+    engine: *const MediaAppEngine,
+) -> FfiEngineSnapshot {
+    let engine = unsafe { engine.as_ref() };
+    match engine {
+        Some(engine) => FfiEngineSnapshot::from(engine.engine.snapshot()),
+        None => FfiEngineSnapshot::invalid(),
+    }
+}
+
+/// # Safety
+///
+/// [engine] must be a valid pointer returned by [media_app_engine_create].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn media_app_engine_dispatch(
+    engine: *mut MediaAppEngine,
+    command_type: i32,
+    now_epoch_millis: u64,
+) -> FfiEngineOutcome {
+    let engine = unsafe { engine.as_mut() };
+    match engine {
+        Some(engine) => {
+            let outcome = engine.engine.dispatch(
+                EngineCommand::new(command_from_ffi(command_type), None),
+                now_epoch_millis,
+            );
+            FfiEngineOutcome::from((&outcome, command_type))
+        }
+        None => FfiEngineOutcome::invalid(),
+    }
+}
+
+impl FfiEngineSnapshot {
+    fn invalid() -> Self {
+        Self {
+            playback_state: FFI_COMMAND_UNKNOWN,
+            restriction_state: FFI_COMMAND_UNKNOWN,
+            updated_at_epoch_millis: 0,
+        }
+    }
+}
+
+impl FfiEngineOutcome {
+    fn invalid() -> Self {
+        Self {
+            snapshot: FfiEngineSnapshot::invalid(),
+            event_type: FFI_COMMAND_UNKNOWN,
+            applied_command_type: FFI_COMMAND_UNKNOWN,
+        }
+    }
+}
+
+impl From<&EngineSnapshot> for FfiEngineSnapshot {
+    fn from(snapshot: &EngineSnapshot) -> Self {
+        Self {
+            playback_state: playback_to_ffi(snapshot.playback_state),
+            restriction_state: restriction_to_ffi(snapshot.restriction_state),
+            updated_at_epoch_millis: snapshot.updated_at_epoch_millis,
+        }
+    }
+}
+
+impl From<(&EngineOutcome, i32)> for FfiEngineOutcome {
+    fn from((outcome, command_type): (&EngineOutcome, i32)) -> Self {
+        Self {
+            snapshot: FfiEngineSnapshot::from(&outcome.snapshot),
+            event_type: event_to_ffi(&outcome.event.event_type),
+            applied_command_type: command_type,
+        }
+    }
+}
+
+fn command_from_ffi(command_type: i32) -> EngineCommandType {
+    match command_type {
+        FFI_COMMAND_BOOTSTRAP => EngineCommandType::Bootstrap,
+        FFI_COMMAND_PLAY => EngineCommandType::Play,
+        FFI_COMMAND_PAUSE => EngineCommandType::Pause,
+        _ => EngineCommandType::Unknown(command_type.to_string()),
+    }
+}
+
+fn playback_to_ffi(playback_state: PlaybackState) -> i32 {
+    match playback_state {
+        PlaybackState::Idle => FFI_PLAYBACK_IDLE,
+        PlaybackState::Playing => FFI_PLAYBACK_PLAYING,
+        PlaybackState::Paused => FFI_PLAYBACK_PAUSED,
+    }
+}
+
+fn restriction_to_ffi(restriction_state: RestrictionState) -> i32 {
+    match restriction_state {
+        RestrictionState::Unknown => FFI_RESTRICTION_UNKNOWN,
+    }
+}
+
+fn event_to_ffi(event_type: &EngineEventType) -> i32 {
+    match event_type {
+        EngineEventType::CommandApplied => FFI_EVENT_COMMAND_APPLIED,
+        EngineEventType::ListenerRegistered => FFI_EVENT_LISTENER_REGISTERED,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dispatch_play_returns_playing_snapshot() {
+        let engine = media_app_engine_create(100);
+        let outcome = unsafe { media_app_engine_dispatch(engine, FFI_COMMAND_PLAY, 200) };
+        unsafe {
+            media_app_engine_destroy(engine);
+        }
+
+        assert_eq!(FFI_PLAYBACK_PLAYING, outcome.snapshot.playback_state);
+        assert_eq!(FFI_EVENT_COMMAND_APPLIED, outcome.event_type);
+        assert_eq!(FFI_COMMAND_PLAY, outcome.applied_command_type);
+        assert_eq!(200, outcome.snapshot.updated_at_epoch_millis);
+    }
+
+    #[test]
+    fn null_snapshot_returns_invalid_marker() {
+        let snapshot = unsafe { media_app_engine_snapshot(std::ptr::null()) };
+
+        assert_eq!(FFI_COMMAND_UNKNOWN, snapshot.playback_state);
+        assert_eq!(0, snapshot.updated_at_epoch_millis);
+    }
+}

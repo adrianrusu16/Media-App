@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "crates/app_core",
+    "crates/ffi",
 ]
 resolver = "3"
 

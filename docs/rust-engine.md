@@ -20,6 +20,17 @@ The Kotlin AIDL service in `:core:rust-bridge` still uses a fake reducer. It
 shares the same wire values as the Rust reducer so the later binding swap is
 mechanical rather than architectural.
 
+The next binding layer is also scaffolded:
+
+- `media_app_ffi` exposes a small C ABI over `media_app_core`.
+- `NativeRustEngine` defines the Kotlin wrapper shape for the future JNI/native
+  library.
+- `MediaEngineService` depends on the `RustEngine` interface and currently uses
+  `FakeRustEngine`.
+
+`NativeRustEngine` should not be selected until the native library is packaged
+into the Android app.
+
 ## Intended Flow
 
 ```text
@@ -42,6 +53,12 @@ Kotlin can own platform shapes, but Rust owns decisions. Kotlin should not grow
 parallel business logic for playback, auth, user state, catalog normalization, or
 provider policy. Temporary fake implementations should stay small and be replaced
 by Rust calls as soon as the native binding exists.
+
+## Wire Values
+
+AIDL uses simple string values because it is the IPC boundary. The native Rust
+FFI uses compact integer discriminants. Kotlin maps between those wire values at
+the boundary, while Rust keeps enum-based domain models internally.
 
 ## Verification
 

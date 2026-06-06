@@ -12,35 +12,22 @@ import com.adrianrusu.mediaapp.core.rust.bridge.aidl.IMediaEngineService
 
 class MediaEngineService : Service() {
     private val listeners = RemoteCallbackList<IEngineListener>()
-
-    @Volatile
-    private var snapshot: EngineSnapshot =
-        EngineSnapshot.idle(System.currentTimeMillis())
+    private val engine: RustEngine = FakeRustEngine()
 
     private val binder = object : IMediaEngineService.Stub() {
         override fun getSnapshot(): EngineSnapshot =
-            this@MediaEngineService.snapshot
+            engine.snapshot()
 
         override fun dispatch(command: EngineCommand) {
-            val nextSnapshot = FakeEngineReducer.reduce(
-                current = this@MediaEngineService.snapshot,
-                command = command,
-                nowMillis = System.currentTimeMillis(),
-            )
-            this@MediaEngineService.snapshot = nextSnapshot
+            val result = engine.dispatch(command)
 
-            notifySnapshotChanged(nextSnapshot)
-            notifyEngineEvent(
-                EngineEvent(
-                    type = EngineEvent.TYPE_COMMAND_APPLIED,
-                    message = command.type,
-                ),
-            )
+            notifySnapshotChanged(result.snapshot)
+            notifyEngineEvent(result.event)
         }
 
         override fun registerListener(listener: IEngineListener) {
             listeners.register(listener)
-            listener.onSnapshotChanged(snapshot)
+            listener.onSnapshotChanged(engine.snapshot())
             listener.onEngineEvent(
                 EngineEvent(
                     type = EngineEvent.TYPE_LISTENER_REGISTERED,
