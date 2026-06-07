@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.adrianrusu.mediaapp.core.ui.playback.PlaybackDisplayText
 
 @Composable
 fun MediaAppMiniPlayer(state: MiniPlayerState, onPlayPauseClick: () -> Unit, modifier: Modifier = Modifier) {
@@ -51,7 +52,7 @@ fun MediaAppMiniPlayer(state: MiniPlayerState, onPlayPauseClick: () -> Unit, mod
                 )
                 if (state.isRestricted) {
                     Text(
-                        text = "Driver-safe mode",
+                        text = PlaybackDisplayText.DRIVER_SAFE_MODE,
                         color = MaterialTheme.colorScheme.primary,
                         style = MaterialTheme.typography.labelMedium
                     )
@@ -59,7 +60,13 @@ fun MediaAppMiniPlayer(state: MiniPlayerState, onPlayPauseClick: () -> Unit, mod
             }
 
             Button(onClick = onPlayPauseClick) {
-                Text(text = if (state.isPlaying) "Pause" else "Play")
+                Text(
+                    text = if (state.isPlaying) {
+                        PlaybackDisplayText.ACTION_PAUSE
+                    } else {
+                        PlaybackDisplayText.ACTION_PLAY
+                    }
+                )
             }
         }
     }

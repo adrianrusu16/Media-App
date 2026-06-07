@@ -1,6 +1,7 @@
 package com.adrianrusu.mediaapp.feature.nowplaying.domain
 
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
+import com.adrianrusu.mediaapp.core.ui.playback.PlaybackDisplayText
 
 internal object NowPlayingReducer {
     fun reduce(state: NowPlayingState, snapshot: EngineSnapshot): NowPlayingState {
@@ -21,16 +22,16 @@ internal object NowPlayingReducer {
 
 private val NowPlayingPlaybackState.fallbackTitle: String
     get() = when (this) {
-        NowPlayingPlaybackState.Playing -> "Sample station"
-        NowPlayingPlaybackState.Paused -> "Paused"
-        NowPlayingPlaybackState.Idle -> "Nothing playing"
+        NowPlayingPlaybackState.Playing -> PlaybackDisplayText.FALLBACK_PLAYING_TITLE
+        NowPlayingPlaybackState.Paused -> PlaybackDisplayText.FALLBACK_PAUSED_TITLE
+        NowPlayingPlaybackState.Idle -> PlaybackDisplayText.FALLBACK_IDLE_TITLE
     }
 
 private val NowPlayingPlaybackState.fallbackArtist: String
     get() = when (this) {
-        NowPlayingPlaybackState.Playing -> "Preview queue"
-        NowPlayingPlaybackState.Paused -> "Ready to resume"
-        NowPlayingPlaybackState.Idle -> "Ready when you are"
+        NowPlayingPlaybackState.Playing -> PlaybackDisplayText.FALLBACK_PLAYING_SUBTITLE
+        NowPlayingPlaybackState.Paused -> PlaybackDisplayText.FALLBACK_PAUSED_SUBTITLE
+        NowPlayingPlaybackState.Idle -> PlaybackDisplayText.FALLBACK_IDLE_SUBTITLE
     }
 
 private fun EngineSnapshot.toPlaybackState(): NowPlayingPlaybackState = when (playbackState) {

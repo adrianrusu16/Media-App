@@ -11,6 +11,7 @@ import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.mediaapp.core.rust.bridge.engine.RustEngine
 import com.adrianrusu.mediaapp.core.ui.miniplayer.MiniPlayerState
+import com.adrianrusu.mediaapp.core.ui.playback.PlaybackDisplayText
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -91,13 +92,13 @@ internal fun AppShellState.withEngineSnapshot(snapshot: EngineSnapshot): AppShel
 private fun EngineSnapshot.toMiniPlayerState(isRestricted: Boolean): MiniPlayerState {
     val isPlaying = playbackState == EngineSnapshot.PLAYBACK_PLAYING
     val title = title ?: when (playbackState) {
-        EngineSnapshot.PLAYBACK_PLAYING -> "Sample station"
-        EngineSnapshot.PLAYBACK_PAUSED -> "Paused"
+        EngineSnapshot.PLAYBACK_PLAYING -> PlaybackDisplayText.FALLBACK_PLAYING_TITLE
+        EngineSnapshot.PLAYBACK_PAUSED -> PlaybackDisplayText.FALLBACK_PAUSED_TITLE
         else -> MiniPlayerState.Empty.title
     }
     val subtitle = artist ?: when (playbackState) {
-        EngineSnapshot.PLAYBACK_PLAYING -> "Preview queue"
-        EngineSnapshot.PLAYBACK_PAUSED -> "Ready to resume"
+        EngineSnapshot.PLAYBACK_PLAYING -> PlaybackDisplayText.FALLBACK_PLAYING_SUBTITLE
+        EngineSnapshot.PLAYBACK_PAUSED -> PlaybackDisplayText.FALLBACK_PAUSED_SUBTITLE
         else -> MiniPlayerState.Empty.subtitle
     }
 

@@ -28,7 +28,7 @@ class NowPlayingReducerTest {
     }
 
     @Test
-    fun preservesDriverSafeRestrictionWhenSnapshotChanges() {
+    fun keepsArtistVisibleWhenRestricted() {
         val restricted = NowPlayingState(
             restriction = NowPlayingRestrictionState(
                 label = "Driver-safe mode",
@@ -38,10 +38,18 @@ class NowPlayingReducerTest {
 
         val result = NowPlayingReducer.reduce(
             state = restricted,
-            snapshot = EngineSnapshot.idle(nowMillis = 7L)
+            snapshot = EngineSnapshot(
+                playbackState = EngineSnapshot.PLAYBACK_PLAYING,
+                mediaId = "station-1",
+                title = "Night Drive",
+                artist = "AAOS Radio",
+                userId = null,
+                restrictionState = EngineSnapshot.RESTRICTION_UNKNOWN,
+                updatedAtEpochMillis = 7L
+            )
         )
 
         assertEquals(restricted.restriction, result.restriction)
-        assertEquals("Driver-safe metadata", result.detailLabel)
+        assertEquals("AAOS Radio", result.detailLabel)
     }
 }
