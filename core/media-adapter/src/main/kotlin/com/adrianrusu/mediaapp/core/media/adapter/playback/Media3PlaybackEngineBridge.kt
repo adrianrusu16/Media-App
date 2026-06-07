@@ -22,4 +22,11 @@ class Media3PlaybackEngineBridge(private val engine: RustEngine) : Player.Listen
             PlaybackEngineCommandMapper.fromPlayWhenReady(playWhenReady)
         )
     }
+
+    fun dispatchPlayerCommand(playerCommand: Int): Boolean {
+        val command = PlaybackEngineCommandMapper.fromPlayerCommand(playerCommand) ?: return false
+
+        engine.dispatch(command)
+        return true
+    }
 }

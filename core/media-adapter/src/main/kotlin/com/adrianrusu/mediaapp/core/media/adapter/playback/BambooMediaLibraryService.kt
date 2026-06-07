@@ -33,7 +33,7 @@ class BambooMediaLibraryService : MediaLibraryService() {
         session = MediaLibrarySession.Builder(
             this,
             exoPlayer,
-            EmptyMediaLibrarySessionCallback
+            BambooMediaLibrarySessionCallback(playbackEngineBridge)
         ).build()
     }
 

@@ -33,6 +33,33 @@ class Media3PlaybackEngineBridgeTest {
             engine.commandTypes
         )
     }
+
+    @Test
+    fun playerSkipCommandsDispatchThroughEngineBoundary() {
+        val engine = RecordingRustEngine()
+        val bridge = Media3PlaybackEngineBridge(engine)
+
+        bridge.dispatchPlayerCommand(Player.COMMAND_SEEK_TO_PREVIOUS)
+        bridge.dispatchPlayerCommand(Player.COMMAND_SEEK_TO_NEXT)
+
+        assertEquals(
+            listOf(
+                EngineCommand.TYPE_SKIP_PREVIOUS,
+                EngineCommand.TYPE_SKIP_NEXT
+            ),
+            engine.commandTypes
+        )
+    }
+
+    @Test
+    fun unrelatedPlayerCommandIsIgnoredByEngineBoundary() {
+        val engine = RecordingRustEngine()
+        val bridge = Media3PlaybackEngineBridge(engine)
+
+        bridge.dispatchPlayerCommand(Player.COMMAND_SEEK_FORWARD)
+
+        assertEquals(emptyList<String>(), engine.commandTypes)
+    }
 }
 
 private class RecordingRustEngine : RustEngine {
