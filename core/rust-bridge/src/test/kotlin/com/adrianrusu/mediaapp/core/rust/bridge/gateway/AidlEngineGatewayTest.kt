@@ -43,7 +43,7 @@ class AidlEngineGatewayTest {
     }
 
     @Test
-    fun dispatchReturnsUnavailableEventWhenDisconnected() {
+    fun dispatchQueuesCommandWhileDisconnected() {
         val gateway = AidlEngineGateway(
             connection = FakeEngineServiceConnection(service = null),
             clock = { 25L }
@@ -57,6 +57,60 @@ class AidlEngineGatewayTest {
         )
 
         assertEquals(EngineSnapshot.idle(nowMillis = 25L), result.snapshot)
+        assertEquals(EngineEvent.TYPE_COMMAND_QUEUED, result.event.type)
+        assertEquals(EngineCommand.TYPE_PLAY, result.event.message)
+    }
+
+    @Test
+    fun queuedCommandsReplayWhenServiceConnects() {
+        val connection = FakeEngineServiceConnection(service = null)
+        val gateway = AidlEngineGateway(
+            connection = connection,
+            clock = { 25L }
+        )
+        val service = RecordingEngineService(
+            initialSnapshot = EngineSnapshot.idle(nowMillis = 100L)
+        )
+
+        gateway.dispatch(
+            EngineCommand(
+                type = EngineCommand.TYPE_PLAY,
+                payload = null
+            )
+        )
+        gateway.dispatch(
+            EngineCommand(
+                type = EngineCommand.TYPE_PAUSE,
+                payload = null
+            )
+        )
+        connection.connectService(service)
+
+        assertEquals(
+            listOf(
+                EngineCommand.TYPE_PLAY,
+                EngineCommand.TYPE_PAUSE
+            ),
+            service.commandTypes
+        )
+        assertEquals(EngineSnapshot.PLAYBACK_PAUSED, gateway.snapshot().playbackState)
+    }
+
+    @Test
+    fun dispatchReturnsUnavailableEventAfterGatewayIsClosed() {
+        val gateway = AidlEngineGateway(
+            connection = FakeEngineServiceConnection(service = null),
+            clock = { 25L }
+        )
+
+        gateway.close()
+        val result = gateway.dispatch(
+            EngineCommand(
+                type = EngineCommand.TYPE_PLAY,
+                payload = null
+            )
+        )
+
         assertEquals(EngineEvent.TYPE_GATEWAY_UNAVAILABLE, result.event.type)
         assertEquals(EngineCommand.TYPE_PLAY, result.event.message)
     }
@@ -130,6 +184,11 @@ private class FakeEngineServiceConnection(override var service: EngineService?) 
 
     fun pushSnapshot(snapshot: EngineSnapshot) {
         listener?.onSnapshotChanged(snapshot)
+    }
+
+    fun connectService(service: EngineService) {
+        this.service = service
+        pushSnapshot(service.snapshot())
     }
 }
 

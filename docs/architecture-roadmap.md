@@ -98,6 +98,9 @@ Bamboo Media3 surfaces stay on the same gateway boundary.
 Repositories subscribe to gateway snapshots so engine changes from system media
 controls, Media3, or future service-side work can update UI state without
 waiting for a local screen intent.
+Because service binding is asynchronous, the AIDL gateway queues early commands
+and replays them once the engine service connects. This keeps startup bootstrap
+and first media commands from being lost during process creation.
 
 Example service shape:
 

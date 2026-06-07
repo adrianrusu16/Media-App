@@ -14,11 +14,15 @@ class AidlEngineGateway(
 ) : EngineGateway,
     AutoCloseable {
     private var latestSnapshot: EngineSnapshot? = null
+    private var isClosed = false
+    private var isDrainingPendingCommands = false
     private val listeners = mutableSetOf<(EngineSnapshot) -> Unit>()
+    private val pendingCommands = ArrayDeque<EngineCommand>()
 
     private val listener = EngineServiceListener { snapshot ->
         latestSnapshot = snapshot
         notifySnapshotChanged(snapshot)
+        drainPendingCommands()
     }
 
     init {
@@ -39,17 +43,24 @@ class AidlEngineGateway(
     }
 
     override fun dispatch(command: EngineCommand): EngineDispatchResult {
-        val service = connection.service ?: return unavailableResult(command)
+        val service = connection.service
 
-        service.dispatch(command)
+        return when {
+            isClosed -> unavailableResult(command)
 
-        return EngineDispatchResult(
-            snapshot = snapshot(),
-            event = EngineEvent(
-                type = EngineEvent.TYPE_COMMAND_APPLIED,
-                message = command.type
-            )
-        )
+            service == null -> queuedResult(command)
+
+            else -> {
+                service.dispatch(command)
+                EngineDispatchResult(
+                    snapshot = snapshot(),
+                    event = EngineEvent(
+                        type = EngineEvent.TYPE_COMMAND_APPLIED,
+                        message = command.type
+                    )
+                )
+            }
+        }
     }
 
     override fun observeSnapshots(listener: (EngineSnapshot) -> Unit): AutoCloseable {
@@ -62,14 +73,51 @@ class AidlEngineGateway(
     }
 
     override fun close() {
+        isClosed = true
+        pendingCommands.clear()
         listeners.clear()
         connection.close()
+    }
+
+    private fun drainPendingCommands() {
+        if (isDrainingPendingCommands) {
+            return
+        }
+
+        val service = connection.service ?: return
+        isDrainingPendingCommands = true
+        try {
+            while (pendingCommands.isNotEmpty()) {
+                val command = pendingCommands.removeFirst()
+                service.dispatch(command)
+                val serviceSnapshot = service.snapshot()
+                latestSnapshot = serviceSnapshot
+                notifySnapshotChanged(serviceSnapshot)
+            }
+        } finally {
+            isDrainingPendingCommands = false
+        }
     }
 
     private fun notifySnapshotChanged(snapshot: EngineSnapshot) {
         listeners.toList().forEach { listener ->
             listener(snapshot)
         }
+    }
+
+    private fun queuedResult(command: EngineCommand): EngineDispatchResult {
+        if (pendingCommands.size == MAX_PENDING_COMMANDS) {
+            pendingCommands.removeFirst()
+        }
+        pendingCommands += command
+
+        return EngineDispatchResult(
+            snapshot = snapshot(),
+            event = EngineEvent(
+                type = EngineEvent.TYPE_COMMAND_QUEUED,
+                message = command.type
+            )
+        )
     }
 
     private fun unavailableResult(command: EngineCommand): EngineDispatchResult = EngineDispatchResult(
@@ -79,4 +127,8 @@ class AidlEngineGateway(
             message = command.type
         )
     )
+
+    private companion object {
+        const val MAX_PENDING_COMMANDS = 32
+    }
 }
