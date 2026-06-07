@@ -3,7 +3,7 @@ package com.adrianrusu.mediaapp.feature.nowplaying.data
 import com.adrianrusu.mediaapp.core.automotive.ux.AutomotiveUxRestrictionObserver
 import com.adrianrusu.mediaapp.core.automotive.ux.AutomotiveUxRestrictions
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
-import com.adrianrusu.mediaapp.core.rust.bridge.engine.RustEngine
+import com.adrianrusu.mediaapp.core.rust.bridge.gateway.EngineGateway
 import com.adrianrusu.mediaapp.feature.nowplaying.domain.NowPlayingIntent
 import com.adrianrusu.mediaapp.feature.nowplaying.domain.NowPlayingReducer
 import com.adrianrusu.mediaapp.feature.nowplaying.domain.NowPlayingRepository
@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 internal class InMemoryNowPlayingRepository(
-    private val engine: RustEngine,
+    private val engine: EngineGateway,
     private val uxRestrictionObserver: AutomotiveUxRestrictionObserver
 ) : NowPlayingRepository {
     private val mutableState = MutableStateFlow(NowPlayingState())

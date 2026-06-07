@@ -90,6 +90,12 @@ getter API. Kotlin components dispatch events and observe snapshots. Rust
 validates commands, updates canonical state, and returns platform work as typed
 commands.
 
+Android features depend on `EngineGateway`, the app-facing port for engine
+commands and snapshots. The current implementation uses `InProcessEngineGateway`
+over the fake `RustEngine`; the future AIDL implementation should replace only
+that gateway binding, leaving repositories, use cases, UI, and Bamboo Media3
+surfaces on the same boundary.
+
 Example service shape:
 
 ```aidl
@@ -123,8 +129,9 @@ controls observe AAOS UX restrictions and become parked-only when required.
 Playback-facing UI state is mapped from engine snapshots so PandaEngine can
 replace the fake implementation without changing Compose screens.
 Now Playing is the first playback-owned feature MVI surface. It observes the
-PandaEngine snapshot through the `RustEngine` interface, dispatches playback intents through the engine boundary,
-and mirrors AAOS UX restrictions without taking ownership of playback state.
+PandaEngine snapshot through the `EngineGateway` interface, dispatches playback
+intents through the engine boundary, and mirrors AAOS UX restrictions without
+taking ownership of playback state.
 
 ## Playback Ownership
 

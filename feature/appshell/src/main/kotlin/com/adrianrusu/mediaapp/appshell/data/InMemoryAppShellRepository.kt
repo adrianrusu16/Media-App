@@ -9,7 +9,7 @@ import com.adrianrusu.mediaapp.core.automotive.ux.AutomotiveUxRestrictionObserve
 import com.adrianrusu.mediaapp.core.automotive.ux.AutomotiveUxRestrictions
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
-import com.adrianrusu.mediaapp.core.rust.bridge.engine.RustEngine
+import com.adrianrusu.mediaapp.core.rust.bridge.gateway.EngineGateway
 import com.adrianrusu.mediaapp.core.ui.miniplayer.MiniPlayerState
 import com.adrianrusu.mediaapp.core.ui.playback.BambooPlaybackText
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,7 +19,7 @@ import kotlinx.coroutines.flow.update
 
 internal class InMemoryAppShellRepository(
     private val uxRestrictionObserver: AutomotiveUxRestrictionObserver,
-    private val engine: RustEngine
+    private val engine: EngineGateway
 ) : AppShellRepository {
     private val mutableState = MutableStateFlow(AppShellState())
 

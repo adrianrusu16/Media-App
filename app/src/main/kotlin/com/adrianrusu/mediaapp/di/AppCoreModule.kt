@@ -2,6 +2,8 @@ package com.adrianrusu.mediaapp.di
 
 import com.adrianrusu.mediaapp.core.rust.bridge.engine.PandaEngineFactory
 import com.adrianrusu.mediaapp.core.rust.bridge.engine.RustEngine
+import com.adrianrusu.mediaapp.core.rust.bridge.gateway.EngineGateway
+import com.adrianrusu.mediaapp.core.rust.bridge.gateway.InProcessEngineGateway
 import com.adrianrusu.mediaapp.core.telemetry.TelemetryLogger
 import com.adrianrusu.mediaapp.core.telemetry.TelemetrySink
 import com.adrianrusu.mediaapp.core.telemetry.sinks.AndroidLogTelemetrySink
@@ -17,6 +19,10 @@ object AppCoreModule {
     @Provides
     @Singleton
     fun provideRustEngine(): RustEngine = PandaEngineFactory.createFake()
+
+    @Provides
+    @Singleton
+    fun provideEngineGateway(engine: RustEngine): EngineGateway = InProcessEngineGateway(engine = engine)
 
     @Provides
     @Singleton

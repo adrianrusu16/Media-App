@@ -7,7 +7,7 @@ import com.adrianrusu.mediaapp.appshell.domain.DispatchAppShellIntentUseCase
 import com.adrianrusu.mediaapp.appshell.domain.ObserveAppShellStateUseCase
 import com.adrianrusu.mediaapp.core.automotive.ux.AutomotiveUxRestrictionObserver
 import com.adrianrusu.mediaapp.core.automotive.ux.PlatformAutomotiveUxRestrictionObserver
-import com.adrianrusu.mediaapp.core.rust.bridge.engine.RustEngine
+import com.adrianrusu.mediaapp.core.rust.bridge.gateway.EngineGateway
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -27,7 +27,7 @@ object AppShellModule {
     @ViewModelScoped
     fun provideAppShellRepository(
         uxRestrictionObserver: AutomotiveUxRestrictionObserver,
-        engine: RustEngine
+        engine: EngineGateway
     ): AppShellRepository = InMemoryAppShellRepository(
         uxRestrictionObserver = uxRestrictionObserver,
         engine = engine

@@ -2,7 +2,7 @@ package com.adrianrusu.mediaapp.feature.nowplaying.di
 
 import android.content.Context
 import com.adrianrusu.mediaapp.core.automotive.ux.PlatformAutomotiveUxRestrictionObserver
-import com.adrianrusu.mediaapp.core.rust.bridge.engine.RustEngine
+import com.adrianrusu.mediaapp.core.rust.bridge.gateway.EngineGateway
 import com.adrianrusu.mediaapp.feature.nowplaying.data.InMemoryNowPlayingRepository
 import com.adrianrusu.mediaapp.feature.nowplaying.domain.DispatchNowPlayingIntentUseCase
 import com.adrianrusu.mediaapp.feature.nowplaying.domain.NowPlayingRepository
@@ -19,7 +19,7 @@ import dagger.hilt.android.scopes.ViewModelScoped
 object NowPlayingModule {
     @Provides
     @ViewModelScoped
-    fun provideNowPlayingRepository(engine: RustEngine, @ApplicationContext context: Context): NowPlayingRepository =
+    fun provideNowPlayingRepository(engine: EngineGateway, @ApplicationContext context: Context): NowPlayingRepository =
         InMemoryNowPlayingRepository(
             engine = engine,
             uxRestrictionObserver = PlatformAutomotiveUxRestrictionObserver(context)

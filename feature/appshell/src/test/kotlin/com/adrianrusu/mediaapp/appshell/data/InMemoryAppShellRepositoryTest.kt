@@ -8,7 +8,8 @@ import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.mediaapp.core.rust.bridge.engine.EngineDispatchResult
 import com.adrianrusu.mediaapp.core.rust.bridge.engine.PandaEngineFactory
-import com.adrianrusu.mediaapp.core.rust.bridge.engine.RustEngine
+import com.adrianrusu.mediaapp.core.rust.bridge.gateway.EngineGateway
+import com.adrianrusu.mediaapp.core.rust.bridge.gateway.InProcessEngineGateway
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -19,7 +20,7 @@ class InMemoryAppShellRepositoryTest {
     fun playbackIntentDispatchesThroughEngineSnapshot() {
         val repository = InMemoryAppShellRepository(
             uxRestrictionObserver = FakeAutomotiveUxRestrictionObserver(),
-            engine = PandaEngineFactory.createFake()
+            engine = InProcessEngineGateway(PandaEngineFactory.createFake())
         )
 
         repository.start()
@@ -37,7 +38,7 @@ class InMemoryAppShellRepositoryTest {
 
     @Test
     fun skipIntentsDispatchThroughEngineBoundary() {
-        val engine = RecordingRustEngine()
+        val engine = RecordingEngineGateway()
         val repository = InMemoryAppShellRepository(
             uxRestrictionObserver = FakeAutomotiveUxRestrictionObserver(),
             engine = engine
@@ -71,7 +72,7 @@ class InMemoryAppShellRepositoryTest {
         )
         val repository = InMemoryAppShellRepository(
             uxRestrictionObserver = observer,
-            engine = PandaEngineFactory.createFake()
+            engine = InProcessEngineGateway(PandaEngineFactory.createFake())
         )
 
         repository.start()
@@ -96,7 +97,7 @@ private data class FakeAutomotiveUxRestrictionObserver(
     override fun close() = Unit
 }
 
-private class RecordingRustEngine : RustEngine {
+private class RecordingEngineGateway : EngineGateway {
     val commandTypes = mutableListOf<String>()
     private var currentSnapshot = EngineSnapshot.idle(nowMillis = 100)
 

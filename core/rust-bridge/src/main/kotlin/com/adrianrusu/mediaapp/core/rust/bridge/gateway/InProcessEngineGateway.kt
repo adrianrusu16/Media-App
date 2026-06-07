@@ -1,0 +1,15 @@
+package com.adrianrusu.mediaapp.core.rust.bridge.gateway
+
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
+import com.adrianrusu.mediaapp.core.rust.bridge.engine.EngineDispatchResult
+import com.adrianrusu.mediaapp.core.rust.bridge.engine.RustEngine
+
+/**
+ * Gateway implementation used while the app and fake engine live in-process.
+ */
+class InProcessEngineGateway(private val engine: RustEngine) : EngineGateway {
+    override fun snapshot(): EngineSnapshot = engine.snapshot()
+
+    override fun dispatch(command: EngineCommand): EngineDispatchResult = engine.dispatch(command)
+}

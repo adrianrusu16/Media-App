@@ -5,14 +5,14 @@ import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.mediaapp.core.rust.bridge.engine.EngineDispatchResult
-import com.adrianrusu.mediaapp.core.rust.bridge.engine.RustEngine
+import com.adrianrusu.mediaapp.core.rust.bridge.gateway.EngineGateway
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class Media3PlaybackEngineBridgeTest {
     @Test
     fun bootstrapDispatchesBootstrapCommand() {
-        val engine = RecordingRustEngine()
+        val engine = RecordingEngineGateway()
         val bridge = Media3PlaybackEngineBridge(engine)
 
         bridge.bootstrap()
@@ -22,7 +22,7 @@ class Media3PlaybackEngineBridgeTest {
 
     @Test
     fun playWhenReadyChangeDispatchesPlaybackCommands() {
-        val engine = RecordingRustEngine()
+        val engine = RecordingEngineGateway()
         val bridge = Media3PlaybackEngineBridge(engine)
 
         bridge.onPlayWhenReadyChanged(true, Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST)
@@ -36,7 +36,7 @@ class Media3PlaybackEngineBridgeTest {
 
     @Test
     fun playerSkipCommandsDispatchThroughEngineBoundary() {
-        val engine = RecordingRustEngine()
+        val engine = RecordingEngineGateway()
         val bridge = Media3PlaybackEngineBridge(engine)
 
         bridge.dispatchPlayerCommand(Player.COMMAND_SEEK_TO_PREVIOUS)
@@ -53,7 +53,7 @@ class Media3PlaybackEngineBridgeTest {
 
     @Test
     fun unrelatedPlayerCommandIsIgnoredByEngineBoundary() {
-        val engine = RecordingRustEngine()
+        val engine = RecordingEngineGateway()
         val bridge = Media3PlaybackEngineBridge(engine)
 
         bridge.dispatchPlayerCommand(Player.COMMAND_SEEK_FORWARD)
@@ -62,7 +62,7 @@ class Media3PlaybackEngineBridgeTest {
     }
 }
 
-private class RecordingRustEngine : RustEngine {
+private class RecordingEngineGateway : EngineGateway {
     private val commands = mutableListOf<EngineCommand>()
 
     val commandTypes: List<String>

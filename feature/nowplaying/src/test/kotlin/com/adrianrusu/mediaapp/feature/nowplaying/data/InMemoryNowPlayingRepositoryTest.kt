@@ -6,7 +6,7 @@ import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.mediaapp.core.rust.bridge.engine.EngineDispatchResult
-import com.adrianrusu.mediaapp.core.rust.bridge.engine.RustEngine
+import com.adrianrusu.mediaapp.core.rust.bridge.gateway.EngineGateway
 import com.adrianrusu.mediaapp.feature.nowplaying.domain.NowPlayingIntent
 import com.adrianrusu.mediaapp.feature.nowplaying.domain.NowPlayingPlaybackState
 import org.junit.Assert.assertEquals
@@ -16,7 +16,7 @@ class InMemoryNowPlayingRepositoryTest {
     @Test
     fun startProjectsCurrentEngineSnapshotAndRestrictionState() {
         val repository = InMemoryNowPlayingRepository(
-            engine = RecordingRustEngine(
+            engine = RecordingEngineGateway(
                 initialSnapshot = EngineSnapshot(
                     playbackState = EngineSnapshot.PLAYBACK_PAUSED,
                     mediaId = "track-1",
@@ -43,7 +43,7 @@ class InMemoryNowPlayingRepositoryTest {
 
     @Test
     fun togglePlaybackDispatchesPlayThenPauseThroughEngine() {
-        val engine = RecordingRustEngine(initialSnapshot = EngineSnapshot.idle(nowMillis = 1L))
+        val engine = RecordingEngineGateway(initialSnapshot = EngineSnapshot.idle(nowMillis = 1L))
         val repository = InMemoryNowPlayingRepository(
             engine = engine,
             uxRestrictionObserver = FakeUxRestrictionObserver(
@@ -76,7 +76,7 @@ private class FakeUxRestrictionObserver(private val restrictions: AutomotiveUxRe
     override fun close() = Unit
 }
 
-private class RecordingRustEngine(initialSnapshot: EngineSnapshot) : RustEngine {
+private class RecordingEngineGateway(initialSnapshot: EngineSnapshot) : EngineGateway {
     private var currentSnapshot = initialSnapshot
 
     val commands = mutableListOf<EngineCommand>()

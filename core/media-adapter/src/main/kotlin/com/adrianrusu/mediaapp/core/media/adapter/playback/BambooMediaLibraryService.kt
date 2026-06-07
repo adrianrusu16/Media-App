@@ -3,7 +3,7 @@ package com.adrianrusu.mediaapp.core.media.adapter.playback
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
-import com.adrianrusu.mediaapp.core.rust.bridge.engine.RustEngine
+import com.adrianrusu.mediaapp.core.rust.bridge.gateway.EngineGateway
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -18,7 +18,7 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class BambooMediaLibraryService : MediaLibraryService() {
     @Inject
-    lateinit var engine: RustEngine
+    lateinit var engine: EngineGateway
 
     private var player: ExoPlayer? = null
     private var session: MediaLibrarySession? = null
