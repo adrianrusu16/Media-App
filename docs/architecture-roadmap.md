@@ -91,11 +91,10 @@ validates commands, updates canonical state, and returns platform work as typed
 commands.
 
 Android features depend on `EngineGateway`, the app-facing port for engine
-commands and snapshots. The current app graph uses `InProcessEngineGateway`
-over the fake `RustEngine`, while `AidlEngineGateway` and
-`AndroidEngineServiceConnection` prepare the real bound-service path. Flipping
-from in-process to AIDL should replace only the gateway binding, leaving
-repositories, use cases, UI, and Bamboo Media3 surfaces on the same boundary.
+commands and snapshots. The app graph now binds `AidlEngineGateway` through
+`AndroidEngineServiceConnection`, while `InProcessEngineGateway` remains useful
+for fast tests and local fake-engine scenarios. Repositories, use cases, UI, and
+Bamboo Media3 surfaces stay on the same gateway boundary.
 Repositories subscribe to gateway snapshots so engine changes from system media
 controls, Media3, or future service-side work can update UI state without
 waiting for a local screen intent.

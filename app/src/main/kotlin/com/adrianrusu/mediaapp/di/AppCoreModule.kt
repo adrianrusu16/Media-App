@@ -1,15 +1,17 @@
 package com.adrianrusu.mediaapp.di
 
-import com.adrianrusu.mediaapp.core.rust.bridge.engine.PandaEngineFactory
-import com.adrianrusu.mediaapp.core.rust.bridge.engine.RustEngine
+import android.content.Context
+import com.adrianrusu.mediaapp.core.rust.bridge.gateway.AidlEngineGateway
+import com.adrianrusu.mediaapp.core.rust.bridge.gateway.AndroidEngineServiceConnection
 import com.adrianrusu.mediaapp.core.rust.bridge.gateway.EngineGateway
-import com.adrianrusu.mediaapp.core.rust.bridge.gateway.InProcessEngineGateway
+import com.adrianrusu.mediaapp.core.rust.bridge.gateway.EngineServiceConnection
 import com.adrianrusu.mediaapp.core.telemetry.TelemetryLogger
 import com.adrianrusu.mediaapp.core.telemetry.TelemetrySink
 import com.adrianrusu.mediaapp.core.telemetry.sinks.AndroidLogTelemetrySink
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
@@ -18,11 +20,13 @@ import javax.inject.Singleton
 object AppCoreModule {
     @Provides
     @Singleton
-    fun provideRustEngine(): RustEngine = PandaEngineFactory.createFake()
+    fun provideEngineServiceConnection(@ApplicationContext context: Context): EngineServiceConnection =
+        AndroidEngineServiceConnection(context = context)
 
     @Provides
     @Singleton
-    fun provideEngineGateway(engine: RustEngine): EngineGateway = InProcessEngineGateway(engine = engine)
+    fun provideEngineGateway(connection: EngineServiceConnection): EngineGateway =
+        AidlEngineGateway(connection = connection)
 
     @Provides
     @Singleton
