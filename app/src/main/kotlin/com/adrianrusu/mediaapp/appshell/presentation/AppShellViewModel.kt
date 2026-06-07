@@ -1,30 +1,30 @@
 package com.adrianrusu.mediaapp.appshell.presentation
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
-import com.adrianrusu.mediaapp.appshell.data.InMemoryAppShellRepository
+import androidx.lifecycle.ViewModel
 import com.adrianrusu.mediaapp.appshell.domain.AppShellIntent
 import com.adrianrusu.mediaapp.appshell.domain.AppShellRepository
 import com.adrianrusu.mediaapp.appshell.domain.DispatchAppShellIntentUseCase
 import com.adrianrusu.mediaapp.appshell.domain.ObserveAppShellStateUseCase
-import com.adrianrusu.mediaapp.core.automotive.ux.PlatformAutomotiveUxRestrictionObserver
-import com.adrianrusu.mediaapp.core.rust.bridge.engine.FakeRustEngineFactory
+import com.adrianrusu.mediaapp.core.telemetry.TelemetryLogger
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 
-class AppShellViewModel(
-    application: Application,
-) : AndroidViewModel(application) {
-    private val repository: AppShellRepository =
-        InMemoryAppShellRepository(
-            uxRestrictionObserver = PlatformAutomotiveUxRestrictionObserver(application),
-            engine = FakeRustEngineFactory.create(),
-        )
-    private val observeState = ObserveAppShellStateUseCase(repository)
-    private val dispatchIntent = DispatchAppShellIntentUseCase(repository)
+@HiltViewModel
+class AppShellViewModel @Inject constructor(
+    private val repository: AppShellRepository,
+    observeState: ObserveAppShellStateUseCase,
+    private val dispatchIntent: DispatchAppShellIntentUseCase,
+    private val telemetryLogger: TelemetryLogger,
+) : ViewModel() {
 
     val state = observeState()
 
     init {
         repository.start()
+        telemetryLogger.info(
+            name = "app_shell.started",
+            attributes = mapOf("screen" to state.value.selectedDestination.label),
+        )
     }
 
     fun onIntent(intent: AppShellIntent) {

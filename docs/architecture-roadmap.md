@@ -98,6 +98,8 @@ Android UI should follow an MVI shape: Compose renders immutable state, sends
 typed intents, and does not call platform, network, database, or Rust APIs
 directly. Repositories own state sources, while use cases define the app-facing
 operations that ViewModels call.
+Hilt owns Android-side dependency graphs, with app-wide engine and telemetry
+objects scoped separately from view-model-owned UI state repositories.
 
 The first app shell keeps this pattern local to `:app` while feature modules are
 still empty. As the implementation grows, feature repositories and use cases can
