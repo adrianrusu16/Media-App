@@ -132,6 +132,8 @@ AAOS media controls follow the same Rust-owned state path as in-app controls.
 - Store encryption material through Android Keystore and expose only a narrow
   platform key provider to Rust.
 - Redact tokens, user identifiers, request bodies, and native errors from logs.
+- Route Android logs and diagnostics through the telemetry adapter so redaction
+  is applied before events reach sinks.
 - Use typed errors across AIDL and never expose raw Rust panics to callers.
 - Keep the AIDL service non-exported unless an OEM/system integration requires a
   signature-protected exported service.
