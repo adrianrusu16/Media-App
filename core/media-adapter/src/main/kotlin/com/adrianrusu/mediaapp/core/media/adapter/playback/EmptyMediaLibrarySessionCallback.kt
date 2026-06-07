@@ -8,5 +8,4 @@ import androidx.media3.session.MediaLibraryService.MediaLibrarySession
  * Browse/search results will be backed by Rust-owned catalog state in a later
  * milestone, once Supabase/Jamendo and the local data layer are introduced.
  */
-internal object EmptyMediaLibrarySessionCallback : MediaLibrarySession.Callback {
-}
+internal object EmptyMediaLibrarySessionCallback : MediaLibrarySession.Callback

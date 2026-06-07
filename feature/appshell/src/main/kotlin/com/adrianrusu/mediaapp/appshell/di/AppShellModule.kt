@@ -11,42 +11,35 @@ import com.adrianrusu.mediaapp.core.rust.bridge.engine.RustEngine
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.components.ViewModelComponent
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.android.scopes.ViewModelScoped
-import dagger.hilt.android.components.ViewModelComponent
 
 @Module
 @InstallIn(ViewModelComponent::class)
 object AppShellModule {
     @Provides
     @ViewModelScoped
-    fun provideAutomotiveUxRestrictionObserver(
-        @ApplicationContext context: Context,
-    ): AutomotiveUxRestrictionObserver =
+    fun provideAutomotiveUxRestrictionObserver(@ApplicationContext context: Context): AutomotiveUxRestrictionObserver =
         PlatformAutomotiveUxRestrictionObserver(context)
 
     @Provides
     @ViewModelScoped
     fun provideAppShellRepository(
         uxRestrictionObserver: AutomotiveUxRestrictionObserver,
-        engine: RustEngine,
-    ): AppShellRepository =
-        InMemoryAppShellRepository(
-            uxRestrictionObserver = uxRestrictionObserver,
-            engine = engine,
-        )
+        engine: RustEngine
+    ): AppShellRepository = InMemoryAppShellRepository(
+        uxRestrictionObserver = uxRestrictionObserver,
+        engine = engine
+    )
 
     @Provides
     @ViewModelScoped
-    fun provideObserveAppShellStateUseCase(
-        repository: AppShellRepository,
-    ): ObserveAppShellStateUseCase =
+    fun provideObserveAppShellStateUseCase(repository: AppShellRepository): ObserveAppShellStateUseCase =
         ObserveAppShellStateUseCase(repository)
 
     @Provides
     @ViewModelScoped
-    fun provideDispatchAppShellIntentUseCase(
-        repository: AppShellRepository,
-    ): DispatchAppShellIntentUseCase =
+    fun provideDispatchAppShellIntentUseCase(repository: AppShellRepository): DispatchAppShellIntentUseCase =
         DispatchAppShellIntentUseCase(repository)
 }

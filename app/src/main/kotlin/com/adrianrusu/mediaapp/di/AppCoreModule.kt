@@ -16,18 +16,13 @@ import javax.inject.Singleton
 object AppCoreModule {
     @Provides
     @Singleton
-    fun provideRustEngine(): RustEngine =
-        FakeRustEngineFactory.create()
+    fun provideRustEngine(): RustEngine = FakeRustEngineFactory.create()
 
     @Provides
     @Singleton
-    fun provideTelemetrySink(): TelemetrySink =
-        AndroidLogTelemetrySink()
+    fun provideTelemetrySink(): TelemetrySink = AndroidLogTelemetrySink()
 
     @Provides
     @Singleton
-    fun provideTelemetryLogger(
-        sink: TelemetrySink,
-    ): TelemetryLogger =
-        TelemetryLogger(sink = sink)
+    fun provideTelemetryLogger(sink: TelemetrySink): TelemetryLogger = TelemetryLogger(sink = sink)
 }

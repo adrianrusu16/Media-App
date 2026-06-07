@@ -18,7 +18,7 @@ import kotlinx.coroutines.flow.update
 
 internal class InMemoryAppShellRepository(
     private val uxRestrictionObserver: AutomotiveUxRestrictionObserver,
-    private val engine: RustEngine,
+    private val engine: RustEngine
 ) : AppShellRepository {
     private val mutableState = MutableStateFlow(AppShellState())
 
@@ -28,8 +28,8 @@ internal class InMemoryAppShellRepository(
         val bootstrapSnapshot = engine.dispatch(
             EngineCommand(
                 type = EngineCommand.TYPE_BOOTSTRAP,
-                payload = null,
-            ),
+                payload = null
+            )
         ).snapshot
 
         mutableState.update { current ->
@@ -41,8 +41,8 @@ internal class InMemoryAppShellRepository(
                 current.copy(
                     restriction = restrictions.toUiState(),
                     miniPlayer = current.miniPlayer.copy(
-                        isRestricted = restrictions.isRestricted,
-                    ),
+                        isRestricted = restrictions.isRestricted
+                    )
                 )
             }
         }
@@ -51,6 +51,7 @@ internal class InMemoryAppShellRepository(
     override fun dispatch(intent: AppShellIntent) {
         when (intent) {
             AppShellIntent.TogglePlayback -> dispatchPlaybackCommand()
+
             is AppShellIntent.SelectDestination -> {
                 mutableState.update { current ->
                     AppShellReducer.reduce(current, intent)
@@ -71,8 +72,8 @@ internal class InMemoryAppShellRepository(
         val snapshot = engine.dispatch(
             EngineCommand(
                 type = commandType,
-                payload = null,
-            ),
+                payload = null
+            )
         ).snapshot
 
         mutableState.update { current ->
@@ -81,18 +82,13 @@ internal class InMemoryAppShellRepository(
     }
 }
 
-internal fun AppShellState.withEngineSnapshot(
-    snapshot: EngineSnapshot,
-): AppShellState =
-    copy(
-        miniPlayer = snapshot.toMiniPlayerState(
-            isRestricted = miniPlayer.isRestricted,
-        ),
+internal fun AppShellState.withEngineSnapshot(snapshot: EngineSnapshot): AppShellState = copy(
+    miniPlayer = snapshot.toMiniPlayerState(
+        isRestricted = miniPlayer.isRestricted
     )
+)
 
-private fun EngineSnapshot.toMiniPlayerState(
-    isRestricted: Boolean,
-): MiniPlayerState {
+private fun EngineSnapshot.toMiniPlayerState(isRestricted: Boolean): MiniPlayerState {
     val isPlaying = playbackState == EngineSnapshot.PLAYBACK_PLAYING
     val title = title ?: when (playbackState) {
         EngineSnapshot.PLAYBACK_PLAYING -> "Sample station"
@@ -109,7 +105,7 @@ private fun EngineSnapshot.toMiniPlayerState(
         title = title,
         subtitle = subtitle,
         isPlaying = isPlaying,
-        isRestricted = isRestricted,
+        isRestricted = isRestricted
     )
 }
 
@@ -127,6 +123,6 @@ private fun AutomotiveUxRestrictions.toUiState(): RestrictionUiState {
 
     return RestrictionUiState(
         label = label,
-        isRestricted = isRestricted,
+        isRestricted = isRestricted
     )
 }

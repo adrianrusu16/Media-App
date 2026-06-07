@@ -13,7 +13,7 @@ class InMemoryAppShellRepositoryTest {
     fun playbackIntentDispatchesThroughEngineSnapshot() {
         val repository = InMemoryAppShellRepository(
             uxRestrictionObserver = FakeAutomotiveUxRestrictionObserver(),
-            engine = FakeRustEngineFactory.create(),
+            engine = FakeRustEngineFactory.create()
         )
 
         repository.start()
@@ -38,12 +38,12 @@ class InMemoryAppShellRepositoryTest {
                 activeRestrictions = 1,
                 maxContentDepth = 1,
                 maxCumulativeContentItems = 6,
-                maxRestrictedStringLength = 24,
-            ),
+                maxRestrictedStringLength = 24
+            )
         )
         val repository = InMemoryAppShellRepository(
             uxRestrictionObserver = observer,
-            engine = FakeRustEngineFactory.create(),
+            engine = FakeRustEngineFactory.create()
         )
 
         repository.start()
@@ -56,8 +56,8 @@ class InMemoryAppShellRepositoryTest {
 private data class FakeAutomotiveUxRestrictionObserver(
     val restrictions: AutomotiveUxRestrictions =
         AutomotiveUxRestrictions.unrestricted(
-            AutomotiveUxRestrictions.Source.NotAutomotive,
-        ),
+            AutomotiveUxRestrictions.Source.NotAutomotive
+        )
 ) : AutomotiveUxRestrictionObserver {
     override fun current(): AutomotiveUxRestrictions = restrictions
 

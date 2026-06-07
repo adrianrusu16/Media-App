@@ -23,7 +23,7 @@ class MediaAppMediaLibraryService : MediaLibraryService() {
 
         val exoPlayer = ExoPlayer.Builder(this).build()
         val playbackEngineBridge = Media3PlaybackEngineBridge(
-            engine = FakeRustEngineFactory.create(),
+            engine = FakeRustEngineFactory.create()
         )
         playbackEngineBridge.bootstrap()
         exoPlayer.addListener(playbackEngineBridge)
@@ -33,13 +33,11 @@ class MediaAppMediaLibraryService : MediaLibraryService() {
         session = MediaLibrarySession.Builder(
             this,
             exoPlayer,
-            EmptyMediaLibrarySessionCallback,
+            EmptyMediaLibrarySessionCallback
         ).build()
     }
 
-    override fun onGetSession(
-        controllerInfo: MediaSession.ControllerInfo,
-    ): MediaLibrarySession? = session
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? = session
 
     override fun onDestroy() {
         engineBridge?.let { bridge ->

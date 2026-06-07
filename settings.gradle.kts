@@ -49,5 +49,5 @@ include(
     ":feature:settings",
     ":feature:profile",
     ":feature:auth",
-    ":provider:jamendo",
+    ":provider:jamendo"
 )

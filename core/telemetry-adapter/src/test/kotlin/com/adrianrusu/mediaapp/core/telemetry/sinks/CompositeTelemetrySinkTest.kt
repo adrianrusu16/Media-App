@@ -14,7 +14,7 @@ class CompositeTelemetrySinkTest {
         val event = TelemetryEvent(
             name = "app.started",
             severity = TelemetrySeverity.Info,
-            timestampEpochMillis = 1L,
+            timestampEpochMillis = 1L
         )
 
         CompositeTelemetrySink(listOf(first, second)).record(event)

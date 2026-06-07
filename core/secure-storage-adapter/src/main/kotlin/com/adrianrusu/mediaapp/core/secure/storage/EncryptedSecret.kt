@@ -6,11 +6,7 @@ package com.adrianrusu.mediaapp.core.secure.storage
  * The plaintext is never stored here. The Android Keystore key identified by
  * [purpose] is required to decrypt [ciphertext] with [iv].
  */
-class EncryptedSecret(
-    val purpose: SecureSecretPurpose,
-    iv: ByteArray,
-    ciphertext: ByteArray,
-) {
+class EncryptedSecret(val purpose: SecureSecretPurpose, iv: ByteArray, ciphertext: ByteArray) {
     val iv: ByteArray = iv.clone()
     val ciphertext: ByteArray = ciphertext.clone()
 

@@ -14,7 +14,7 @@ class AppShellViewModel @Inject constructor(
     private val repository: AppShellRepository,
     observeState: ObserveAppShellStateUseCase,
     private val dispatchIntent: DispatchAppShellIntentUseCase,
-    private val telemetryLogger: TelemetryLogger,
+    private val telemetryLogger: TelemetryLogger
 ) : ViewModel() {
 
     val state = observeState()
@@ -23,7 +23,7 @@ class AppShellViewModel @Inject constructor(
         repository.start()
         telemetryLogger.info(
             name = "app_shell.started",
-            attributes = mapOf("screen" to state.value.selectedDestination.label),
+            attributes = mapOf("screen" to state.value.selectedDestination.label)
         )
     }
 

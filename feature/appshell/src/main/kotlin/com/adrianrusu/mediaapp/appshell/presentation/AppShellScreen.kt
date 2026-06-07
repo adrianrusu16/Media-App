@@ -31,11 +31,7 @@ import com.adrianrusu.mediaapp.feature.search.SearchRoute
 import com.adrianrusu.mediaapp.feature.settings.SettingsRoute
 
 @Composable
-fun AppShellScreen(
-    state: AppShellState,
-    onIntent: (AppShellIntent) -> Unit,
-    modifier: Modifier = Modifier,
-) {
+fun AppShellScreen(state: AppShellState, onIntent: (AppShellIntent) -> Unit, modifier: Modifier = Modifier) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
         bottomBar = {
@@ -44,7 +40,7 @@ fun AppShellScreen(
                     state = state.miniPlayer,
                     onPlayPauseClick = {
                         onIntent(AppShellIntent.TogglePlayback)
-                    },
+                    }
                 )
                 NavigationBar {
                     state.destinations.forEach { destination ->
@@ -56,45 +52,41 @@ fun AppShellScreen(
                             icon = {},
                             label = {
                                 Text(text = destination.label)
-                            },
+                            }
                         )
                     }
                 }
             }
-        },
+        }
     ) { innerPadding ->
         AppShellContent(
             state = state,
             onIntent = onIntent,
-            contentPadding = innerPadding,
+            contentPadding = innerPadding
         )
     }
 }
 
 @Composable
-private fun AppShellContent(
-    state: AppShellState,
-    onIntent: (AppShellIntent) -> Unit,
-    contentPadding: PaddingValues,
-) {
+private fun AppShellContent(state: AppShellState, onIntent: (AppShellIntent) -> Unit, contentPadding: PaddingValues) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(contentPadding),
         contentPadding = PaddingValues(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
             Header(
                 selectedDestination = state.selectedDestination,
                 restrictionLabel = state.restriction.label,
-                isRestricted = state.restriction.isRestricted,
+                isRestricted = state.restriction.isRestricted
             )
         }
 
         item {
             DestinationContent(
-                destination = state.selectedDestination,
+                destination = state.selectedDestination
             )
         }
 
@@ -105,26 +97,22 @@ private fun AppShellContent(
 }
 
 @Composable
-private fun Header(
-    selectedDestination: AppDestination,
-    restrictionLabel: String,
-    isRestricted: Boolean,
-) {
+private fun Header(selectedDestination: AppDestination, restrictionLabel: String, isRestricted: Boolean) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
                 text = "Media App",
                 style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.SemiBold
             )
             Text(
                 text = selectedDestination.label,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleMedium
             )
         }
 
@@ -134,35 +122,33 @@ private fun Header(
             } else {
                 MaterialTheme.colorScheme.surfaceVariant
             },
-            shape = MaterialTheme.shapes.small,
+            shape = MaterialTheme.shapes.small
         ) {
             Text(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                 text = restrictionLabel,
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelLarge
             )
         }
     }
 }
 
 @Composable
-private fun QuickActions(
-    onIntent: (AppShellIntent) -> Unit,
-) {
+private fun QuickActions(onIntent: (AppShellIntent) -> Unit) {
     Row(
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Button(
             onClick = {
                 onIntent(AppShellIntent.SelectDestination(AppDestination.Library))
-            },
+            }
         ) {
             Text(text = "Library")
         }
         Button(
             onClick = {
                 onIntent(AppShellIntent.SelectDestination(AppDestination.Settings))
-            },
+            }
         ) {
             Text(text = "Settings")
         }
@@ -170,9 +156,7 @@ private fun QuickActions(
 }
 
 @Composable
-private fun DestinationContent(
-    destination: AppDestination,
-) {
+private fun DestinationContent(destination: AppDestination) {
     when (destination) {
         AppDestination.Home -> HomeRoute()
         AppDestination.Library -> LibraryRoute()

@@ -5,7 +5,7 @@ data class TelemetryEvent(
     val severity: TelemetrySeverity,
     val attributes: Map<String, String> = emptyMap(),
     val throwable: Throwable? = null,
-    val timestampEpochMillis: Long,
+    val timestampEpochMillis: Long
 ) {
     init {
         require(name.isNotBlank()) {

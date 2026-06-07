@@ -12,7 +12,7 @@ import javax.inject.Inject
 class SettingsViewModel @Inject constructor(
     private val repository: SettingsRepository,
     observeState: ObserveSettingsStateUseCase,
-    private val dispatchIntent: DispatchSettingsIntentUseCase,
+    private val dispatchIntent: DispatchSettingsIntentUseCase
 ) : ViewModel() {
     val state = observeState()
 

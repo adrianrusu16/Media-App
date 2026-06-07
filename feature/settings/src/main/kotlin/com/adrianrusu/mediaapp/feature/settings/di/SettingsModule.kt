@@ -18,24 +18,18 @@ import dagger.hilt.android.scopes.ViewModelScoped
 object SettingsModule {
     @Provides
     @ViewModelScoped
-    fun provideSettingsRepository(
-        @ApplicationContext context: Context,
-    ): SettingsRepository =
+    fun provideSettingsRepository(@ApplicationContext context: Context): SettingsRepository =
         InMemorySettingsRepository(
-            uxRestrictionObserver = PlatformAutomotiveUxRestrictionObserver(context),
+            uxRestrictionObserver = PlatformAutomotiveUxRestrictionObserver(context)
         )
 
     @Provides
     @ViewModelScoped
-    fun provideObserveSettingsStateUseCase(
-        repository: SettingsRepository,
-    ): ObserveSettingsStateUseCase =
+    fun provideObserveSettingsStateUseCase(repository: SettingsRepository): ObserveSettingsStateUseCase =
         ObserveSettingsStateUseCase(repository)
 
     @Provides
     @ViewModelScoped
-    fun provideDispatchSettingsIntentUseCase(
-        repository: SettingsRepository,
-    ): DispatchSettingsIntentUseCase =
+    fun provideDispatchSettingsIntentUseCase(repository: SettingsRepository): DispatchSettingsIntentUseCase =
         DispatchSettingsIntentUseCase(repository)
 }

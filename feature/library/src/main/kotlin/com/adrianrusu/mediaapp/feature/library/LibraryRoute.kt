@@ -6,20 +6,18 @@ import com.adrianrusu.mediaapp.core.ui.overview.FeatureOverviewItem
 import com.adrianrusu.mediaapp.core.ui.overview.FeatureOverviewScreen
 
 @Composable
-fun LibraryRoute(
-    modifier: Modifier = Modifier,
-) {
+fun LibraryRoute(modifier: Modifier = Modifier) {
     FeatureOverviewScreen(
         modifier = modifier,
         items = listOf(
             FeatureOverviewItem(
                 title = "Saved music",
-                body = "Albums, artists, and playlists stay organized for quick browsing.",
+                body = "Albums, artists, and playlists stay organized for quick browsing."
             ),
             FeatureOverviewItem(
                 title = "Downloaded content",
-                body = "Offline listening will be available for supported content.",
-            ),
-        ),
+                body = "Offline listening will be available for supported content."
+            )
+        )
     )
 }

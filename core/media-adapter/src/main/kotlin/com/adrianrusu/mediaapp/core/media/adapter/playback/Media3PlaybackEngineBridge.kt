@@ -7,24 +7,19 @@ import com.adrianrusu.mediaapp.core.rust.bridge.engine.RustEngine
 /**
  * Projects Media3 playback requests into the Rust-owned engine boundary.
  */
-class Media3PlaybackEngineBridge(
-    private val engine: RustEngine,
-) : Player.Listener {
+class Media3PlaybackEngineBridge(private val engine: RustEngine) : Player.Listener {
     fun bootstrap() {
         engine.dispatch(
             EngineCommand(
                 type = EngineCommand.TYPE_BOOTSTRAP,
-                payload = null,
-            ),
+                payload = null
+            )
         )
     }
 
-    override fun onPlayWhenReadyChanged(
-        playWhenReady: Boolean,
-        reason: Int,
-    ) {
+    override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
         engine.dispatch(
-            PlaybackEngineCommandMapper.fromPlayWhenReady(playWhenReady),
+            PlaybackEngineCommandMapper.fromPlayWhenReady(playWhenReady)
         )
     }
 }

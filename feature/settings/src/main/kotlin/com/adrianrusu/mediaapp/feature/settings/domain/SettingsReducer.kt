@@ -1,10 +1,7 @@
 package com.adrianrusu.mediaapp.feature.settings.domain
 
 internal object SettingsReducer {
-    fun reduce(
-        state: SettingsState,
-        intent: SettingsIntent,
-    ): SettingsState {
+    fun reduce(state: SettingsState, intent: SettingsIntent): SettingsState {
         if (state.restriction.isRestricted && intent != SettingsIntent.AcknowledgePrivacyNotice) {
             return state
         }

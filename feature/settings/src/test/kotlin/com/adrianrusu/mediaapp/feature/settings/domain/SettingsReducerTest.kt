@@ -9,7 +9,7 @@ class SettingsReducerTest {
     fun togglesDiagnosticsWhenControlsAreEnabled() {
         val result = SettingsReducer.reduce(
             state = SettingsState(diagnosticsEnabled = true),
-            intent = SettingsIntent.ToggleDiagnostics,
+            intent = SettingsIntent.ToggleDiagnostics
         )
 
         assertFalse(result.diagnosticsEnabled)
@@ -21,13 +21,13 @@ class SettingsReducerTest {
             personalizationEnabled = false,
             restriction = SettingsRestrictionState(
                 label = "Parked required",
-                isRestricted = true,
-            ),
+                isRestricted = true
+            )
         )
 
         val result = SettingsReducer.reduce(
             state = restricted,
-            intent = SettingsIntent.TogglePersonalization,
+            intent = SettingsIntent.TogglePersonalization
         )
 
         assertFalse(result.personalizationEnabled)
@@ -39,13 +39,13 @@ class SettingsReducerTest {
             privacyNoticeAcknowledged = false,
             restriction = SettingsRestrictionState(
                 label = "Parked required",
-                isRestricted = true,
-            ),
+                isRestricted = true
+            )
         )
 
         val result = SettingsReducer.reduce(
             state = restricted,
-            intent = SettingsIntent.AcknowledgePrivacyNotice,
+            intent = SettingsIntent.AcknowledgePrivacyNotice
         )
 
         assertTrue(result.privacyNoticeAcknowledged)

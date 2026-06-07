@@ -1,12 +1,9 @@
 package com.adrianrusu.mediaapp.core.telemetry
 
-class TelemetryAttributeRedactor(
-    private val sensitiveKeyFragments: Set<String> = DefaultSensitiveKeyFragments,
-) {
-    fun redact(attributes: Map<String, String>): Map<String, String> =
-        attributes.mapValues { (key, value) ->
-            if (key.isSensitiveKey()) RedactedValue else value.redactInlineSecrets()
-        }
+class TelemetryAttributeRedactor(private val sensitiveKeyFragments: Set<String> = DEFAULT_SENSITIVE_KEY_FRAGMENTS) {
+    fun redact(attributes: Map<String, String>): Map<String, String> = attributes.mapValues { (key, value) ->
+        if (key.isSensitiveKey()) REDACTED_VALUE else value.redactInlineSecrets()
+    }
 
     private fun String.isSensitiveKey(): Boolean {
         val normalizedKey = lowercase()
@@ -17,10 +14,10 @@ class TelemetryAttributeRedactor(
     }
 
     private fun String.redactInlineSecrets(): String {
-        val words = split(WhitespaceRegex)
+        val words = split(WHITESPACE_REGEX)
 
         return words.joinToString(separator = " ") { word ->
-            if (word.looksSensitive()) RedactedValue else word
+            if (word.looksSensitive()) REDACTED_VALUE else word
         }
     }
 
@@ -31,13 +28,13 @@ class TelemetryAttributeRedactor(
             normalized.startsWith("token=") ||
             normalized.startsWith("apikey=") ||
             normalized.startsWith("password=") ||
-            JwtLikeRegex.matches(this)
+            JWT_LIKE_REGEX.matches(this)
     }
 
     companion object {
-        const val RedactedValue = "[REDACTED]"
+        const val REDACTED_VALUE = "[REDACTED]"
 
-        private val DefaultSensitiveKeyFragments = setOf(
+        private val DEFAULT_SENSITIVE_KEY_FRAGMENTS = setOf(
             "authorization",
             "token",
             "secret",
@@ -47,11 +44,11 @@ class TelemetryAttributeRedactor(
             "apikey",
             "api_key",
             "user_id",
-            "email",
+            "email"
         )
-        private val WhitespaceRegex = Regex("\\s+")
-        private val JwtLikeRegex = Regex(
-            pattern = "[A-Za-z0-9_-]{16,}\\.[A-Za-z0-9_-]{16,}\\.[A-Za-z0-9_-]{16,}",
+        private val WHITESPACE_REGEX = Regex("\\s+")
+        private val JWT_LIKE_REGEX = Regex(
+            pattern = "[A-Za-z0-9_-]{16,}\\.[A-Za-z0-9_-]{16,}\\.[A-Za-z0-9_-]{16,}"
         )
     }
 }

@@ -21,8 +21,8 @@ class InMemorySettingsRepositoryTest {
                 activeRestrictions = AutomotiveUxRestrictions.NO_RESTRICTIONS,
                 maxContentDepth = 1,
                 maxCumulativeContentItems = 2,
-                maxRestrictedStringLength = 24,
-            ),
+                maxRestrictedStringLength = 24
+            )
         )
 
         assertTrue(repository.state.value.restriction.isRestricted)
@@ -32,7 +32,7 @@ class InMemorySettingsRepositoryTest {
     @Test
     fun dispatchesSettingIntentsWhenUnrestricted() {
         val repository = InMemorySettingsRepository(
-            uxRestrictionObserver = RecordingUxRestrictionObserver(),
+            uxRestrictionObserver = RecordingUxRestrictionObserver()
         )
 
         repository.dispatch(SettingsIntent.TogglePersonalization)

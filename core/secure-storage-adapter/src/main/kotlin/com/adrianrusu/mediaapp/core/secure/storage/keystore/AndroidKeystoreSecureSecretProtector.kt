@@ -6,6 +6,8 @@ import com.adrianrusu.mediaapp.core.secure.storage.EncryptedSecret
 import com.adrianrusu.mediaapp.core.secure.storage.SecureSecretProtector
 import com.adrianrusu.mediaapp.core.secure.storage.SecureSecretPurpose
 import com.adrianrusu.mediaapp.core.secure.storage.SecureStorageException
+import java.io.IOException
+import java.security.GeneralSecurityException
 import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
@@ -13,10 +15,7 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 class AndroidKeystoreSecureSecretProtector : SecureSecretProtector {
-    override fun encrypt(
-        purpose: SecureSecretPurpose,
-        plaintext: ByteArray,
-    ): EncryptedSecret {
+    override fun encrypt(purpose: SecureSecretPurpose, plaintext: ByteArray): EncryptedSecret {
         require(plaintext.isNotEmpty()) { "Plaintext must not be empty." }
 
         return try {
@@ -26,25 +25,28 @@ class AndroidKeystoreSecureSecretProtector : SecureSecretProtector {
             EncryptedSecret(
                 purpose = purpose,
                 iv = cipher.iv.clone(),
-                ciphertext = cipher.doFinal(plaintext),
+                ciphertext = cipher.doFinal(plaintext)
             )
-        } catch (exception: Exception) {
+        } catch (exception: GeneralSecurityException) {
+            throw SecureStorageException("Failed to encrypt secret.", exception)
+        } catch (exception: IOException) {
             throw SecureStorageException("Failed to encrypt secret.", exception)
         }
     }
 
-    override fun decrypt(secret: EncryptedSecret): ByteArray =
-        try {
-            val cipher = Cipher.getInstance(TRANSFORMATION)
-            cipher.init(
-                Cipher.DECRYPT_MODE,
-                getOrCreateSecretKey(secret.purpose),
-                GCMParameterSpec(GCM_TAG_LENGTH_BITS, secret.iv),
-            )
-            cipher.doFinal(secret.ciphertext)
-        } catch (exception: Exception) {
-            throw SecureStorageException("Failed to decrypt secret.", exception)
-        }
+    override fun decrypt(secret: EncryptedSecret): ByteArray = try {
+        val cipher = Cipher.getInstance(TRANSFORMATION)
+        cipher.init(
+            Cipher.DECRYPT_MODE,
+            getOrCreateSecretKey(secret.purpose),
+            GCMParameterSpec(GCM_TAG_LENGTH_BITS, secret.iv)
+        )
+        cipher.doFinal(secret.ciphertext)
+    } catch (exception: GeneralSecurityException) {
+        throw SecureStorageException("Failed to decrypt secret.", exception)
+    } catch (exception: IOException) {
+        throw SecureStorageException("Failed to decrypt secret.", exception)
+    }
 
     private fun getOrCreateSecretKey(purpose: SecureSecretPurpose): SecretKey {
         val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply {
@@ -57,18 +59,18 @@ class AndroidKeystoreSecureSecretProtector : SecureSecretProtector {
 
         val keyGenerator = KeyGenerator.getInstance(
             KeyProperties.KEY_ALGORITHM_AES,
-            ANDROID_KEYSTORE,
+            ANDROID_KEYSTORE
         )
         keyGenerator.init(
             KeyGenParameterSpec.Builder(
                 purpose.keystoreAlias,
-                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
+                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
             )
                 .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
                 .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
                 .setKeySize(KEY_SIZE_BITS)
                 .setRandomizedEncryptionRequired(true)
-                .build(),
+                .build()
         )
         return keyGenerator.generateKey()
     }

@@ -30,7 +30,7 @@ class Media3PlaybackEngineBridgeTest {
 
         assertEquals(
             listOf(EngineCommand.TYPE_PLAY, EngineCommand.TYPE_PAUSE),
-            engine.commandTypes,
+            engine.commandTypes
         )
     }
 }
@@ -41,8 +41,7 @@ private class RecordingRustEngine : RustEngine {
     val commandTypes: List<String>
         get() = commands.map { it.type }
 
-    override fun snapshot(): EngineSnapshot =
-        EngineSnapshot.idle(nowMillis = 0L)
+    override fun snapshot(): EngineSnapshot = EngineSnapshot.idle(nowMillis = 0L)
 
     override fun dispatch(command: EngineCommand): EngineDispatchResult {
         commands += command
@@ -51,8 +50,8 @@ private class RecordingRustEngine : RustEngine {
             snapshot = snapshot(),
             event = EngineEvent(
                 type = EngineEvent.TYPE_COMMAND_APPLIED,
-                message = command.type,
-            ),
+                message = command.type
+            )
         )
     }
 }

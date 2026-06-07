@@ -7,10 +7,7 @@ package com.adrianrusu.mediaapp.core.secure.storage
  * logging plaintext, ciphertext, IVs, aliases, or error payloads.
  */
 interface SecureSecretProtector {
-    fun encrypt(
-        purpose: SecureSecretPurpose,
-        plaintext: ByteArray,
-    ): EncryptedSecret
+    fun encrypt(purpose: SecureSecretPurpose, plaintext: ByteArray): EncryptedSecret
 
     fun decrypt(secret: EncryptedSecret): ByteArray
 }

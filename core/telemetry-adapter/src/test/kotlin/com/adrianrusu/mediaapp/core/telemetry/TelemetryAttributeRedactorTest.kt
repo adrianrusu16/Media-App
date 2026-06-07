@@ -12,12 +12,12 @@ class TelemetryAttributeRedactorTest {
             mapOf(
                 "authorization" to "Bearer real-token",
                 "session_id" to "session-123",
-                "screen" to "home",
-            ),
+                "screen" to "home"
+            )
         )
 
-        assertEquals(TelemetryAttributeRedactor.RedactedValue, redacted["authorization"])
-        assertEquals(TelemetryAttributeRedactor.RedactedValue, redacted["session_id"])
+        assertEquals(TelemetryAttributeRedactor.REDACTED_VALUE, redacted["authorization"])
+        assertEquals(TelemetryAttributeRedactor.REDACTED_VALUE, redacted["session_id"])
         assertEquals("home", redacted["screen"])
     }
 
@@ -25,13 +25,13 @@ class TelemetryAttributeRedactorTest {
     fun jwtLikeValuesAreRedactedInline() {
         val redacted = redactor.redact(
             mapOf(
-                "message" to "failed token abcdefghijklmnop.qrstuvwxyzABCDEF.GHIJKLMNOPQRSTUVWX",
-            ),
+                "message" to "failed token abcdefghijklmnop.qrstuvwxyzABCDEF.GHIJKLMNOPQRSTUVWX"
+            )
         )
 
         assertEquals(
-            "failed token ${TelemetryAttributeRedactor.RedactedValue}",
-            redacted["message"],
+            "failed token ${TelemetryAttributeRedactor.REDACTED_VALUE}",
+            redacted["message"]
         )
     }
 }

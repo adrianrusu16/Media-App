@@ -6,30 +6,28 @@ import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.mediaapp.core.rust.bridge.engine.EngineDispatchResult
 import com.adrianrusu.mediaapp.core.rust.bridge.engine.RustEngine
 
-class NativeRustEngine private constructor(
-    private val nativeHandle: Long,
-    private val clock: () -> Long,
-) : RustEngine, AutoCloseable {
+class NativeRustEngine private constructor(private val nativeHandle: Long, private val clock: () -> Long) :
+    RustEngine,
+    AutoCloseable {
     init {
         check(nativeHandle != 0L) { "Native Rust engine handle must not be zero." }
     }
 
-    override fun snapshot(): EngineSnapshot =
-        nativeSnapshot(nativeHandle).toEngineSnapshot()
+    override fun snapshot(): EngineSnapshot = nativeSnapshot(nativeHandle).toEngineSnapshot()
 
     override fun dispatch(command: EngineCommand): EngineDispatchResult {
         val nativeValues = nativeDispatch(
             handle = nativeHandle,
             commandType = command.toNativeCommandType(),
-            nowEpochMillis = clock(),
+            nowEpochMillis = clock()
         )
 
         return EngineDispatchResult(
             snapshot = nativeValues.toEngineSnapshot(),
             event = EngineEvent(
                 type = EngineEvent.TYPE_COMMAND_APPLIED,
-                message = command.type,
-            ),
+                message = command.type
+            )
         )
     }
 
@@ -39,11 +37,7 @@ class NativeRustEngine private constructor(
 
     private external fun nativeSnapshot(handle: Long): LongArray
 
-    private external fun nativeDispatch(
-        handle: Long,
-        commandType: Int,
-        nowEpochMillis: Long,
-    ): LongArray
+    private external fun nativeDispatch(handle: Long, commandType: Int, nowEpochMillis: Long): LongArray
 
     private external fun nativeDestroy(handle: Long)
 
@@ -59,20 +53,18 @@ class NativeRustEngine private constructor(
             artist = null,
             userId = null,
             restrictionState = restrictionStateFromNative(
-                this[SNAPSHOT_RESTRICTION_INDEX].toInt(),
+                this[SNAPSHOT_RESTRICTION_INDEX].toInt()
             ),
-            updatedAtEpochMillis = this[SNAPSHOT_UPDATED_AT_INDEX],
+            updatedAtEpochMillis = this[SNAPSHOT_UPDATED_AT_INDEX]
         )
     }
 
     companion object {
-        fun create(
-            clock: () -> Long = System::currentTimeMillis,
-        ): NativeRustEngine {
+        fun create(clock: () -> Long = System::currentTimeMillis): NativeRustEngine {
             NativeRustLibrary.load()
             return NativeRustEngine(
                 nativeHandle = nativeCreate(clock()),
-                clock = clock,
+                clock = clock
             )
         }
 
@@ -95,26 +87,23 @@ class NativeRustEngine private constructor(
         private const val SNAPSHOT_RESTRICTION_INDEX = 1
         private const val SNAPSHOT_UPDATED_AT_INDEX = 2
 
-        private fun EngineCommand.toNativeCommandType(): Int =
-            when (type) {
-                EngineCommand.TYPE_BOOTSTRAP -> COMMAND_BOOTSTRAP
-                EngineCommand.TYPE_PLAY -> COMMAND_PLAY
-                EngineCommand.TYPE_PAUSE -> COMMAND_PAUSE
-                else -> COMMAND_UNKNOWN
-            }
+        private fun EngineCommand.toNativeCommandType(): Int = when (type) {
+            EngineCommand.TYPE_BOOTSTRAP -> COMMAND_BOOTSTRAP
+            EngineCommand.TYPE_PLAY -> COMMAND_PLAY
+            EngineCommand.TYPE_PAUSE -> COMMAND_PAUSE
+            else -> COMMAND_UNKNOWN
+        }
 
-        private fun playbackStateFromNative(value: Int): String =
-            when (value) {
-                PLAYBACK_IDLE -> EngineSnapshot.PLAYBACK_IDLE
-                PLAYBACK_PLAYING -> EngineSnapshot.PLAYBACK_PLAYING
-                PLAYBACK_PAUSED -> EngineSnapshot.PLAYBACK_PAUSED
-                else -> EngineSnapshot.PLAYBACK_IDLE
-            }
+        private fun playbackStateFromNative(value: Int): String = when (value) {
+            PLAYBACK_IDLE -> EngineSnapshot.PLAYBACK_IDLE
+            PLAYBACK_PLAYING -> EngineSnapshot.PLAYBACK_PLAYING
+            PLAYBACK_PAUSED -> EngineSnapshot.PLAYBACK_PAUSED
+            else -> EngineSnapshot.PLAYBACK_IDLE
+        }
 
-        private fun restrictionStateFromNative(value: Int): String =
-            when (value) {
-                RESTRICTION_UNKNOWN -> EngineSnapshot.RESTRICTION_UNKNOWN
-                else -> EngineSnapshot.RESTRICTION_UNKNOWN
-            }
+        private fun restrictionStateFromNative(value: Int): String = when (value) {
+            RESTRICTION_UNKNOWN -> EngineSnapshot.RESTRICTION_UNKNOWN
+            else -> EngineSnapshot.RESTRICTION_UNKNOWN
+        }
     }
 }

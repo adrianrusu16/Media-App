@@ -12,10 +12,7 @@ import com.adrianrusu.mediaapp.core.designsystem.tokens.MediaAppColorTokens
 import com.adrianrusu.mediaapp.core.designsystem.tokens.ResourceDesignTokenProvider
 
 @Composable
-fun MediaAppTheme(
-    darkTheme: Boolean,
-    content: @Composable () -> Unit,
-) {
+fun MediaAppTheme(darkTheme: Boolean, content: @Composable () -> Unit) {
     val context = LocalContext.current
     val tokens = remember(context) {
         ResourceDesignTokenProvider(context).load()
@@ -23,7 +20,7 @@ fun MediaAppTheme(
 
     MaterialTheme(
         colorScheme = tokens.colors.toColorScheme(darkTheme),
-        content = content,
+        content = content
     )
 }
 
@@ -50,7 +47,7 @@ private fun MediaAppColorTokens.toColorScheme(darkTheme: Boolean): ColorScheme {
             surfaceVariant = surfaceVariant,
             onSurfaceVariant = onSurfaceVariant,
             error = error,
-            onError = onError,
+            onError = onError
         )
     } else {
         lightColorScheme(
@@ -63,7 +60,7 @@ private fun MediaAppColorTokens.toColorScheme(darkTheme: Boolean): ColorScheme {
             surfaceVariant = surfaceVariant,
             onSurfaceVariant = onSurfaceVariant,
             error = error,
-            onError = onError,
+            onError = onError
         )
     }
 }

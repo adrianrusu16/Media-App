@@ -6,7 +6,7 @@ data class MediaAppDesignTokens(
     val colors: MediaAppColorTokens,
     val spacing: MediaAppSpacingTokens,
     val shape: MediaAppShapeTokens,
-    val restrictions: MediaAppRestrictionTokens,
+    val restrictions: MediaAppRestrictionTokens
 )
 
 data class MediaAppColorTokens(
@@ -19,25 +19,15 @@ data class MediaAppColorTokens(
     @ColorInt val surfaceVariant: Int,
     @ColorInt val onSurfaceVariant: Int,
     @ColorInt val error: Int,
-    @ColorInt val onError: Int,
+    @ColorInt val onError: Int
 )
 
-data class MediaAppSpacingTokens(
-    val xsPx: Int,
-    val smPx: Int,
-    val mdPx: Int,
-    val lgPx: Int,
-    val xlPx: Int,
-)
+data class MediaAppSpacingTokens(val xsPx: Int, val smPx: Int, val mdPx: Int, val lgPx: Int, val xlPx: Int)
 
-data class MediaAppShapeTokens(
-    val smallCornerPx: Int,
-    val mediumCornerPx: Int,
-    val miniPlayerHeightPx: Int,
-)
+data class MediaAppShapeTokens(val smallCornerPx: Int, val mediumCornerPx: Int, val miniPlayerHeightPx: Int)
 
 data class MediaAppRestrictionTokens(
     val maxBrowseColumnsUnrestricted: Int,
     val maxBrowseColumnsRestricted: Int,
-    val maxVisibleActionsRestricted: Int,
+    val maxVisibleActionsRestricted: Int
 )

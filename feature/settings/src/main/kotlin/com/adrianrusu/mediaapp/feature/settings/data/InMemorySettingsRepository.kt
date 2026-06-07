@@ -12,9 +12,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
-internal class InMemorySettingsRepository(
-    private val uxRestrictionObserver: AutomotiveUxRestrictionObserver,
-) : SettingsRepository {
+internal class InMemorySettingsRepository(private val uxRestrictionObserver: AutomotiveUxRestrictionObserver) :
+    SettingsRepository {
     private val mutableState = MutableStateFlow(SettingsState())
 
     override val state: StateFlow<SettingsState> = mutableState.asStateFlow()
@@ -52,6 +51,6 @@ private fun AutomotiveUxRestrictions.toSettingsRestrictionState(): SettingsRestr
 
     return SettingsRestrictionState(
         label = label,
-        isRestricted = isRestricted,
+        isRestricted = isRestricted
     )
 }

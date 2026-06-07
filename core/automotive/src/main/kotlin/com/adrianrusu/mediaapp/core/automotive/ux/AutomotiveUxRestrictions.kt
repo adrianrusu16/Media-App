@@ -12,31 +12,29 @@ data class AutomotiveUxRestrictions(
     val activeRestrictions: Int,
     val maxContentDepth: Int,
     val maxCumulativeContentItems: Int,
-    val maxRestrictedStringLength: Int,
+    val maxRestrictedStringLength: Int
 ) {
     val isRestricted: Boolean
         get() = requiresDistractionOptimization || activeRestrictions != NO_RESTRICTIONS
 
-    fun hasRestriction(restriction: Int): Boolean =
-        activeRestrictions and restriction == restriction
+    fun hasRestriction(restriction: Int): Boolean = activeRestrictions and restriction == restriction
 
     enum class Source {
         AutomotivePlatform,
         NotAutomotive,
-        Unavailable,
+        Unavailable
     }
 
     companion object {
         const val NO_RESTRICTIONS = 0
 
-        fun unrestricted(source: Source): AutomotiveUxRestrictions =
-            AutomotiveUxRestrictions(
-                source = source,
-                requiresDistractionOptimization = false,
-                activeRestrictions = NO_RESTRICTIONS,
-                maxContentDepth = Int.MAX_VALUE,
-                maxCumulativeContentItems = Int.MAX_VALUE,
-                maxRestrictedStringLength = Int.MAX_VALUE,
-            )
+        fun unrestricted(source: Source): AutomotiveUxRestrictions = AutomotiveUxRestrictions(
+            source = source,
+            requiresDistractionOptimization = false,
+            activeRestrictions = NO_RESTRICTIONS,
+            maxContentDepth = Int.MAX_VALUE,
+            maxCumulativeContentItems = Int.MAX_VALUE,
+            maxRestrictedStringLength = Int.MAX_VALUE
+        )
     }
 }

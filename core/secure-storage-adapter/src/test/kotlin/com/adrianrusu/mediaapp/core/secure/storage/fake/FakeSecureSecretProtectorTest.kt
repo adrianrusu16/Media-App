@@ -15,7 +15,7 @@ class FakeSecureSecretProtectorTest {
 
         val encrypted = protector.encrypt(
             purpose = SecureSecretPurpose.DatabaseKey,
-            plaintext = plaintext,
+            plaintext = plaintext
         )
 
         assertArrayEquals(plaintext, protector.decrypt(encrypted))
@@ -25,7 +25,7 @@ class FakeSecureSecretProtectorTest {
     fun encryptionCarriesPurpose() {
         val encrypted = protector.encrypt(
             purpose = SecureSecretPurpose.SessionSecret,
-            plaintext = byteArrayOf(1),
+            plaintext = byteArrayOf(1)
         )
 
         assertEquals(SecureSecretPurpose.SessionSecret, encrypted.purpose)
@@ -37,7 +37,7 @@ class FakeSecureSecretProtectorTest {
 
         val encrypted = protector.encrypt(
             purpose = SecureSecretPurpose.DatabaseKey,
-            plaintext = plaintext,
+            plaintext = plaintext
         )
 
         assertNotEquals(plaintext.toList(), encrypted.ciphertext.toList())

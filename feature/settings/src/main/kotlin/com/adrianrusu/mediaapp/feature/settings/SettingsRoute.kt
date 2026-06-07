@@ -23,28 +23,22 @@ import com.adrianrusu.mediaapp.feature.settings.domain.SettingsState
 import com.adrianrusu.mediaapp.feature.settings.presentation.SettingsViewModel
 
 @Composable
-fun SettingsRoute(
-    modifier: Modifier = Modifier,
-) {
+fun SettingsRoute(modifier: Modifier = Modifier) {
     val viewModel: SettingsViewModel = hiltViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     SettingsScreen(
         state = state,
         onIntent = viewModel::onIntent,
-        modifier = modifier,
+        modifier = modifier
     )
 }
 
 @Composable
-private fun SettingsScreen(
-    state: SettingsState,
-    onIntent: (SettingsIntent) -> Unit,
-    modifier: Modifier = Modifier,
-) {
+private fun SettingsScreen(state: SettingsState, onIntent: (SettingsIntent) -> Unit, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         SettingsStatusCard(state = state)
         SettingsSwitchRow(
@@ -52,56 +46,54 @@ private fun SettingsScreen(
             body = "Share redacted reliability events and playback health signals.",
             checked = state.diagnosticsEnabled,
             enabled = state.controlsEnabled,
-            onCheckedChange = { onIntent(SettingsIntent.ToggleDiagnostics) },
+            onCheckedChange = { onIntent(SettingsIntent.ToggleDiagnostics) }
         )
         SettingsSwitchRow(
             title = "Personalization",
             body = "Let the Rust engine use recent listening state to shape recommendations.",
             checked = state.personalizationEnabled,
             enabled = state.controlsEnabled,
-            onCheckedChange = { onIntent(SettingsIntent.TogglePersonalization) },
+            onCheckedChange = { onIntent(SettingsIntent.TogglePersonalization) }
         )
         SettingsSwitchRow(
             title = "Explicit content",
             body = "Allow content marked explicit when provider policy supports it.",
             checked = state.explicitContentAllowed,
             enabled = state.controlsEnabled,
-            onCheckedChange = { onIntent(SettingsIntent.ToggleExplicitContent) },
+            onCheckedChange = { onIntent(SettingsIntent.ToggleExplicitContent) }
         )
         PrivacyNoticeCard(
             acknowledged = state.privacyNoticeAcknowledged,
-            onAcknowledge = { onIntent(SettingsIntent.AcknowledgePrivacyNotice) },
+            onAcknowledge = { onIntent(SettingsIntent.AcknowledgePrivacyNotice) }
         )
     }
 }
 
 @Composable
-private fun SettingsStatusCard(
-    state: SettingsState,
-) {
+private fun SettingsStatusCard(state: SettingsState) {
     Surface(
         color = if (state.restriction.isRestricted) {
             MaterialTheme.colorScheme.primaryContainer
         } else {
             MaterialTheme.colorScheme.surfaceVariant
         },
-        shape = MaterialTheme.shapes.small,
+        shape = MaterialTheme.shapes.small
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Text(
                 text = "Settings safety",
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.SemiBold
             )
             Text(
                 text = state.restriction.label,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodyMedium
             )
         }
     }
@@ -113,69 +105,66 @@ private fun SettingsSwitchRow(
     body: String,
     checked: Boolean,
     enabled: Boolean,
-    onCheckedChange: () -> Unit,
+    onCheckedChange: () -> Unit
 ) {
     Surface(
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 1.dp,
-        shape = MaterialTheme.shapes.small,
+        shape = MaterialTheme.shapes.small
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(18.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.SemiBold
                 )
                 Text(
                     text = body,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodyMedium
                 )
             }
             Switch(
                 checked = checked,
                 enabled = enabled,
-                onCheckedChange = { onCheckedChange() },
+                onCheckedChange = { onCheckedChange() }
             )
         }
     }
 }
 
 @Composable
-private fun PrivacyNoticeCard(
-    acknowledged: Boolean,
-    onAcknowledge: () -> Unit,
-) {
+private fun PrivacyNoticeCard(acknowledged: Boolean, onAcknowledge: () -> Unit) {
     Surface(
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 1.dp,
-        shape = MaterialTheme.shapes.small,
+        shape = MaterialTheme.shapes.small
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(18.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Text(
                     text = "Privacy notice",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.SemiBold
                 )
                 Text(
                     text = if (acknowledged) {
@@ -184,12 +173,12 @@ private fun PrivacyNoticeCard(
                         "Review data choices before enabling deeper account and provider sync."
                     },
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodyMedium
                 )
             }
             Button(
                 enabled = !acknowledged,
-                onClick = onAcknowledge,
+                onClick = onAcknowledge
             ) {
                 Text(text = if (acknowledged) "Done" else "Acknowledge")
             }

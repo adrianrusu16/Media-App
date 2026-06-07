@@ -5,9 +5,7 @@ import com.adrianrusu.mediaapp.core.telemetry.TelemetryEvent
 import com.adrianrusu.mediaapp.core.telemetry.TelemetrySeverity
 import com.adrianrusu.mediaapp.core.telemetry.TelemetrySink
 
-class AndroidLogTelemetrySink(
-    private val tag: String = DefaultTag,
-) : TelemetrySink {
+class AndroidLogTelemetrySink(private val tag: String = DEFAULT_TAG) : TelemetrySink {
     override fun record(event: TelemetryEvent) {
         val message = buildString {
             append(event.name)
@@ -26,6 +24,6 @@ class AndroidLogTelemetrySink(
     }
 
     private companion object {
-        const val DefaultTag = "MediaApp"
+        const val DEFAULT_TAG = "MediaApp"
     }
 }

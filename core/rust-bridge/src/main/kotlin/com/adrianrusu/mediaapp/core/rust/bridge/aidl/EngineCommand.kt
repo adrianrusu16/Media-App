@@ -3,13 +3,10 @@ package com.adrianrusu.mediaapp.core.rust.bridge.aidl
 import android.os.Parcel
 import android.os.Parcelable
 
-data class EngineCommand(
-    val type: String,
-    val payload: String?,
-) : Parcelable {
+data class EngineCommand(val type: String, val payload: String?) : Parcelable {
     constructor(parcel: Parcel) : this(
         type = parcel.readString().orEmpty(),
-        payload = parcel.readString(),
+        payload = parcel.readString()
     )
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
@@ -27,11 +24,9 @@ data class EngineCommand(
         @JvmField
         val CREATOR: Parcelable.Creator<EngineCommand> =
             object : Parcelable.Creator<EngineCommand> {
-                override fun createFromParcel(parcel: Parcel): EngineCommand =
-                    EngineCommand(parcel)
+                override fun createFromParcel(parcel: Parcel): EngineCommand = EngineCommand(parcel)
 
-                override fun newArray(size: Int): Array<EngineCommand?> =
-                    arrayOfNulls(size)
+                override fun newArray(size: Int): Array<EngineCommand?> = arrayOfNulls(size)
             }
     }
 }

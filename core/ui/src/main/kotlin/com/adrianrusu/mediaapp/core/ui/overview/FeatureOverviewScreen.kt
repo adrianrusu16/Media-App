@@ -13,13 +13,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun FeatureOverviewScreen(
-    items: List<FeatureOverviewItem>,
-    modifier: Modifier = Modifier,
-) {
+fun FeatureOverviewScreen(items: List<FeatureOverviewItem>, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         items.forEach { item ->
             FeatureOverviewRow(item = item)
@@ -28,29 +25,27 @@ fun FeatureOverviewScreen(
 }
 
 @Composable
-private fun FeatureOverviewRow(
-    item: FeatureOverviewItem,
-) {
+private fun FeatureOverviewRow(item: FeatureOverviewItem) {
     Surface(
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 1.dp,
-        shape = MaterialTheme.shapes.small,
+        shape = MaterialTheme.shapes.small
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Text(
                 text = item.title,
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.SemiBold
             )
             Text(
                 text = item.body,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodyMedium
             )
         }
     }

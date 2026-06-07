@@ -41,8 +41,8 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
 
-      - name: Assemble and test
-        run: ./gradlew --no-configuration-cache :app:assembleDebug :core:secure-storage-adapter:testDebugUnitTest
+      - name: Quality, assemble, and test
+        run: ./gradlew --no-configuration-cache qualityCheck :app:assembleDebug :core:secure-storage-adapter:testDebugUnitTest
 
   rust:
     name: Rust validation

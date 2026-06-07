@@ -4,5 +4,5 @@ enum class TelemetrySeverity {
     Debug,
     Info,
     Warning,
-    Error,
+    Error
 }

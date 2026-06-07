@@ -10,10 +10,8 @@ import android.os.Handler
 /**
  * AAOS implementation backed by `CarUxRestrictionsManager`.
  */
-class PlatformAutomotiveUxRestrictionObserver(
-    context: Context,
-    private val handler: Handler? = null,
-) : AutomotiveUxRestrictionObserver {
+class PlatformAutomotiveUxRestrictionObserver(context: Context, private val handler: Handler? = null) :
+    AutomotiveUxRestrictionObserver {
     private val applicationContext = context.applicationContext
     private var car: Car? = null
     private var manager: CarUxRestrictionsManager? = null
@@ -27,7 +25,7 @@ class PlatformAutomotiveUxRestrictionObserver(
     override fun current(): AutomotiveUxRestrictions {
         if (!applicationContext.packageManager.hasSystemFeature(PackageManager.FEATURE_AUTOMOTIVE)) {
             return AutomotiveUxRestrictions.unrestricted(
-                AutomotiveUxRestrictions.Source.NotAutomotive,
+                AutomotiveUxRestrictions.Source.NotAutomotive
             )
         }
 
@@ -36,7 +34,7 @@ class PlatformAutomotiveUxRestrictionObserver(
             restrictionsManager.currentCarUxRestrictions.toAppRestrictions()
         }.getOrElse {
             AutomotiveUxRestrictions.unrestricted(
-                AutomotiveUxRestrictions.Source.Unavailable,
+                AutomotiveUxRestrictions.Source.Unavailable
             )
         }
     }
@@ -85,12 +83,11 @@ class PlatformAutomotiveUxRestrictionObserver(
     }
 }
 
-private fun CarUxRestrictions.toAppRestrictions(): AutomotiveUxRestrictions =
-    AutomotiveUxRestrictions(
-        source = AutomotiveUxRestrictions.Source.AutomotivePlatform,
-        requiresDistractionOptimization = isRequiresDistractionOptimization,
-        activeRestrictions = activeRestrictions,
-        maxContentDepth = maxContentDepth,
-        maxCumulativeContentItems = maxCumulativeContentItems,
-        maxRestrictedStringLength = maxRestrictedStringLength,
-    )
+private fun CarUxRestrictions.toAppRestrictions(): AutomotiveUxRestrictions = AutomotiveUxRestrictions(
+    source = AutomotiveUxRestrictions.Source.AutomotivePlatform,
+    requiresDistractionOptimization = isRequiresDistractionOptimization,
+    activeRestrictions = activeRestrictions,
+    maxContentDepth = maxContentDepth,
+    maxCumulativeContentItems = maxCumulativeContentItems,
+    maxRestrictedStringLength = maxRestrictedStringLength
+)

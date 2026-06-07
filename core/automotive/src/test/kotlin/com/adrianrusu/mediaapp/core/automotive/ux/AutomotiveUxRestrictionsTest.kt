@@ -8,7 +8,7 @@ class AutomotiveUxRestrictionsTest {
     @Test
     fun unrestrictedStateIsNotRestricted() {
         val restrictions = AutomotiveUxRestrictions.unrestricted(
-            AutomotiveUxRestrictions.Source.NotAutomotive,
+            AutomotiveUxRestrictions.Source.NotAutomotive
         )
 
         assertFalse(restrictions.isRestricted)
@@ -23,7 +23,7 @@ class AutomotiveUxRestrictionsTest {
             activeRestrictions = 0b101,
             maxContentDepth = 2,
             maxCumulativeContentItems = 20,
-            maxRestrictedStringLength = 24,
+            maxRestrictedStringLength = 24
         )
 
         assertTrue(restrictions.isRestricted)

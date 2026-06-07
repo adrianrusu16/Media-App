@@ -25,7 +25,7 @@ class MainActivity : ComponentActivity() {
             MediaAppTheme(darkTheme = isSystemInDarkTheme()) {
                 AppShellScreen(
                     state = state.value,
-                    onIntent = viewModel::onIntent,
+                    onIntent = viewModel::onIntent
                 )
             }
         }

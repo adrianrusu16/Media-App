@@ -15,8 +15,7 @@ class MediaEngineService : Service() {
     private val engine: RustEngine = FakeRustEngine()
 
     private val binder = object : IMediaEngineService.Stub() {
-        override fun getSnapshot(): EngineSnapshot =
-            engine.snapshot()
+        override fun getSnapshot(): EngineSnapshot = engine.snapshot()
 
         override fun dispatch(command: EngineCommand) {
             val result = engine.dispatch(command)
@@ -31,8 +30,8 @@ class MediaEngineService : Service() {
             listener.onEngineEvent(
                 EngineEvent(
                     type = EngineEvent.TYPE_LISTENER_REGISTERED,
-                    message = null,
-                ),
+                    message = null
+                )
             )
         }
 

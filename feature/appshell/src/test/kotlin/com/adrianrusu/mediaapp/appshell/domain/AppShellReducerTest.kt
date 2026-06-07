@@ -8,7 +8,7 @@ class AppShellReducerTest {
     fun selectDestinationUpdatesCurrentDestination() {
         val state = AppShellReducer.reduce(
             state = AppShellState(),
-            intent = AppShellIntent.SelectDestination(AppDestination.Settings),
+            intent = AppShellIntent.SelectDestination(AppDestination.Settings)
         )
 
         assertEquals(AppDestination.Settings, state.selectedDestination)
@@ -18,7 +18,7 @@ class AppShellReducerTest {
     fun togglePlaybackDoesNotMutatePlaybackStateDirectly() {
         val state = AppShellReducer.reduce(
             state = AppShellState(),
-            intent = AppShellIntent.TogglePlayback,
+            intent = AppShellIntent.TogglePlayback
         )
 
         assertEquals(AppShellState(), state)
