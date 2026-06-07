@@ -120,6 +120,8 @@ The first Android playback foundation is intentionally platform-only: a Media3
 `MediaLibraryService` exposes an `ExoPlayer`-backed session to AAOS and media
 controllers, while library contents and command policy stay reserved for the
 Rust engine wiring milestone.
+Media3 play-state changes are projected into engine commands, so system and
+AAOS media controls follow the same Rust-owned state path as in-app controls.
 
 ## Security Posture
 
