@@ -45,7 +45,7 @@ flowchart TD
 
 | Area | Modules | Responsibility |
 | --- | --- | --- |
-| App shell | `:app` | Startup, navigation host, top-level Android wiring |
+| App shell | `:app`, `:feature:appshell` | Startup, navigation host, top-level Android wiring, shell MVI |
 | UI | `:core:designsystem`, `:core:ui`, feature modules | Compose screens, reusable mini-player, theme tokens |
 | Automotive | `:core:automotive`, `:core:vehicle`, `:core:carui` | UX restrictions, RRO bridge, vehicle signal abstraction, CarUiLib/OEM hooks |
 | Media | `:core:media-adapter` | Media3 service/session and platform playback execution |
@@ -101,9 +101,10 @@ operations that ViewModels call.
 Hilt owns Android-side dependency graphs, with app-wide engine and telemetry
 objects scoped separately from view-model-owned UI state repositories.
 
-The first app shell keeps this pattern local to `:app` while feature modules are
-still empty. As the implementation grows, feature repositories and use cases can
-move behind feature/domain module boundaries without changing the screen model.
+The app shell now lives in `:feature:appshell`, with `:app` kept as the Android
+composition root for startup, manifest, and app-wide singleton bindings. As the
+implementation grows, destination content can move behind feature/domain module
+boundaries without changing the screen model.
 Playback-facing UI state is mapped from engine snapshots so the real Rust
 engine can replace the fake implementation without changing Compose screens.
 

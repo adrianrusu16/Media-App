@@ -37,6 +37,8 @@ media_app/
       Test fakes, fixtures, Compose test helpers
 
   feature/
+    appshell/
+      App-wide Compose shell, MVI state, root screen chrome, and shell DI
     home/
       Landing media surface and resume/recent content
     library/
@@ -71,7 +73,8 @@ media_app/
 ```text
 feature:* -> core:ui -> core:model
 feature:* -> core:rust-bridge
-app -> feature:*
+app -> feature:appshell
+feature:appshell -> feature:* (navigation destinations, as they become concrete)
 core:media-adapter -> core:rust-bridge
 core:automotive -> core:rust-bridge
 core:rust-bridge -> AIDL service boundary

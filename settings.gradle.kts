@@ -42,6 +42,7 @@ include(
     ":core:telemetry-adapter",
     ":core:testing",
     ":feature:home",
+    ":feature:appshell",
     ":feature:library",
     ":feature:search",
     ":feature:nowplaying",

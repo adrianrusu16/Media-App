@@ -1,4 +1,4 @@
-package com.adrianrusu.mediaapp.di
+package com.adrianrusu.mediaapp.appshell.di
 
 import android.content.Context
 import com.adrianrusu.mediaapp.appshell.data.InMemoryAppShellRepository

@@ -1,5 +1,5 @@
 plugins {
-    id("mediaapp.android.application")
+    id("mediaapp.android.library")
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
     alias(libs.plugins.kotlin.compose)
@@ -12,28 +12,21 @@ android {
 }
 
 dependencies {
-    implementation(project(":core:designsystem"))
-    implementation(project(":core:media-adapter"))
+    implementation(project(":core:automotive"))
     implementation(project(":core:rust-bridge"))
     implementation(project(":core:telemetry-adapter"))
-    implementation(project(":feature:appshell"))
+    implementation(project(":core:ui"))
 
     implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.androidx.activity.compose)
-    implementation(libs.androidx.appcompat)
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.runtime)
     implementation(libs.androidx.compose.ui)
-    implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.hilt.navigation.compose)
-    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.hilt.android)
     implementation(libs.kotlinx.coroutines.android)
-    implementation(libs.material)
     ksp(libs.hilt.compiler)
+
     testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(libs.androidx.junit)
 }
