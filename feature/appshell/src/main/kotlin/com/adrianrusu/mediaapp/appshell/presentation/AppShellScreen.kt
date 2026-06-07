@@ -26,6 +26,7 @@ import com.adrianrusu.mediaapp.appshell.domain.AppShellState
 import com.adrianrusu.mediaapp.core.ui.miniplayer.MediaAppMiniPlayer
 import com.adrianrusu.mediaapp.feature.home.HomeRoute
 import com.adrianrusu.mediaapp.feature.library.LibraryRoute
+import com.adrianrusu.mediaapp.feature.nowplaying.NowPlayingRoute
 import com.adrianrusu.mediaapp.feature.profile.ProfileRoute
 import com.adrianrusu.mediaapp.feature.search.SearchRoute
 import com.adrianrusu.mediaapp.feature.settings.SettingsRoute
@@ -160,6 +161,7 @@ private fun DestinationContent(destination: AppDestination) {
     when (destination) {
         AppDestination.Home -> HomeRoute()
         AppDestination.Library -> LibraryRoute()
+        AppDestination.NowPlaying -> NowPlayingRoute()
         AppDestination.Search -> SearchRoute()
         AppDestination.Settings -> SettingsRoute()
         AppDestination.Profile -> ProfileRoute()

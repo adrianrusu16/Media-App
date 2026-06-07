@@ -113,6 +113,9 @@ ViewModel, repository, and Hilt bindings. Its privacy and personalization
 controls observe AAOS UX restrictions and become parked-only when required.
 Playback-facing UI state is mapped from engine snapshots so the real Rust
 engine can replace the fake implementation without changing Compose screens.
+Now Playing is the first playback-owned feature MVI surface. It observes the
+Rust engine snapshot, dispatches playback intents through the engine boundary,
+and mirrors AAOS UX restrictions without taking ownership of playback state.
 
 ## Playback Ownership
 
