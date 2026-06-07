@@ -80,6 +80,32 @@ class InMemoryAppShellRepositoryTest {
         assertTrue(repository.state.value.restriction.isRestricted)
         assertTrue(repository.state.value.miniPlayer.isRestricted)
     }
+
+    @Test
+    fun pushedEngineSnapshotsUpdateMiniPlayerState() {
+        val engine = RecordingEngineGateway()
+        val repository = InMemoryAppShellRepository(
+            uxRestrictionObserver = FakeAutomotiveUxRestrictionObserver(),
+            engine = engine
+        )
+
+        repository.start()
+        engine.pushSnapshot(
+            EngineSnapshot(
+                playbackState = EngineSnapshot.PLAYBACK_PLAYING,
+                mediaId = "track-1",
+                title = "Quiet Cabin",
+                artist = "PandaWave",
+                userId = null,
+                restrictionState = EngineSnapshot.RESTRICTION_UNKNOWN,
+                updatedAtEpochMillis = 200
+            )
+        )
+
+        assertEquals("Quiet Cabin", repository.state.value.miniPlayer.title)
+        assertEquals("PandaWave", repository.state.value.miniPlayer.subtitle)
+        assertTrue(repository.state.value.miniPlayer.isPlaying)
+    }
 }
 
 private data class FakeAutomotiveUxRestrictionObserver(
@@ -100,6 +126,7 @@ private data class FakeAutomotiveUxRestrictionObserver(
 private class RecordingEngineGateway : EngineGateway {
     val commandTypes = mutableListOf<String>()
     private var currentSnapshot = EngineSnapshot.idle(nowMillis = 100)
+    private val listeners = mutableSetOf<(EngineSnapshot) -> Unit>()
 
     override fun snapshot(): EngineSnapshot = currentSnapshot
 
@@ -113,5 +140,21 @@ private class RecordingEngineGateway : EngineGateway {
                 message = command.type
             )
         )
+    }
+
+    override fun observeSnapshots(listener: (EngineSnapshot) -> Unit): AutoCloseable {
+        listeners += listener
+        listener(currentSnapshot)
+
+        return AutoCloseable {
+            listeners -= listener
+        }
+    }
+
+    fun pushSnapshot(snapshot: EngineSnapshot) {
+        currentSnapshot = snapshot
+        listeners.toList().forEach { listener ->
+            listener(snapshot)
+        }
     }
 }

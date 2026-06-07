@@ -19,10 +19,21 @@ internal class InMemoryNowPlayingRepository(
     private val uxRestrictionObserver: AutomotiveUxRestrictionObserver
 ) : NowPlayingRepository {
     private val mutableState = MutableStateFlow(NowPlayingState())
+    private var engineSnapshotSubscription: AutoCloseable? = null
 
     override val state: StateFlow<NowPlayingState> = mutableState.asStateFlow()
 
     override fun start() {
+        engineSnapshotSubscription?.close()
+        engineSnapshotSubscription = engine.observeSnapshots { snapshot ->
+            mutableState.update { current ->
+                NowPlayingReducer.reduce(
+                    state = current,
+                    snapshot = snapshot
+                )
+            }
+        }
+
         refreshFromEngine()
 
         uxRestrictionObserver.start { restrictions ->
@@ -43,6 +54,8 @@ internal class InMemoryNowPlayingRepository(
     }
 
     override fun close() {
+        engineSnapshotSubscription?.close()
+        engineSnapshotSubscription = null
         uxRestrictionObserver.close()
     }
 

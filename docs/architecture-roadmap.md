@@ -96,6 +96,9 @@ over the fake `RustEngine`, while `AidlEngineGateway` and
 `AndroidEngineServiceConnection` prepare the real bound-service path. Flipping
 from in-process to AIDL should replace only the gateway binding, leaving
 repositories, use cases, UI, and Bamboo Media3 surfaces on the same boundary.
+Repositories subscribe to gateway snapshots so engine changes from system media
+controls, Media3, or future service-side work can update UI state without
+waiting for a local screen intent.
 
 Example service shape:
 

@@ -22,10 +22,18 @@ internal class InMemoryAppShellRepository(
     private val engine: EngineGateway
 ) : AppShellRepository {
     private val mutableState = MutableStateFlow(AppShellState())
+    private var engineSnapshotSubscription: AutoCloseable? = null
 
     override val state: StateFlow<AppShellState> = mutableState.asStateFlow()
 
     override fun start() {
+        engineSnapshotSubscription?.close()
+        engineSnapshotSubscription = engine.observeSnapshots { snapshot ->
+            mutableState.update { current ->
+                current.withEngineSnapshot(snapshot)
+            }
+        }
+
         val bootstrapSnapshot = engine.dispatch(
             EngineCommand(
                 type = EngineCommand.TYPE_BOOTSTRAP,
@@ -66,6 +74,8 @@ internal class InMemoryAppShellRepository(
     }
 
     override fun close() {
+        engineSnapshotSubscription?.close()
+        engineSnapshotSubscription = null
         uxRestrictionObserver.close()
     }
 

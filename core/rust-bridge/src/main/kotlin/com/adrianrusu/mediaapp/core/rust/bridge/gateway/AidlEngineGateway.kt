@@ -14,9 +14,11 @@ class AidlEngineGateway(
 ) : EngineGateway,
     AutoCloseable {
     private var latestSnapshot: EngineSnapshot? = null
+    private val listeners = mutableSetOf<(EngineSnapshot) -> Unit>()
 
     private val listener = EngineServiceListener { snapshot ->
         latestSnapshot = snapshot
+        notifySnapshotChanged(snapshot)
     }
 
     init {
@@ -50,8 +52,24 @@ class AidlEngineGateway(
         )
     }
 
+    override fun observeSnapshots(listener: (EngineSnapshot) -> Unit): AutoCloseable {
+        listeners += listener
+        listener(snapshot())
+
+        return AutoCloseable {
+            listeners -= listener
+        }
+    }
+
     override fun close() {
+        listeners.clear()
         connection.close()
+    }
+
+    private fun notifySnapshotChanged(snapshot: EngineSnapshot) {
+        listeners.toList().forEach { listener ->
+            listener(snapshot)
+        }
     }
 
     private fun unavailableResult(command: EngineCommand): EngineDispatchResult = EngineDispatchResult(

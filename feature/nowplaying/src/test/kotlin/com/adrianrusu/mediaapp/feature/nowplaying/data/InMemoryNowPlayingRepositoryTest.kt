@@ -63,6 +63,36 @@ class InMemoryNowPlayingRepositoryTest {
         )
         assertEquals(NowPlayingPlaybackState.Paused, repository.state.value.playbackState)
     }
+
+    @Test
+    fun pushedEngineSnapshotsUpdateNowPlayingState() {
+        val engine = RecordingEngineGateway(initialSnapshot = EngineSnapshot.idle(nowMillis = 1L))
+        val repository = InMemoryNowPlayingRepository(
+            engine = engine,
+            uxRestrictionObserver = FakeUxRestrictionObserver(
+                restrictions = AutomotiveUxRestrictions.unrestricted(
+                    AutomotiveUxRestrictions.Source.NotAutomotive
+                )
+            )
+        )
+
+        repository.start()
+        engine.pushSnapshot(
+            EngineSnapshot(
+                playbackState = EngineSnapshot.PLAYBACK_PLAYING,
+                mediaId = "track-1",
+                title = "Quiet Cabin",
+                artist = "PandaWave",
+                userId = null,
+                restrictionState = EngineSnapshot.RESTRICTION_UNKNOWN,
+                updatedAtEpochMillis = 200L
+            )
+        )
+
+        assertEquals("Quiet Cabin", repository.state.value.title)
+        assertEquals("PandaWave", repository.state.value.artist)
+        assertEquals(NowPlayingPlaybackState.Playing, repository.state.value.playbackState)
+    }
 }
 
 private class FakeUxRestrictionObserver(private val restrictions: AutomotiveUxRestrictions) :
@@ -78,6 +108,7 @@ private class FakeUxRestrictionObserver(private val restrictions: AutomotiveUxRe
 
 private class RecordingEngineGateway(initialSnapshot: EngineSnapshot) : EngineGateway {
     private var currentSnapshot = initialSnapshot
+    private val listeners = mutableSetOf<(EngineSnapshot) -> Unit>()
 
     val commands = mutableListOf<EngineCommand>()
 
@@ -106,5 +137,21 @@ private class RecordingEngineGateway(initialSnapshot: EngineSnapshot) : EngineGa
                 message = command.type
             )
         )
+    }
+
+    override fun observeSnapshots(listener: (EngineSnapshot) -> Unit): AutoCloseable {
+        listeners += listener
+        listener(currentSnapshot)
+
+        return AutoCloseable {
+            listeners -= listener
+        }
+    }
+
+    fun pushSnapshot(snapshot: EngineSnapshot) {
+        currentSnapshot = snapshot
+        listeners.toList().forEach { listener ->
+            listener(snapshot)
+        }
     }
 }

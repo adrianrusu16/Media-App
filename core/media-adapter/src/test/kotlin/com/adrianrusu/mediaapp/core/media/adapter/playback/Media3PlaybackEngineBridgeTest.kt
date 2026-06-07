@@ -81,4 +81,8 @@ private class RecordingEngineGateway : EngineGateway {
             )
         )
     }
+
+    override fun observeSnapshots(listener: (EngineSnapshot) -> Unit): AutoCloseable = AutoCloseable {
+        // This bridge only dispatches commands; snapshot observation is covered in rust-bridge tests.
+    }
 }

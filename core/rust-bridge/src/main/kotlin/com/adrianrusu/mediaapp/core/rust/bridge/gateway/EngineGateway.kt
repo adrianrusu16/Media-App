@@ -11,4 +11,6 @@ interface EngineGateway {
     fun snapshot(): EngineSnapshot
 
     fun dispatch(command: EngineCommand): EngineDispatchResult
+
+    fun observeSnapshots(listener: (EngineSnapshot) -> Unit): AutoCloseable
 }

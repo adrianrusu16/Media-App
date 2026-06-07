@@ -82,6 +82,38 @@ class AidlEngineGatewayTest {
 
         assertEquals(pushedSnapshot, gateway.snapshot())
     }
+
+    @Test
+    fun observersReceiveListenerSnapshots() {
+        val connection = FakeEngineServiceConnection(service = null)
+        val gateway = AidlEngineGateway(
+            connection = connection,
+            clock = { 1L }
+        )
+        val observedSnapshots = mutableListOf<EngineSnapshot>()
+        val pushedSnapshot = EngineSnapshot(
+            playbackState = EngineSnapshot.PLAYBACK_PLAYING,
+            mediaId = "track-1",
+            title = "Quiet Cabin",
+            artist = "PandaWave",
+            userId = null,
+            restrictionState = EngineSnapshot.RESTRICTION_UNKNOWN,
+            updatedAtEpochMillis = 50L
+        )
+
+        gateway.observeSnapshots { snapshot ->
+            observedSnapshots += snapshot
+        }
+        connection.pushSnapshot(pushedSnapshot)
+
+        assertEquals(
+            listOf(
+                EngineSnapshot.idle(nowMillis = 1L),
+                pushedSnapshot
+            ),
+            observedSnapshots
+        )
+    }
 }
 
 private class FakeEngineServiceConnection(override var service: EngineService?) : EngineServiceConnection {
