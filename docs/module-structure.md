@@ -38,7 +38,8 @@ media_app/
 
   feature/
     appshell/
-      App-wide Compose shell, MVI state, root screen chrome, and shell DI
+      App-wide Compose shell, MVI state, root screen chrome, destination routing,
+      and shell DI
     home/
       Landing media surface and resume/recent content
     library/

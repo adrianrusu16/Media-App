@@ -105,6 +105,9 @@ The app shell now lives in `:feature:appshell`, with `:app` kept as the Android
 composition root for startup, manifest, and app-wide singleton bindings. As the
 implementation grows, destination content can move behind feature/domain module
 boundaries without changing the screen model.
+Home, Library, Search, Settings, and Profile now expose route Composables from
+their own modules, while the shell keeps shared chrome, navigation state, and
+the in-app mini-player.
 Playback-facing UI state is mapped from engine snapshots so the real Rust
 engine can replace the fake implementation without changing Compose screens.
 

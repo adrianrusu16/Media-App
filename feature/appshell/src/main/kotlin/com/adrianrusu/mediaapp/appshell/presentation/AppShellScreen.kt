@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -25,6 +24,11 @@ import com.adrianrusu.mediaapp.appshell.domain.AppDestination
 import com.adrianrusu.mediaapp.appshell.domain.AppShellIntent
 import com.adrianrusu.mediaapp.appshell.domain.AppShellState
 import com.adrianrusu.mediaapp.core.ui.miniplayer.MediaAppMiniPlayer
+import com.adrianrusu.mediaapp.feature.home.HomeRoute
+import com.adrianrusu.mediaapp.feature.library.LibraryRoute
+import com.adrianrusu.mediaapp.feature.profile.ProfileRoute
+import com.adrianrusu.mediaapp.feature.search.SearchRoute
+import com.adrianrusu.mediaapp.feature.settings.SettingsRoute
 
 @Composable
 fun AppShellScreen(
@@ -88,10 +92,9 @@ private fun AppShellContent(
             )
         }
 
-        items(items = contentRows(state.selectedDestination)) { row ->
-            InfoRow(
-                title = row.title,
-                body = row.body,
+        item {
+            DestinationContent(
+                destination = state.selectedDestination,
             )
         }
 
@@ -143,36 +146,6 @@ private fun Header(
 }
 
 @Composable
-private fun InfoRow(
-    title: String,
-    body: String,
-) {
-    Surface(
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 1.dp,
-        shape = MaterialTheme.shapes.small,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                text = body,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-        }
-    }
-}
-
-@Composable
 private fun QuickActions(
     onIntent: (AppShellIntent) -> Unit,
 ) {
@@ -196,65 +169,15 @@ private fun QuickActions(
     }
 }
 
-private data class ContentRow(
-    val title: String,
-    val body: String,
-)
-
-private fun contentRows(destination: AppDestination): List<ContentRow> =
+@Composable
+private fun DestinationContent(
+    destination: AppDestination,
+) {
     when (destination) {
-        AppDestination.Home -> listOf(
-            ContentRow(
-                title = "Resume",
-                body = "Pick up where the last drive left off.",
-            ),
-            ContentRow(
-                title = "Recently played",
-                body = "Your latest albums, stations, and playlists will appear here.",
-            ),
-        )
-
-        AppDestination.Library -> listOf(
-            ContentRow(
-                title = "Saved music",
-                body = "Albums, artists, and playlists stay organized for quick browsing.",
-            ),
-            ContentRow(
-                title = "Downloaded content",
-                body = "Offline listening will be available for supported content.",
-            ),
-        )
-
-        AppDestination.Search -> listOf(
-            ContentRow(
-                title = "Safe search",
-                body = "Search adapts to the current driving safety state.",
-            ),
-            ContentRow(
-                title = "Providers",
-                body = "More music sources can be enabled as the catalog grows.",
-            ),
-        )
-
-        AppDestination.Settings -> listOf(
-            ContentRow(
-                title = "Privacy",
-                body = "Control diagnostics, personalization, and data choices.",
-            ),
-            ContentRow(
-                title = "Vehicle mode",
-                body = "Review display, safety, and vehicle-specific behavior.",
-            ),
-        )
-
-        AppDestination.Profile -> listOf(
-            ContentRow(
-                title = "Account",
-                body = "Sign-in and account details will live here.",
-            ),
-            ContentRow(
-                title = "Session",
-                body = "Manage active sessions and trusted devices.",
-            ),
-        )
+        AppDestination.Home -> HomeRoute()
+        AppDestination.Library -> LibraryRoute()
+        AppDestination.Search -> SearchRoute()
+        AppDestination.Settings -> SettingsRoute()
+        AppDestination.Profile -> ProfileRoute()
     }
+}
