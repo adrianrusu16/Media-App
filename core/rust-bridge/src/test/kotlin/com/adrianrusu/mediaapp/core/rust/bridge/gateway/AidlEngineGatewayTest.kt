@@ -3,7 +3,11 @@ package com.adrianrusu.mediaapp.core.rust.bridge.gateway
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
+import com.adrianrusu.mediaapp.core.telemetry.TelemetryEvent
+import com.adrianrusu.mediaapp.core.telemetry.TelemetryLogger
+import com.adrianrusu.mediaapp.core.telemetry.TelemetrySink
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class AidlEngineGatewayTest {
@@ -43,6 +47,36 @@ class AidlEngineGatewayTest {
     }
 
     @Test
+    fun dispatchTelemetryIncludesStatusAndNoPayload() {
+        val sink = RecordingTelemetrySink()
+        val gateway = AidlEngineGateway(
+            connection = FakeEngineServiceConnection(
+                service = RecordingEngineService(
+                    initialSnapshot = EngineSnapshot.idle(nowMillis = 10L)
+                )
+            ),
+            telemetryLogger = TelemetryLogger(
+                sink = sink,
+                clock = { 1L }
+            )
+        )
+
+        gateway.dispatch(
+            EngineCommand(
+                type = EngineCommand.TYPE_PLAY,
+                payload = "artist=secret"
+            )
+        )
+
+        val event = sink.events.single()
+        assertEquals("engine_gateway.command", event.name)
+        assertEquals(EngineCommand.TYPE_PLAY, event.attributes["command_type"])
+        assertEquals("applied", event.attributes["status"])
+        assertEquals("0", event.attributes["pending_count"])
+        assertFalse(event.attributes.containsKey("payload"))
+    }
+
+    @Test
     fun dispatchQueuesCommandWhileDisconnected() {
         val gateway = AidlEngineGateway(
             connection = FakeEngineServiceConnection(service = null),
@@ -64,8 +98,13 @@ class AidlEngineGatewayTest {
     @Test
     fun queuedCommandsReplayWhenServiceConnects() {
         val connection = FakeEngineServiceConnection(service = null)
+        val sink = RecordingTelemetrySink()
         val gateway = AidlEngineGateway(
             connection = connection,
+            telemetryLogger = TelemetryLogger(
+                sink = sink,
+                clock = { 25L }
+            ),
             clock = { 25L }
         )
         val service = RecordingEngineService(
@@ -94,12 +133,21 @@ class AidlEngineGatewayTest {
             service.commandTypes
         )
         assertEquals(EngineSnapshot.PLAYBACK_PAUSED, gateway.snapshot().playbackState)
+        assertEquals(
+            listOf("queued", "queued", "replayed", "replayed"),
+            sink.events.map { event -> event.attributes.getValue("status") }
+        )
     }
 
     @Test
     fun dispatchReturnsUnavailableEventAfterGatewayIsClosed() {
+        val sink = RecordingTelemetrySink()
         val gateway = AidlEngineGateway(
             connection = FakeEngineServiceConnection(service = null),
+            telemetryLogger = TelemetryLogger(
+                sink = sink,
+                clock = { 25L }
+            ),
             clock = { 25L }
         )
 
@@ -113,6 +161,7 @@ class AidlEngineGatewayTest {
 
         assertEquals(EngineEvent.TYPE_GATEWAY_UNAVAILABLE, result.event.type)
         assertEquals(EngineCommand.TYPE_PLAY, result.event.message)
+        assertEquals("unavailable", sink.events.single().attributes["status"])
     }
 
     @Test
@@ -216,5 +265,13 @@ private class RecordingEngineService(initialSnapshot: EngineSnapshot) : EngineSe
 
             else -> currentSnapshot
         }
+    }
+}
+
+private class RecordingTelemetrySink : TelemetrySink {
+    val events = mutableListOf<TelemetryEvent>()
+
+    override fun record(event: TelemetryEvent) {
+        events += event
     }
 }

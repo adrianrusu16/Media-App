@@ -4,12 +4,14 @@ import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.mediaapp.core.rust.bridge.engine.EngineDispatchResult
+import com.adrianrusu.mediaapp.core.telemetry.TelemetryLogger
 
 /**
  * Engine gateway backed by the AIDL media engine service.
  */
 class AidlEngineGateway(
     private val connection: EngineServiceConnection,
+    private val telemetryLogger: TelemetryLogger? = null,
     private val clock: () -> Long = System::currentTimeMillis
 ) : EngineGateway,
     AutoCloseable {
@@ -52,6 +54,10 @@ class AidlEngineGateway(
 
             else -> {
                 service.dispatch(command)
+                logCommand(
+                    command = command,
+                    status = STATUS_APPLIED
+                )
                 EngineDispatchResult(
                     snapshot = snapshot(),
                     event = EngineEvent(
@@ -92,6 +98,10 @@ class AidlEngineGateway(
                 service.dispatch(command)
                 val serviceSnapshot = service.snapshot()
                 latestSnapshot = serviceSnapshot
+                logCommand(
+                    command = command,
+                    status = STATUS_REPLAYED
+                )
                 notifySnapshotChanged(serviceSnapshot)
             }
         } finally {
@@ -110,6 +120,10 @@ class AidlEngineGateway(
             pendingCommands.removeFirst()
         }
         pendingCommands += command
+        logCommand(
+            command = command,
+            status = STATUS_QUEUED
+        )
 
         return EngineDispatchResult(
             snapshot = snapshot(),
@@ -120,15 +134,41 @@ class AidlEngineGateway(
         )
     }
 
-    private fun unavailableResult(command: EngineCommand): EngineDispatchResult = EngineDispatchResult(
-        snapshot = snapshot(),
-        event = EngineEvent(
-            type = EngineEvent.TYPE_GATEWAY_UNAVAILABLE,
-            message = command.type
+    private fun unavailableResult(command: EngineCommand): EngineDispatchResult {
+        logCommand(
+            command = command,
+            status = STATUS_UNAVAILABLE
         )
-    )
+
+        return EngineDispatchResult(
+            snapshot = snapshot(),
+            event = EngineEvent(
+                type = EngineEvent.TYPE_GATEWAY_UNAVAILABLE,
+                message = command.type
+            )
+        )
+    }
+
+    private fun logCommand(command: EngineCommand, status: String) {
+        telemetryLogger?.debug(
+            name = EVENT_ENGINE_GATEWAY_COMMAND,
+            attributes = mapOf(
+                ATTRIBUTE_COMMAND_TYPE to command.type,
+                ATTRIBUTE_STATUS to status,
+                ATTRIBUTE_PENDING_COUNT to pendingCommands.size.toString()
+            )
+        )
+    }
 
     private companion object {
         const val MAX_PENDING_COMMANDS = 32
+        const val EVENT_ENGINE_GATEWAY_COMMAND = "engine_gateway.command"
+        const val ATTRIBUTE_COMMAND_TYPE = "command_type"
+        const val ATTRIBUTE_PENDING_COUNT = "pending_count"
+        const val ATTRIBUTE_STATUS = "status"
+        const val STATUS_APPLIED = "applied"
+        const val STATUS_QUEUED = "queued"
+        const val STATUS_REPLAYED = "replayed"
+        const val STATUS_UNAVAILABLE = "unavailable"
     }
 }

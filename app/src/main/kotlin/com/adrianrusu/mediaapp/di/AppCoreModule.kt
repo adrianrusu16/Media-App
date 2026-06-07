@@ -25,8 +25,11 @@ object AppCoreModule {
 
     @Provides
     @Singleton
-    fun provideEngineGateway(connection: EngineServiceConnection): EngineGateway =
-        AidlEngineGateway(connection = connection)
+    fun provideEngineGateway(connection: EngineServiceConnection, telemetryLogger: TelemetryLogger): EngineGateway =
+        AidlEngineGateway(
+            connection = connection,
+            telemetryLogger = telemetryLogger
+        )
 
     @Provides
     @Singleton

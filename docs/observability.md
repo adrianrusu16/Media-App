@@ -26,3 +26,10 @@ Current sinks:
 
 Future sinks can forward selected, redacted events to crash reporting,
 OpenTelemetry, or a Rust-owned telemetry pipeline.
+
+## Engine Boundary Events
+
+`AidlEngineGateway` records `engine_gateway.command` for command lifecycle
+diagnostics. Attributes are intentionally limited to `command_type`, `status`,
+and `pending_count`; command payloads are never logged. Current statuses are
+`applied`, `queued`, `replayed`, and `unavailable`.
