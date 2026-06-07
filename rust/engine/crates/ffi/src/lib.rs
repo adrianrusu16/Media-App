@@ -6,6 +6,8 @@ use panda_engine_core::{
 pub const FFI_COMMAND_BOOTSTRAP: i32 = 0;
 pub const FFI_COMMAND_PLAY: i32 = 1;
 pub const FFI_COMMAND_PAUSE: i32 = 2;
+pub const FFI_COMMAND_SKIP_PREVIOUS: i32 = 3;
+pub const FFI_COMMAND_SKIP_NEXT: i32 = 4;
 pub const FFI_COMMAND_UNKNOWN: i32 = -1;
 
 pub const FFI_PLAYBACK_IDLE: i32 = 0;
@@ -134,6 +136,8 @@ fn command_from_ffi(command_type: i32) -> EngineCommandType {
         FFI_COMMAND_BOOTSTRAP => EngineCommandType::Bootstrap,
         FFI_COMMAND_PLAY => EngineCommandType::Play,
         FFI_COMMAND_PAUSE => EngineCommandType::Pause,
+        FFI_COMMAND_SKIP_PREVIOUS => EngineCommandType::SkipPrevious,
+        FFI_COMMAND_SKIP_NEXT => EngineCommandType::SkipNext,
         _ => EngineCommandType::Unknown(command_type.to_string()),
     }
 }
@@ -183,5 +187,21 @@ mod tests {
 
         assert_eq!(FFI_COMMAND_UNKNOWN, snapshot.playback_state);
         assert_eq!(0, snapshot.updated_at_epoch_millis);
+    }
+
+    #[test]
+    fn dispatch_skip_next_preserves_playback_state() {
+        let engine = panda_engine_create(100);
+        unsafe {
+            panda_engine_dispatch(engine, FFI_COMMAND_PLAY, 200);
+        }
+        let outcome = unsafe { panda_engine_dispatch(engine, FFI_COMMAND_SKIP_NEXT, 300) };
+        unsafe {
+            panda_engine_destroy(engine);
+        }
+
+        assert_eq!(FFI_PLAYBACK_PLAYING, outcome.snapshot.playback_state);
+        assert_eq!(FFI_COMMAND_SKIP_NEXT, outcome.applied_command_type);
+        assert_eq!(300, outcome.snapshot.updated_at_epoch_millis);
     }
 }

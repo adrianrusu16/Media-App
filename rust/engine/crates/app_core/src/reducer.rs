@@ -29,7 +29,10 @@ impl Engine {
         let next_playback_state = match command.command_type {
             EngineCommandType::Play => PlaybackState::Playing,
             EngineCommandType::Pause => PlaybackState::Paused,
-            EngineCommandType::Bootstrap | EngineCommandType::Unknown(_) => {
+            EngineCommandType::Bootstrap
+            | EngineCommandType::SkipPrevious
+            | EngineCommandType::SkipNext
+            | EngineCommandType::Unknown(_) => {
                 self.snapshot.playback_state
             }
         };
@@ -80,5 +83,17 @@ mod tests {
         assert_eq!(PlaybackState::Playing, outcome.snapshot.playback_state);
         assert_eq!(300, outcome.snapshot.updated_at_epoch_millis);
         assert_eq!(Some("future_command".to_owned()), outcome.event.message);
+    }
+
+    #[test]
+    fn skip_command_preserves_playback_state() {
+        let mut engine = Engine::new(100);
+        engine.dispatch(EngineCommand::new(EngineCommandType::Play, None), 200);
+
+        let outcome = engine.dispatch(EngineCommand::new(EngineCommandType::SkipNext, None), 300);
+
+        assert_eq!(PlaybackState::Playing, outcome.snapshot.playback_state);
+        assert_eq!(300, outcome.snapshot.updated_at_epoch_millis);
+        assert_eq!(Some("skip_next".to_owned()), outcome.event.message);
     }
 }

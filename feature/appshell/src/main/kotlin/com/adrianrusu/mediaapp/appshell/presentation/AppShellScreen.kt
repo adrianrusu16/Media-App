@@ -39,8 +39,14 @@ fun AppShellScreen(state: AppShellState, onIntent: (AppShellIntent) -> Unit, mod
             Column {
                 BambooMiniPlayer(
                     state = state.miniPlayer,
+                    onSkipPreviousClick = {
+                        onIntent(AppShellIntent.SkipPrevious)
+                    },
                     onPlayPauseClick = {
                         onIntent(AppShellIntent.TogglePlayback)
+                    },
+                    onSkipNextClick = {
+                        onIntent(AppShellIntent.SkipNext)
                     }
                 )
                 NavigationBar {

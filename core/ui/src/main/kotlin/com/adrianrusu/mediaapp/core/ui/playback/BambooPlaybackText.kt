@@ -3,6 +3,8 @@ package com.adrianrusu.mediaapp.core.ui.playback
 object BambooPlaybackText {
     const val ACTION_PAUSE = "Pause"
     const val ACTION_PLAY = "Play"
+    const val ACTION_SKIP_NEXT = "Skip next"
+    const val ACTION_SKIP_PREVIOUS = "Skip previous"
     const val DRIVER_SAFE_MODE = "Driver-safe mode"
     const val FALLBACK_IDLE_SUBTITLE = "Ready when you are"
     const val FALLBACK_IDLE_TITLE = "Nothing playing"

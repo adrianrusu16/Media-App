@@ -74,6 +74,8 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         private const val COMMAND_BOOTSTRAP = 0
         private const val COMMAND_PLAY = 1
         private const val COMMAND_PAUSE = 2
+        private const val COMMAND_SKIP_PREVIOUS = 3
+        private const val COMMAND_SKIP_NEXT = 4
         private const val COMMAND_UNKNOWN = -1
 
         private const val PLAYBACK_IDLE = 0
@@ -91,6 +93,8 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             EngineCommand.TYPE_BOOTSTRAP -> COMMAND_BOOTSTRAP
             EngineCommand.TYPE_PLAY -> COMMAND_PLAY
             EngineCommand.TYPE_PAUSE -> COMMAND_PAUSE
+            EngineCommand.TYPE_SKIP_PREVIOUS -> COMMAND_SKIP_PREVIOUS
+            EngineCommand.TYPE_SKIP_NEXT -> COMMAND_SKIP_NEXT
             else -> COMMAND_UNKNOWN
         }
 

@@ -6,7 +6,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -19,7 +25,13 @@ import androidx.compose.ui.unit.dp
 import com.adrianrusu.mediaapp.core.ui.playback.BambooPlaybackText
 
 @Composable
-fun BambooMiniPlayer(state: MiniPlayerState, onPlayPauseClick: () -> Unit, modifier: Modifier = Modifier) {
+fun BambooMiniPlayer(
+    state: MiniPlayerState,
+    onSkipPreviousClick: () -> Unit,
+    onPlayPauseClick: () -> Unit,
+    onSkipNextClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Surface(
         modifier = modifier
             .fillMaxWidth()
@@ -59,14 +71,29 @@ fun BambooMiniPlayer(state: MiniPlayerState, onPlayPauseClick: () -> Unit, modif
                 }
             }
 
-            Button(onClick = onPlayPauseClick) {
-                Text(
-                    text = if (state.isPlaying) {
-                        BambooPlaybackText.ACTION_PAUSE
-                    } else {
-                        BambooPlaybackText.ACTION_PLAY
-                    }
-                )
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                IconButton(onClick = onSkipPreviousClick) {
+                    Icon(
+                        imageVector = Icons.Filled.SkipPrevious,
+                        contentDescription = BambooPlaybackText.ACTION_SKIP_PREVIOUS
+                    )
+                }
+                IconButton(onClick = onPlayPauseClick) {
+                    Icon(
+                        imageVector = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                        contentDescription = if (state.isPlaying) {
+                            BambooPlaybackText.ACTION_PAUSE
+                        } else {
+                            BambooPlaybackText.ACTION_PLAY
+                        }
+                    )
+                }
+                IconButton(onClick = onSkipNextClick) {
+                    Icon(
+                        imageVector = Icons.Filled.SkipNext,
+                        contentDescription = BambooPlaybackText.ACTION_SKIP_NEXT
+                    )
+                }
             }
         }
     }

@@ -19,6 +19,11 @@ internal object FakePandaEngineReducer {
             updatedAtEpochMillis = nowMillis
         )
 
+        EngineCommand.TYPE_SKIP_PREVIOUS,
+        EngineCommand.TYPE_SKIP_NEXT -> current.copy(
+            updatedAtEpochMillis = nowMillis
+        )
+
         else -> current.copy(updatedAtEpochMillis = nowMillis)
     }
 }

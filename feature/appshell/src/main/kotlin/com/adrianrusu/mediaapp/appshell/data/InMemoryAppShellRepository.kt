@@ -53,6 +53,10 @@ internal class InMemoryAppShellRepository(
         when (intent) {
             AppShellIntent.TogglePlayback -> dispatchPlaybackCommand()
 
+            AppShellIntent.SkipPrevious -> dispatchEngineCommand(EngineCommand.TYPE_SKIP_PREVIOUS)
+
+            AppShellIntent.SkipNext -> dispatchEngineCommand(EngineCommand.TYPE_SKIP_NEXT)
+
             is AppShellIntent.SelectDestination -> {
                 mutableState.update { current ->
                     AppShellReducer.reduce(current, intent)
@@ -70,6 +74,11 @@ internal class InMemoryAppShellRepository(
             true -> EngineCommand.TYPE_PAUSE
             false -> EngineCommand.TYPE_PLAY
         }
+
+        dispatchEngineCommand(commandType)
+    }
+
+    private fun dispatchEngineCommand(commandType: String) {
         val snapshot = engine.dispatch(
             EngineCommand(
                 type = commandType,

@@ -6,5 +6,9 @@ internal object AppShellReducer {
             state.copy(selectedDestination = intent.destination)
 
         AppShellIntent.TogglePlayback -> state
+
+        AppShellIntent.SkipPrevious -> state
+
+        AppShellIntent.SkipNext -> state
     }
 }

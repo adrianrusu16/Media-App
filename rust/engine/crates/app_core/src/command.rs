@@ -3,6 +3,8 @@ pub enum EngineCommandType {
     Bootstrap,
     Play,
     Pause,
+    SkipPrevious,
+    SkipNext,
     Unknown(String),
 }
 
@@ -10,6 +12,8 @@ impl EngineCommandType {
     pub const BOOTSTRAP_WIRE: &'static str = "bootstrap";
     pub const PLAY_WIRE: &'static str = "play";
     pub const PAUSE_WIRE: &'static str = "pause";
+    pub const SKIP_PREVIOUS_WIRE: &'static str = "skip_previous";
+    pub const SKIP_NEXT_WIRE: &'static str = "skip_next";
 
     pub fn from_wire(value: impl Into<String>) -> Self {
         let value = value.into();
@@ -17,6 +21,8 @@ impl EngineCommandType {
             Self::BOOTSTRAP_WIRE => Self::Bootstrap,
             Self::PLAY_WIRE => Self::Play,
             Self::PAUSE_WIRE => Self::Pause,
+            Self::SKIP_PREVIOUS_WIRE => Self::SkipPrevious,
+            Self::SKIP_NEXT_WIRE => Self::SkipNext,
             _ => Self::Unknown(value),
         }
     }
@@ -26,6 +32,8 @@ impl EngineCommandType {
             Self::Bootstrap => Self::BOOTSTRAP_WIRE,
             Self::Play => Self::PLAY_WIRE,
             Self::Pause => Self::PAUSE_WIRE,
+            Self::SkipPrevious => Self::SKIP_PREVIOUS_WIRE,
+            Self::SkipNext => Self::SKIP_NEXT_WIRE,
             Self::Unknown(value) => value.as_str(),
         }
     }
