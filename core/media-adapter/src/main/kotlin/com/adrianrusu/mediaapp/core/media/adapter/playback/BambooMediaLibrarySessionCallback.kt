@@ -6,7 +6,6 @@ import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.media3.session.MediaSession
-import androidx.media3.session.SessionResult
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
@@ -18,8 +17,18 @@ import com.google.common.util.concurrent.ListenableFuture
  * and queue state. The root exists so AAOS browsers can connect to PandaWave
  * without receiving an unsupported library response.
  */
-internal class BambooMediaLibrarySessionCallback(private val playbackEngineBridge: Media3PlaybackEngineBridge) :
-    MediaLibrarySession.Callback {
+internal object BambooMediaLibrarySessionCallback : MediaLibrarySession.Callback {
+    override fun onConnect(
+        session: MediaSession,
+        controller: MediaSession.ControllerInfo
+    ): MediaSession.ConnectionResult = MediaSession.ConnectionResult.AcceptedResultBuilder(session)
+        .setAvailablePlayerCommands(
+            BambooMediaSessionCommandPolicy.availablePlayerCommands(
+                session.player.availableCommands
+            )
+        )
+        .build()
+
     override fun onGetLibraryRoot(
         session: MediaLibrarySession,
         browser: MediaSession.ControllerInfo,
@@ -44,16 +53,6 @@ internal class BambooMediaLibrarySessionCallback(private val playbackEngineBridg
             params
         )
     )
-
-    @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
-    override fun onPlayerCommandRequest(
-        session: MediaSession,
-        controller: MediaSession.ControllerInfo,
-        playerCommand: Int
-    ): Int {
-        playbackEngineBridge.dispatchPlayerCommand(playerCommand)
-        return SessionResult.RESULT_SUCCESS
-    }
 }
 
 private object LibraryItems {

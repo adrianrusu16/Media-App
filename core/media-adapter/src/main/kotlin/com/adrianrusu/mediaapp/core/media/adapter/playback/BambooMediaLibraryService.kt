@@ -27,13 +27,17 @@ class BambooMediaLibraryService : MediaLibraryService() {
         )
         playbackEngineBridge.bootstrap()
         exoPlayer.addListener(playbackEngineBridge)
+        val sessionPlayer = BambooMediaSessionPlayer(
+            delegate = exoPlayer,
+            playbackEngineBridge = playbackEngineBridge
+        )
 
         player = exoPlayer
         engineBridge = playbackEngineBridge
         session = MediaLibrarySession.Builder(
             this,
-            exoPlayer,
-            BambooMediaLibrarySessionCallback(playbackEngineBridge)
+            sessionPlayer,
+            BambooMediaLibrarySessionCallback
         ).build()
     }
 
