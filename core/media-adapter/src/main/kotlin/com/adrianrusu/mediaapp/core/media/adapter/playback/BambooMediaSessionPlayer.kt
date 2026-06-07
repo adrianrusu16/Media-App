@@ -14,22 +14,22 @@ internal class BambooMediaSessionPlayer(
     )
 
     override fun seekToPreviousMediaItem() {
-        playbackEngineBridge.dispatchPlayerCommand(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
+        playbackEngineBridge.dispatchPlayerCommand(COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
         super.seekToPreviousMediaItem()
     }
 
     override fun seekToPrevious() {
-        playbackEngineBridge.dispatchPlayerCommand(Player.COMMAND_SEEK_TO_PREVIOUS)
+        playbackEngineBridge.dispatchPlayerCommand(COMMAND_SEEK_TO_PREVIOUS)
         super.seekToPrevious()
     }
 
     override fun seekToNextMediaItem() {
-        playbackEngineBridge.dispatchPlayerCommand(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
+        playbackEngineBridge.dispatchPlayerCommand(COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
         super.seekToNextMediaItem()
     }
 
     override fun seekToNext() {
-        playbackEngineBridge.dispatchPlayerCommand(Player.COMMAND_SEEK_TO_NEXT)
+        playbackEngineBridge.dispatchPlayerCommand(COMMAND_SEEK_TO_NEXT)
         super.seekToNext()
     }
 }
