@@ -108,6 +108,9 @@ boundaries without changing the screen model.
 Home, Library, Search, Settings, and Profile now expose route Composables from
 their own modules, while the shell keeps shared chrome, navigation state, and
 the in-app mini-player.
+Settings is the first destination with its own feature MVI stack, use cases,
+ViewModel, repository, and Hilt bindings. Its privacy and personalization
+controls observe AAOS UX restrictions and become parked-only when required.
 Playback-facing UI state is mapped from engine snapshots so the real Rust
 engine can replace the fake implementation without changing Compose screens.
 
