@@ -3,7 +3,7 @@ package com.adrianrusu.mediaapp.appshell.data
 import com.adrianrusu.mediaapp.appshell.domain.AppShellIntent
 import com.adrianrusu.mediaapp.core.automotive.ux.AutomotiveUxRestrictionObserver
 import com.adrianrusu.mediaapp.core.automotive.ux.AutomotiveUxRestrictions
-import com.adrianrusu.mediaapp.core.rust.bridge.engine.FakeRustEngineFactory
+import com.adrianrusu.mediaapp.core.rust.bridge.engine.PandaEngineFactory
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -13,7 +13,7 @@ class InMemoryAppShellRepositoryTest {
     fun playbackIntentDispatchesThroughEngineSnapshot() {
         val repository = InMemoryAppShellRepository(
             uxRestrictionObserver = FakeAutomotiveUxRestrictionObserver(),
-            engine = FakeRustEngineFactory.create()
+            engine = PandaEngineFactory.createFake()
         )
 
         repository.start()
@@ -43,7 +43,7 @@ class InMemoryAppShellRepositoryTest {
         )
         val repository = InMemoryAppShellRepository(
             uxRestrictionObserver = observer,
-            engine = FakeRustEngineFactory.create()
+            engine = PandaEngineFactory.createFake()
         )
 
         repository.start()

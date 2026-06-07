@@ -1,6 +1,6 @@
 package com.adrianrusu.mediaapp.core.rust.bridge.engine.native
 
-internal object NativeRustLibrary {
+internal object PandaEngineLibrary {
     @Volatile
     private var loaded = false
 
@@ -15,5 +15,5 @@ internal object NativeRustLibrary {
         }
     }
 
-    private const val LIBRARY_NAME = "media_app_ffi"
+    private const val LIBRARY_NAME = "panda_engine_ffi"
 }

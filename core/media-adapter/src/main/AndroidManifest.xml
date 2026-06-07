@@ -6,7 +6,7 @@
 
     <application>
         <service
-            android:name="com.adrianrusu.mediaapp.core.media.adapter.playback.MediaAppMediaLibraryService"
+            android:name="com.adrianrusu.mediaapp.core.media.adapter.playback.BambooMediaLibraryService"
             android:exported="true"
             android:foregroundServiceType="mediaPlayback">
             <intent-filter>

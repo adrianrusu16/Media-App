@@ -7,7 +7,7 @@ name = "media_app_core"
 version = "0.1.0"
 
 [[package]]
-name = "media_app_ffi"
+name = "panda_engine_ffi"
 version = "0.1.0"
 dependencies = [
  "media_app_core",

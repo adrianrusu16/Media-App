@@ -24,6 +24,6 @@ class AndroidLogTelemetrySink(private val tag: String = DEFAULT_TAG) : Telemetry
     }
 
     private companion object {
-        const val DEFAULT_TAG = "MediaApp"
+        const val DEFAULT_TAG = "PandaWave"
     }
 }

@@ -1,4 +1,4 @@
-use media_app_core::{
+use panda_engine_core::{
     Engine, EngineCommand, EngineCommandType, EngineEventType, EngineOutcome, EngineSnapshot,
     PlaybackState, RestrictionState,
 };
@@ -33,23 +33,23 @@ pub struct FfiEngineOutcome {
     pub applied_command_type: i32,
 }
 
-pub struct MediaAppEngine {
+pub struct PandaEngine {
     engine: Engine,
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn media_app_engine_create(now_epoch_millis: u64) -> *mut MediaAppEngine {
-    Box::into_raw(Box::new(MediaAppEngine {
+pub extern "C" fn panda_engine_create(now_epoch_millis: u64) -> *mut PandaEngine {
+    Box::into_raw(Box::new(PandaEngine {
         engine: Engine::new(now_epoch_millis),
     }))
 }
 
 /// # Safety
 ///
-/// [engine] must be a pointer returned by [media_app_engine_create] and must not
+/// [engine] must be a pointer returned by [panda_engine_create] and must not
 /// be used again after this call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn media_app_engine_destroy(engine: *mut MediaAppEngine) {
+pub unsafe extern "C" fn panda_engine_destroy(engine: *mut PandaEngine) {
     if !engine.is_null() {
         drop(unsafe { Box::from_raw(engine) });
     }
@@ -57,11 +57,9 @@ pub unsafe extern "C" fn media_app_engine_destroy(engine: *mut MediaAppEngine) {
 
 /// # Safety
 ///
-/// [engine] must be a valid pointer returned by [media_app_engine_create].
+/// [engine] must be a valid pointer returned by [panda_engine_create].
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn media_app_engine_snapshot(
-    engine: *const MediaAppEngine,
-) -> FfiEngineSnapshot {
+pub unsafe extern "C" fn panda_engine_snapshot(engine: *const PandaEngine) -> FfiEngineSnapshot {
     let engine = unsafe { engine.as_ref() };
     match engine {
         Some(engine) => FfiEngineSnapshot::from(engine.engine.snapshot()),
@@ -71,10 +69,10 @@ pub unsafe extern "C" fn media_app_engine_snapshot(
 
 /// # Safety
 ///
-/// [engine] must be a valid pointer returned by [media_app_engine_create].
+/// [engine] must be a valid pointer returned by [panda_engine_create].
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn media_app_engine_dispatch(
-    engine: *mut MediaAppEngine,
+pub unsafe extern "C" fn panda_engine_dispatch(
+    engine: *mut PandaEngine,
     command_type: i32,
     now_epoch_millis: u64,
 ) -> FfiEngineOutcome {
@@ -167,10 +165,10 @@ mod tests {
 
     #[test]
     fn dispatch_play_returns_playing_snapshot() {
-        let engine = media_app_engine_create(100);
-        let outcome = unsafe { media_app_engine_dispatch(engine, FFI_COMMAND_PLAY, 200) };
+        let engine = panda_engine_create(100);
+        let outcome = unsafe { panda_engine_dispatch(engine, FFI_COMMAND_PLAY, 200) };
         unsafe {
-            media_app_engine_destroy(engine);
+            panda_engine_destroy(engine);
         }
 
         assert_eq!(FFI_PLAYBACK_PLAYING, outcome.snapshot.playback_state);
@@ -181,7 +179,7 @@ mod tests {
 
     #[test]
     fn null_snapshot_returns_invalid_marker() {
-        let snapshot = unsafe { media_app_engine_snapshot(std::ptr::null()) };
+        let snapshot = unsafe { panda_engine_snapshot(std::ptr::null()) };
 
         assert_eq!(FFI_COMMAND_UNKNOWN, snapshot.playback_state);
         assert_eq!(0, snapshot.updated_at_epoch_millis);

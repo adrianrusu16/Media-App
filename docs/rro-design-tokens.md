@@ -1,6 +1,6 @@
 # RRO Design Tokens
 
-Media App exposes OEM-customizable design tokens through Android resources in
+PandaWave exposes OEM-customizable design tokens through Android resources in
 `:core:designsystem`.
 
 ## Overlayable Target
@@ -10,7 +10,7 @@ RRO packages should target the app package and the overlayable group:
 ```xml
 <overlay
     android:targetPackage="com.adrianrusu.mediaapp"
-    android:targetName="MediaAppDesignTokens"
+    android:targetName="PandaWaveDesignTokens"
     android:isStatic="true" />
 ```
 

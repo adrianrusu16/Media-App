@@ -1,4 +1,4 @@
-# Media App
+# PandaWave
 
 State-of-the-art Android Automotive OS media app built with Kotlin, Compose,
 Media3, AIDL, and a Rust source-of-truth engine.
@@ -9,7 +9,7 @@ integration, and product features stay easy to review.
 
 ## Vision
 
-Media App is an AAOS-first music application designed around platform media
+PandaWave is an AAOS-first music application designed around platform media
 integration, safety-aware automotive UX, and a Rust runtime that owns the
 important product state.
 

@@ -1,6 +1,6 @@
 # Observability
 
-Media App uses `:core:telemetry-adapter` as the Android-side entry point for
+PandaWave uses `:core:telemetry-adapter` as the Android-side entry point for
 logs, diagnostics, and future telemetry export.
 
 ## Principles

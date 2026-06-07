@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.dp
 import com.adrianrusu.mediaapp.appshell.domain.AppDestination
 import com.adrianrusu.mediaapp.appshell.domain.AppShellIntent
 import com.adrianrusu.mediaapp.appshell.domain.AppShellState
-import com.adrianrusu.mediaapp.core.ui.miniplayer.MediaAppMiniPlayer
+import com.adrianrusu.mediaapp.core.ui.miniplayer.BambooMiniPlayer
 import com.adrianrusu.mediaapp.feature.home.HomeRoute
 import com.adrianrusu.mediaapp.feature.library.LibraryRoute
 import com.adrianrusu.mediaapp.feature.nowplaying.NowPlayingRoute
@@ -37,7 +37,7 @@ fun AppShellScreen(state: AppShellState, onIntent: (AppShellIntent) -> Unit, mod
         modifier = modifier.fillMaxSize(),
         bottomBar = {
             Column {
-                MediaAppMiniPlayer(
+                BambooMiniPlayer(
                     state = state.miniPlayer,
                     onPlayPauseClick = {
                         onIntent(AppShellIntent.TogglePlayback)
@@ -106,7 +106,7 @@ private fun Header(selectedDestination: AppDestination, restrictionLabel: String
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
-                text = "Media App",
+                text = "PandaWave",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.SemiBold
             )

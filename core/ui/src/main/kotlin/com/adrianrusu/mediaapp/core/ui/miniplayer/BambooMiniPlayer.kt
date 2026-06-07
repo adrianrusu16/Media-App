@@ -16,10 +16,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.adrianrusu.mediaapp.core.ui.playback.PlaybackDisplayText
+import com.adrianrusu.mediaapp.core.ui.playback.BambooPlaybackText
 
 @Composable
-fun MediaAppMiniPlayer(state: MiniPlayerState, onPlayPauseClick: () -> Unit, modifier: Modifier = Modifier) {
+fun BambooMiniPlayer(state: MiniPlayerState, onPlayPauseClick: () -> Unit, modifier: Modifier = Modifier) {
     Surface(
         modifier = modifier
             .fillMaxWidth()
@@ -52,7 +52,7 @@ fun MediaAppMiniPlayer(state: MiniPlayerState, onPlayPauseClick: () -> Unit, mod
                 )
                 if (state.isRestricted) {
                     Text(
-                        text = PlaybackDisplayText.DRIVER_SAFE_MODE,
+                        text = BambooPlaybackText.DRIVER_SAFE_MODE,
                         color = MaterialTheme.colorScheme.primary,
                         style = MaterialTheme.typography.labelMedium
                     )
@@ -62,9 +62,9 @@ fun MediaAppMiniPlayer(state: MiniPlayerState, onPlayPauseClick: () -> Unit, mod
             Button(onClick = onPlayPauseClick) {
                 Text(
                     text = if (state.isPlaying) {
-                        PlaybackDisplayText.ACTION_PAUSE
+                        BambooPlaybackText.ACTION_PAUSE
                     } else {
-                        PlaybackDisplayText.ACTION_PLAY
+                        BambooPlaybackText.ACTION_PLAY
                     }
                 )
             }

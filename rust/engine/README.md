@@ -1,6 +1,6 @@
 # Rust Engine
 
-This workspace contains the Rust source-of-truth engine for Media App.
+This workspace contains PandaEngine, the Rust source-of-truth engine for PandaWave.
 
 Rust owns auth/session state, Supabase and provider API calls, local database
 management, playback decisions, user/profile state, catalog normalization, sync

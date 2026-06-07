@@ -6,11 +6,11 @@ import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.mediaapp.core.rust.bridge.engine.EngineDispatchResult
 import com.adrianrusu.mediaapp.core.rust.bridge.engine.RustEngine
 
-class NativeRustEngine private constructor(private val nativeHandle: Long, private val clock: () -> Long) :
+class PandaEngine private constructor(private val nativeHandle: Long, private val clock: () -> Long) :
     RustEngine,
     AutoCloseable {
     init {
-        check(nativeHandle != 0L) { "Native Rust engine handle must not be zero." }
+        check(nativeHandle != 0L) { "PandaEngine native handle must not be zero." }
     }
 
     override fun snapshot(): EngineSnapshot = nativeSnapshot(nativeHandle).toEngineSnapshot()
@@ -60,9 +60,9 @@ class NativeRustEngine private constructor(private val nativeHandle: Long, priva
     }
 
     companion object {
-        fun create(clock: () -> Long = System::currentTimeMillis): NativeRustEngine {
-            NativeRustLibrary.load()
-            return NativeRustEngine(
+        fun create(clock: () -> Long = System::currentTimeMillis): PandaEngine {
+            PandaEngineLibrary.load()
+            return PandaEngine(
                 nativeHandle = nativeCreate(clock()),
                 clock = clock
             )

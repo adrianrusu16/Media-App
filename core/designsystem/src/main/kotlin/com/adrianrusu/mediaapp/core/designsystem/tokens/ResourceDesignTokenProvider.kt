@@ -8,8 +8,8 @@ class ResourceDesignTokenProvider(context: Context) {
     private val resources: Resources = context.resources
     private val theme = context.theme
 
-    fun load(): MediaAppDesignTokens = MediaAppDesignTokens(
-        colors = MediaAppColorTokens(
+    fun load(): PandaWaveDesignTokens = PandaWaveDesignTokens(
+        colors = PandaWaveColorTokens(
             primary = color(R.color.mediaapp_color_brand_primary),
             onPrimary = color(R.color.mediaapp_color_brand_on_primary),
             secondary = color(R.color.mediaapp_color_brand_secondary),
@@ -21,19 +21,19 @@ class ResourceDesignTokenProvider(context: Context) {
             error = color(R.color.mediaapp_color_error),
             onError = color(R.color.mediaapp_color_on_error)
         ),
-        spacing = MediaAppSpacingTokens(
+        spacing = PandaWaveSpacingTokens(
             xsPx = dimension(R.dimen.mediaapp_spacing_xs),
             smPx = dimension(R.dimen.mediaapp_spacing_sm),
             mdPx = dimension(R.dimen.mediaapp_spacing_md),
             lgPx = dimension(R.dimen.mediaapp_spacing_lg),
             xlPx = dimension(R.dimen.mediaapp_spacing_xl)
         ),
-        shape = MediaAppShapeTokens(
+        shape = PandaWaveShapeTokens(
             smallCornerPx = dimension(R.dimen.mediaapp_shape_corner_sm),
             mediumCornerPx = dimension(R.dimen.mediaapp_shape_corner_md),
             miniPlayerHeightPx = dimension(R.dimen.mediaapp_miniplayer_height)
         ),
-        restrictions = MediaAppRestrictionTokens(
+        restrictions = PandaWaveRestrictionTokens(
             maxBrowseColumnsUnrestricted =
                 resources.getInteger(R.integer.mediaapp_max_browse_columns_unrestricted),
             maxBrowseColumnsRestricted =

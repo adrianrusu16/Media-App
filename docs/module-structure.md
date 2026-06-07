@@ -1,6 +1,6 @@
 # Module Structure
 
-This is the intended modular layout for the AAOS media app. The modules will be
+This is the intended modular layout for PandaWave. The modules will be
 created incrementally after the Gradle convention layer is in place.
 
 ## Target Layout
@@ -18,7 +18,7 @@ media_app/
     designsystem/
       Compose theme, RRO-backed tokens, icons, typography, spacing
     ui/
-      Reusable Compose components, including the in-app mini-player
+      Reusable Compose components, including the Bamboo mini-player
     automotive/
       AAOS feature detection, UX restrictions, car-safe state
     vehicle/
@@ -26,9 +26,9 @@ media_app/
     carui/
       CarUiLib hooks, OEM/system-image UI adapters, Compose fallback bridge
     media-adapter/
-      Media3 MediaLibraryService, MediaSession, player adapter
+      Bamboo Media3 MediaLibraryService, MediaSession, player adapter
     rust-bridge/
-      AIDL client, service binding, parcelable mapping, fake engine
+      AIDL client, service binding, parcelable mapping, PandaEngine adapter
     secure-storage-adapter/
       Android Keystore bridge for Rust-managed encrypted storage
     telemetry-adapter/

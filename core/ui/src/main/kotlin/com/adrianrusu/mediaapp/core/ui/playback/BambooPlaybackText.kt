@@ -1,6 +1,6 @@
 package com.adrianrusu.mediaapp.core.ui.playback
 
-object PlaybackDisplayText {
+object BambooPlaybackText {
     const val ACTION_PAUSE = "Pause"
     const val ACTION_PLAY = "Play"
     const val DRIVER_SAFE_MODE = "Driver-safe mode"
@@ -9,5 +9,5 @@ object PlaybackDisplayText {
     const val FALLBACK_PAUSED_SUBTITLE = "Ready to resume"
     const val FALLBACK_PAUSED_TITLE = "Paused"
     const val FALLBACK_PLAYING_SUBTITLE = "Preview queue"
-    const val FALLBACK_PLAYING_TITLE = "Sample station"
+    const val FALLBACK_PLAYING_TITLE = "Bamboo station"
 }

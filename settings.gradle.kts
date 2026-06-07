@@ -25,7 +25,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Media App"
+rootProject.name = "PandaWave"
 include(":app")
 
 include(

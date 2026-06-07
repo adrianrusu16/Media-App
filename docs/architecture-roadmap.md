@@ -1,6 +1,6 @@
 # Architecture Roadmap
 
-This document captures the intended direction for Media App. It should evolve as
+This document captures the intended direction for PandaWave. It should evolve as
 the implementation lands, but the core principle is stable: Rust owns the source
 of truth, while Android owns the vehicle and platform surfaces.
 
@@ -22,11 +22,11 @@ of truth, while Android owns the vehicle and platform surfaces.
 ```mermaid
 flowchart TD
     System["AAOS media center, system bar, widgets, voice"]
-    Compose["Compose UI and app mini-player"]
-    Media3["Media3 MediaLibraryService and MediaSession"]
+    Compose["PandaWave Compose UI and Bamboo mini-player"]
+    Media3["Bamboo MediaLibraryService and MediaSession"]
     Car["AAOS adapters: UX restrictions, RROs, vehicle signals"]
     Aidl["AIDL engine service contract"]
-    Rust["Rust source-of-truth engine"]
+    Rust["PandaEngine source-of-truth runtime"]
     Data["Supabase, Jamendo provider, local encrypted DB"]
     Player["Platform player: ExoPlayer or OEM adapter"]
 
@@ -53,6 +53,15 @@ flowchart TD
 | Security | `:core:secure-storage-adapter` | Android Keystore bridge for Rust-managed encrypted storage |
 | Observability | `:core:telemetry-adapter` | Platform sinks for logs, crashes, traces, and redacted telemetry |
 | Rust runtime | `:rust:engine` | Auth, API calls, local DB, playback state, catalog, user, sync, telemetry policy |
+
+## Naming
+
+- PandaWave is the product and user-facing brand.
+- `RustEngine` remains the Kotlin interface for the Android-to-Rust boundary.
+- PandaEngine is the concrete source-of-truth engine implementation, including
+  the native binding wrapper and Rust FFI surface.
+- Bamboo names Android playback/player-facing surfaces, such as the in-app
+  mini-player and Media3 library service.
 
 ## Milestones
 
@@ -111,21 +120,21 @@ the in-app mini-player.
 Settings is the first destination with its own feature MVI stack, use cases,
 ViewModel, repository, and Hilt bindings. Its privacy and personalization
 controls observe AAOS UX restrictions and become parked-only when required.
-Playback-facing UI state is mapped from engine snapshots so the real Rust
-engine can replace the fake implementation without changing Compose screens.
+Playback-facing UI state is mapped from engine snapshots so PandaEngine can
+replace the fake implementation without changing Compose screens.
 Now Playing is the first playback-owned feature MVI surface. It observes the
-Rust engine snapshot, dispatches playback intents through the engine boundary,
+PandaEngine snapshot through the `RustEngine` interface, dispatches playback intents through the engine boundary,
 and mirrors AAOS UX restrictions without taking ownership of playback state.
 
 ## Playback Ownership
 
-Rust drives playback decisions and state. Android executes platform playback and
+PandaEngine drives playback decisions and state. Android executes platform playback and
 media-session work because AAOS owns those surfaces.
 
 ```text
-Media command -> Media3 adapter -> AIDL -> Rust reducer
-Rust playback command -> AIDL -> PlatformPlayer -> ExoPlayer/OEM adapter
-Player event -> AIDL -> Rust -> canonical playback snapshot
+Media command -> Bamboo Media3 adapter -> AIDL -> PandaEngine reducer
+PandaEngine playback command -> AIDL -> PlatformPlayer -> ExoPlayer/OEM adapter
+Player event -> AIDL -> PandaEngine -> canonical playback snapshot
 ```
 
 The first Android playback foundation is intentionally platform-only: a Media3
@@ -161,4 +170,4 @@ AAOS media controls follow the same Rust-owned state path as in-app controls.
 - Prefer public `android.car` APIs for vehicle state.
 - Keep HAL/VHAL integrations behind an OEM-only adapter boundary.
 - Use CarUiLib and Car UI plugins where available in OEM/system-image builds,
-  while preserving a Compose Material fallback for regular distribution.gi
+  while preserving a Compose Material fallback for regular distribution.

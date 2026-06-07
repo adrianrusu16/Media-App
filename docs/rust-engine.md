@@ -1,6 +1,6 @@
 # Rust Engine Integration
 
-Rust is the source of truth for Media App domain state. Android owns platform
+Rust is the source of truth for PandaWave domain state. Android owns platform
 integration, process lifecycle, AIDL, Media3, AAOS UX restrictions, RRO access,
 and secure platform services.
 
@@ -22,13 +22,13 @@ mechanical rather than architectural.
 
 The next binding layer is also scaffolded:
 
-- `media_app_ffi` exposes a small C ABI over `media_app_core`.
-- `NativeRustEngine` defines the Kotlin wrapper shape for the future JNI/native
+- `panda_engine_ffi` exposes a small C ABI over `media_app_core`.
+- `PandaEngine` defines the Kotlin wrapper shape for the future JNI/native
   library.
 - `MediaEngineService` depends on the `RustEngine` interface and currently uses
-  `FakeRustEngine`.
+  `FakePandaEngine`.
 
-`NativeRustEngine` should not be selected until the native library is packaged
+`PandaEngine` should not be selected until the native library is packaged
 into the Android app.
 
 ## Intended Flow
@@ -40,7 +40,7 @@ Kotlin platform adapter
         |
 AIDL service boundary
         |
-Kotlin native binding adapter
+Kotlin PandaEngine native binding adapter
         |
 Rust app_core / engine crates
         |

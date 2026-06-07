@@ -1,7 +1,7 @@
 package com.adrianrusu.mediaapp.feature.nowplaying.domain
 
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
-import com.adrianrusu.mediaapp.core.ui.playback.PlaybackDisplayText
+import com.adrianrusu.mediaapp.core.ui.playback.BambooPlaybackText
 
 internal object NowPlayingReducer {
     fun reduce(state: NowPlayingState, snapshot: EngineSnapshot): NowPlayingState {
@@ -22,16 +22,16 @@ internal object NowPlayingReducer {
 
 private val NowPlayingPlaybackState.fallbackTitle: String
     get() = when (this) {
-        NowPlayingPlaybackState.Playing -> PlaybackDisplayText.FALLBACK_PLAYING_TITLE
-        NowPlayingPlaybackState.Paused -> PlaybackDisplayText.FALLBACK_PAUSED_TITLE
-        NowPlayingPlaybackState.Idle -> PlaybackDisplayText.FALLBACK_IDLE_TITLE
+        NowPlayingPlaybackState.Playing -> BambooPlaybackText.FALLBACK_PLAYING_TITLE
+        NowPlayingPlaybackState.Paused -> BambooPlaybackText.FALLBACK_PAUSED_TITLE
+        NowPlayingPlaybackState.Idle -> BambooPlaybackText.FALLBACK_IDLE_TITLE
     }
 
 private val NowPlayingPlaybackState.fallbackArtist: String
     get() = when (this) {
-        NowPlayingPlaybackState.Playing -> PlaybackDisplayText.FALLBACK_PLAYING_SUBTITLE
-        NowPlayingPlaybackState.Paused -> PlaybackDisplayText.FALLBACK_PAUSED_SUBTITLE
-        NowPlayingPlaybackState.Idle -> PlaybackDisplayText.FALLBACK_IDLE_SUBTITLE
+        NowPlayingPlaybackState.Playing -> BambooPlaybackText.FALLBACK_PLAYING_SUBTITLE
+        NowPlayingPlaybackState.Paused -> BambooPlaybackText.FALLBACK_PAUSED_SUBTITLE
+        NowPlayingPlaybackState.Idle -> BambooPlaybackText.FALLBACK_IDLE_SUBTITLE
     }
 
 private fun EngineSnapshot.toPlaybackState(): NowPlayingPlaybackState = when (playbackState) {

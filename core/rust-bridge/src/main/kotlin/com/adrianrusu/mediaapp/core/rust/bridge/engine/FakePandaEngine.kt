@@ -4,7 +4,7 @@ import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
 
-internal class FakeRustEngine(private val clock: () -> Long = System::currentTimeMillis) : RustEngine {
+internal class FakePandaEngine(private val clock: () -> Long = System::currentTimeMillis) : RustEngine {
     @Volatile
     private var currentSnapshot: EngineSnapshot =
         EngineSnapshot.idle(clock())
@@ -12,7 +12,7 @@ internal class FakeRustEngine(private val clock: () -> Long = System::currentTim
     override fun snapshot(): EngineSnapshot = currentSnapshot
 
     override fun dispatch(command: EngineCommand): EngineDispatchResult {
-        val nextSnapshot = FakeEngineReducer.reduce(
+        val nextSnapshot = FakePandaEngineReducer.reduce(
             current = currentSnapshot,
             command = command,
             nowMillis = clock()

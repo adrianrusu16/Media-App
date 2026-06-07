@@ -9,7 +9,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.adrianrusu.mediaapp.appshell.presentation.AppShellScreen
 import com.adrianrusu.mediaapp.appshell.presentation.AppShellViewModel
-import com.adrianrusu.mediaapp.core.designsystem.theme.MediaAppTheme
+import com.adrianrusu.mediaapp.core.designsystem.theme.PandaWaveTheme
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -22,7 +22,7 @@ class MainActivity : ComponentActivity() {
             val viewModel: AppShellViewModel = hiltViewModel()
             val state = viewModel.state.collectAsStateWithLifecycle()
 
-            MediaAppTheme(darkTheme = isSystemInDarkTheme()) {
+            PandaWaveTheme(darkTheme = isSystemInDarkTheme()) {
                 AppShellScreen(
                     state = state.value,
                     onIntent = viewModel::onIntent

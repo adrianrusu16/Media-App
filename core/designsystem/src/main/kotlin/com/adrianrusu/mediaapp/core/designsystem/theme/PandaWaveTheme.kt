@@ -8,11 +8,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import com.adrianrusu.mediaapp.core.designsystem.tokens.MediaAppColorTokens
+import com.adrianrusu.mediaapp.core.designsystem.tokens.PandaWaveColorTokens
 import com.adrianrusu.mediaapp.core.designsystem.tokens.ResourceDesignTokenProvider
 
 @Composable
-fun MediaAppTheme(darkTheme: Boolean, content: @Composable () -> Unit) {
+fun PandaWaveTheme(darkTheme: Boolean, content: @Composable () -> Unit) {
     val context = LocalContext.current
     val tokens = remember(context) {
         ResourceDesignTokenProvider(context).load()
@@ -24,7 +24,7 @@ fun MediaAppTheme(darkTheme: Boolean, content: @Composable () -> Unit) {
     )
 }
 
-private fun MediaAppColorTokens.toColorScheme(darkTheme: Boolean): ColorScheme {
+private fun PandaWaveColorTokens.toColorScheme(darkTheme: Boolean): ColorScheme {
     val primary = Color(this.primary)
     val onPrimary = Color(this.onPrimary)
     val secondary = Color(this.secondary)

@@ -1,6 +1,6 @@
 package com.adrianrusu.mediaapp.di
 
-import com.adrianrusu.mediaapp.core.rust.bridge.engine.FakeRustEngineFactory
+import com.adrianrusu.mediaapp.core.rust.bridge.engine.PandaEngineFactory
 import com.adrianrusu.mediaapp.core.rust.bridge.engine.RustEngine
 import com.adrianrusu.mediaapp.core.telemetry.TelemetryLogger
 import com.adrianrusu.mediaapp.core.telemetry.TelemetrySink
@@ -16,7 +16,7 @@ import javax.inject.Singleton
 object AppCoreModule {
     @Provides
     @Singleton
-    fun provideRustEngine(): RustEngine = FakeRustEngineFactory.create()
+    fun provideRustEngine(): RustEngine = PandaEngineFactory.createFake()
 
     @Provides
     @Singleton
