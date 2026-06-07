@@ -128,7 +128,7 @@ Rust engine wiring milestone.
 - Use Media3 and `MediaSession` as the platform media path.
 - Observe AAOS UX restrictions with a platform adapter and project them into
   app and Rust state.
-- Use RRO-ready resources for OEM customization.
+- Use RRO-ready design tokens for OEM customization.
 - Prefer public `android.car` APIs for vehicle state.
 - Keep HAL/VHAL integrations behind an OEM-only adapter boundary.
 - Use CarUiLib and Car UI plugins where available in OEM/system-image builds,

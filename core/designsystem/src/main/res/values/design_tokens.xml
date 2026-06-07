@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="mediaapp_color_brand_primary">#006D77</color>
+    <color name="mediaapp_color_brand_on_primary">#FFFFFF</color>
+    <color name="mediaapp_color_brand_secondary">#F4A261</color>
+    <color name="mediaapp_color_brand_on_secondary">#1D1D1D</color>
+    <color name="mediaapp_color_surface">#F7F9FA</color>
+    <color name="mediaapp_color_on_surface">#172026</color>
+    <color name="mediaapp_color_surface_variant">#E6ECEF</color>
+    <color name="mediaapp_color_on_surface_variant">#42515A</color>
+    <color name="mediaapp_color_error">#BA1A1A</color>
+    <color name="mediaapp_color_on_error">#FFFFFF</color>
+
+    <dimen name="mediaapp_spacing_xs">4dp</dimen>
+    <dimen name="mediaapp_spacing_sm">8dp</dimen>
+    <dimen name="mediaapp_spacing_md">16dp</dimen>
+    <dimen name="mediaapp_spacing_lg">24dp</dimen>
+    <dimen name="mediaapp_spacing_xl">32dp</dimen>
+    <dimen name="mediaapp_shape_corner_sm">4dp</dimen>
+    <dimen name="mediaapp_shape_corner_md">8dp</dimen>
+    <dimen name="mediaapp_miniplayer_height">96dp</dimen>
+
+    <integer name="mediaapp_max_browse_columns_unrestricted">4</integer>
+    <integer name="mediaapp_max_browse_columns_restricted">2</integer>
+    <integer name="mediaapp_max_visible_actions_restricted">3</integer>
+</resources>
