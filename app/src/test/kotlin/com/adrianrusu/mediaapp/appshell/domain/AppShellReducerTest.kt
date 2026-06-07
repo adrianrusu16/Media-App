@@ -1,8 +1,6 @@
 package com.adrianrusu.mediaapp.appshell.domain
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AppShellReducerTest {
@@ -17,19 +15,12 @@ class AppShellReducerTest {
     }
 
     @Test
-    fun togglePlaybackFlipsMiniPlayerPlaybackState() {
-        val playingState = AppShellReducer.reduce(
+    fun togglePlaybackDoesNotMutatePlaybackStateDirectly() {
+        val state = AppShellReducer.reduce(
             state = AppShellState(),
             intent = AppShellIntent.TogglePlayback,
         )
 
-        assertTrue(playingState.miniPlayer.isPlaying)
-
-        val pausedState = AppShellReducer.reduce(
-            state = playingState,
-            intent = AppShellIntent.TogglePlayback,
-        )
-
-        assertFalse(pausedState.miniPlayer.isPlaying)
+        assertEquals(AppShellState(), state)
     }
 }

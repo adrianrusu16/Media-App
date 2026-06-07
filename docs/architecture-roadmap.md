@@ -102,6 +102,8 @@ operations that ViewModels call.
 The first app shell keeps this pattern local to `:app` while feature modules are
 still empty. As the implementation grows, feature repositories and use cases can
 move behind feature/domain module boundaries without changing the screen model.
+Playback-facing UI state is mapped from engine snapshots so the real Rust
+engine can replace the fake implementation without changing Compose screens.
 
 ## Playback Ownership
 

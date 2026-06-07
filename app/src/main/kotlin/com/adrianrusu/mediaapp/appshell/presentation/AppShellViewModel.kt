@@ -8,6 +8,7 @@ import com.adrianrusu.mediaapp.appshell.domain.AppShellRepository
 import com.adrianrusu.mediaapp.appshell.domain.DispatchAppShellIntentUseCase
 import com.adrianrusu.mediaapp.appshell.domain.ObserveAppShellStateUseCase
 import com.adrianrusu.mediaapp.core.automotive.ux.PlatformAutomotiveUxRestrictionObserver
+import com.adrianrusu.mediaapp.core.rust.bridge.engine.FakeRustEngineFactory
 
 class AppShellViewModel(
     application: Application,
@@ -15,6 +16,7 @@ class AppShellViewModel(
     private val repository: AppShellRepository =
         InMemoryAppShellRepository(
             uxRestrictionObserver = PlatformAutomotiveUxRestrictionObserver(application),
+            engine = FakeRustEngineFactory.create(),
         )
     private val observeState = ObserveAppShellStateUseCase(repository)
     private val dispatchIntent = DispatchAppShellIntentUseCase(repository)

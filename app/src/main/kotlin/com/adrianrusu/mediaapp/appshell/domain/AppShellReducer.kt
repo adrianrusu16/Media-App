@@ -9,21 +9,6 @@ internal object AppShellReducer {
             is AppShellIntent.SelectDestination ->
                 state.copy(selectedDestination = intent.destination)
 
-            AppShellIntent.TogglePlayback ->
-                state.copy(
-                    miniPlayer = state.miniPlayer.copy(
-                        title = if (state.miniPlayer.isPlaying) {
-                            "Paused"
-                        } else {
-                            "Sample station"
-                        },
-                        subtitle = if (state.miniPlayer.isPlaying) {
-                            "Ready to resume"
-                        } else {
-                            "Preview queue"
-                        },
-                        isPlaying = !state.miniPlayer.isPlaying,
-                    ),
-                )
+            AppShellIntent.TogglePlayback -> state
         }
 }
