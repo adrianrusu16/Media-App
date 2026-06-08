@@ -153,6 +153,46 @@ class InMemoryAppShellRepositoryTest {
 
         assertEquals(EngineConnectionUiState.Unavailable, repository.state.value.engineConnection)
     }
+
+    @Test
+    fun unavailableEngineStateBlocksPlaybackCommands() {
+        val engine = RecordingEngineGateway()
+        val repository = InMemoryAppShellRepository(
+            uxRestrictionObserver = FakeAutomotiveUxRestrictionObserver(),
+            engine = engine
+        )
+
+        repository.start()
+        engine.pushEvent(EngineEvent(type = EngineEvent.TYPE_SERVICE_DISCONNECTED, message = null))
+        repository.dispatch(AppShellIntent.TogglePlayback)
+        repository.dispatch(AppShellIntent.SkipNext)
+
+        assertEquals(
+            listOf(EngineCommand.TYPE_BOOTSTRAP),
+            engine.commandTypes
+        )
+    }
+
+    @Test
+    fun reconnectingEngineStateAllowsQueuedPlaybackCommands() {
+        val engine = RecordingEngineGateway()
+        val repository = InMemoryAppShellRepository(
+            uxRestrictionObserver = FakeAutomotiveUxRestrictionObserver(),
+            engine = engine
+        )
+
+        repository.start()
+        engine.pushEvent(EngineEvent(type = EngineEvent.TYPE_SERVICE_BINDING_DIED, message = null))
+        repository.dispatch(AppShellIntent.SkipNext)
+
+        assertEquals(
+            listOf(
+                EngineCommand.TYPE_BOOTSTRAP,
+                EngineCommand.TYPE_SKIP_NEXT
+            ),
+            engine.commandTypes
+        )
+    }
 }
 
 private data class FakeAutomotiveUxRestrictionObserver(

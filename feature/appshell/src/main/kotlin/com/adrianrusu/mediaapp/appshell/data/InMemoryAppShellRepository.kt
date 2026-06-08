@@ -102,6 +102,10 @@ internal class InMemoryAppShellRepository(
     }
 
     private fun dispatchEngineCommand(commandType: String) {
+        if (!mutableState.value.canDispatchEngineCommands) {
+            return
+        }
+
         val result = engine.dispatch(
             EngineCommand(
                 type = commandType,

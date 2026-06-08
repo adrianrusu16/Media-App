@@ -9,6 +9,8 @@ data class AppShellState(
     val miniPlayer: MiniPlayerState = MiniPlayerState.Empty
 ) {
     val destinations: List<AppDestination> = AppDestination.entries
+    val canDispatchEngineCommands: Boolean
+        get() = engineConnection.status != EngineConnectionStatus.Unavailable
 }
 
 data class EngineConnectionUiState(val label: String, val status: EngineConnectionStatus) {

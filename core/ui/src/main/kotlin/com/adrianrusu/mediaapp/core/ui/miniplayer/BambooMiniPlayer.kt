@@ -30,6 +30,7 @@ fun BambooMiniPlayer(
     onSkipPreviousClick: () -> Unit,
     onPlayPauseClick: () -> Unit,
     onSkipNextClick: () -> Unit,
+    controlsEnabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -72,13 +73,19 @@ fun BambooMiniPlayer(
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                IconButton(onClick = onSkipPreviousClick) {
+                IconButton(
+                    enabled = controlsEnabled,
+                    onClick = onSkipPreviousClick
+                ) {
                     Icon(
                         imageVector = Icons.Filled.SkipPrevious,
                         contentDescription = BambooPlaybackText.ACTION_SKIP_PREVIOUS
                     )
                 }
-                IconButton(onClick = onPlayPauseClick) {
+                IconButton(
+                    enabled = controlsEnabled,
+                    onClick = onPlayPauseClick
+                ) {
                     Icon(
                         imageVector = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                         contentDescription = if (state.isPlaying) {
@@ -88,7 +95,10 @@ fun BambooMiniPlayer(
                         }
                     )
                 }
-                IconButton(onClick = onSkipNextClick) {
+                IconButton(
+                    enabled = controlsEnabled,
+                    onClick = onSkipNextClick
+                ) {
                     Icon(
                         imageVector = Icons.Filled.SkipNext,
                         contentDescription = BambooPlaybackText.ACTION_SKIP_NEXT
