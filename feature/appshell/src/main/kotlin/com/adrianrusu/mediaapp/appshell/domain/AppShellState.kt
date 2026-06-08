@@ -1,6 +1,7 @@
 package com.adrianrusu.mediaapp.appshell.domain
 
 import com.adrianrusu.mediaapp.core.ui.miniplayer.MiniPlayerState
+import com.adrianrusu.mediaapp.core.ui.playback.BambooEngineConnectionText
 
 data class AppShellState(
     val selectedDestination: AppDestination = AppDestination.Home,
@@ -16,19 +17,19 @@ data class AppShellState(
 data class EngineConnectionUiState(val label: String, val status: EngineConnectionStatus) {
     companion object {
         val Connecting = EngineConnectionUiState(
-            label = ENGINE_CONNECTING_LABEL,
+            label = BambooEngineConnectionText.CONNECTING,
             status = EngineConnectionStatus.Connecting
         )
         val Ready = EngineConnectionUiState(
-            label = ENGINE_READY_LABEL,
+            label = BambooEngineConnectionText.READY,
             status = EngineConnectionStatus.Ready
         )
         val Reconnecting = EngineConnectionUiState(
-            label = ENGINE_RECONNECTING_LABEL,
+            label = BambooEngineConnectionText.RECONNECTING,
             status = EngineConnectionStatus.Reconnecting
         )
         val Unavailable = EngineConnectionUiState(
-            label = ENGINE_UNAVAILABLE_LABEL,
+            label = BambooEngineConnectionText.UNAVAILABLE,
             status = EngineConnectionStatus.Unavailable
         )
     }
@@ -49,8 +50,3 @@ data class RestrictionUiState(val label: String, val isRestricted: Boolean) {
         )
     }
 }
-
-private const val ENGINE_CONNECTING_LABEL = "PandaEngine connecting"
-private const val ENGINE_READY_LABEL = "PandaEngine ready"
-private const val ENGINE_RECONNECTING_LABEL = "PandaEngine reconnecting"
-private const val ENGINE_UNAVAILABLE_LABEL = "PandaEngine unavailable"

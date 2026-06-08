@@ -105,6 +105,7 @@ private fun PlaybackControls(state: NowPlayingState, onIntent: (NowPlayingIntent
             verticalAlignment = Alignment.CenterVertically
         ) {
             Button(
+                enabled = state.canDispatchEngineCommands,
                 onClick = {
                     onIntent(NowPlayingIntent.TogglePlayback)
                 }
@@ -112,6 +113,7 @@ private fun PlaybackControls(state: NowPlayingState, onIntent: (NowPlayingIntent
                 Text(text = state.primaryActionLabel)
             }
             OutlinedButton(
+                enabled = state.canDispatchEngineCommands,
                 onClick = {
                     onIntent(NowPlayingIntent.Refresh)
                 }
@@ -146,6 +148,11 @@ private fun EngineStateCard(state: NowPlayingState) {
             )
             Text(
                 text = state.playbackState.name,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
+                text = state.engineConnection.label,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodyMedium
             )
