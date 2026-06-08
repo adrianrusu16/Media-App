@@ -6,7 +6,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -22,6 +26,7 @@ import com.adrianrusu.mediaapp.core.designsystem.tokens.cardResting
 import com.adrianrusu.mediaapp.core.designsystem.tokens.lg
 import com.adrianrusu.mediaapp.core.designsystem.tokens.md
 import com.adrianrusu.mediaapp.core.designsystem.tokens.sm
+import com.adrianrusu.mediaapp.core.model.theme.PandaWaveThemePreference
 import com.adrianrusu.mediaapp.feature.settings.domain.SettingsIntent
 import com.adrianrusu.mediaapp.feature.settings.domain.SettingsState
 import com.adrianrusu.mediaapp.feature.settings.presentation.SettingsViewModel
@@ -67,6 +72,13 @@ private fun SettingsScreen(state: SettingsState, onIntent: (SettingsIntent) -> U
             checked = state.explicitContentAllowed,
             enabled = state.controlsEnabled,
             onCheckedChange = { onIntent(SettingsIntent.ToggleExplicitContent) }
+        )
+        ThemePreferenceCard(
+            selectedPreference = state.themePreference,
+            enabled = state.controlsEnabled,
+            onPreferenceSelected = { preference ->
+                onIntent(SettingsIntent.SelectThemePreference(preference))
+            }
         )
         PrivacyNoticeCard(
             acknowledged = state.privacyNoticeAcknowledged,
@@ -153,6 +165,71 @@ private fun SettingsSwitchRow(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ThemePreferenceCard(
+    selectedPreference: PandaWaveThemePreference,
+    enabled: Boolean,
+    onPreferenceSelected: (PandaWaveThemePreference) -> Unit
+) {
+    val tokens = LocalPandaWaveDesignTokens.current
+    val options = listOf(
+        ThemePreferenceOption(
+            preference = PandaWaveThemePreference.SystemDefault,
+            label = "System"
+        ),
+        ThemePreferenceOption(
+            preference = PandaWaveThemePreference.BambooGroveLight,
+            label = "Light"
+        ),
+        ThemePreferenceOption(
+            preference = PandaWaveThemePreference.MoonlitBambooDark,
+            label = "Dark"
+        )
+    )
+
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = tokens.elevation.cardResting,
+        shape = MaterialTheme.shapes.small
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(tokens.spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(tokens.spacing.md)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(tokens.spacing.sm)) {
+                Text(
+                    text = "Theme",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = selectedPreference.label,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                options.forEachIndexed { index, option ->
+                    SegmentedButton(
+                        selected = option.preference == selectedPreference,
+                        enabled = enabled,
+                        onClick = { onPreferenceSelected(option.preference) },
+                        shape = SegmentedButtonDefaults.itemShape(
+                            index = index,
+                            count = options.size
+                        )
+                    ) {
+                        Text(text = option.label)
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun PrivacyNoticeCard(acknowledged: Boolean, onAcknowledge: () -> Unit) {
     val tokens = LocalPandaWaveDesignTokens.current
@@ -197,3 +274,12 @@ private fun PrivacyNoticeCard(acknowledged: Boolean, onAcknowledge: () -> Unit) 
         }
     }
 }
+
+private data class ThemePreferenceOption(val preference: PandaWaveThemePreference, val label: String)
+
+private val PandaWaveThemePreference.label: String
+    get() = when (this) {
+        PandaWaveThemePreference.SystemDefault -> "Follow system appearance."
+        PandaWaveThemePreference.BambooGroveLight -> "Bamboo Grove Light"
+        PandaWaveThemePreference.MoonlitBambooDark -> "Moonlit Bamboo Dark"
+    }

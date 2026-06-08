@@ -2,7 +2,10 @@ package com.adrianrusu.mediaapp.feature.settings.data
 
 import com.adrianrusu.mediaapp.core.automotive.ux.AutomotiveUxRestrictionObserver
 import com.adrianrusu.mediaapp.core.automotive.ux.AutomotiveUxRestrictions
+import com.adrianrusu.mediaapp.core.model.theme.InMemoryThemePreferenceRepository
+import com.adrianrusu.mediaapp.core.model.theme.PandaWaveThemePreference
 import com.adrianrusu.mediaapp.feature.settings.domain.SettingsIntent
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -11,7 +14,10 @@ class InMemorySettingsRepositoryTest {
     @Test
     fun appliesUxRestrictionsToSettingsState() {
         val observer = RecordingUxRestrictionObserver()
-        val repository = InMemorySettingsRepository(uxRestrictionObserver = observer)
+        val repository = InMemorySettingsRepository(
+            uxRestrictionObserver = observer,
+            themePreferenceRepository = InMemoryThemePreferenceRepository()
+        )
 
         repository.start()
         observer.emit(
@@ -32,12 +38,27 @@ class InMemorySettingsRepositoryTest {
     @Test
     fun dispatchesSettingIntentsWhenUnrestricted() {
         val repository = InMemorySettingsRepository(
-            uxRestrictionObserver = RecordingUxRestrictionObserver()
+            uxRestrictionObserver = RecordingUxRestrictionObserver(),
+            themePreferenceRepository = InMemoryThemePreferenceRepository()
         )
 
         repository.dispatch(SettingsIntent.TogglePersonalization)
 
         assertTrue(repository.state.value.personalizationEnabled)
+    }
+
+    @Test
+    fun dispatchesThemePreferenceToSharedRepository() {
+        val themePreferenceRepository = InMemoryThemePreferenceRepository()
+        val repository = InMemorySettingsRepository(
+            uxRestrictionObserver = RecordingUxRestrictionObserver(),
+            themePreferenceRepository = themePreferenceRepository
+        )
+
+        repository.dispatch(SettingsIntent.SelectThemePreference(PandaWaveThemePreference.MoonlitBambooDark))
+
+        assertEquals(PandaWaveThemePreference.MoonlitBambooDark, repository.state.value.themePreference)
+        assertEquals(PandaWaveThemePreference.MoonlitBambooDark, themePreferenceRepository.preference.value)
     }
 }
 

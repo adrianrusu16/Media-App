@@ -2,6 +2,10 @@ package com.adrianrusu.mediaapp.di
 
 import android.content.Context
 import com.adrianrusu.mediaapp.core.automotive.ux.PlatformAutomotiveUxRestrictionObserver
+import com.adrianrusu.mediaapp.core.model.theme.InMemoryThemePreferenceRepository
+import com.adrianrusu.mediaapp.core.model.theme.ObserveThemePreferenceUseCase
+import com.adrianrusu.mediaapp.core.model.theme.SetThemePreferenceUseCase
+import com.adrianrusu.mediaapp.core.model.theme.ThemePreferenceRepository
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackRepository
 import com.adrianrusu.mediaapp.core.playback.DefaultBambooPlaybackRepository
 import com.adrianrusu.mediaapp.core.rust.bridge.gateway.AidlEngineGateway
@@ -11,10 +15,6 @@ import com.adrianrusu.mediaapp.core.rust.bridge.gateway.EngineServiceConnection
 import com.adrianrusu.mediaapp.core.telemetry.TelemetryLogger
 import com.adrianrusu.mediaapp.core.telemetry.TelemetrySink
 import com.adrianrusu.mediaapp.core.telemetry.sinks.AndroidLogTelemetrySink
-import com.adrianrusu.mediaapp.theme.InMemoryThemePreferenceRepository
-import com.adrianrusu.mediaapp.theme.ObserveThemePreferenceUseCase
-import com.adrianrusu.mediaapp.theme.SetThemePreferenceUseCase
-import com.adrianrusu.mediaapp.theme.ThemePreferenceRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn

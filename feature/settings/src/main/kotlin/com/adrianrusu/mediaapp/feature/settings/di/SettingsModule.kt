@@ -2,6 +2,7 @@ package com.adrianrusu.mediaapp.feature.settings.di
 
 import android.content.Context
 import com.adrianrusu.mediaapp.core.automotive.ux.PlatformAutomotiveUxRestrictionObserver
+import com.adrianrusu.mediaapp.core.model.theme.ThemePreferenceRepository
 import com.adrianrusu.mediaapp.feature.settings.data.InMemorySettingsRepository
 import com.adrianrusu.mediaapp.feature.settings.domain.DispatchSettingsIntentUseCase
 import com.adrianrusu.mediaapp.feature.settings.domain.ObserveSettingsStateUseCase
@@ -18,10 +19,13 @@ import dagger.hilt.android.scopes.ViewModelScoped
 object SettingsModule {
     @Provides
     @ViewModelScoped
-    fun provideSettingsRepository(@ApplicationContext context: Context): SettingsRepository =
-        InMemorySettingsRepository(
-            uxRestrictionObserver = PlatformAutomotiveUxRestrictionObserver(context)
-        )
+    fun provideSettingsRepository(
+        @ApplicationContext context: Context,
+        themePreferenceRepository: ThemePreferenceRepository
+    ): SettingsRepository = InMemorySettingsRepository(
+        uxRestrictionObserver = PlatformAutomotiveUxRestrictionObserver(context),
+        themePreferenceRepository = themePreferenceRepository
+    )
 
     @Provides
     @ViewModelScoped

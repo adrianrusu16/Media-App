@@ -2,6 +2,7 @@ package com.adrianrusu.mediaapp.feature.settings.data
 
 import com.adrianrusu.mediaapp.core.automotive.ux.AutomotiveUxRestrictionObserver
 import com.adrianrusu.mediaapp.core.automotive.ux.AutomotiveUxRestrictions
+import com.adrianrusu.mediaapp.core.model.theme.ThemePreferenceRepository
 import com.adrianrusu.mediaapp.feature.settings.domain.SettingsIntent
 import com.adrianrusu.mediaapp.feature.settings.domain.SettingsReducer
 import com.adrianrusu.mediaapp.feature.settings.domain.SettingsRepository
@@ -12,9 +13,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
-internal class InMemorySettingsRepository(private val uxRestrictionObserver: AutomotiveUxRestrictionObserver) :
-    SettingsRepository {
-    private val mutableState = MutableStateFlow(SettingsState())
+internal class InMemorySettingsRepository(
+    private val uxRestrictionObserver: AutomotiveUxRestrictionObserver,
+    private val themePreferenceRepository: ThemePreferenceRepository
+) : SettingsRepository {
+    private val mutableState = MutableStateFlow(
+        SettingsState(themePreference = themePreferenceRepository.preference.value)
+    )
 
     override val state: StateFlow<SettingsState> = mutableState.asStateFlow()
 
@@ -28,7 +33,11 @@ internal class InMemorySettingsRepository(private val uxRestrictionObserver: Aut
 
     override fun dispatch(intent: SettingsIntent) {
         mutableState.update { current ->
-            SettingsReducer.reduce(current, intent)
+            val next = SettingsReducer.reduce(current, intent)
+            if (next.themePreference != current.themePreference) {
+                themePreferenceRepository.setPreference(next.themePreference)
+            }
+            next
         }
     }
 

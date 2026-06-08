@@ -2,7 +2,9 @@ package com.adrianrusu.mediaapp.theme
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.adrianrusu.mediaapp.core.model.theme.ObserveThemePreferenceUseCase
 import com.adrianrusu.mediaapp.core.model.theme.PandaWaveThemePreference
+import com.adrianrusu.mediaapp.core.model.theme.SetThemePreferenceUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted

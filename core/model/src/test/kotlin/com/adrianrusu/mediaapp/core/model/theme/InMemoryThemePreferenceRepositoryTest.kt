@@ -1,6 +1,5 @@
-package com.adrianrusu.mediaapp.theme
+package com.adrianrusu.mediaapp.core.model.theme
 
-import com.adrianrusu.mediaapp.core.model.theme.PandaWaveThemePreference
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
