@@ -21,6 +21,14 @@ pub trait MediaRepository: Send + Sync {
 
     /// Returns the previous item in the current queue relative to the provided ID.
     fn get_previous(&self, current_id: &str) -> Option<MediaItem>;
+
+    /// Returns a list of media items that are children of the specified parent ID.
+    ///
+    /// This is used for hierarchical browsing (e.g., Artist -> Album -> Track).
+    fn browse(&self, parent_id: &str) -> Vec<MediaItem>;
+
+    /// Searches for media items matching the provided query string.
+    fn search(&self, query: &str) -> Vec<MediaItem>;
 }
 
 /// A simple in-memory implementation of [MediaRepository].
@@ -54,6 +62,22 @@ impl MediaRepository for InMemoryRepository {
             index - 1
         };
         Some(self.items[prev_index].clone())
+    }
+
+    fn browse(&self, _parent_id: &str) -> Vec<MediaItem> {
+        // Simple mock: return all items for any browse request
+        self.items.clone()
+    }
+
+    fn search(&self, query: &str) -> Vec<MediaItem> {
+        let query = query.to_lowercase();
+        self.items
+            .iter()
+            .filter(|i| {
+                i.title.to_lowercase().contains(&query) || i.artist.to_lowercase().contains(&query)
+            })
+            .cloned()
+            .collect()
     }
 }
 

@@ -33,6 +33,17 @@ impl Middleware for TelemetryMiddleware {
     }
 }
 
+/// A middleware that handles AAOS-specific focus logic or logging.
+pub struct FocusMiddleware;
+impl Middleware for FocusMiddleware {
+    fn before_dispatch(&self, _engine: &Engine, command: &EngineCommand) {
+        if command.command_type == crate::command::EngineCommandType::Play {
+            println!("[FocusMiddleware] Requesting audio focus before Play...");
+            // In a real app, this might trigger a platform call or internal check
+        }
+    }
+}
+
 /// A composite middleware that runs a list of middlewares in order.
 #[derive(Default)]
 pub struct MiddlewarePipeline {

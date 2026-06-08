@@ -22,6 +22,7 @@ data class EnginePlatformEvent(val type: String, val payload: String?) : Parcela
         const val TYPE_SUSPEND_TO_RAM = "suspend_to_ram"
         const val TYPE_RESUME_FROM_RAM = "resume_from_ram"
         const val TYPE_UX_RESTRICTIONS_CHANGED = "ux_restrictions_changed"
+        const val TYPE_AUDIO_FOCUS_CHANGED = "audio_focus_changed"
         const val TYPE_MEDIA_LOADED = "media_loaded"
         const val TYPE_MEDIA_ERROR = "media_error"
 

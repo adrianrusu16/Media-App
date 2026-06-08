@@ -53,6 +53,11 @@ impl StateMachine {
             // Suspend/Resume logic (simplified)
             (_, EnginePlatformEventType::SuspendToRam) => PlaybackState::Paused,
 
+            // Audio Focus logic
+            (PlaybackState::Playing, EnginePlatformEventType::AudioFocusChanged) => {
+                PlaybackState::Paused
+            }
+
             // Default: preserve current state
             (current, _) => current,
         }

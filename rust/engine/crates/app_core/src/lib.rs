@@ -10,7 +10,9 @@ mod state_machine;
 
 pub use command::{EngineCommand, EngineCommandType};
 pub use event::{EngineEvent, EngineEventType};
-pub use middleware::{LoggerMiddleware, Middleware, MiddlewarePipeline, TelemetryMiddleware};
+pub use middleware::{
+    FocusMiddleware, LoggerMiddleware, Middleware, MiddlewarePipeline, TelemetryMiddleware,
+};
 pub use platform_event::{EnginePlatformEvent, EnginePlatformEventType};
 pub use playback::{PlaybackState, RestrictionState};
 pub use reducer::{Engine, EngineOutcome};

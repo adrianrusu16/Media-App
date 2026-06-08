@@ -233,6 +233,19 @@ mod tests {
     }
 
     #[test]
+    fn audio_focus_loss_pauses_playing_engine() {
+        let mut engine = Engine::new(100);
+        engine.snapshot = engine.snapshot.clone().with_playback_state(PlaybackState::Playing, 150);
+
+        let outcome = engine.dispatch_platform_event(
+            EnginePlatformEvent::new(EnginePlatformEventType::AudioFocusChanged, None),
+            200,
+        );
+
+        assert_eq!(PlaybackState::Paused, outcome.snapshot.playback_state);
+    }
+
+    #[test]
     fn skip_updates_metadata() {
         let mut engine = Engine::new(100);
         let items = vec![
@@ -261,6 +274,30 @@ mod tests {
         // Skip previous (wraps around)
         engine.dispatch(EngineCommand::skip_previous(), 400);
         assert_eq!(engine.snapshot().media_id, Some("1".to_string()));
+    }
+
+    #[test]
+    fn repository_search_finds_items() {
+        let items = vec![
+            MediaItem {
+                id: "1".to_string(),
+                title: "Rust Song".to_string(),
+                artist: "The Developers".to_string(),
+            },
+            MediaItem {
+                id: "2".to_string(),
+                title: "Kotlin Blues".to_string(),
+                artist: "The Developers".to_string(),
+            },
+        ];
+        let repo = InMemoryRepository::new(items);
+
+        let results = repo.search("Rust");
+        assert_eq!(1, results.len());
+        assert_eq!("1", results[0].id);
+
+        let results = repo.search("Developers");
+        assert_eq!(2, results.len());
     }
 
     #[test]

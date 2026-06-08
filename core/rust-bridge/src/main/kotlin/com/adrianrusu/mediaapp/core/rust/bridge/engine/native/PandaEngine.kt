@@ -32,13 +32,22 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         )
     }
 
-    override fun dispatchPlatformEvent(event: EnginePlatformEvent): EngineDispatchResult = EngineDispatchResult(
-        snapshot = snapshot().copy(updatedAtEpochMillis = clock()),
-        event = EngineEvent(
-            type = EngineEvent.TYPE_PLATFORM_EVENT_APPLIED,
-            message = event.type
+    override fun dispatchPlatformEvent(event: EnginePlatformEvent): EngineDispatchResult {
+        val nativeValues = nativeDispatchPlatformEvent(
+            handle = nativeHandle,
+            eventType = event.toNativePlatformEventType(),
+            payload = event.payload,
+            nowEpochMillis = clock()
         )
-    )
+
+        return EngineDispatchResult(
+            snapshot = nativeValues.toEngineSnapshot(),
+            event = EngineEvent(
+                type = EngineEvent.TYPE_PLATFORM_EVENT_APPLIED,
+                message = event.type
+            )
+        )
+    }
 
     override fun close() {
         nativeDestroy(nativeHandle)
@@ -47,6 +56,13 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     private external fun nativeSnapshot(handle: Long): LongArray
 
     private external fun nativeDispatch(handle: Long, commandType: Int, nowEpochMillis: Long): LongArray
+    
+    private external fun nativeDispatchPlatformEvent(
+        handle: Long,
+        eventType: Int,
+        payload: String?,
+        nowEpochMillis: Long
+    ): LongArray
 
     private external fun nativeDestroy(handle: Long)
 
@@ -87,6 +103,16 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         private const val COMMAND_SKIP_NEXT = 4
         private const val COMMAND_UNKNOWN = -1
 
+        private const val PLATFORM_EVENT_APP_FOREGROUNDED = 0
+        private const val PLATFORM_EVENT_APP_BACKGROUNDED = 1
+        private const val PLATFORM_EVENT_SUSPEND_TO_RAM = 2
+        private const val PLATFORM_EVENT_RESUME_FROM_RAM = 3
+        private const val PLATFORM_EVENT_UX_RESTRICTIONS_CHANGED = 4
+        private const val PLATFORM_EVENT_AUDIO_FOCUS_CHANGED = 5
+        private const val PLATFORM_EVENT_MEDIA_LOADED = 6
+        private const val PLATFORM_EVENT_MEDIA_ERROR = 7
+        private const val PLATFORM_EVENT_UNKNOWN = -1
+
         private const val PLAYBACK_IDLE = 0
         private const val PLAYBACK_PLAYING = 1
         private const val PLAYBACK_PAUSED = 2
@@ -107,6 +133,18 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             EngineCommand.TYPE_SKIP_PREVIOUS -> COMMAND_SKIP_PREVIOUS
             EngineCommand.TYPE_SKIP_NEXT -> COMMAND_SKIP_NEXT
             else -> COMMAND_UNKNOWN
+        }
+
+        private fun EnginePlatformEvent.toNativePlatformEventType(): Int = when (type) {
+            EnginePlatformEvent.TYPE_APP_FOREGROUNDED -> PLATFORM_EVENT_APP_FOREGROUNDED
+            EnginePlatformEvent.TYPE_APP_BACKGROUNDED -> PLATFORM_EVENT_APP_BACKGROUNDED
+            EnginePlatformEvent.TYPE_SUSPEND_TO_RAM -> PLATFORM_EVENT_SUSPEND_TO_RAM
+            EnginePlatformEvent.TYPE_RESUME_FROM_RAM -> PLATFORM_EVENT_RESUME_FROM_RAM
+            EnginePlatformEvent.TYPE_UX_RESTRICTIONS_CHANGED -> PLATFORM_EVENT_UX_RESTRICTIONS_CHANGED
+            EnginePlatformEvent.TYPE_AUDIO_FOCUS_CHANGED -> PLATFORM_EVENT_AUDIO_FOCUS_CHANGED
+            EnginePlatformEvent.TYPE_MEDIA_LOADED -> PLATFORM_EVENT_MEDIA_LOADED
+            EnginePlatformEvent.TYPE_MEDIA_ERROR -> PLATFORM_EVENT_MEDIA_ERROR
+            else -> PLATFORM_EVENT_UNKNOWN
         }
 
         private fun playbackStateFromNative(value: Int): String = when (value) {

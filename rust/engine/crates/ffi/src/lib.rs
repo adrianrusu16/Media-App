@@ -17,6 +17,16 @@ pub const FFI_PLAYBACK_PAUSED: i32 = 2;
 pub const FFI_PLAYBACK_BUFFERING: i32 = 3;
 pub const FFI_PLAYBACK_ERROR: i32 = 4;
 
+pub const FFI_PLATFORM_EVENT_APP_FOREGROUNDED: i32 = 0;
+pub const FFI_PLATFORM_EVENT_APP_BACKGROUNDED: i32 = 1;
+pub const FFI_PLATFORM_EVENT_SUSPEND_TO_RAM: i32 = 2;
+pub const FFI_PLATFORM_EVENT_RESUME_FROM_RAM: i32 = 3;
+pub const FFI_PLATFORM_EVENT_UX_RESTRICTIONS_CHANGED: i32 = 4;
+pub const FFI_PLATFORM_EVENT_AUDIO_FOCUS_CHANGED: i32 = 5;
+pub const FFI_PLATFORM_EVENT_MEDIA_LOADED: i32 = 6;
+pub const FFI_PLATFORM_EVENT_MEDIA_ERROR: i32 = 7;
+pub const FFI_PLATFORM_EVENT_UNKNOWN: i32 = -1;
+
 pub const FFI_RESTRICTION_UNKNOWN: i32 = 0;
 
 pub const FFI_EVENT_COMMAND_APPLIED: i32 = 0;
@@ -57,6 +67,7 @@ pub extern "C" fn panda_engine_create(now_epoch_millis: u64) -> *mut PandaEngine
     let mut pipeline = MiddlewarePipeline::new();
     pipeline.add(Box::new(LoggerMiddleware));
     pipeline.add(Box::new(TelemetryMiddleware));
+    pipeline.add(Box::new(panda_engine_core::FocusMiddleware));
     engine.set_middleware(pipeline);
 
     Box::into_raw(Box::new(PandaEngine { engine }))
@@ -103,6 +114,29 @@ pub unsafe extern "C" fn panda_engine_dispatch(
                 now_epoch_millis,
             );
             FfiEngineOutcome::from((&outcome, command_type))
+        }
+        None => FfiEngineOutcome::invalid(),
+    }
+}
+
+/// # Safety
+///
+/// [engine] must be a valid pointer returned by [panda_engine_create].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn panda_engine_dispatch_platform_event(
+    engine: *mut PandaEngine,
+    event_type: i32,
+    _payload: *const std::ffi::c_char,
+    now_epoch_millis: u64,
+) -> FfiEngineOutcome {
+    let engine = unsafe { engine.as_mut() };
+    match engine {
+        Some(engine) => {
+            let outcome = engine.engine.dispatch_platform_event(
+                panda_engine_core::EnginePlatformEvent::new(platform_event_from_ffi(event_type), None),
+                now_epoch_millis,
+            );
+            FfiEngineOutcome::from((&outcome, FFI_COMMAND_UNKNOWN))
         }
         None => FfiEngineOutcome::invalid(),
     }
@@ -156,6 +190,21 @@ fn command_from_ffi(command_type: i32) -> EngineCommandType {
         FFI_COMMAND_SKIP_PREVIOUS => EngineCommandType::SkipPrevious,
         FFI_COMMAND_SKIP_NEXT => EngineCommandType::SkipNext,
         _ => EngineCommandType::Unknown(command_type.to_string()),
+    }
+}
+
+fn platform_event_from_ffi(event_type: i32) -> panda_engine_core::EnginePlatformEventType {
+    use panda_engine_core::EnginePlatformEventType;
+    match event_type {
+        FFI_PLATFORM_EVENT_APP_FOREGROUNDED => EnginePlatformEventType::AppForegrounded,
+        FFI_PLATFORM_EVENT_APP_BACKGROUNDED => EnginePlatformEventType::AppBackgrounded,
+        FFI_PLATFORM_EVENT_SUSPEND_TO_RAM => EnginePlatformEventType::SuspendToRam,
+        FFI_PLATFORM_EVENT_RESUME_FROM_RAM => EnginePlatformEventType::ResumeFromRam,
+        FFI_PLATFORM_EVENT_UX_RESTRICTIONS_CHANGED => EnginePlatformEventType::UxRestrictionsChanged,
+        FFI_PLATFORM_EVENT_AUDIO_FOCUS_CHANGED => EnginePlatformEventType::AudioFocusChanged,
+        FFI_PLATFORM_EVENT_MEDIA_LOADED => EnginePlatformEventType::MediaLoaded,
+        FFI_PLATFORM_EVENT_MEDIA_ERROR => EnginePlatformEventType::MediaError,
+        _ => EnginePlatformEventType::Unknown(event_type.to_string()),
     }
 }
 
