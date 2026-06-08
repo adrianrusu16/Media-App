@@ -1,6 +1,7 @@
 package com.adrianrusu.mediaapp.appshell.data
 
 import com.adrianrusu.mediaapp.appshell.domain.AppShellIntent
+import com.adrianrusu.mediaapp.appshell.domain.EngineConnectionUiState
 import com.adrianrusu.mediaapp.core.automotive.ux.AutomotiveUxRestrictionObserver
 import com.adrianrusu.mediaapp.core.automotive.ux.AutomotiveUxRestrictions
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
@@ -106,6 +107,52 @@ class InMemoryAppShellRepositoryTest {
         assertEquals("PandaWave", repository.state.value.miniPlayer.subtitle)
         assertTrue(repository.state.value.miniPlayer.isPlaying)
     }
+
+    @Test
+    fun queuedBootstrapProjectsConnectingEngineState() {
+        val repository = InMemoryAppShellRepository(
+            uxRestrictionObserver = FakeAutomotiveUxRestrictionObserver(),
+            engine = RecordingEngineGateway(dispatchEventType = EngineEvent.TYPE_COMMAND_QUEUED)
+        )
+
+        repository.start()
+
+        assertEquals(EngineConnectionUiState.Connecting, repository.state.value.engineConnection)
+    }
+
+    @Test
+    fun appliedBootstrapProjectsReadyEngineState() {
+        val repository = InMemoryAppShellRepository(
+            uxRestrictionObserver = FakeAutomotiveUxRestrictionObserver(),
+            engine = RecordingEngineGateway(dispatchEventType = EngineEvent.TYPE_COMMAND_APPLIED)
+        )
+
+        repository.start()
+
+        assertEquals(EngineConnectionUiState.Ready, repository.state.value.engineConnection)
+    }
+
+    @Test
+    fun pushedEngineEventsUpdateConnectionState() {
+        val engine = RecordingEngineGateway()
+        val repository = InMemoryAppShellRepository(
+            uxRestrictionObserver = FakeAutomotiveUxRestrictionObserver(),
+            engine = engine
+        )
+
+        repository.start()
+        engine.pushEvent(EngineEvent(type = EngineEvent.TYPE_SERVICE_BINDING_DIED, message = null))
+
+        assertEquals(EngineConnectionUiState.Reconnecting, repository.state.value.engineConnection)
+
+        engine.pushEvent(EngineEvent(type = EngineEvent.TYPE_SERVICE_CONNECTED, message = null))
+
+        assertEquals(EngineConnectionUiState.Ready, repository.state.value.engineConnection)
+
+        engine.pushEvent(EngineEvent(type = EngineEvent.TYPE_SERVICE_DISCONNECTED, message = null))
+
+        assertEquals(EngineConnectionUiState.Unavailable, repository.state.value.engineConnection)
+    }
 }
 
 private data class FakeAutomotiveUxRestrictionObserver(
@@ -123,10 +170,12 @@ private data class FakeAutomotiveUxRestrictionObserver(
     override fun close() = Unit
 }
 
-private class RecordingEngineGateway : EngineGateway {
+private class RecordingEngineGateway(private val dispatchEventType: String = EngineEvent.TYPE_COMMAND_APPLIED) :
+    EngineGateway {
     val commandTypes = mutableListOf<String>()
     private var currentSnapshot = EngineSnapshot.idle(nowMillis = 100)
-    private val listeners = mutableSetOf<(EngineSnapshot) -> Unit>()
+    private val snapshotListeners = mutableSetOf<(EngineSnapshot) -> Unit>()
+    private val eventListeners = mutableSetOf<(EngineEvent) -> Unit>()
 
     override fun snapshot(): EngineSnapshot = currentSnapshot
 
@@ -136,29 +185,39 @@ private class RecordingEngineGateway : EngineGateway {
         return EngineDispatchResult(
             snapshot = currentSnapshot,
             event = EngineEvent(
-                type = EngineEvent.TYPE_COMMAND_APPLIED,
+                type = dispatchEventType,
                 message = command.type
             )
         )
     }
 
     override fun observeSnapshots(listener: (EngineSnapshot) -> Unit): AutoCloseable {
-        listeners += listener
+        snapshotListeners += listener
         listener(currentSnapshot)
 
         return AutoCloseable {
-            listeners -= listener
+            snapshotListeners -= listener
         }
     }
 
-    override fun observeEngineEvents(listener: (EngineEvent) -> Unit): AutoCloseable = AutoCloseable {
-        // App shell observes snapshots; event observation is covered in rust-bridge tests.
+    override fun observeEngineEvents(listener: (EngineEvent) -> Unit): AutoCloseable {
+        eventListeners += listener
+
+        return AutoCloseable {
+            eventListeners -= listener
+        }
     }
 
     fun pushSnapshot(snapshot: EngineSnapshot) {
         currentSnapshot = snapshot
-        listeners.toList().forEach { listener ->
+        snapshotListeners.toList().forEach { listener ->
             listener(snapshot)
+        }
+    }
+
+    fun pushEvent(event: EngineEvent) {
+        eventListeners.toList().forEach { listener ->
+            listener(event)
         }
     }
 }

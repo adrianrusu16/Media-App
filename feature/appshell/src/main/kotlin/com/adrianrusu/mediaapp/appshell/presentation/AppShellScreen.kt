@@ -23,6 +23,8 @@ import androidx.compose.ui.unit.dp
 import com.adrianrusu.mediaapp.appshell.domain.AppDestination
 import com.adrianrusu.mediaapp.appshell.domain.AppShellIntent
 import com.adrianrusu.mediaapp.appshell.domain.AppShellState
+import com.adrianrusu.mediaapp.appshell.domain.EngineConnectionStatus
+import com.adrianrusu.mediaapp.appshell.domain.EngineConnectionUiState
 import com.adrianrusu.mediaapp.core.ui.miniplayer.BambooMiniPlayer
 import com.adrianrusu.mediaapp.feature.home.HomeRoute
 import com.adrianrusu.mediaapp.feature.library.LibraryRoute
@@ -87,7 +89,8 @@ private fun AppShellContent(state: AppShellState, onIntent: (AppShellIntent) -> 
             Header(
                 selectedDestination = state.selectedDestination,
                 restrictionLabel = state.restriction.label,
-                isRestricted = state.restriction.isRestricted
+                isRestricted = state.restriction.isRestricted,
+                engineConnection = state.engineConnection
             )
         }
 
@@ -104,13 +107,21 @@ private fun AppShellContent(state: AppShellState, onIntent: (AppShellIntent) -> 
 }
 
 @Composable
-private fun Header(selectedDestination: AppDestination, restrictionLabel: String, isRestricted: Boolean) {
+private fun Header(
+    selectedDestination: AppDestination,
+    restrictionLabel: String,
+    isRestricted: Boolean,
+    engineConnection: EngineConnectionUiState
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
             Text(
                 text = "PandaWave",
                 style = MaterialTheme.typography.headlineMedium,
@@ -123,20 +134,37 @@ private fun Header(selectedDestination: AppDestination, restrictionLabel: String
             )
         }
 
-        Surface(
-            color = if (isRestricted) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant
-            },
-            shape = MaterialTheme.shapes.small
+        Column(
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                text = restrictionLabel,
-                style = MaterialTheme.typography.labelLarge
+            StatusChip(
+                label = restrictionLabel,
+                isHighlighted = isRestricted
+            )
+            StatusChip(
+                label = engineConnection.label,
+                isHighlighted = engineConnection.status != EngineConnectionStatus.Ready
             )
         }
+    }
+}
+
+@Composable
+private fun StatusChip(label: String, isHighlighted: Boolean) {
+    Surface(
+        color = if (isHighlighted) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant
+        },
+        shape = MaterialTheme.shapes.small
+    ) {
+        Text(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            text = label,
+            style = MaterialTheme.typography.labelLarge
+        )
     }
 }
 

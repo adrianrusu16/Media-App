@@ -4,10 +4,12 @@ import com.adrianrusu.mediaapp.appshell.domain.AppShellIntent
 import com.adrianrusu.mediaapp.appshell.domain.AppShellReducer
 import com.adrianrusu.mediaapp.appshell.domain.AppShellRepository
 import com.adrianrusu.mediaapp.appshell.domain.AppShellState
+import com.adrianrusu.mediaapp.appshell.domain.EngineConnectionUiState
 import com.adrianrusu.mediaapp.appshell.domain.RestrictionUiState
 import com.adrianrusu.mediaapp.core.automotive.ux.AutomotiveUxRestrictionObserver
 import com.adrianrusu.mediaapp.core.automotive.ux.AutomotiveUxRestrictions
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.mediaapp.core.rust.bridge.gateway.EngineGateway
 import com.adrianrusu.mediaapp.core.ui.miniplayer.MiniPlayerState
@@ -23,26 +25,35 @@ internal class InMemoryAppShellRepository(
 ) : AppShellRepository {
     private val mutableState = MutableStateFlow(AppShellState())
     private var engineSnapshotSubscription: AutoCloseable? = null
+    private var engineEventSubscription: AutoCloseable? = null
 
     override val state: StateFlow<AppShellState> = mutableState.asStateFlow()
 
     override fun start() {
         engineSnapshotSubscription?.close()
+        engineEventSubscription?.close()
         engineSnapshotSubscription = engine.observeSnapshots { snapshot ->
             mutableState.update { current ->
                 current.withEngineSnapshot(snapshot)
             }
         }
+        engineEventSubscription = engine.observeEngineEvents { event ->
+            mutableState.update { current ->
+                current.withEngineEvent(event)
+            }
+        }
 
-        val bootstrapSnapshot = engine.dispatch(
+        val bootstrapResult = engine.dispatch(
             EngineCommand(
                 type = EngineCommand.TYPE_BOOTSTRAP,
                 payload = null
             )
-        ).snapshot
+        )
 
         mutableState.update { current ->
-            current.withEngineSnapshot(bootstrapSnapshot)
+            current
+                .withEngineSnapshot(bootstrapResult.snapshot)
+                .withEngineEvent(bootstrapResult.event)
         }
 
         uxRestrictionObserver.start { restrictions ->
@@ -76,6 +87,8 @@ internal class InMemoryAppShellRepository(
     override fun close() {
         engineSnapshotSubscription?.close()
         engineSnapshotSubscription = null
+        engineEventSubscription?.close()
+        engineEventSubscription = null
         uxRestrictionObserver.close()
     }
 
@@ -89,15 +102,17 @@ internal class InMemoryAppShellRepository(
     }
 
     private fun dispatchEngineCommand(commandType: String) {
-        val snapshot = engine.dispatch(
+        val result = engine.dispatch(
             EngineCommand(
                 type = commandType,
                 payload = null
             )
-        ).snapshot
+        )
 
         mutableState.update { current ->
-            current.withEngineSnapshot(snapshot)
+            current
+                .withEngineSnapshot(result.snapshot)
+                .withEngineEvent(result.event)
         }
     }
 }
@@ -106,6 +121,10 @@ internal fun AppShellState.withEngineSnapshot(snapshot: EngineSnapshot): AppShel
     miniPlayer = snapshot.toMiniPlayerState(
         isRestricted = miniPlayer.isRestricted
     )
+)
+
+internal fun AppShellState.withEngineEvent(event: EngineEvent): AppShellState = copy(
+    engineConnection = event.toConnectionUiState(current = engineConnection)
 )
 
 private fun EngineSnapshot.toMiniPlayerState(isRestricted: Boolean): MiniPlayerState {
@@ -145,4 +164,20 @@ private fun AutomotiveUxRestrictions.toUiState(): RestrictionUiState {
         label = label,
         isRestricted = isRestricted
     )
+}
+
+private fun EngineEvent.toConnectionUiState(current: EngineConnectionUiState): EngineConnectionUiState = when (type) {
+    EngineEvent.TYPE_COMMAND_APPLIED,
+    EngineEvent.TYPE_LISTENER_REGISTERED,
+    EngineEvent.TYPE_SERVICE_CONNECTED -> EngineConnectionUiState.Ready
+
+    EngineEvent.TYPE_COMMAND_QUEUED -> EngineConnectionUiState.Connecting
+
+    EngineEvent.TYPE_SERVICE_BINDING_DIED -> EngineConnectionUiState.Reconnecting
+
+    EngineEvent.TYPE_GATEWAY_UNAVAILABLE,
+    EngineEvent.TYPE_SERVICE_DISCONNECTED,
+    EngineEvent.TYPE_SERVICE_NULL_BINDING -> EngineConnectionUiState.Unavailable
+
+    else -> current
 }
