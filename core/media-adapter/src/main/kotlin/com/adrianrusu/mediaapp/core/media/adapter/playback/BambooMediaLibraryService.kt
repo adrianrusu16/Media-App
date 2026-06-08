@@ -46,7 +46,10 @@ class BambooMediaLibraryService : MediaLibraryService() {
             this,
             sessionPlayer,
             BambooMediaLibrarySessionCallback(
-                controlsEnabled = { playbackRepository.state.value.canDispatchEngineCommands }
+                controlsEnabled = { playbackRepository.state.value.canDispatchEngineCommands },
+                catalog = BambooMediaLibraryCatalog(
+                    source = PlaceholderBambooCatalogSource
+                )
             )
         ).build()
         val playbackStateProjector = BambooMediaSessionStateProjector(

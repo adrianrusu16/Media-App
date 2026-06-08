@@ -1,7 +1,6 @@
 package com.adrianrusu.mediaapp.core.media.adapter.playback
 
 import androidx.media3.common.MediaItem
-import androidx.media3.common.MediaMetadata
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
@@ -13,12 +12,13 @@ import com.google.common.util.concurrent.ListenableFuture
 /**
  * Media3 session callback for platform controllers.
  *
- * Library contents are intentionally minimal until PandaEngine owns catalog
- * and queue state. The root exists so AAOS browsers can connect to PandaWave
- * without receiving an unsupported library response.
+ * Library contents flow through a catalog source so PandaEngine can become the
+ * backing provider without changing the Media3 session contract.
  */
-internal class BambooMediaLibrarySessionCallback(private val controlsEnabled: () -> Boolean) :
-    MediaLibrarySession.Callback {
+internal class BambooMediaLibrarySessionCallback(
+    private val controlsEnabled: () -> Boolean,
+    private val catalog: BambooMediaLibraryCatalog
+) : MediaLibrarySession.Callback {
     override fun onConnect(
         session: MediaSession,
         controller: MediaSession.ControllerInfo
@@ -37,7 +37,7 @@ internal class BambooMediaLibrarySessionCallback(private val controlsEnabled: ()
         params: MediaLibraryService.LibraryParams?
     ): ListenableFuture<LibraryResult<MediaItem>> = Futures.immediateFuture(
         LibraryResult.ofItem(
-            LibraryItems.Root,
+            catalog.root(),
             params
         )
     )
@@ -51,23 +51,12 @@ internal class BambooMediaLibrarySessionCallback(private val controlsEnabled: ()
         params: MediaLibraryService.LibraryParams?
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = Futures.immediateFuture(
         LibraryResult.ofItemList(
-            emptyList(),
+            catalog.children(
+                parentId = parentId,
+                page = page,
+                pageSize = pageSize
+            ),
             params
         )
     )
-}
-
-private object LibraryItems {
-    const val ROOT_MEDIA_ID = "pandawave.library.root"
-
-    val Root: MediaItem = MediaItem.Builder()
-        .setMediaId(ROOT_MEDIA_ID)
-        .setMediaMetadata(
-            MediaMetadata.Builder()
-                .setTitle("PandaWave")
-                .setIsBrowsable(true)
-                .setIsPlayable(false)
-                .build()
-        )
-        .build()
 }
