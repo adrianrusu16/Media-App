@@ -1,6 +1,6 @@
 use panda_engine_core::{
     Engine, EngineCommand, EngineCommandType, EngineEventType, EngineOutcome, EngineSnapshot,
-    PlaybackState, RestrictionState,
+    Middleware, MiddlewarePipeline, PlaybackState, RestrictionState,
 };
 
 pub const FFI_COMMAND_BOOTSTRAP: i32 = 0;
@@ -13,12 +13,15 @@ pub const FFI_COMMAND_UNKNOWN: i32 = -1;
 pub const FFI_PLAYBACK_IDLE: i32 = 0;
 pub const FFI_PLAYBACK_PLAYING: i32 = 1;
 pub const FFI_PLAYBACK_PAUSED: i32 = 2;
+pub const FFI_PLAYBACK_BUFFERING: i32 = 3;
+pub const FFI_PLAYBACK_ERROR: i32 = 4;
 
 pub const FFI_RESTRICTION_UNKNOWN: i32 = 0;
 
 pub const FFI_EVENT_COMMAND_APPLIED: i32 = 0;
 pub const FFI_EVENT_LISTENER_REGISTERED: i32 = 1;
 
+/// C-compatible representation of the engine snapshot.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct FfiEngineSnapshot {
@@ -27,6 +30,7 @@ pub struct FfiEngineSnapshot {
     pub updated_at_epoch_millis: u64,
 }
 
+/// C-compatible representation of the engine outcome.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct FfiEngineOutcome {
@@ -35,19 +39,38 @@ pub struct FfiEngineOutcome {
     pub applied_command_type: i32,
 }
 
+/// Opaque handle to the Rust Engine.
 pub struct PandaEngine {
     engine: Engine,
 }
 
+/// Creates a new PandaEngine instance.
+///
+/// # Safety
+/// The caller is responsible for destroying the engine using [panda_engine_destroy].
 #[unsafe(no_mangle)]
 pub extern "C" fn panda_engine_create(now_epoch_millis: u64) -> *mut PandaEngine {
-    Box::into_raw(Box::new(PandaEngine {
-        engine: Engine::new(now_epoch_millis),
-    }))
+    let mut engine = Engine::new(now_epoch_millis);
+
+    // Setup default state-of-the-art middleware (e.g., logging)
+    let mut pipeline = MiddlewarePipeline::new();
+    pipeline.add(Box::new(LoggerMiddleware));
+    engine.set_middleware(pipeline);
+
+    Box::into_raw(Box::new(PandaEngine { engine }))
 }
 
-/// # Safety
+/// A simple middleware that logs engine actions (placeholder for real logging).
+struct LoggerMiddleware;
+impl Middleware for LoggerMiddleware {
+    fn before_dispatch(&self, _engine: &Engine, command: &EngineCommand) {
+        println!("[PandaEngine] Dispatching command: {:?}", command.command_type);
+    }
+}
+
+/// Destroys a PandaEngine instance and frees its memory.
 ///
+/// # Safety
 /// [engine] must be a pointer returned by [panda_engine_create] and must not
 /// be used again after this call.
 #[unsafe(no_mangle)]
@@ -147,6 +170,8 @@ fn playback_to_ffi(playback_state: PlaybackState) -> i32 {
         PlaybackState::Idle => FFI_PLAYBACK_IDLE,
         PlaybackState::Playing => FFI_PLAYBACK_PLAYING,
         PlaybackState::Paused => FFI_PLAYBACK_PAUSED,
+        PlaybackState::Buffering => FFI_PLAYBACK_BUFFERING,
+        PlaybackState::Error => FFI_PLAYBACK_ERROR,
     }
 }
 
@@ -169,14 +194,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn dispatch_play_returns_playing_snapshot() {
+    fn dispatch_play_returns_buffering_snapshot() {
         let engine = panda_engine_create(100);
         let outcome = unsafe { panda_engine_dispatch(engine, FFI_COMMAND_PLAY, 200) };
         unsafe {
             panda_engine_destroy(engine);
         }
 
-        assert_eq!(FFI_PLAYBACK_PLAYING, outcome.snapshot.playback_state);
+        assert_eq!(FFI_PLAYBACK_BUFFERING, outcome.snapshot.playback_state);
         assert_eq!(FFI_EVENT_COMMAND_APPLIED, outcome.event_type);
         assert_eq!(FFI_COMMAND_PLAY, outcome.applied_command_type);
         assert_eq!(200, outcome.snapshot.updated_at_epoch_millis);
@@ -191,17 +216,25 @@ mod tests {
     }
 
     #[test]
-    fn dispatch_skip_next_preserves_playback_state() {
+    fn dispatch_skip_next_moves_to_buffering() {
         let engine = panda_engine_create(100);
         unsafe {
             panda_engine_dispatch(engine, FFI_COMMAND_PLAY, 200);
+            // Simulate platform moving to Playing
+            (*engine).engine.dispatch_platform_event(
+                panda_engine_core::EnginePlatformEvent::new(
+                    panda_engine_core::EnginePlatformEventType::MediaLoaded,
+                    None,
+                ),
+                250,
+            );
         }
         let outcome = unsafe { panda_engine_dispatch(engine, FFI_COMMAND_SKIP_NEXT, 300) };
         unsafe {
             panda_engine_destroy(engine);
         }
 
-        assert_eq!(FFI_PLAYBACK_PLAYING, outcome.snapshot.playback_state);
+        assert_eq!(FFI_PLAYBACK_BUFFERING, outcome.snapshot.playback_state);
         assert_eq!(FFI_COMMAND_SKIP_NEXT, outcome.applied_command_type);
         assert_eq!(300, outcome.snapshot.updated_at_epoch_millis);
     }
