@@ -3,6 +3,7 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -42,7 +43,14 @@ jobs:
         run: chmod +x gradlew
 
       - name: Quality, assemble, and test
-        run: ./gradlew --no-configuration-cache qualityCheck :app:assembleDebug :core:secure-storage-adapter:testDebugUnitTest
+        run: >
+          ./gradlew
+          --no-configuration-cache
+          qualityCheck
+          :core:playback:testDebugUnitTest
+          :core:media-adapter:testDebugUnitTest
+          :app:assembleDebug
+          --console=plain
 
   rust:
     name: Rust validation
