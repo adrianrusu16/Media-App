@@ -1,32 +1,32 @@
 package com.adrianrusu.mediaapp.core.media.adapter.playback
 
 import androidx.media3.common.Player
-import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
-import com.adrianrusu.mediaapp.core.rust.bridge.gateway.EngineGateway
+import com.adrianrusu.mediaapp.core.playback.BambooPlaybackRepository
 
 /**
- * Projects Media3 playback requests into the Rust-owned engine boundary.
+ * Projects Media3 playback requests into the shared Bamboo playback source of truth.
  */
-class Media3PlaybackEngineBridge(private val engine: EngineGateway) : Player.Listener {
+class Media3PlaybackEngineBridge(private val playbackRepository: BambooPlaybackRepository) :
+    Player.Listener,
+    AutoCloseable {
     fun bootstrap() {
-        engine.dispatch(
-            EngineCommand(
-                type = EngineCommand.TYPE_BOOTSTRAP,
-                payload = null
-            )
-        )
+        playbackRepository.start()
     }
 
     override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
-        engine.dispatch(
+        playbackRepository.dispatch(
             PlaybackEngineCommandMapper.fromPlayWhenReady(playWhenReady)
         )
     }
 
     fun dispatchPlayerCommand(playerCommand: Int): Boolean {
-        val command = PlaybackEngineCommandMapper.fromPlayerCommand(playerCommand) ?: return false
+        val intent = PlaybackEngineCommandMapper.fromPlayerCommand(playerCommand) ?: return false
 
-        engine.dispatch(command)
+        playbackRepository.dispatch(intent)
         return true
+    }
+
+    override fun close() {
+        playbackRepository.close()
     }
 }

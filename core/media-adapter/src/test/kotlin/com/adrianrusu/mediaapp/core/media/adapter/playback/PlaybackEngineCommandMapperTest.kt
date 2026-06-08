@@ -1,60 +1,56 @@
 package com.adrianrusu.mediaapp.core.media.adapter.playback
 
 import androidx.media3.common.Player
-import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
+import com.adrianrusu.mediaapp.core.playback.BambooPlaybackIntent
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
 class PlaybackEngineCommandMapperTest {
     @Test
-    fun playWhenReadyMapsToPlayCommand() {
-        val command = PlaybackEngineCommandMapper.fromPlayWhenReady(true)
-
-        assertEquals(EngineCommand.TYPE_PLAY, command.type)
-        assertNull(command.payload)
+    fun playWhenReadyMapsToPlayIntent() {
+        assertEquals(
+            BambooPlaybackIntent.Play,
+            PlaybackEngineCommandMapper.fromPlayWhenReady(true)
+        )
     }
 
     @Test
-    fun notPlayWhenReadyMapsToPauseCommand() {
-        val command = PlaybackEngineCommandMapper.fromPlayWhenReady(false)
-
-        assertEquals(EngineCommand.TYPE_PAUSE, command.type)
-        assertNull(command.payload)
+    fun playWhenReadyFalseMapsToPauseIntent() {
+        assertEquals(
+            BambooPlaybackIntent.Pause,
+            PlaybackEngineCommandMapper.fromPlayWhenReady(false)
+        )
     }
 
     @Test
-    fun previousPlayerCommandsMapToSkipPreviousCommand() {
-        val commands = listOf(
+    fun previousPlayerCommandsMapToPreviousIntent() {
+        listOf(
             Player.COMMAND_SEEK_TO_PREVIOUS,
             Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM
-        )
-
-        commands.forEach { playerCommand ->
-            val command = PlaybackEngineCommandMapper.fromPlayerCommand(playerCommand)
-
-            assertEquals(EngineCommand.TYPE_SKIP_PREVIOUS, command?.type)
-            assertNull(command?.payload)
+        ).forEach { playerCommand ->
+            assertEquals(
+                BambooPlaybackIntent.SkipPrevious,
+                PlaybackEngineCommandMapper.fromPlayerCommand(playerCommand)
+            )
         }
     }
 
     @Test
-    fun nextPlayerCommandsMapToSkipNextCommand() {
-        val commands = listOf(
+    fun nextPlayerCommandsMapToNextIntent() {
+        listOf(
             Player.COMMAND_SEEK_TO_NEXT,
             Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM
-        )
-
-        commands.forEach { playerCommand ->
-            val command = PlaybackEngineCommandMapper.fromPlayerCommand(playerCommand)
-
-            assertEquals(EngineCommand.TYPE_SKIP_NEXT, command?.type)
-            assertNull(command?.payload)
+        ).forEach { playerCommand ->
+            assertEquals(
+                BambooPlaybackIntent.SkipNext,
+                PlaybackEngineCommandMapper.fromPlayerCommand(playerCommand)
+            )
         }
     }
 
     @Test
-    fun unrelatedPlayerCommandDoesNotMapToEngineCommand() {
+    fun unrelatedPlayerCommandDoesNotMapToPlaybackIntent() {
         assertNull(
             PlaybackEngineCommandMapper.fromPlayerCommand(
                 Player.COMMAND_SEEK_FORWARD

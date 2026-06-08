@@ -75,10 +75,9 @@ media_app/
 
 ```text
 feature:* -> core:ui -> core:model
-feature:appshell, feature:nowplaying -> core:playback -> core:rust-bridge
+feature:appshell, feature:nowplaying, core:media-adapter -> core:playback -> core:rust-bridge
 app -> feature:appshell
 feature:appshell -> feature:* (navigation destinations, as they become concrete)
-core:media-adapter -> core:rust-bridge
 core:playback -> core:automotive
 core:rust-bridge -> AIDL service boundary
 Rust engine -> Supabase, Jamendo, local DB
@@ -101,3 +100,4 @@ oemSystem
 
 The flavor boundary keeps privileged automotive integration available without
 making it a requirement for the regular app build.
+

@@ -54,6 +54,8 @@ class DefaultBambooPlaybackRepository(
     override fun dispatch(intent: BambooPlaybackIntent) {
         when (intent) {
             BambooPlaybackIntent.Refresh -> refreshFromEngine()
+            BambooPlaybackIntent.Play -> dispatchEngineCommand(EngineCommand.TYPE_PLAY)
+            BambooPlaybackIntent.Pause -> dispatchEngineCommand(EngineCommand.TYPE_PAUSE)
             BambooPlaybackIntent.TogglePlayback -> togglePlayback()
             BambooPlaybackIntent.SkipPrevious -> dispatchEngineCommand(EngineCommand.TYPE_SKIP_PREVIOUS)
             BambooPlaybackIntent.SkipNext -> dispatchEngineCommand(EngineCommand.TYPE_SKIP_NEXT)

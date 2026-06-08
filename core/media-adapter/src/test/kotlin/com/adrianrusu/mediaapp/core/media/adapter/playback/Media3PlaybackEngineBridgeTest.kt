@@ -1,92 +1,100 @@
 package com.adrianrusu.mediaapp.core.media.adapter.playback
 
 import androidx.media3.common.Player
-import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
-import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
-import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
-import com.adrianrusu.mediaapp.core.rust.bridge.engine.EngineDispatchResult
-import com.adrianrusu.mediaapp.core.rust.bridge.gateway.EngineGateway
+import com.adrianrusu.mediaapp.core.playback.BambooPlaybackIntent
+import com.adrianrusu.mediaapp.core.playback.BambooPlaybackRepository
+import com.adrianrusu.mediaapp.core.playback.BambooPlaybackState
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class Media3PlaybackEngineBridgeTest {
     @Test
-    fun bootstrapDispatchesBootstrapCommand() {
-        val engine = RecordingEngineGateway()
-        val bridge = Media3PlaybackEngineBridge(engine)
+    fun bootstrapStartsPlaybackRepository() {
+        val repository = RecordingPlaybackRepository()
+        val bridge = Media3PlaybackEngineBridge(repository)
 
         bridge.bootstrap()
 
-        assertEquals(listOf(EngineCommand.TYPE_BOOTSTRAP), engine.commandTypes)
+        assertEquals(1, repository.startCount)
     }
 
     @Test
-    fun playWhenReadyChangeDispatchesPlaybackCommands() {
-        val engine = RecordingEngineGateway()
-        val bridge = Media3PlaybackEngineBridge(engine)
+    fun closeStopsPlaybackRepository() {
+        val repository = RecordingPlaybackRepository()
+        val bridge = Media3PlaybackEngineBridge(repository)
+
+        bridge.close()
+
+        assertEquals(1, repository.closeCount)
+    }
+
+    @Test
+    fun playWhenReadyChangeDispatchesPlaybackIntents() {
+        val repository = RecordingPlaybackRepository()
+        val bridge = Media3PlaybackEngineBridge(repository)
 
         bridge.onPlayWhenReadyChanged(true, Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST)
         bridge.onPlayWhenReadyChanged(false, Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST)
 
         assertEquals(
-            listOf(EngineCommand.TYPE_PLAY, EngineCommand.TYPE_PAUSE),
-            engine.commandTypes
+            listOf(BambooPlaybackIntent.Play, BambooPlaybackIntent.Pause),
+            repository.intents
         )
     }
 
     @Test
-    fun playerSkipCommandsDispatchThroughEngineBoundary() {
-        val engine = RecordingEngineGateway()
-        val bridge = Media3PlaybackEngineBridge(engine)
+    fun playerSkipCommandsDispatchThroughPlaybackRepository() {
+        val repository = RecordingPlaybackRepository()
+        val bridge = Media3PlaybackEngineBridge(repository)
 
         bridge.dispatchPlayerCommand(Player.COMMAND_SEEK_TO_PREVIOUS)
         bridge.dispatchPlayerCommand(Player.COMMAND_SEEK_TO_NEXT)
 
         assertEquals(
             listOf(
-                EngineCommand.TYPE_SKIP_PREVIOUS,
-                EngineCommand.TYPE_SKIP_NEXT
+                BambooPlaybackIntent.SkipPrevious,
+                BambooPlaybackIntent.SkipNext
             ),
-            engine.commandTypes
+            repository.intents
         )
     }
 
     @Test
-    fun unrelatedPlayerCommandIsIgnoredByEngineBoundary() {
-        val engine = RecordingEngineGateway()
-        val bridge = Media3PlaybackEngineBridge(engine)
+    fun unrelatedPlayerCommandIsIgnoredByPlaybackRepository() {
+        val repository = RecordingPlaybackRepository()
+        val bridge = Media3PlaybackEngineBridge(repository)
 
         bridge.dispatchPlayerCommand(Player.COMMAND_SEEK_FORWARD)
 
-        assertEquals(emptyList<String>(), engine.commandTypes)
+        assertEquals(emptyList<BambooPlaybackIntent>(), repository.intents)
     }
 }
 
-private class RecordingEngineGateway : EngineGateway {
-    private val commands = mutableListOf<EngineCommand>()
+private class RecordingPlaybackRepository : BambooPlaybackRepository {
+    private val mutableState = MutableStateFlow(BambooPlaybackState())
 
-    val commandTypes: List<String>
-        get() = commands.map { it.type }
+    var startCount = 0
+    var closeCount = 0
+    val intents = mutableListOf<BambooPlaybackIntent>()
 
-    override fun snapshot(): EngineSnapshot = EngineSnapshot.idle(nowMillis = 0L)
+    override val state: StateFlow<BambooPlaybackState> = mutableState
 
-    override fun dispatch(command: EngineCommand): EngineDispatchResult {
-        commands += command
-
-        return EngineDispatchResult(
-            snapshot = snapshot(),
-            event = EngineEvent(
-                type = EngineEvent.TYPE_COMMAND_APPLIED,
-                message = command.type
-            )
-        )
+    override fun start() {
+        startCount += 1
     }
 
-    override fun observeSnapshots(listener: (EngineSnapshot) -> Unit): AutoCloseable = AutoCloseable {
-        // This bridge only dispatches commands; snapshot observation is covered in rust-bridge tests.
+    override fun dispatch(intent: BambooPlaybackIntent) {
+        intents += intent
     }
 
-    override fun observeEngineEvents(listener: (EngineEvent) -> Unit): AutoCloseable = AutoCloseable {
-        // This bridge only dispatches commands; event observation is covered in rust-bridge tests.
+    override fun observe(listener: (BambooPlaybackState) -> Unit): AutoCloseable {
+        listener(state.value)
+        return AutoCloseable { }
+    }
+
+    override fun close() {
+        closeCount += 1
     }
 }

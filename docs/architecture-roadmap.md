@@ -149,7 +149,7 @@ PandaEngine drives playback decisions and state. Android executes platform playb
 media-session work because AAOS owns those surfaces.
 
 ```text
-Media command -> Bamboo Media3 adapter -> AIDL -> PandaEngine reducer
+Media command -> Bamboo Media3 adapter -> BambooPlaybackRepository -> AIDL -> PandaEngine reducer
 PandaEngine playback command -> AIDL -> PlatformPlayer -> ExoPlayer/OEM adapter
 Player event -> AIDL -> PandaEngine -> canonical playback snapshot
 ```
@@ -158,8 +158,8 @@ The first Android playback foundation is intentionally platform-only: a Media3
 `MediaLibraryService` exposes an `ExoPlayer`-backed session to AAOS and media
 controllers, while library contents and command policy stay reserved for the
 Rust engine wiring milestone.
-Media3 play-state changes are projected into engine commands, so system and
-AAOS media controls follow the same Rust-owned state path as in-app controls.
+Media3 play-state changes are projected into `BambooPlaybackRepository`, so system and
+AAOS media controls share the same command gating and Rust boundary as in-app controls.
 
 ## Security Posture
 
@@ -188,3 +188,5 @@ AAOS media controls follow the same Rust-owned state path as in-app controls.
 - Keep HAL/VHAL integrations behind an OEM-only adapter boundary.
 - Use CarUiLib and Car UI plugins where available in OEM/system-image builds,
   while preserving a Compose Material fallback for regular distribution.
+
+

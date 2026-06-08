@@ -6,7 +6,7 @@ plugins {
 
 dependencies {
     implementation(project(":core:model"))
-    implementation(project(":core:rust-bridge"))
+    implementation(project(":core:playback"))
 
     implementation(libs.androidx.media3.common)
     implementation(libs.androidx.media3.exoplayer)

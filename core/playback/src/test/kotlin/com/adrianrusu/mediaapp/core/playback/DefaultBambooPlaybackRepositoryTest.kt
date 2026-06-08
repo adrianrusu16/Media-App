@@ -97,6 +97,33 @@ class DefaultBambooPlaybackRepositoryTest {
     }
 
     @Test
+    fun readyEngineAllowsExplicitPlayPauseCommands() {
+        val engine = RecordingEngineGateway(initialSnapshot = EngineSnapshot.idle(nowMillis = 1L))
+        val repository = DefaultBambooPlaybackRepository(
+            engine = engine,
+            uxRestrictionObserver = FakeUxRestrictionObserver(
+                restrictions = AutomotiveUxRestrictions.unrestricted(
+                    AutomotiveUxRestrictions.Source.NotAutomotive
+                )
+            )
+        )
+
+        repository.start()
+        repository.dispatch(BambooPlaybackIntent.Play)
+        repository.dispatch(BambooPlaybackIntent.Pause)
+
+        assertEquals(
+            listOf(
+                EngineCommand.TYPE_BOOTSTRAP,
+                EngineCommand.TYPE_PLAY,
+                EngineCommand.TYPE_PAUSE
+            ),
+            engine.commands.map { it.type }
+        )
+        assertEquals(BambooPlaybackStatus.Paused, repository.state.value.playbackStatus)
+    }
+
+    @Test
     fun engineEventsUpdateConnectionStateAndGateCommands() {
         val engine = RecordingEngineGateway(initialSnapshot = EngineSnapshot.idle(nowMillis = 1L))
         val repository = DefaultBambooPlaybackRepository(

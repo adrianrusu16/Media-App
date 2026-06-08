@@ -3,7 +3,7 @@ package com.adrianrusu.mediaapp.core.media.adapter.playback
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
-import com.adrianrusu.mediaapp.core.rust.bridge.gateway.EngineGateway
+import com.adrianrusu.mediaapp.core.playback.BambooPlaybackRepository
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -12,13 +12,12 @@ import javax.inject.Inject
  * widgets, and other platform media controllers.
  *
  * The service owns Android platform objects only. Catalog, user, and playback
- * decisions remain behind the Rust engine boundary and will be wired through
- * the media adapter as the engine grows.
+ * decisions flow through Bamboo playback state before crossing into PandaEngine.
  */
 @AndroidEntryPoint
 class BambooMediaLibraryService : MediaLibraryService() {
     @Inject
-    lateinit var engine: EngineGateway
+    lateinit var playbackRepository: BambooPlaybackRepository
 
     private var player: ExoPlayer? = null
     private var session: MediaLibrarySession? = null
@@ -29,7 +28,7 @@ class BambooMediaLibraryService : MediaLibraryService() {
 
         val exoPlayer = ExoPlayer.Builder(this).build()
         val playbackEngineBridge = Media3PlaybackEngineBridge(
-            engine = engine
+            playbackRepository = playbackRepository
         )
         playbackEngineBridge.bootstrap()
         exoPlayer.addListener(playbackEngineBridge)
@@ -52,6 +51,7 @@ class BambooMediaLibraryService : MediaLibraryService() {
     override fun onDestroy() {
         engineBridge?.let { bridge ->
             player?.removeListener(bridge)
+            bridge.close()
         }
         engineBridge = null
         session?.release()
