@@ -1,5 +1,6 @@
 use crate::command::{EngineCommand, EngineCommandType};
 use crate::event::EngineEvent;
+use crate::platform_event::EnginePlatformEvent;
 use crate::playback::PlaybackState;
 use crate::snapshot::EngineSnapshot;
 
@@ -47,12 +48,31 @@ impl Engine {
             event: EngineEvent::command_applied(Some(command.command_type.as_wire().to_owned())),
         }
     }
+
+    pub fn dispatch_platform_event(
+        &mut self,
+        event: EnginePlatformEvent,
+        now_epoch_millis: u64,
+    ) -> EngineOutcome {
+        self.snapshot = self
+            .snapshot
+            .clone()
+            .with_playback_state(self.snapshot.playback_state, now_epoch_millis);
+
+        EngineOutcome {
+            snapshot: self.snapshot.clone(),
+            event: EngineEvent::platform_event_applied(Some(
+                event.event_type.as_wire().to_owned(),
+            )),
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::event::EngineEventType;
+    use crate::platform_event::EnginePlatformEventType;
 
     #[test]
     fn starts_idle() {
@@ -95,5 +115,21 @@ mod tests {
         assert_eq!(PlaybackState::Playing, outcome.snapshot.playback_state);
         assert_eq!(300, outcome.snapshot.updated_at_epoch_millis);
         assert_eq!(Some("skip_next".to_owned()), outcome.event.message);
+    }
+
+    #[test]
+    fn platform_event_preserves_playback_state() {
+        let mut engine = Engine::new(100);
+        engine.dispatch(EngineCommand::new(EngineCommandType::Play, None), 200);
+
+        let outcome = engine.dispatch_platform_event(
+            EnginePlatformEvent::new(EnginePlatformEventType::SuspendToRam, None),
+            300,
+        );
+
+        assert_eq!(PlaybackState::Playing, outcome.snapshot.playback_state);
+        assert_eq!(300, outcome.snapshot.updated_at_epoch_millis);
+        assert_eq!(EngineEventType::PlatformEventApplied, outcome.event.event_type);
+        assert_eq!(Some("suspend_to_ram".to_owned()), outcome.event.message);
     }
 }

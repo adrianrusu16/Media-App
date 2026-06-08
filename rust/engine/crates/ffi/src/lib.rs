@@ -159,6 +159,7 @@ fn restriction_to_ffi(restriction_state: RestrictionState) -> i32 {
 fn event_to_ffi(event_type: &EngineEventType) -> i32 {
     match event_type {
         EngineEventType::CommandApplied => FFI_EVENT_COMMAND_APPLIED,
+        EngineEventType::PlatformEventApplied => FFI_EVENT_COMMAND_APPLIED,
         EngineEventType::ListenerRegistered => FFI_EVENT_LISTENER_REGISTERED,
     }
 }

@@ -2,6 +2,7 @@ package com.adrianrusu.mediaapp.core.rust.bridge.gateway
 
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.mediaapp.core.rust.bridge.engine.EngineDispatchResult
 import com.adrianrusu.mediaapp.core.rust.bridge.engine.RustEngine
@@ -17,6 +18,13 @@ class InProcessEngineGateway(private val engine: RustEngine) : EngineGateway {
 
     override fun dispatch(command: EngineCommand): EngineDispatchResult {
         val result = engine.dispatch(command)
+        notifySnapshotChanged(result.snapshot)
+        notifyEngineEvent(result.event)
+        return result
+    }
+
+    override fun dispatchPlatformEvent(event: EnginePlatformEvent): EngineDispatchResult {
+        val result = engine.dispatchPlatformEvent(event)
         notifySnapshotChanged(result.snapshot)
         notifyEngineEvent(result.event)
         return result

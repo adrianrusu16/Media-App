@@ -2,6 +2,7 @@ package com.adrianrusu.mediaapp.core.rust.bridge.gateway
 
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.mediaapp.core.rust.bridge.engine.EngineDispatchResult
 import com.adrianrusu.mediaapp.core.telemetry.TelemetryLogger
@@ -21,6 +22,7 @@ class AidlEngineGateway(
     private val listeners = mutableSetOf<(EngineSnapshot) -> Unit>()
     private val eventListeners = mutableSetOf<(EngineEvent) -> Unit>()
     private val pendingCommands = ArrayDeque<EngineCommand>()
+    private val pendingPlatformEvents = ArrayDeque<EnginePlatformEvent>()
 
     private val listener = object : EngineServiceListener {
         override fun onSnapshotChanged(snapshot: EngineSnapshot) {
@@ -77,6 +79,31 @@ class AidlEngineGateway(
         }
     }
 
+    override fun dispatchPlatformEvent(event: EnginePlatformEvent): EngineDispatchResult {
+        val service = connection.service
+
+        return when {
+            isClosed -> unavailableResult(event)
+
+            service == null -> queuedResult(event)
+
+            else -> {
+                service.dispatchPlatformEvent(event)
+                logPlatformEvent(
+                    event = event,
+                    status = STATUS_APPLIED
+                )
+                EngineDispatchResult(
+                    snapshot = snapshot(),
+                    event = EngineEvent(
+                        type = EngineEvent.TYPE_PLATFORM_EVENT_APPLIED,
+                        message = event.type
+                    )
+                )
+            }
+        }
+    }
+
     override fun observeSnapshots(listener: (EngineSnapshot) -> Unit): AutoCloseable {
         listeners += listener
         listener(snapshot())
@@ -97,6 +124,7 @@ class AidlEngineGateway(
     override fun close() {
         isClosed = true
         pendingCommands.clear()
+        pendingPlatformEvents.clear()
         listeners.clear()
         eventListeners.clear()
         connection.close()
@@ -117,6 +145,18 @@ class AidlEngineGateway(
                 latestSnapshot = serviceSnapshot
                 logCommand(
                     command = command,
+                    status = STATUS_REPLAYED
+                )
+                notifySnapshotChanged(serviceSnapshot)
+            }
+
+            while (pendingPlatformEvents.isNotEmpty()) {
+                val event = pendingPlatformEvents.removeFirst()
+                service.dispatchPlatformEvent(event)
+                val serviceSnapshot = service.snapshot()
+                latestSnapshot = serviceSnapshot
+                logPlatformEvent(
+                    event = event,
                     status = STATUS_REPLAYED
                 )
                 notifySnapshotChanged(serviceSnapshot)
@@ -157,6 +197,25 @@ class AidlEngineGateway(
         )
     }
 
+    private fun queuedResult(event: EnginePlatformEvent): EngineDispatchResult {
+        if (pendingPlatformEvents.size == MAX_PENDING_EVENTS) {
+            pendingPlatformEvents.removeFirst()
+        }
+        pendingPlatformEvents += event
+        logPlatformEvent(
+            event = event,
+            status = STATUS_QUEUED
+        )
+
+        return EngineDispatchResult(
+            snapshot = snapshot(),
+            event = EngineEvent(
+                type = EngineEvent.TYPE_PLATFORM_EVENT_QUEUED,
+                message = event.type
+            )
+        )
+    }
+
     private fun unavailableResult(command: EngineCommand): EngineDispatchResult {
         logCommand(
             command = command,
@@ -172,6 +231,21 @@ class AidlEngineGateway(
         )
     }
 
+    private fun unavailableResult(event: EnginePlatformEvent): EngineDispatchResult {
+        logPlatformEvent(
+            event = event,
+            status = STATUS_UNAVAILABLE
+        )
+
+        return EngineDispatchResult(
+            snapshot = snapshot(),
+            event = EngineEvent(
+                type = EngineEvent.TYPE_GATEWAY_UNAVAILABLE,
+                message = event.type
+            )
+        )
+    }
+
     private fun logCommand(command: EngineCommand, status: String) {
         telemetryLogger?.debug(
             name = EVENT_ENGINE_GATEWAY_COMMAND,
@@ -179,6 +253,17 @@ class AidlEngineGateway(
                 ATTRIBUTE_COMMAND_TYPE to command.type,
                 ATTRIBUTE_STATUS to status,
                 ATTRIBUTE_PENDING_COUNT to pendingCommands.size.toString()
+            )
+        )
+    }
+
+    private fun logPlatformEvent(event: EnginePlatformEvent, status: String) {
+        telemetryLogger?.debug(
+            name = EVENT_ENGINE_GATEWAY_PLATFORM_EVENT,
+            attributes = mapOf(
+                ATTRIBUTE_PLATFORM_EVENT_TYPE to event.type,
+                ATTRIBUTE_STATUS to status,
+                ATTRIBUTE_PENDING_COUNT to pendingPlatformEvents.size.toString()
             )
         )
     }
@@ -195,10 +280,13 @@ class AidlEngineGateway(
 
     private companion object {
         const val MAX_PENDING_COMMANDS = 32
+        const val MAX_PENDING_EVENTS = 32
         const val EVENT_ENGINE_GATEWAY_COMMAND = "engine_gateway.command"
         const val EVENT_ENGINE_GATEWAY_EVENT = "engine_gateway.event"
+        const val EVENT_ENGINE_GATEWAY_PLATFORM_EVENT = "engine_gateway.platform_event"
         const val ATTRIBUTE_COMMAND_TYPE = "command_type"
         const val ATTRIBUTE_EVENT_TYPE = "event_type"
+        const val ATTRIBUTE_PLATFORM_EVENT_TYPE = "platform_event_type"
         const val ATTRIBUTE_MESSAGE_PRESENT = "message_present"
         const val ATTRIBUTE_PENDING_COUNT = "pending_count"
         const val ATTRIBUTE_STATUS = "status"

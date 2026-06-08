@@ -2,6 +2,7 @@ package com.adrianrusu.mediaapp.core.rust.bridge.engine.native
 
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.mediaapp.core.rust.bridge.engine.EngineDispatchResult
 import com.adrianrusu.mediaapp.core.rust.bridge.engine.RustEngine
@@ -30,6 +31,14 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             )
         )
     }
+
+    override fun dispatchPlatformEvent(event: EnginePlatformEvent): EngineDispatchResult = EngineDispatchResult(
+        snapshot = snapshot().copy(updatedAtEpochMillis = clock()),
+        event = EngineEvent(
+            type = EngineEvent.TYPE_PLATFORM_EVENT_APPLIED,
+            message = event.type
+        )
+    )
 
     override fun close() {
         nativeDestroy(nativeHandle)

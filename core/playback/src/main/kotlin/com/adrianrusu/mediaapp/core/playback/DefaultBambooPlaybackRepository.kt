@@ -1,13 +1,10 @@
 package com.adrianrusu.mediaapp.core.playback
 
 import com.adrianrusu.mediaapp.core.automotive.ux.AutomotiveUxRestrictionObserver
-import com.adrianrusu.mediaapp.core.automotive.ux.AutomotiveUxRestrictions
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
-import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
-import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
+import com.adrianrusu.mediaapp.core.rust.bridge.engine.EngineDispatchResult
 import com.adrianrusu.mediaapp.core.rust.bridge.gateway.EngineGateway
 import com.adrianrusu.mediaapp.core.telemetry.TelemetryLogger
-import com.adrianrusu.mediaapp.core.ui.playback.BambooPlaybackText
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -35,12 +32,18 @@ class DefaultBambooPlaybackRepository(
 
         engineSnapshotSubscription = engine.observeSnapshots { snapshot ->
             updateState { current ->
-                current.withEngineSnapshot(snapshot)
+                BambooPlaybackStateProjector.fromEngineSnapshot(
+                    current = current,
+                    snapshot = snapshot
+                )
             }
         }
         engineEventSubscription = engine.observeEngineEvents { event ->
             updateState { current ->
-                current.withEngineEvent(event)
+                BambooPlaybackStateProjector.fromEngineEvent(
+                    current = current,
+                    event = event
+                )
             }
         }
 
@@ -48,7 +51,10 @@ class DefaultBambooPlaybackRepository(
 
         uxRestrictionObserver.start { restrictions ->
             updateState { current ->
-                current.copy(restriction = restrictions.toPlaybackRestrictionState())
+                BambooPlaybackStateProjector.fromUxRestrictions(
+                    current = current,
+                    restrictions = restrictions
+                )
             }
         }
     }
@@ -125,9 +131,7 @@ class DefaultBambooPlaybackRepository(
         )
 
         updateState { current ->
-            current
-                .withEngineSnapshot(result.snapshot)
-                .withEngineEvent(result.event)
+            current.fromEngineResult(result)
         }
     }
 
@@ -142,7 +146,10 @@ class DefaultBambooPlaybackRepository(
             attributes = mapOf("intent" to BambooPlaybackIntent.Refresh.telemetryName)
         )
         updateState { current ->
-            current.withEngineSnapshot(engine.snapshot())
+            BambooPlaybackStateProjector.fromEngineSnapshot(
+                current = current,
+                snapshot = engine.snapshot()
+            )
         }
     }
 
@@ -180,9 +187,7 @@ class DefaultBambooPlaybackRepository(
         )
 
         updateState { current ->
-            current
-                .withEngineSnapshot(result.snapshot)
-                .withEngineEvent(result.event)
+            current.fromEngineResult(result)
         }
     }
 
@@ -226,67 +231,11 @@ private val BambooPlaybackIntent.telemetryName: String
         BambooPlaybackIntent.SkipNext -> "skip_next"
     }
 
-private fun BambooPlaybackState.withEngineSnapshot(snapshot: EngineSnapshot): BambooPlaybackState = copy(
-    mediaId = snapshot.mediaId,
-    title = snapshot.title ?: titleFor(snapshot.playbackState),
-    artist = snapshot.artist ?: artistFor(snapshot.playbackState),
-    playbackStatus = snapshot.playbackState.toPlaybackStatus(),
-    updatedAtEpochMillis = snapshot.updatedAtEpochMillis
-)
-
-private fun BambooPlaybackState.withEngineEvent(event: EngineEvent): BambooPlaybackState = copy(
-    engineConnection = event.toConnectionUiState(current = engineConnection)
-)
-
-private fun String.toPlaybackStatus(): BambooPlaybackStatus = when (this) {
-    EngineSnapshot.PLAYBACK_PLAYING -> BambooPlaybackStatus.Playing
-    EngineSnapshot.PLAYBACK_PAUSED -> BambooPlaybackStatus.Paused
-    else -> BambooPlaybackStatus.Idle
-}
-
-private fun titleFor(playbackState: String): String = when (playbackState) {
-    EngineSnapshot.PLAYBACK_PLAYING -> BambooPlaybackText.FALLBACK_PLAYING_TITLE
-    EngineSnapshot.PLAYBACK_PAUSED -> BambooPlaybackText.FALLBACK_PAUSED_TITLE
-    else -> BambooPlaybackText.FALLBACK_IDLE_TITLE
-}
-
-private fun artistFor(playbackState: String): String = when (playbackState) {
-    EngineSnapshot.PLAYBACK_PLAYING -> BambooPlaybackText.FALLBACK_PLAYING_SUBTITLE
-    EngineSnapshot.PLAYBACK_PAUSED -> BambooPlaybackText.FALLBACK_PAUSED_SUBTITLE
-    else -> BambooPlaybackText.FALLBACK_IDLE_SUBTITLE
-}
-
-private fun EngineEvent.toConnectionUiState(current: BambooEngineConnectionUiState): BambooEngineConnectionUiState =
-    when (type) {
-        EngineEvent.TYPE_COMMAND_APPLIED,
-        EngineEvent.TYPE_LISTENER_REGISTERED,
-        EngineEvent.TYPE_SERVICE_CONNECTED -> BambooEngineConnectionUiState.Ready
-
-        EngineEvent.TYPE_COMMAND_QUEUED -> BambooEngineConnectionUiState.Connecting
-
-        EngineEvent.TYPE_SERVICE_BINDING_DIED -> BambooEngineConnectionUiState.Reconnecting
-
-        EngineEvent.TYPE_GATEWAY_UNAVAILABLE,
-        EngineEvent.TYPE_SERVICE_DISCONNECTED,
-        EngineEvent.TYPE_SERVICE_NULL_BINDING -> BambooEngineConnectionUiState.Unavailable
-
-        else -> current
-    }
-
-private fun AutomotiveUxRestrictions.toPlaybackRestrictionState(): BambooPlaybackRestrictionState {
-    val label = when (source) {
-        AutomotiveUxRestrictions.Source.AutomotivePlatform ->
-            if (isRestricted) "Driver-safe mode" else "Unrestricted"
-
-        AutomotiveUxRestrictions.Source.NotAutomotive ->
-            "Standard device"
-
-        AutomotiveUxRestrictions.Source.Unavailable ->
-            "Safety status unavailable"
-    }
-
-    return BambooPlaybackRestrictionState(
-        label = label,
-        isRestricted = isRestricted
+private fun BambooPlaybackState.fromEngineResult(result: EngineDispatchResult): BambooPlaybackState =
+    BambooPlaybackStateProjector.fromEngineEvent(
+        current = BambooPlaybackStateProjector.fromEngineSnapshot(
+            current = this,
+            snapshot = result.snapshot
+        ),
+        event = result.event
     )
-}

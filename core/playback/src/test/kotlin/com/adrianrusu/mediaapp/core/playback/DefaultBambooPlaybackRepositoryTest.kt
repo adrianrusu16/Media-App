@@ -4,6 +4,7 @@ import com.adrianrusu.mediaapp.core.automotive.ux.AutomotiveUxRestrictionObserve
 import com.adrianrusu.mediaapp.core.automotive.ux.AutomotiveUxRestrictions
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.mediaapp.core.rust.bridge.engine.EngineDispatchResult
 import com.adrianrusu.mediaapp.core.rust.bridge.gateway.EngineGateway
@@ -304,6 +305,14 @@ private class RecordingEngineGateway(
             )
         )
     }
+
+    override fun dispatchPlatformEvent(event: EnginePlatformEvent): EngineDispatchResult = EngineDispatchResult(
+        snapshot = currentSnapshot,
+        event = EngineEvent(
+            type = EngineEvent.TYPE_PLATFORM_EVENT_APPLIED,
+            message = event.type
+        )
+    )
 
     override fun observeSnapshots(listener: (EngineSnapshot) -> Unit): AutoCloseable {
         snapshotListeners += listener

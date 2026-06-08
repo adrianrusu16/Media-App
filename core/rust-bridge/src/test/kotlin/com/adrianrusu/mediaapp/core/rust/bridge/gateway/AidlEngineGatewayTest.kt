@@ -2,6 +2,7 @@ package com.adrianrusu.mediaapp.core.rust.bridge.gateway
 
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.mediaapp.core.telemetry.TelemetryEvent
 import com.adrianrusu.mediaapp.core.telemetry.TelemetryLogger
@@ -47,6 +48,29 @@ class AidlEngineGatewayTest {
     }
 
     @Test
+    fun dispatchPlatformEventSendsEventAndRefreshesSnapshotWhenConnected() {
+        val service = RecordingEngineService(
+            initialSnapshot = EngineSnapshot.idle(nowMillis = 10L)
+        )
+        val gateway = AidlEngineGateway(
+            connection = FakeEngineServiceConnection(service = service),
+            clock = { 1L }
+        )
+
+        val result = gateway.dispatchPlatformEvent(
+            EnginePlatformEvent(
+                type = EnginePlatformEvent.TYPE_SUSPEND_TO_RAM,
+                payload = null
+            )
+        )
+
+        assertEquals(listOf(EnginePlatformEvent.TYPE_SUSPEND_TO_RAM), service.platformEventTypes)
+        assertEquals(11L, result.snapshot.updatedAtEpochMillis)
+        assertEquals(EngineEvent.TYPE_PLATFORM_EVENT_APPLIED, result.event.type)
+        assertEquals(EnginePlatformEvent.TYPE_SUSPEND_TO_RAM, result.event.message)
+    }
+
+    @Test
     fun dispatchTelemetryIncludesStatusAndNoPayload() {
         val sink = RecordingTelemetrySink()
         val gateway = AidlEngineGateway(
@@ -77,6 +101,36 @@ class AidlEngineGatewayTest {
     }
 
     @Test
+    fun dispatchPlatformEventTelemetryIncludesStatusAndNoPayload() {
+        val sink = RecordingTelemetrySink()
+        val gateway = AidlEngineGateway(
+            connection = FakeEngineServiceConnection(
+                service = RecordingEngineService(
+                    initialSnapshot = EngineSnapshot.idle(nowMillis = 10L)
+                )
+            ),
+            telemetryLogger = TelemetryLogger(
+                sink = sink,
+                clock = { 1L }
+            )
+        )
+
+        gateway.dispatchPlatformEvent(
+            EnginePlatformEvent(
+                type = EnginePlatformEvent.TYPE_UX_RESTRICTIONS_CHANGED,
+                payload = "speed=secret"
+            )
+        )
+
+        val event = sink.events.single()
+        assertEquals("engine_gateway.platform_event", event.name)
+        assertEquals(EnginePlatformEvent.TYPE_UX_RESTRICTIONS_CHANGED, event.attributes["platform_event_type"])
+        assertEquals("applied", event.attributes["status"])
+        assertEquals("0", event.attributes["pending_count"])
+        assertFalse(event.attributes.containsKey("payload"))
+    }
+
+    @Test
     fun dispatchQueuesCommandWhileDisconnected() {
         val gateway = AidlEngineGateway(
             connection = FakeEngineServiceConnection(service = null),
@@ -93,6 +147,25 @@ class AidlEngineGatewayTest {
         assertEquals(EngineSnapshot.idle(nowMillis = 25L), result.snapshot)
         assertEquals(EngineEvent.TYPE_COMMAND_QUEUED, result.event.type)
         assertEquals(EngineCommand.TYPE_PLAY, result.event.message)
+    }
+
+    @Test
+    fun dispatchQueuesPlatformEventWhileDisconnected() {
+        val gateway = AidlEngineGateway(
+            connection = FakeEngineServiceConnection(service = null),
+            clock = { 25L }
+        )
+
+        val result = gateway.dispatchPlatformEvent(
+            EnginePlatformEvent(
+                type = EnginePlatformEvent.TYPE_APP_BACKGROUNDED,
+                payload = null
+            )
+        )
+
+        assertEquals(EngineSnapshot.idle(nowMillis = 25L), result.snapshot)
+        assertEquals(EngineEvent.TYPE_PLATFORM_EVENT_QUEUED, result.event.type)
+        assertEquals(EnginePlatformEvent.TYPE_APP_BACKGROUNDED, result.event.message)
     }
 
     @Test
@@ -140,6 +213,50 @@ class AidlEngineGatewayTest {
     }
 
     @Test
+    fun queuedPlatformEventsReplayWhenServiceConnects() {
+        val connection = FakeEngineServiceConnection(service = null)
+        val sink = RecordingTelemetrySink()
+        val gateway = AidlEngineGateway(
+            connection = connection,
+            telemetryLogger = TelemetryLogger(
+                sink = sink,
+                clock = { 25L }
+            ),
+            clock = { 25L }
+        )
+        val service = RecordingEngineService(
+            initialSnapshot = EngineSnapshot.idle(nowMillis = 100L)
+        )
+
+        gateway.dispatchPlatformEvent(
+            EnginePlatformEvent(
+                type = EnginePlatformEvent.TYPE_SUSPEND_TO_RAM,
+                payload = null
+            )
+        )
+        gateway.dispatchPlatformEvent(
+            EnginePlatformEvent(
+                type = EnginePlatformEvent.TYPE_RESUME_FROM_RAM,
+                payload = null
+            )
+        )
+        connection.connectService(service)
+
+        assertEquals(
+            listOf(
+                EnginePlatformEvent.TYPE_SUSPEND_TO_RAM,
+                EnginePlatformEvent.TYPE_RESUME_FROM_RAM
+            ),
+            service.platformEventTypes
+        )
+        assertEquals(102L, gateway.snapshot().updatedAtEpochMillis)
+        assertEquals(
+            listOf("queued", "queued", "replayed", "replayed"),
+            sink.events.map { event -> event.attributes.getValue("status") }
+        )
+    }
+
+    @Test
     fun dispatchReturnsUnavailableEventAfterGatewayIsClosed() {
         val sink = RecordingTelemetrySink()
         val gateway = AidlEngineGateway(
@@ -161,6 +278,31 @@ class AidlEngineGatewayTest {
 
         assertEquals(EngineEvent.TYPE_GATEWAY_UNAVAILABLE, result.event.type)
         assertEquals(EngineCommand.TYPE_PLAY, result.event.message)
+        assertEquals("unavailable", sink.events.single().attributes["status"])
+    }
+
+    @Test
+    fun dispatchPlatformEventReturnsUnavailableEventAfterGatewayIsClosed() {
+        val sink = RecordingTelemetrySink()
+        val gateway = AidlEngineGateway(
+            connection = FakeEngineServiceConnection(service = null),
+            telemetryLogger = TelemetryLogger(
+                sink = sink,
+                clock = { 25L }
+            ),
+            clock = { 25L }
+        )
+
+        gateway.close()
+        val result = gateway.dispatchPlatformEvent(
+            EnginePlatformEvent(
+                type = EnginePlatformEvent.TYPE_APP_FOREGROUNDED,
+                payload = null
+            )
+        )
+
+        assertEquals(EngineEvent.TYPE_GATEWAY_UNAVAILABLE, result.event.type)
+        assertEquals(EnginePlatformEvent.TYPE_APP_FOREGROUNDED, result.event.message)
         assertEquals("unavailable", sink.events.single().attributes["status"])
     }
 
@@ -297,9 +439,13 @@ private class FakeEngineServiceConnection(override var service: EngineService?) 
 private class RecordingEngineService(initialSnapshot: EngineSnapshot) : EngineService {
     private var currentSnapshot = initialSnapshot
     private val commands = mutableListOf<EngineCommand>()
+    private val platformEvents = mutableListOf<EnginePlatformEvent>()
 
     val commandTypes: List<String>
         get() = commands.map { it.type }
+
+    val platformEventTypes: List<String>
+        get() = platformEvents.map { it.type }
 
     override fun snapshot(): EngineSnapshot = currentSnapshot
 
@@ -318,6 +464,13 @@ private class RecordingEngineService(initialSnapshot: EngineSnapshot) : EngineSe
 
             else -> currentSnapshot
         }
+    }
+
+    override fun dispatchPlatformEvent(event: EnginePlatformEvent) {
+        platformEvents += event
+        currentSnapshot = currentSnapshot.copy(
+            updatedAtEpochMillis = currentSnapshot.updatedAtEpochMillis + 1
+        )
     }
 }
 

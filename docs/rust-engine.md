@@ -12,6 +12,7 @@ dependency-free `media_app_core` crate. It models the first engine primitives:
 - `EngineCommand`
 - `EngineEvent`
 - `EngineSnapshot`
+- `EnginePlatformEvent`
 - `PlaybackState`
 - `RestrictionState`
 - `Engine` reducer
@@ -46,6 +47,23 @@ Rust app_core / engine crates
         |
 EngineSnapshot and platform commands
 ```
+
+## State Ownership
+
+PandaEngine owns playback, session readiness, queue, catalog, and platform-aware
+media behavior. Android projects those snapshots into Compose and Media3 state,
+then sends user input back as engine commands.
+
+Platform lifecycle changes enter the same boundary as commands through
+`EnginePlatformEvent`. The first events are intentionally no-op state-machine
+inputs that update engine time and emit `platform_event_applied`; later reducers
+can use the same path for suspend-to-RAM, resume, UX restriction, and service
+recovery behavior.
+
+Theme selection remains profile/preference state instead of playback engine
+state. Android may project a server-backed profile preference into Compose and
+RRO resources, but PandaEngine should not decide visual theme unless that theme
+becomes part of a broader profile contract shared with backend/user state.
 
 ## Boundary Rule
 

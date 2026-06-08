@@ -7,6 +7,7 @@ import android.os.IBinder
 import android.os.RemoteException
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.IEngineListener
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.IMediaEngineService
@@ -130,6 +131,10 @@ class AndroidEngineServiceConnection(
 
         override fun dispatch(command: EngineCommand) {
             remote.dispatch(command)
+        }
+
+        override fun dispatchPlatformEvent(event: EnginePlatformEvent) {
+            remote.dispatchPlatformEvent(event)
         }
     }
 }

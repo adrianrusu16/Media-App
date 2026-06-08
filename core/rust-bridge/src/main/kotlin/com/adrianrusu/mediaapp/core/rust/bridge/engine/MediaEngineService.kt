@@ -6,6 +6,7 @@ import android.os.IBinder
 import android.os.RemoteCallbackList
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.IEngineListener
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.IMediaEngineService
@@ -19,6 +20,13 @@ class MediaEngineService : Service() {
 
         override fun dispatch(command: EngineCommand) {
             val result = engine.dispatch(command)
+
+            notifySnapshotChanged(result.snapshot)
+            notifyEngineEvent(result.event)
+        }
+
+        override fun dispatchPlatformEvent(event: EnginePlatformEvent) {
+            val result = engine.dispatchPlatformEvent(event)
 
             notifySnapshotChanged(result.snapshot)
             notifyEngineEvent(result.event)

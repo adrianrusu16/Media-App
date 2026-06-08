@@ -2,6 +2,7 @@ package com.adrianrusu.mediaapp.core.rust.bridge.gateway
 
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.mediaapp.core.rust.bridge.engine.EngineDispatchResult
 
@@ -12,6 +13,8 @@ interface EngineGateway {
     fun snapshot(): EngineSnapshot
 
     fun dispatch(command: EngineCommand): EngineDispatchResult
+
+    fun dispatchPlatformEvent(event: EnginePlatformEvent): EngineDispatchResult
 
     fun observeSnapshots(listener: (EngineSnapshot) -> Unit): AutoCloseable
 

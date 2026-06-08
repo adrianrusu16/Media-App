@@ -2,6 +2,7 @@ package com.adrianrusu.mediaapp.core.rust.bridge.gateway
 
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
 
 /**
@@ -20,6 +21,8 @@ interface EngineService {
     fun snapshot(): EngineSnapshot
 
     fun dispatch(command: EngineCommand)
+
+    fun dispatchPlatformEvent(event: EnginePlatformEvent)
 }
 
 /**

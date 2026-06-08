@@ -19,6 +19,8 @@ data class EngineEvent(val type: String, val message: String?) : Parcelable {
     companion object {
         const val TYPE_COMMAND_APPLIED = "command_applied"
         const val TYPE_COMMAND_QUEUED = "command_queued"
+        const val TYPE_PLATFORM_EVENT_APPLIED = "platform_event_applied"
+        const val TYPE_PLATFORM_EVENT_QUEUED = "platform_event_queued"
         const val TYPE_LISTENER_REGISTERED = "listener_registered"
         const val TYPE_GATEWAY_UNAVAILABLE = "gateway_unavailable"
         const val TYPE_SERVICE_CONNECTED = "service_connected"
