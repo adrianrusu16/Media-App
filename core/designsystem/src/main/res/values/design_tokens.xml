@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="mediaapp_color_brand_primary">#006D77</color>
+    <color name="mediaapp_color_brand_primary">#49694F</color>
     <color name="mediaapp_color_brand_on_primary">#FFFFFF</color>
-    <color name="mediaapp_color_brand_secondary">#F4A261</color>
-    <color name="mediaapp_color_brand_on_secondary">#1D1D1D</color>
-    <color name="mediaapp_color_surface">#F7F9FA</color>
-    <color name="mediaapp_color_on_surface">#172026</color>
-    <color name="mediaapp_color_surface_variant">#E6ECEF</color>
-    <color name="mediaapp_color_on_surface_variant">#42515A</color>
+    <color name="mediaapp_color_brand_secondary">#4B3D24</color>
+    <color name="mediaapp_color_brand_on_secondary">#F7F4EA</color>
+    <color name="mediaapp_color_surface">#F7F4EA</color>
+    <color name="mediaapp_color_on_surface">#171E1B</color>
+    <color name="mediaapp_color_surface_variant">#D6E0CC</color>
+    <color name="mediaapp_color_on_surface_variant">#405041</color>
     <color name="mediaapp_color_error">#BA1A1A</color>
     <color name="mediaapp_color_on_error">#FFFFFF</color>
 

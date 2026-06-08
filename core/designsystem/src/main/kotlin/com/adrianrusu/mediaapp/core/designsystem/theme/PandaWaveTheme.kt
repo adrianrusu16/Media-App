@@ -9,6 +9,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import com.adrianrusu.mediaapp.core.designsystem.tokens.LocalPandaWaveDesignTokens
@@ -17,10 +18,37 @@ import com.adrianrusu.mediaapp.core.designsystem.tokens.ResourceDesignTokenProvi
 import com.adrianrusu.mediaapp.core.designsystem.tokens.mediumCorner
 import com.adrianrusu.mediaapp.core.designsystem.tokens.smallCorner
 
+enum class PandaWaveThemeId(val displayName: String) {
+    BambooGroveLight(displayName = "Bamboo Grove Light"),
+    MoonlitBambooDark(displayName = "Moonlit Bamboo Dark")
+}
+
+data class PandaWaveThemeProfile(val id: PandaWaveThemeId, val isDark: Boolean)
+
+val LocalPandaWaveThemeProfile = staticCompositionLocalOf {
+    PandaWaveThemeProfile(
+        id = PandaWaveThemeId.BambooGroveLight,
+        isDark = false
+    )
+}
+
 @Composable
 fun PandaWaveTheme(darkTheme: Boolean, content: @Composable () -> Unit) {
     val context = LocalContext.current
-    val tokens = remember(context) {
+    val themeProfile = remember(darkTheme) {
+        if (darkTheme) {
+            PandaWaveThemeProfile(
+                id = PandaWaveThemeId.MoonlitBambooDark,
+                isDark = true
+            )
+        } else {
+            PandaWaveThemeProfile(
+                id = PandaWaveThemeId.BambooGroveLight,
+                isDark = false
+            )
+        }
+    }
+    val tokens = remember(context, darkTheme) {
         ResourceDesignTokenProvider(context).load()
     }
     val shapes = Shapes(
@@ -31,9 +59,12 @@ fun PandaWaveTheme(darkTheme: Boolean, content: @Composable () -> Unit) {
         extraLarge = RoundedCornerShape(tokens.shape.mediumCorner)
     )
 
-    CompositionLocalProvider(LocalPandaWaveDesignTokens provides tokens) {
+    CompositionLocalProvider(
+        LocalPandaWaveDesignTokens provides tokens,
+        LocalPandaWaveThemeProfile provides themeProfile
+    ) {
         MaterialTheme(
-            colorScheme = tokens.colors.toColorScheme(darkTheme),
+            colorScheme = tokens.colors.toColorScheme(themeProfile.isDark),
             shapes = shapes,
             content = content
         )
