@@ -15,9 +15,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.adrianrusu.mediaapp.core.designsystem.tokens.LocalPandaWaveDesignTokens
+import com.adrianrusu.mediaapp.core.designsystem.tokens.cardResting
+import com.adrianrusu.mediaapp.core.designsystem.tokens.lg
+import com.adrianrusu.mediaapp.core.designsystem.tokens.md
+import com.adrianrusu.mediaapp.core.designsystem.tokens.sm
 import com.adrianrusu.mediaapp.feature.settings.domain.SettingsIntent
 import com.adrianrusu.mediaapp.feature.settings.domain.SettingsState
 import com.adrianrusu.mediaapp.feature.settings.presentation.SettingsViewModel
@@ -36,9 +40,11 @@ fun SettingsRoute(modifier: Modifier = Modifier) {
 
 @Composable
 private fun SettingsScreen(state: SettingsState, onIntent: (SettingsIntent) -> Unit, modifier: Modifier = Modifier) {
+    val tokens = LocalPandaWaveDesignTokens.current
+
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(tokens.spacing.md)
     ) {
         SettingsStatusCard(state = state)
         SettingsSwitchRow(
@@ -71,6 +77,8 @@ private fun SettingsScreen(state: SettingsState, onIntent: (SettingsIntent) -> U
 
 @Composable
 private fun SettingsStatusCard(state: SettingsState) {
+    val tokens = LocalPandaWaveDesignTokens.current
+
     Surface(
         color = if (state.restriction.isRestricted) {
             MaterialTheme.colorScheme.primaryContainer
@@ -82,8 +90,8 @@ private fun SettingsStatusCard(state: SettingsState) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+                .padding(tokens.spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(tokens.spacing.sm)
         ) {
             Text(
                 text = "Settings safety",
@@ -107,21 +115,23 @@ private fun SettingsSwitchRow(
     enabled: Boolean,
     onCheckedChange: () -> Unit
 ) {
+    val tokens = LocalPandaWaveDesignTokens.current
+
     Surface(
         color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 1.dp,
+        tonalElevation = tokens.elevation.cardResting,
         shape = MaterialTheme.shapes.small
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(18.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(tokens.spacing.lg),
+            horizontalArrangement = Arrangement.spacedBy(tokens.spacing.md),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                verticalArrangement = Arrangement.spacedBy(tokens.spacing.sm)
             ) {
                 Text(
                     text = title,
@@ -145,21 +155,23 @@ private fun SettingsSwitchRow(
 
 @Composable
 private fun PrivacyNoticeCard(acknowledged: Boolean, onAcknowledge: () -> Unit) {
+    val tokens = LocalPandaWaveDesignTokens.current
+
     Surface(
         color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 1.dp,
+        tonalElevation = tokens.elevation.cardResting,
         shape = MaterialTheme.shapes.small
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(18.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(tokens.spacing.lg),
+            horizontalArrangement = Arrangement.spacedBy(tokens.spacing.md),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                verticalArrangement = Arrangement.spacedBy(tokens.spacing.sm)
             ) {
                 Text(
                     text = "Privacy notice",

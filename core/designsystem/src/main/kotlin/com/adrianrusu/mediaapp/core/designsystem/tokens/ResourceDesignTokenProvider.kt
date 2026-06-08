@@ -37,6 +37,9 @@ class ResourceDesignTokenProvider(context: Context) {
             touchTargetMdPx = dimension(R.dimen.mediaapp_touch_target_md),
             touchTargetLgPx = dimension(R.dimen.mediaapp_touch_target_lg)
         ),
+        elevation = PandaWaveElevationTokens(
+            cardRestingPx = dimension(R.dimen.mediaapp_elevation_card_resting)
+        ),
         restrictions = PandaWaveRestrictionTokens(
             maxBrowseColumnsUnrestricted =
                 resources.getInteger(R.integer.mediaapp_max_browse_columns_unrestricted),

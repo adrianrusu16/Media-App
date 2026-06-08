@@ -13,6 +13,7 @@ android {
 
 dependencies {
     implementation(project(":core:automotive"))
+    implementation(project(":core:designsystem"))
     implementation(project(":core:model"))
     implementation(project(":core:rust-bridge"))
     implementation(project(":core:ui"))

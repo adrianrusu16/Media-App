@@ -11,6 +11,7 @@ data class PandaWaveDesignTokens(
     val spacing: PandaWaveSpacingTokens,
     val shape: PandaWaveShapeTokens,
     val sizing: PandaWaveSizingTokens,
+    val elevation: PandaWaveElevationTokens,
     val restrictions: PandaWaveRestrictionTokens
 )
 
@@ -32,6 +33,8 @@ data class PandaWaveSpacingTokens(val xsPx: Int, val smPx: Int, val mdPx: Int, v
 data class PandaWaveShapeTokens(val smallCornerPx: Int, val mediumCornerPx: Int, val miniPlayerHeightPx: Int)
 
 data class PandaWaveSizingTokens(val touchTargetMdPx: Int, val touchTargetLgPx: Int)
+
+data class PandaWaveElevationTokens(val cardRestingPx: Int)
 
 data class PandaWaveRestrictionTokens(
     val maxBrowseColumnsUnrestricted: Int,
@@ -72,6 +75,9 @@ val PandaWaveSizingTokens.touchTargetMd: Dp
 
 val PandaWaveSizingTokens.touchTargetLg: Dp
     @Composable get() = touchTargetLgPx.toDp()
+
+val PandaWaveElevationTokens.cardResting: Dp
+    @Composable get() = cardRestingPx.toDp()
 
 @Composable
 private fun Int.toDp(): Dp = with(LocalDensity.current) {
