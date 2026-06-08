@@ -19,6 +19,8 @@ media_app/
       Compose theme, RRO-backed tokens, icons, typography, spacing
     ui/
       Reusable Compose components, including the Bamboo mini-player
+    playback/
+      Shared Bamboo playback state, command gating, and engine/UX observation
     automotive/
       AAOS feature detection, UX restrictions, car-safe state
     vehicle/
@@ -73,11 +75,11 @@ media_app/
 
 ```text
 feature:* -> core:ui -> core:model
-feature:* -> core:rust-bridge
+feature:appshell, feature:nowplaying -> core:playback -> core:rust-bridge
 app -> feature:appshell
 feature:appshell -> feature:* (navigation destinations, as they become concrete)
 core:media-adapter -> core:rust-bridge
-core:automotive -> core:rust-bridge
+core:playback -> core:automotive
 core:rust-bridge -> AIDL service boundary
 Rust engine -> Supabase, Jamendo, local DB
 ```

@@ -33,6 +33,7 @@ include(
     ":core:model",
     ":core:designsystem",
     ":core:ui",
+    ":core:playback",
     ":core:automotive",
     ":core:vehicle",
     ":core:carui",

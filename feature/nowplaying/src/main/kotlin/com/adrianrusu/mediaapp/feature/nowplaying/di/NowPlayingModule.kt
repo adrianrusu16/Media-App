@@ -1,8 +1,6 @@
 package com.adrianrusu.mediaapp.feature.nowplaying.di
 
-import android.content.Context
-import com.adrianrusu.mediaapp.core.automotive.ux.PlatformAutomotiveUxRestrictionObserver
-import com.adrianrusu.mediaapp.core.rust.bridge.gateway.EngineGateway
+import com.adrianrusu.mediaapp.core.playback.BambooPlaybackRepository
 import com.adrianrusu.mediaapp.feature.nowplaying.data.InMemoryNowPlayingRepository
 import com.adrianrusu.mediaapp.feature.nowplaying.domain.DispatchNowPlayingIntentUseCase
 import com.adrianrusu.mediaapp.feature.nowplaying.domain.NowPlayingRepository
@@ -11,7 +9,6 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.components.ViewModelComponent
-import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.android.scopes.ViewModelScoped
 
 @Module
@@ -19,10 +16,9 @@ import dagger.hilt.android.scopes.ViewModelScoped
 object NowPlayingModule {
     @Provides
     @ViewModelScoped
-    fun provideNowPlayingRepository(engine: EngineGateway, @ApplicationContext context: Context): NowPlayingRepository =
+    fun provideNowPlayingRepository(playbackRepository: BambooPlaybackRepository): NowPlayingRepository =
         InMemoryNowPlayingRepository(
-            engine = engine,
-            uxRestrictionObserver = PlatformAutomotiveUxRestrictionObserver(context)
+            playbackRepository = playbackRepository
         )
 
     @Provides

@@ -1,18 +1,14 @@
 package com.adrianrusu.mediaapp.appshell.di
 
-import android.content.Context
 import com.adrianrusu.mediaapp.appshell.data.InMemoryAppShellRepository
 import com.adrianrusu.mediaapp.appshell.domain.AppShellRepository
 import com.adrianrusu.mediaapp.appshell.domain.DispatchAppShellIntentUseCase
 import com.adrianrusu.mediaapp.appshell.domain.ObserveAppShellStateUseCase
-import com.adrianrusu.mediaapp.core.automotive.ux.AutomotiveUxRestrictionObserver
-import com.adrianrusu.mediaapp.core.automotive.ux.PlatformAutomotiveUxRestrictionObserver
-import com.adrianrusu.mediaapp.core.rust.bridge.gateway.EngineGateway
+import com.adrianrusu.mediaapp.core.playback.BambooPlaybackRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.components.ViewModelComponent
-import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.android.scopes.ViewModelScoped
 
 @Module
@@ -20,18 +16,10 @@ import dagger.hilt.android.scopes.ViewModelScoped
 object AppShellModule {
     @Provides
     @ViewModelScoped
-    fun provideAutomotiveUxRestrictionObserver(@ApplicationContext context: Context): AutomotiveUxRestrictionObserver =
-        PlatformAutomotiveUxRestrictionObserver(context)
-
-    @Provides
-    @ViewModelScoped
-    fun provideAppShellRepository(
-        uxRestrictionObserver: AutomotiveUxRestrictionObserver,
-        engine: EngineGateway
-    ): AppShellRepository = InMemoryAppShellRepository(
-        uxRestrictionObserver = uxRestrictionObserver,
-        engine = engine
-    )
+    fun provideAppShellRepository(playbackRepository: BambooPlaybackRepository): AppShellRepository =
+        InMemoryAppShellRepository(
+            playbackRepository = playbackRepository
+        )
 
     @Provides
     @ViewModelScoped

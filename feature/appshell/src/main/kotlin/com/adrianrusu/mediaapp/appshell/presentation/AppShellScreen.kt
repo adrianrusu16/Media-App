@@ -23,8 +23,8 @@ import androidx.compose.ui.unit.dp
 import com.adrianrusu.mediaapp.appshell.domain.AppDestination
 import com.adrianrusu.mediaapp.appshell.domain.AppShellIntent
 import com.adrianrusu.mediaapp.appshell.domain.AppShellState
-import com.adrianrusu.mediaapp.appshell.domain.EngineConnectionStatus
-import com.adrianrusu.mediaapp.appshell.domain.EngineConnectionUiState
+import com.adrianrusu.mediaapp.core.playback.BambooEngineConnectionStatus
+import com.adrianrusu.mediaapp.core.playback.BambooEngineConnectionUiState
 import com.adrianrusu.mediaapp.core.ui.miniplayer.BambooMiniPlayer
 import com.adrianrusu.mediaapp.feature.home.HomeRoute
 import com.adrianrusu.mediaapp.feature.library.LibraryRoute
@@ -39,19 +39,21 @@ fun AppShellScreen(state: AppShellState, onIntent: (AppShellIntent) -> Unit, mod
         modifier = modifier.fillMaxSize(),
         bottomBar = {
             Column {
-                BambooMiniPlayer(
-                    state = state.miniPlayer,
-                    controlsEnabled = state.canDispatchEngineCommands,
-                    onSkipPreviousClick = {
-                        onIntent(AppShellIntent.SkipPrevious)
-                    },
-                    onPlayPauseClick = {
-                        onIntent(AppShellIntent.TogglePlayback)
-                    },
-                    onSkipNextClick = {
-                        onIntent(AppShellIntent.SkipNext)
-                    }
-                )
+                if (state.shouldShowMiniPlayer) {
+                    BambooMiniPlayer(
+                        state = state.miniPlayer,
+                        controlsEnabled = state.canDispatchEngineCommands,
+                        onSkipPreviousClick = {
+                            onIntent(AppShellIntent.SkipPrevious)
+                        },
+                        onPlayPauseClick = {
+                            onIntent(AppShellIntent.TogglePlayback)
+                        },
+                        onSkipNextClick = {
+                            onIntent(AppShellIntent.SkipNext)
+                        }
+                    )
+                }
                 NavigationBar {
                     state.destinations.forEach { destination ->
                         NavigationBarItem(
@@ -112,7 +114,7 @@ private fun Header(
     selectedDestination: AppDestination,
     restrictionLabel: String,
     isRestricted: Boolean,
-    engineConnection: EngineConnectionUiState
+    engineConnection: BambooEngineConnectionUiState
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -145,7 +147,7 @@ private fun Header(
             )
             StatusChip(
                 label = engineConnection.label,
-                isHighlighted = engineConnection.status != EngineConnectionStatus.Ready
+                isHighlighted = engineConnection.status != BambooEngineConnectionStatus.Ready
             )
         }
     }

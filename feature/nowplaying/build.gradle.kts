@@ -12,10 +12,7 @@ android {
 }
 
 dependencies {
-    implementation(project(":core:automotive"))
-    implementation(project(":core:media-adapter"))
-    implementation(project(":core:model"))
-    implementation(project(":core:rust-bridge"))
+    implementation(project(":core:playback"))
     implementation(project(":core:ui"))
 
     implementation(platform(libs.androidx.compose.bom))

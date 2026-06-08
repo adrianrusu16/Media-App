@@ -1,6 +1,9 @@
 package com.adrianrusu.mediaapp.di
 
 import android.content.Context
+import com.adrianrusu.mediaapp.core.automotive.ux.PlatformAutomotiveUxRestrictionObserver
+import com.adrianrusu.mediaapp.core.playback.BambooPlaybackRepository
+import com.adrianrusu.mediaapp.core.playback.DefaultBambooPlaybackRepository
 import com.adrianrusu.mediaapp.core.rust.bridge.gateway.AidlEngineGateway
 import com.adrianrusu.mediaapp.core.rust.bridge.gateway.AndroidEngineServiceConnection
 import com.adrianrusu.mediaapp.core.rust.bridge.gateway.EngineGateway
@@ -30,6 +33,16 @@ object AppCoreModule {
             connection = connection,
             telemetryLogger = telemetryLogger
         )
+
+    @Provides
+    @Singleton
+    fun provideBambooPlaybackRepository(
+        engine: EngineGateway,
+        @ApplicationContext context: Context
+    ): BambooPlaybackRepository = DefaultBambooPlaybackRepository(
+        engine = engine,
+        uxRestrictionObserver = PlatformAutomotiveUxRestrictionObserver(context)
+    )
 
     @Provides
     @Singleton

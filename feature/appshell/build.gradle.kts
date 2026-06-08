@@ -12,8 +12,7 @@ android {
 }
 
 dependencies {
-    implementation(project(":core:automotive"))
-    implementation(project(":core:rust-bridge"))
+    implementation(project(":core:playback"))
     implementation(project(":core:telemetry-adapter"))
     implementation(project(":core:ui"))
     implementation(project(":feature:home"))

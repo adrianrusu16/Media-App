@@ -47,6 +47,7 @@ flowchart TD
 | --- | --- | --- |
 | App shell | `:app`, `:feature:appshell` | Startup, navigation host, top-level Android wiring, shell MVI |
 | UI | `:core:designsystem`, `:core:ui`, feature modules | Compose screens, reusable mini-player, theme tokens |
+| Playback state | `:core:playback` | Shared Bamboo playback projection, command gating, engine/UX observation |
 | Automotive | `:core:automotive`, `:core:vehicle`, `:core:carui` | UX restrictions, RRO bridge, vehicle signal abstraction, CarUiLib/OEM hooks |
 | Media | `:core:media-adapter` | Media3 service/session and platform playback execution |
 | Engine boundary | `:core:rust-bridge` | AIDL client, service binding, DTO mapping |
@@ -90,14 +91,17 @@ getter API. Kotlin components dispatch events and observe snapshots. Rust
 validates commands, updates canonical state, and returns platform work as typed
 commands.
 
-Android features depend on `EngineGateway`, the app-facing port for engine
-commands and snapshots. The app graph now binds `AidlEngineGateway` through
-`AndroidEngineServiceConnection`, while `InProcessEngineGateway` remains useful
-for fast tests and local fake-engine scenarios. Repositories, use cases, UI, and
-Bamboo Media3 surfaces stay on the same gateway boundary.
-Repositories subscribe to gateway snapshots so engine changes from system media
-controls, Media3, or future service-side work can update UI state without
-waiting for a local screen intent.
+Android playback UI depends on `BambooPlaybackRepository`, the shared
+Android-side projection of PandaEngine playback state. That repository depends
+on `EngineGateway`, the app-facing port for engine commands and snapshots. The
+app graph now binds `AidlEngineGateway` through `AndroidEngineServiceConnection`,
+while `InProcessEngineGateway` remains useful for fast tests and local
+fake-engine scenarios. UI repositories, use cases, and Bamboo Media3 surfaces
+stay on the same gateway boundary.
+`BambooPlaybackRepository` subscribes to gateway snapshots and engine events so
+changes from system media controls, Media3, or future service-side work can
+update mini-player and Now Playing state without waiting for a local screen
+intent.
 Because service binding is asynchronous, the AIDL gateway queues early commands
 and replays them once the engine service connects. This keeps startup bootstrap
 and first media commands from being lost during process creation.
@@ -132,12 +136,12 @@ the in-app mini-player.
 Settings is the first destination with its own feature MVI stack, use cases,
 ViewModel, repository, and Hilt bindings. Its privacy and personalization
 controls observe AAOS UX restrictions and become parked-only when required.
-Playback-facing UI state is mapped from engine snapshots so PandaEngine can
-replace the fake implementation without changing Compose screens.
-Now Playing is the first playback-owned feature MVI surface. It observes the
-PandaEngine snapshot through the `EngineGateway` interface, dispatches playback
-intents through the engine boundary, and mirrors AAOS UX restrictions without
-taking ownership of playback state.
+Playback-facing UI state is mapped from the shared `BambooPlaybackRepository` so
+PandaEngine can replace the fake implementation without changing Compose
+screens.
+Now Playing and the app-shell mini-player consume the same Bamboo playback
+state. The full Now Playing destination hides the shell mini-player because it
+would otherwise duplicate the summary of the active screen.
 
 ## Playback Ownership
 
