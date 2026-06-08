@@ -10,7 +10,7 @@ data class AppShellState(
 ) {
     val destinations: List<AppDestination> = AppDestination.entries
     val canDispatchEngineCommands: Boolean
-        get() = engineConnection.status != EngineConnectionStatus.Unavailable
+        get() = engineConnection.status == EngineConnectionStatus.Ready
 }
 
 data class EngineConnectionUiState(val label: String, val status: EngineConnectionStatus) {

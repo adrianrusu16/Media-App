@@ -30,7 +30,7 @@ fun BambooMiniPlayer(
     onSkipPreviousClick: () -> Unit,
     onPlayPauseClick: () -> Unit,
     onSkipNextClick: () -> Unit,
-    controlsEnabled: Boolean = true,
+    controlsEnabled: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     Surface(

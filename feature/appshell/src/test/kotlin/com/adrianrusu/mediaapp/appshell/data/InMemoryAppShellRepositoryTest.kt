@@ -174,7 +174,7 @@ class InMemoryAppShellRepositoryTest {
     }
 
     @Test
-    fun reconnectingEngineStateAllowsQueuedPlaybackCommands() {
+    fun reconnectingEngineStateBlocksPlaybackCommands() {
         val engine = RecordingEngineGateway()
         val repository = InMemoryAppShellRepository(
             uxRestrictionObserver = FakeAutomotiveUxRestrictionObserver(),
@@ -183,6 +183,24 @@ class InMemoryAppShellRepositoryTest {
 
         repository.start()
         engine.pushEvent(EngineEvent(type = EngineEvent.TYPE_SERVICE_BINDING_DIED, message = null))
+        repository.dispatch(AppShellIntent.SkipNext)
+
+        assertEquals(
+            listOf(EngineCommand.TYPE_BOOTSTRAP),
+            engine.commandTypes
+        )
+    }
+
+    @Test
+    fun readyEngineStateAllowsPlaybackCommands() {
+        val engine = RecordingEngineGateway(dispatchEventType = EngineEvent.TYPE_COMMAND_QUEUED)
+        val repository = InMemoryAppShellRepository(
+            uxRestrictionObserver = FakeAutomotiveUxRestrictionObserver(),
+            engine = engine
+        )
+
+        repository.start()
+        engine.pushEvent(EngineEvent(type = EngineEvent.TYPE_SERVICE_CONNECTED, message = null))
         repository.dispatch(AppShellIntent.SkipNext)
 
         assertEquals(
