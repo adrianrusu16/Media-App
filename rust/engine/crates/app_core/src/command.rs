@@ -1,20 +1,33 @@
+/// Represents the different types of commands the engine can process.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum EngineCommandType {
+    /// Initial setup command to prepare the engine.
     Bootstrap,
+    /// Resumes or starts playback.
     Play,
+    /// Pauses the current playback.
     Pause,
+    /// Skips to the previous track or item.
     SkipPrevious,
+    /// Skips to the next track or item.
     SkipNext,
+    /// A command not recognized by this version of the engine.
     Unknown(String),
 }
 
 impl EngineCommandType {
+    /// Wire value for Bootstrap command.
     pub const BOOTSTRAP_WIRE: &'static str = "bootstrap";
+    /// Wire value for Play command.
     pub const PLAY_WIRE: &'static str = "play";
+    /// Wire value for Pause command.
     pub const PAUSE_WIRE: &'static str = "pause";
+    /// Wire value for SkipPrevious command.
     pub const SKIP_PREVIOUS_WIRE: &'static str = "skip_previous";
+    /// Wire value for SkipNext command.
     pub const SKIP_NEXT_WIRE: &'static str = "skip_next";
 
+    /// Maps a wire string value to its corresponding enum variant.
     pub fn from_wire(value: impl Into<String>) -> Self {
         let value = value.into();
         match value.as_str() {
@@ -27,6 +40,7 @@ impl EngineCommandType {
         }
     }
 
+    /// Returns the wire string representation of the command type.
     pub fn as_wire(&self) -> &str {
         match self {
             Self::Bootstrap => Self::BOOTSTRAP_WIRE,
@@ -39,13 +53,17 @@ impl EngineCommandType {
     }
 }
 
+/// A command sent to the engine to trigger a state transition.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EngineCommand {
+    /// The type of the command.
     pub command_type: EngineCommandType,
+    /// Optional JSON-encoded or raw string payload for the command.
     pub payload: Option<String>,
 }
 
 impl EngineCommand {
+    /// Creates a new engine command.
     pub fn new(command_type: EngineCommandType, payload: Option<String>) -> Self {
         Self {
             command_type,
@@ -53,7 +71,28 @@ impl EngineCommand {
         }
     }
 
+    /// Convenience method to create a command from wire values.
     pub fn from_wire(command_type: impl Into<String>, payload: Option<String>) -> Self {
         Self::new(EngineCommandType::from_wire(command_type), payload)
+    }
+
+    /// Creates a Play command.
+    pub fn play() -> Self {
+        Self::new(EngineCommandType::Play, None)
+    }
+
+    /// Creates a Pause command.
+    pub fn pause() -> Self {
+        Self::new(EngineCommandType::Pause, None)
+    }
+
+    /// Creates a SkipNext command.
+    pub fn skip_next() -> Self {
+        Self::new(EngineCommandType::SkipNext, None)
+    }
+
+    /// Creates a SkipPrevious command.
+    pub fn skip_previous() -> Self {
+        Self::new(EngineCommandType::SkipPrevious, None)
     }
 }
