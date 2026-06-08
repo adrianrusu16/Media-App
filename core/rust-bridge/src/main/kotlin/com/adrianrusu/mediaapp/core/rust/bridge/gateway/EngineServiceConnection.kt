@@ -1,6 +1,7 @@
 package com.adrianrusu.mediaapp.core.rust.bridge.gateway
 
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
 
 /**
@@ -22,8 +23,10 @@ interface EngineService {
 }
 
 /**
- * Listener used by the bound service connection to publish engine snapshots.
+ * Listener used by the bound service connection to publish engine updates.
  */
-fun interface EngineServiceListener {
+interface EngineServiceListener {
     fun onSnapshotChanged(snapshot: EngineSnapshot)
+
+    fun onEngineEvent(event: EngineEvent) = Unit
 }

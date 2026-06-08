@@ -148,6 +148,10 @@ private class RecordingEngineGateway(initialSnapshot: EngineSnapshot) : EngineGa
         }
     }
 
+    override fun observeEngineEvents(listener: (EngineEvent) -> Unit): AutoCloseable = AutoCloseable {
+        // Now Playing observes snapshots; event observation is covered in rust-bridge tests.
+    }
+
     fun pushSnapshot(snapshot: EngineSnapshot) {
         currentSnapshot = snapshot
         listeners.toList().forEach { listener ->

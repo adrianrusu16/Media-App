@@ -1,6 +1,7 @@
 package com.adrianrusu.mediaapp.core.rust.bridge.gateway
 
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.mediaapp.core.rust.bridge.engine.EngineDispatchResult
 import com.adrianrusu.mediaapp.core.rust.bridge.engine.RustEngine
@@ -10,12 +11,14 @@ import com.adrianrusu.mediaapp.core.rust.bridge.engine.RustEngine
  */
 class InProcessEngineGateway(private val engine: RustEngine) : EngineGateway {
     private val listeners = mutableSetOf<(EngineSnapshot) -> Unit>()
+    private val eventListeners = mutableSetOf<(EngineEvent) -> Unit>()
 
     override fun snapshot(): EngineSnapshot = engine.snapshot()
 
     override fun dispatch(command: EngineCommand): EngineDispatchResult {
         val result = engine.dispatch(command)
         notifySnapshotChanged(result.snapshot)
+        notifyEngineEvent(result.event)
         return result
     }
 
@@ -28,9 +31,23 @@ class InProcessEngineGateway(private val engine: RustEngine) : EngineGateway {
         }
     }
 
+    override fun observeEngineEvents(listener: (EngineEvent) -> Unit): AutoCloseable {
+        eventListeners += listener
+
+        return AutoCloseable {
+            eventListeners -= listener
+        }
+    }
+
     private fun notifySnapshotChanged(snapshot: EngineSnapshot) {
         listeners.toList().forEach { listener ->
             listener(snapshot)
+        }
+    }
+
+    private fun notifyEngineEvent(event: EngineEvent) {
+        eventListeners.toList().forEach { listener ->
+            listener(event)
         }
     }
 }

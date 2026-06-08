@@ -19,12 +19,20 @@ class AidlEngineGateway(
     private var isClosed = false
     private var isDrainingPendingCommands = false
     private val listeners = mutableSetOf<(EngineSnapshot) -> Unit>()
+    private val eventListeners = mutableSetOf<(EngineEvent) -> Unit>()
     private val pendingCommands = ArrayDeque<EngineCommand>()
 
-    private val listener = EngineServiceListener { snapshot ->
-        latestSnapshot = snapshot
-        notifySnapshotChanged(snapshot)
-        drainPendingCommands()
+    private val listener = object : EngineServiceListener {
+        override fun onSnapshotChanged(snapshot: EngineSnapshot) {
+            latestSnapshot = snapshot
+            notifySnapshotChanged(snapshot)
+            drainPendingCommands()
+        }
+
+        override fun onEngineEvent(event: EngineEvent) {
+            logEngineEvent(event)
+            notifyEngineEvent(event)
+        }
     }
 
     init {
@@ -78,10 +86,19 @@ class AidlEngineGateway(
         }
     }
 
+    override fun observeEngineEvents(listener: (EngineEvent) -> Unit): AutoCloseable {
+        eventListeners += listener
+
+        return AutoCloseable {
+            eventListeners -= listener
+        }
+    }
+
     override fun close() {
         isClosed = true
         pendingCommands.clear()
         listeners.clear()
+        eventListeners.clear()
         connection.close()
     }
 
@@ -112,6 +129,12 @@ class AidlEngineGateway(
     private fun notifySnapshotChanged(snapshot: EngineSnapshot) {
         listeners.toList().forEach { listener ->
             listener(snapshot)
+        }
+    }
+
+    private fun notifyEngineEvent(event: EngineEvent) {
+        eventListeners.toList().forEach { listener ->
+            listener(event)
         }
     }
 
@@ -160,10 +183,23 @@ class AidlEngineGateway(
         )
     }
 
+    private fun logEngineEvent(event: EngineEvent) {
+        telemetryLogger?.debug(
+            name = EVENT_ENGINE_GATEWAY_EVENT,
+            attributes = mapOf(
+                ATTRIBUTE_EVENT_TYPE to event.type,
+                ATTRIBUTE_MESSAGE_PRESENT to (event.message != null).toString()
+            )
+        )
+    }
+
     private companion object {
         const val MAX_PENDING_COMMANDS = 32
         const val EVENT_ENGINE_GATEWAY_COMMAND = "engine_gateway.command"
+        const val EVENT_ENGINE_GATEWAY_EVENT = "engine_gateway.event"
         const val ATTRIBUTE_COMMAND_TYPE = "command_type"
+        const val ATTRIBUTE_EVENT_TYPE = "event_type"
+        const val ATTRIBUTE_MESSAGE_PRESENT = "message_present"
         const val ATTRIBUTE_PENDING_COUNT = "pending_count"
         const val ATTRIBUTE_STATUS = "status"
         const val STATUS_APPLIED = "applied"

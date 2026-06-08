@@ -217,6 +217,55 @@ class AidlEngineGatewayTest {
             observedSnapshots
         )
     }
+
+    @Test
+    fun observersReceiveEngineEvents() {
+        val connection = FakeEngineServiceConnection(service = null)
+        val gateway = AidlEngineGateway(
+            connection = connection,
+            clock = { 1L }
+        )
+        val observedEvents = mutableListOf<EngineEvent>()
+        val event = EngineEvent(
+            type = EngineEvent.TYPE_LISTENER_REGISTERED,
+            message = "registered"
+        )
+
+        gateway.observeEngineEvents { engineEvent ->
+            observedEvents += engineEvent
+        }
+        connection.pushEvent(event)
+
+        assertEquals(listOf(event), observedEvents)
+    }
+
+    @Test
+    fun engineEventTelemetryIncludesTypeAndNoMessage() {
+        val connection = FakeEngineServiceConnection(service = null)
+        val sink = RecordingTelemetrySink()
+        val gateway = AidlEngineGateway(
+            connection = connection,
+            telemetryLogger = TelemetryLogger(
+                sink = sink,
+                clock = { 1L }
+            ),
+            clock = { 1L }
+        )
+
+        gateway.observeEngineEvents { }
+        connection.pushEvent(
+            EngineEvent(
+                type = EngineEvent.TYPE_COMMAND_APPLIED,
+                message = "token=secret"
+            )
+        )
+
+        val event = sink.events.single()
+        assertEquals("engine_gateway.event", event.name)
+        assertEquals(EngineEvent.TYPE_COMMAND_APPLIED, event.attributes["event_type"])
+        assertEquals("true", event.attributes["message_present"])
+        assertFalse(event.attributes.containsKey("message"))
+    }
 }
 
 private class FakeEngineServiceConnection(override var service: EngineService?) : EngineServiceConnection {
@@ -233,6 +282,10 @@ private class FakeEngineServiceConnection(override var service: EngineService?) 
 
     fun pushSnapshot(snapshot: EngineSnapshot) {
         listener?.onSnapshotChanged(snapshot)
+    }
+
+    fun pushEvent(event: EngineEvent) {
+        listener?.onEngineEvent(event)
     }
 
     fun connectService(service: EngineService) {

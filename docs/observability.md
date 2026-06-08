@@ -33,3 +33,7 @@ OpenTelemetry, or a Rust-owned telemetry pipeline.
 diagnostics. Attributes are intentionally limited to `command_type`, `status`,
 and `pending_count`; command payloads are never logged. Current statuses are
 `applied`, `queued`, `replayed`, and `unavailable`.
+
+The same boundary records `engine_gateway.event` when the engine service emits
+an `EngineEvent`. Attributes are limited to `event_type` and `message_present`;
+event messages are not logged.

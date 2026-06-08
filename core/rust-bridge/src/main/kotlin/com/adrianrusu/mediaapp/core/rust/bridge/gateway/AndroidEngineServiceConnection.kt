@@ -32,7 +32,9 @@ class AndroidEngineServiceConnection(
             listener?.onSnapshotChanged(snapshot)
         }
 
-        override fun onEngineEvent(event: EngineEvent) = Unit
+        override fun onEngineEvent(event: EngineEvent) {
+            listener?.onEngineEvent(event)
+        }
     }
 
     private val serviceConnection = object : ServiceConnection {
