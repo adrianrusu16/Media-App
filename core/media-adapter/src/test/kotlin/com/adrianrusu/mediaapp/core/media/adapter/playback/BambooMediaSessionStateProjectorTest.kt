@@ -4,6 +4,8 @@ import com.adrianrusu.mediaapp.core.playback.BambooPlaybackIntent
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackRepository
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackState
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackStatus
+import com.adrianrusu.mediaapp.core.telemetry.TelemetryLogger
+import com.adrianrusu.mediaapp.core.telemetry.TelemetrySink
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import org.junit.Assert.assertEquals
@@ -21,7 +23,7 @@ class BambooMediaSessionStateProjectorTest {
             )
         )
         val sink = RecordingMediaSessionStateSink()
-        val bridge = Media3PlaybackEngineBridge(repository)
+        val bridge = Media3PlaybackEngineBridge(repository, testTelemetryLogger())
         val projector = BambooMediaSessionStateProjector(
             playbackRepository = repository,
             sink = sink,
@@ -48,7 +50,7 @@ class BambooMediaSessionStateProjectorTest {
         val projector = BambooMediaSessionStateProjector(
             playbackRepository = repository,
             sink = sink,
-            playbackEngineBridge = Media3PlaybackEngineBridge(repository)
+            playbackEngineBridge = Media3PlaybackEngineBridge(repository, testTelemetryLogger())
         )
 
         projector.start()
@@ -64,7 +66,7 @@ class BambooMediaSessionStateProjectorTest {
         val projector = BambooMediaSessionStateProjector(
             playbackRepository = repository,
             sink = sink,
-            playbackEngineBridge = Media3PlaybackEngineBridge(repository)
+            playbackEngineBridge = Media3PlaybackEngineBridge(repository, testTelemetryLogger())
         )
 
         projector.start()
@@ -81,6 +83,11 @@ class BambooMediaSessionStateProjectorTest {
         assertEquals(1, sink.projections.size)
     }
 }
+
+private fun testTelemetryLogger(): TelemetryLogger = TelemetryLogger(
+    sink = TelemetrySink { },
+    clock = { 42L }
+)
 
 private class RecordingMediaSessionStateSink : BambooMediaSessionStateSink {
     val projections = mutableListOf<BambooMediaSessionStateProjection>()

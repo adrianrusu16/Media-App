@@ -6,6 +6,7 @@ import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.mediaapp.core.rust.bridge.gateway.EngineGateway
+import com.adrianrusu.mediaapp.core.telemetry.TelemetryLogger
 import com.adrianrusu.mediaapp.core.ui.playback.BambooPlaybackText
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,7 +15,8 @@ import kotlinx.coroutines.flow.update
 
 class DefaultBambooPlaybackRepository(
     private val engine: EngineGateway,
-    private val uxRestrictionObserver: AutomotiveUxRestrictionObserver
+    private val uxRestrictionObserver: AutomotiveUxRestrictionObserver,
+    private val telemetryLogger: TelemetryLogger
 ) : BambooPlaybackRepository {
     private val mutableState = MutableStateFlow(BambooPlaybackState())
     private val listeners = mutableSetOf<(BambooPlaybackState) -> Unit>()
@@ -52,13 +54,38 @@ class DefaultBambooPlaybackRepository(
     }
 
     override fun dispatch(intent: BambooPlaybackIntent) {
+        telemetryLogger.debug(
+            name = PlaybackTelemetryEvents.INTENT_RECEIVED,
+            attributes = mapOf(
+                "intent" to intent.telemetryName,
+                "engine_status" to state.value.engineConnection.status.name
+            )
+        )
+
         when (intent) {
             BambooPlaybackIntent.Refresh -> refreshFromEngine()
-            BambooPlaybackIntent.Play -> dispatchEngineCommand(EngineCommand.TYPE_PLAY)
-            BambooPlaybackIntent.Pause -> dispatchEngineCommand(EngineCommand.TYPE_PAUSE)
+
+            BambooPlaybackIntent.Play -> dispatchEngineCommand(
+                commandType = EngineCommand.TYPE_PLAY,
+                sourceIntent = intent
+            )
+
+            BambooPlaybackIntent.Pause -> dispatchEngineCommand(
+                commandType = EngineCommand.TYPE_PAUSE,
+                sourceIntent = intent
+            )
+
             BambooPlaybackIntent.TogglePlayback -> togglePlayback()
-            BambooPlaybackIntent.SkipPrevious -> dispatchEngineCommand(EngineCommand.TYPE_SKIP_PREVIOUS)
-            BambooPlaybackIntent.SkipNext -> dispatchEngineCommand(EngineCommand.TYPE_SKIP_NEXT)
+
+            BambooPlaybackIntent.SkipPrevious -> dispatchEngineCommand(
+                commandType = EngineCommand.TYPE_SKIP_PREVIOUS,
+                sourceIntent = intent
+            )
+
+            BambooPlaybackIntent.SkipNext -> dispatchEngineCommand(
+                commandType = EngineCommand.TYPE_SKIP_NEXT,
+                sourceIntent = intent
+            )
         }
     }
 
@@ -106,9 +133,14 @@ class DefaultBambooPlaybackRepository(
 
     private fun refreshFromEngine() {
         if (!state.value.canDispatchEngineCommands) {
+            logBlockedIntent(BambooPlaybackIntent.Refresh)
             return
         }
 
+        telemetryLogger.debug(
+            name = PlaybackTelemetryEvents.ENGINE_SNAPSHOT_REQUESTED,
+            attributes = mapOf("intent" to BambooPlaybackIntent.Refresh.telemetryName)
+        )
         updateState { current ->
             current.withEngineSnapshot(engine.snapshot())
         }
@@ -120,13 +152,25 @@ class DefaultBambooPlaybackRepository(
             false -> EngineCommand.TYPE_PLAY
         }
 
-        dispatchEngineCommand(commandType)
+        dispatchEngineCommand(
+            commandType = commandType,
+            sourceIntent = BambooPlaybackIntent.TogglePlayback
+        )
     }
 
-    private fun dispatchEngineCommand(commandType: String) {
+    private fun dispatchEngineCommand(commandType: String, sourceIntent: BambooPlaybackIntent) {
         if (!state.value.canDispatchEngineCommands) {
+            logBlockedIntent(sourceIntent)
             return
         }
+
+        telemetryLogger.info(
+            name = PlaybackTelemetryEvents.ENGINE_COMMAND_DISPATCHED,
+            attributes = mapOf(
+                "intent" to sourceIntent.telemetryName,
+                "command_type" to commandType
+            )
+        )
 
         val result = engine.dispatch(
             EngineCommand(
@@ -153,7 +197,34 @@ class DefaultBambooPlaybackRepository(
             listener(current)
         }
     }
+
+    private fun logBlockedIntent(intent: BambooPlaybackIntent) {
+        telemetryLogger.info(
+            name = PlaybackTelemetryEvents.INTENT_BLOCKED,
+            attributes = mapOf(
+                "intent" to intent.telemetryName,
+                "engine_status" to state.value.engineConnection.status.name
+            )
+        )
+    }
 }
+
+internal object PlaybackTelemetryEvents {
+    const val INTENT_RECEIVED = "playback.intent.received"
+    const val INTENT_BLOCKED = "playback.intent.blocked"
+    const val ENGINE_COMMAND_DISPATCHED = "playback.engine.command.dispatched"
+    const val ENGINE_SNAPSHOT_REQUESTED = "playback.engine.snapshot.requested"
+}
+
+private val BambooPlaybackIntent.telemetryName: String
+    get() = when (this) {
+        BambooPlaybackIntent.Refresh -> "refresh"
+        BambooPlaybackIntent.Play -> "play"
+        BambooPlaybackIntent.Pause -> "pause"
+        BambooPlaybackIntent.TogglePlayback -> "toggle_playback"
+        BambooPlaybackIntent.SkipPrevious -> "skip_previous"
+        BambooPlaybackIntent.SkipNext -> "skip_next"
+    }
 
 private fun BambooPlaybackState.withEngineSnapshot(snapshot: EngineSnapshot): BambooPlaybackState = copy(
     mediaId = snapshot.mediaId,

@@ -38,10 +38,12 @@ object AppCoreModule {
     @Singleton
     fun provideBambooPlaybackRepository(
         engine: EngineGateway,
-        @ApplicationContext context: Context
+        @ApplicationContext context: Context,
+        telemetryLogger: TelemetryLogger
     ): BambooPlaybackRepository = DefaultBambooPlaybackRepository(
         engine = engine,
-        uxRestrictionObserver = PlatformAutomotiveUxRestrictionObserver(context)
+        uxRestrictionObserver = PlatformAutomotiveUxRestrictionObserver(context),
+        telemetryLogger = telemetryLogger
     )
 
     @Provides

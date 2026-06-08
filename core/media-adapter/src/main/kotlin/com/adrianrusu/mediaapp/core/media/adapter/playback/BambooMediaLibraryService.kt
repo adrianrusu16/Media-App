@@ -4,6 +4,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackRepository
+import com.adrianrusu.mediaapp.core.telemetry.TelemetryLogger
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -19,6 +20,9 @@ class BambooMediaLibraryService : MediaLibraryService() {
     @Inject
     lateinit var playbackRepository: BambooPlaybackRepository
 
+    @Inject
+    lateinit var telemetryLogger: TelemetryLogger
+
     private var player: ExoPlayer? = null
     private var session: MediaLibrarySession? = null
     private var engineBridge: Media3PlaybackEngineBridge? = null
@@ -30,7 +34,8 @@ class BambooMediaLibraryService : MediaLibraryService() {
 
         val exoPlayer = ExoPlayer.Builder(this).build()
         val playbackEngineBridge = Media3PlaybackEngineBridge(
-            playbackRepository = playbackRepository
+            playbackRepository = playbackRepository,
+            telemetryLogger = telemetryLogger
         )
         val sessionPlayer = BambooMediaSessionPlayer(
             delegate = exoPlayer,

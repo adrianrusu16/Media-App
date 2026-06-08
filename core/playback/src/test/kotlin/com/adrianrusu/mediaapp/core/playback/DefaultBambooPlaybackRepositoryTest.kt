@@ -7,6 +7,9 @@ import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.mediaapp.core.rust.bridge.engine.EngineDispatchResult
 import com.adrianrusu.mediaapp.core.rust.bridge.gateway.EngineGateway
+import com.adrianrusu.mediaapp.core.telemetry.TelemetryEvent
+import com.adrianrusu.mediaapp.core.telemetry.TelemetryLogger
+import com.adrianrusu.mediaapp.core.telemetry.TelemetrySink
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -31,7 +34,8 @@ class DefaultBambooPlaybackRepositoryTest {
                 restrictions = AutomotiveUxRestrictions.unrestricted(
                     AutomotiveUxRestrictions.Source.NotAutomotive
                 )
-            )
+            ),
+            telemetryLogger = testTelemetryLogger()
         )
 
         repository.start()
@@ -55,7 +59,8 @@ class DefaultBambooPlaybackRepositoryTest {
                 restrictions = AutomotiveUxRestrictions.unrestricted(
                     AutomotiveUxRestrictions.Source.NotAutomotive
                 )
-            )
+            ),
+            telemetryLogger = testTelemetryLogger()
         )
 
         repository.start()
@@ -77,7 +82,8 @@ class DefaultBambooPlaybackRepositoryTest {
                 restrictions = AutomotiveUxRestrictions.unrestricted(
                     AutomotiveUxRestrictions.Source.NotAutomotive
                 )
-            )
+            ),
+            telemetryLogger = testTelemetryLogger()
         )
 
         repository.start()
@@ -105,7 +111,8 @@ class DefaultBambooPlaybackRepositoryTest {
                 restrictions = AutomotiveUxRestrictions.unrestricted(
                     AutomotiveUxRestrictions.Source.NotAutomotive
                 )
-            )
+            ),
+            telemetryLogger = testTelemetryLogger()
         )
 
         repository.start()
@@ -132,7 +139,8 @@ class DefaultBambooPlaybackRepositoryTest {
                 restrictions = AutomotiveUxRestrictions.unrestricted(
                     AutomotiveUxRestrictions.Source.NotAutomotive
                 )
-            )
+            ),
+            telemetryLogger = testTelemetryLogger()
         )
 
         repository.start()
@@ -168,7 +176,8 @@ class DefaultBambooPlaybackRepositoryTest {
         )
         val repository = DefaultBambooPlaybackRepository(
             engine = engine,
-            uxRestrictionObserver = observer
+            uxRestrictionObserver = observer,
+            telemetryLogger = testTelemetryLogger()
         )
 
         repository.start()
@@ -204,6 +213,43 @@ class DefaultBambooPlaybackRepositoryTest {
 
         assertEquals("Still observed", repository.state.value.title)
         assertEquals(1, observer.closeCount)
+    }
+
+    @Test
+    fun telemetryRecordsReceivedBlockedAndDispatchedPlaybackIntents() {
+        val telemetrySink = RecordingTelemetrySink()
+        val engine = RecordingEngineGateway(
+            initialSnapshot = EngineSnapshot.idle(nowMillis = 1L),
+            dispatchEventType = EngineEvent.TYPE_COMMAND_QUEUED
+        )
+        val repository = DefaultBambooPlaybackRepository(
+            engine = engine,
+            uxRestrictionObserver = FakeUxRestrictionObserver(
+                restrictions = AutomotiveUxRestrictions.unrestricted(
+                    AutomotiveUxRestrictions.Source.NotAutomotive
+                )
+            ),
+            telemetryLogger = testTelemetryLogger(telemetrySink)
+        )
+
+        repository.start()
+        repository.dispatch(BambooPlaybackIntent.Play)
+        engine.pushEvent(EngineEvent(type = EngineEvent.TYPE_SERVICE_CONNECTED, message = null))
+        repository.dispatch(BambooPlaybackIntent.SkipNext)
+
+        assertEquals(
+            listOf(
+                PlaybackTelemetryEvents.INTENT_RECEIVED,
+                PlaybackTelemetryEvents.INTENT_BLOCKED,
+                PlaybackTelemetryEvents.INTENT_RECEIVED,
+                PlaybackTelemetryEvents.ENGINE_COMMAND_DISPATCHED
+            ),
+            telemetrySink.events.map { it.name }
+        )
+        assertEquals("play", telemetrySink.events[0].attributes["intent"])
+        assertEquals("Connecting", telemetrySink.events[1].attributes["engine_status"])
+        assertEquals("skip_next", telemetrySink.events[3].attributes["intent"])
+        assertEquals(EngineCommand.TYPE_SKIP_NEXT, telemetrySink.events[3].attributes["command_type"])
     }
 }
 
@@ -287,5 +333,18 @@ private class RecordingEngineGateway(
         eventListeners.toList().forEach { listener ->
             listener(event)
         }
+    }
+}
+
+private fun testTelemetryLogger(sink: TelemetrySink = TelemetrySink { }): TelemetryLogger = TelemetryLogger(
+    sink = sink,
+    clock = { 42L }
+)
+
+private class RecordingTelemetrySink : TelemetrySink {
+    val events = mutableListOf<TelemetryEvent>()
+
+    override fun record(event: TelemetryEvent) {
+        events += event
     }
 }
