@@ -92,6 +92,8 @@ class DefaultBambooPlaybackRepository(
                 commandType = EngineCommand.TYPE_SKIP_NEXT,
                 sourceIntent = intent
             )
+
+            is BambooPlaybackIntent.PlatformEvent -> dispatchPlatformEvent(intent)
         }
     }
 
@@ -191,6 +193,32 @@ class DefaultBambooPlaybackRepository(
         }
     }
 
+    private fun dispatchPlatformEvent(intent: BambooPlaybackIntent.PlatformEvent) {
+        if (!state.value.canDispatchEngineCommands) {
+            logBlockedIntent(intent)
+            return
+        }
+
+        telemetryLogger.info(
+            name = PlaybackTelemetryEvents.PLATFORM_EVENT_DISPATCHED,
+            attributes = mapOf(
+                "intent" to intent.telemetryName,
+                "event_type" to intent.type
+            )
+        )
+
+        val result = engine.dispatchPlatformEvent(
+            com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlatformEvent(
+                type = intent.type,
+                payload = intent.payload
+            )
+        )
+
+        updateState { current ->
+            current.fromEngineResult(result)
+        }
+    }
+
     private fun updateState(reducer: (BambooPlaybackState) -> BambooPlaybackState) {
         mutableState.update(reducer)
         notifyStateChanged()
@@ -218,6 +246,7 @@ internal object PlaybackTelemetryEvents {
     const val INTENT_RECEIVED = "playback.intent.received"
     const val INTENT_BLOCKED = "playback.intent.blocked"
     const val ENGINE_COMMAND_DISPATCHED = "playback.engine.command.dispatched"
+    const val PLATFORM_EVENT_DISPATCHED = "playback.platform_event.dispatched"
     const val ENGINE_SNAPSHOT_REQUESTED = "playback.engine.snapshot.requested"
 }
 
@@ -229,6 +258,7 @@ private val BambooPlaybackIntent.telemetryName: String
         BambooPlaybackIntent.TogglePlayback -> "toggle_playback"
         BambooPlaybackIntent.SkipPrevious -> "skip_previous"
         BambooPlaybackIntent.SkipNext -> "skip_next"
+        is BambooPlaybackIntent.PlatformEvent -> "platform_event"
     }
 
 private fun BambooPlaybackState.fromEngineResult(result: EngineDispatchResult): BambooPlaybackState =

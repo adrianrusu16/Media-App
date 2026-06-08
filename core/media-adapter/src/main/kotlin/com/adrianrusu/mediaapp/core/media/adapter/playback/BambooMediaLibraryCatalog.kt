@@ -3,15 +3,31 @@ package com.adrianrusu.mediaapp.core.media.adapter.playback
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import com.adrianrusu.mediaapp.core.model.catalog.BambooCatalogNode
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
 
 internal interface BambooCatalogSource {
     fun children(parentId: String): List<BambooCatalogNode>
+    fun search(query: String): List<BambooCatalogNode>
 }
 
-internal object PlaceholderBambooCatalogSource : BambooCatalogSource {
-    override fun children(parentId: String): List<BambooCatalogNode> = when (parentId) {
-        LibraryItems.ROOT_MEDIA_ID -> rootChildren
-        else -> emptyList()
+internal class EngineBambooCatalogSource(
+    private val playbackBridge: Media3PlaybackEngineBridge
+) : BambooCatalogSource {
+    override fun children(parentId: String): List<BambooCatalogNode> {
+        // Here we would normally call the bridge to get children from Rust.
+        // For now, we return placeholder root nodes, or empty for others.
+        // Real implementation would use dispatchPlatformEvent and observe state.
+        return if (parentId == LibraryItems.ROOT_MEDIA_ID) {
+            rootChildren
+        } else {
+            emptyList()
+        }
+    }
+
+    override fun search(query: String): List<BambooCatalogNode> {
+        // Dispatch search event to Rust
+        playbackBridge.dispatchPlatformEvent("search", query)
+        return emptyList() // Search results would come back via state updates
     }
 
     private val rootChildren = listOf(
@@ -43,6 +59,10 @@ internal class BambooMediaLibraryCatalog(private val source: BambooCatalogSource
     fun root(): MediaItem = LibraryItems.Root
 
     fun children(parentId: String, page: Int, pageSize: Int): List<MediaItem> = source.children(parentId)
+        .paged(page = page, pageSize = pageSize)
+        .map { node -> node.toMediaItem() }
+
+    fun search(query: String, page: Int, pageSize: Int): List<MediaItem> = source.search(query)
         .paged(page = page, pageSize = pageSize)
         .map { node -> node.toMediaItem() }
 }

@@ -3,6 +3,7 @@ package com.adrianrusu.mediaapp.core.media.adapter.playback
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
+import com.adrianrusu.mediaapp.core.media.adapter.playback.focus.BambooAudioFocusHandler
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackRepository
 import com.adrianrusu.mediaapp.core.telemetry.TelemetryLogger
 import dagger.hilt.android.AndroidEntryPoint
@@ -28,6 +29,7 @@ class BambooMediaLibraryService : MediaLibraryService() {
     private var engineBridge: Media3PlaybackEngineBridge? = null
     private var stateProjector: BambooMediaSessionStateProjector? = null
     private var commandAvailabilityProjector: BambooMediaSessionCommandAvailabilityProjector? = null
+    private var audioFocusHandler: BambooAudioFocusHandler? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -42,13 +44,14 @@ class BambooMediaLibraryService : MediaLibraryService() {
             playbackEngineBridge = playbackEngineBridge,
             controlsEnabled = { playbackRepository.state.value.canDispatchEngineCommands }
         )
+        val catalogSource = EngineBambooCatalogSource(playbackEngineBridge)
         val mediaLibrarySession = MediaLibrarySession.Builder(
             this,
             sessionPlayer,
             BambooMediaLibrarySessionCallback(
                 controlsEnabled = { playbackRepository.state.value.canDispatchEngineCommands },
                 catalog = BambooMediaLibraryCatalog(
-                    source = PlaceholderBambooCatalogSource
+                    source = catalogSource
                 )
             )
         ).build()
@@ -64,21 +67,34 @@ class BambooMediaLibraryService : MediaLibraryService() {
             )
         )
 
+        val focusHandler = BambooAudioFocusHandler(
+            context = this,
+            onFocusChange = {
+                playbackEngineBridge.dispatchPlatformEvent(
+                    com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlatformEvent.TYPE_AUDIO_FOCUS_CHANGED
+                )
+            }
+        )
+
         player = exoPlayer
         engineBridge = playbackEngineBridge
         session = mediaLibrarySession
         stateProjector = playbackStateProjector
         commandAvailabilityProjector = mediaCommandAvailabilityProjector
+        audioFocusHandler = focusHandler
 
         playbackEngineBridge.bootstrap()
         playbackStateProjector.start()
         mediaCommandAvailabilityProjector.start()
+        focusHandler.start()
         exoPlayer.addListener(playbackEngineBridge)
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? = session
 
     override fun onDestroy() {
+        audioFocusHandler?.stop()
+        audioFocusHandler = null
         commandAvailabilityProjector?.close()
         commandAvailabilityProjector = null
         stateProjector?.close()

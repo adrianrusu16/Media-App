@@ -3,6 +3,7 @@ package com.adrianrusu.mediaapp.core.media.adapter.playback
 import androidx.media3.common.Player
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackIntent
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackRepository
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.mediaapp.core.telemetry.TelemetryLogger
 
 /**
@@ -17,6 +18,12 @@ class Media3PlaybackEngineBridge(
 
     fun bootstrap() {
         playbackRepository.start()
+    }
+
+    fun dispatchPlatformEvent(type: String, payload: String? = null) {
+        playbackRepository.dispatch(
+            BambooPlaybackIntent.PlatformEvent(type = type, payload = payload)
+        )
     }
 
     fun projectPlatformPlaybackState(block: () -> Unit) {
@@ -51,6 +58,21 @@ class Media3PlaybackEngineBridge(
         playbackRepository.dispatch(
             PlaybackEngineCommandMapper.fromPlayWhenReady(playWhenReady)
         )
+    }
+
+    override fun onPlaybackStateChanged(playbackState: Int) {
+        when (playbackState) {
+            Player.STATE_READY -> {
+                dispatchPlatformEvent(EnginePlatformEvent.TYPE_MEDIA_LOADED)
+            }
+            Player.STATE_BUFFERING -> {
+                // We could dispatch a buffering event if needed, but Rust handles this via commands
+            }
+        }
+    }
+
+    override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+        dispatchPlatformEvent(EnginePlatformEvent.TYPE_MEDIA_ERROR, error.message)
     }
 
     fun dispatchPlayerCommand(playerCommand: Int): Boolean {

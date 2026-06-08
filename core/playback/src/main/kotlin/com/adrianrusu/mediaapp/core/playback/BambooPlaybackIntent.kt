@@ -7,4 +7,9 @@ sealed interface BambooPlaybackIntent {
     data object TogglePlayback : BambooPlaybackIntent
     data object SkipPrevious : BambooPlaybackIntent
     data object SkipNext : BambooPlaybackIntent
+
+    /**
+     * Platform-level event that should be processed by the engine.
+     */
+    data class PlatformEvent(val type: String, val payload: String? = null) : BambooPlaybackIntent
 }
