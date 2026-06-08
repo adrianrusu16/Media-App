@@ -46,6 +46,7 @@ class AndroidEngineServiceConnection(
             try {
                 remote.registerListener(remoteListener)
                 listener?.onSnapshotChanged(remote.snapshot)
+                notifyEngineEvent(EngineEvent.TYPE_SERVICE_CONNECTED)
             } catch (_: RemoteException) {
                 clearService()
             }
@@ -53,24 +54,24 @@ class AndroidEngineServiceConnection(
 
         override fun onServiceDisconnected(name: ComponentName) {
             clearService()
+            notifyEngineEvent(EngineEvent.TYPE_SERVICE_DISCONNECTED)
         }
 
         override fun onBindingDied(name: ComponentName) {
             clearService()
+            notifyEngineEvent(EngineEvent.TYPE_SERVICE_BINDING_DIED)
+            rebind()
         }
 
         override fun onNullBinding(name: ComponentName) {
             clearService()
+            notifyEngineEvent(EngineEvent.TYPE_SERVICE_NULL_BINDING)
         }
     }
 
     override fun connect(listener: EngineServiceListener) {
         this.listener = listener
-        bound = context.bindService(
-            MediaEngineServiceContract.bindIntent(context),
-            serviceConnection,
-            bindFlags
-        )
+        bind()
     }
 
     override fun close() {
@@ -91,9 +92,37 @@ class AndroidEngineServiceConnection(
         clearService()
     }
 
+    private fun bind() {
+        bound = context.bindService(
+            MediaEngineServiceContract.bindIntent(context),
+            serviceConnection,
+            bindFlags
+        )
+    }
+
+    private fun rebind() {
+        if (bound) {
+            context.unbindService(serviceConnection)
+            bound = false
+        }
+
+        if (listener != null) {
+            bind()
+        }
+    }
+
     private fun clearService() {
         remoteService = null
         service = null
+    }
+
+    private fun notifyEngineEvent(type: String) {
+        listener?.onEngineEvent(
+            EngineEvent(
+                type = type,
+                message = null
+            )
+        )
     }
 
     private class AidlEngineService(private val remote: IMediaEngineService) : EngineService {

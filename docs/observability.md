@@ -37,3 +37,6 @@ and `pending_count`; command payloads are never logged. Current statuses are
 The same boundary records `engine_gateway.event` when the engine service emits
 an `EngineEvent`. Attributes are limited to `event_type` and `message_present`;
 event messages are not logged.
+
+Service lifecycle events use the same path, including `service_connected`,
+`service_disconnected`, `service_binding_died`, and `service_null_binding`.
