@@ -1,0 +1,123 @@
+package com.adrianrusu.mediaapp.core.media.adapter.playback
+
+import com.adrianrusu.mediaapp.core.playback.BambooPlaybackIntent
+import com.adrianrusu.mediaapp.core.playback.BambooPlaybackRepository
+import com.adrianrusu.mediaapp.core.playback.BambooPlaybackState
+import com.adrianrusu.mediaapp.core.playback.BambooPlaybackStatus
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import org.junit.Assert.assertEquals
+import org.junit.Test
+
+class BambooMediaSessionStateProjectorTest {
+    @Test
+    fun startProjectsCurrentPlaybackState() {
+        val repository = ProjectorRecordingPlaybackRepository(
+            BambooPlaybackState(
+                mediaId = "track-1",
+                title = "Bamboo Drive",
+                artist = "PandaWave",
+                playbackStatus = BambooPlaybackStatus.Playing
+            )
+        )
+        val sink = RecordingMediaSessionStateSink()
+        val bridge = Media3PlaybackEngineBridge(repository)
+        val projector = BambooMediaSessionStateProjector(
+            playbackRepository = repository,
+            sink = sink,
+            playbackEngineBridge = bridge
+        )
+
+        projector.start()
+
+        assertEquals(1, sink.projections.size)
+        assertEquals("track-1", sink.projections.single().mediaItem.mediaId)
+        assertEquals(true, sink.projections.single().playWhenReady)
+    }
+
+    @Test
+    fun duplicateStateIsNotProjectedAgain() {
+        val state = BambooPlaybackState(
+            mediaId = "track-1",
+            title = "Bamboo Drive",
+            artist = "PandaWave",
+            playbackStatus = BambooPlaybackStatus.Paused
+        )
+        val repository = ProjectorRecordingPlaybackRepository(state)
+        val sink = RecordingMediaSessionStateSink()
+        val projector = BambooMediaSessionStateProjector(
+            playbackRepository = repository,
+            sink = sink,
+            playbackEngineBridge = Media3PlaybackEngineBridge(repository)
+        )
+
+        projector.start()
+        repository.push(state)
+
+        assertEquals(1, sink.projections.size)
+    }
+
+    @Test
+    fun closeStopsProjectionUpdates() {
+        val repository = ProjectorRecordingPlaybackRepository(BambooPlaybackState())
+        val sink = RecordingMediaSessionStateSink()
+        val projector = BambooMediaSessionStateProjector(
+            playbackRepository = repository,
+            sink = sink,
+            playbackEngineBridge = Media3PlaybackEngineBridge(repository)
+        )
+
+        projector.start()
+        projector.close()
+        repository.push(
+            BambooPlaybackState(
+                mediaId = "track-2",
+                title = "Quiet Cabin",
+                artist = "PandaWave",
+                playbackStatus = BambooPlaybackStatus.Playing
+            )
+        )
+
+        assertEquals(1, sink.projections.size)
+    }
+}
+
+private class RecordingMediaSessionStateSink : BambooMediaSessionStateSink {
+    val projections = mutableListOf<BambooMediaSessionStateProjection>()
+
+    override fun project(projection: BambooMediaSessionStateProjection) {
+        projections += projection
+    }
+}
+
+private class ProjectorRecordingPlaybackRepository(initialState: BambooPlaybackState) : BambooPlaybackRepository {
+    private val mutableState = MutableStateFlow(initialState)
+    private val listeners = mutableSetOf<(BambooPlaybackState) -> Unit>()
+
+    val intents = mutableListOf<BambooPlaybackIntent>()
+
+    override val state: StateFlow<BambooPlaybackState> = mutableState
+
+    override fun start() = Unit
+
+    override fun dispatch(intent: BambooPlaybackIntent) {
+        intents += intent
+    }
+
+    override fun observe(listener: (BambooPlaybackState) -> Unit): AutoCloseable {
+        listeners += listener
+        listener(state.value)
+        return AutoCloseable {
+            listeners -= listener
+        }
+    }
+
+    override fun close() = Unit
+
+    fun push(state: BambooPlaybackState) {
+        mutableState.value = state
+        listeners.toList().forEach { listener ->
+            listener(state)
+        }
+    }
+}

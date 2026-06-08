@@ -45,6 +45,18 @@ class Media3PlaybackEngineBridgeTest {
     }
 
     @Test
+    fun projectedPlatformPlaybackStateDoesNotDispatchPlaybackIntent() {
+        val repository = RecordingPlaybackRepository()
+        val bridge = Media3PlaybackEngineBridge(repository)
+
+        bridge.projectPlatformPlaybackState {
+            bridge.onPlayWhenReadyChanged(true, Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST)
+        }
+
+        assertEquals(emptyList<BambooPlaybackIntent>(), repository.intents)
+    }
+
+    @Test
     fun playerSkipCommandsDispatchThroughPlaybackRepository() {
         val repository = RecordingPlaybackRepository()
         val bridge = Media3PlaybackEngineBridge(repository)

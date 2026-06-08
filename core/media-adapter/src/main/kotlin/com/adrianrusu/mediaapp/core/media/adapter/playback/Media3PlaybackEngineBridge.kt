@@ -9,11 +9,26 @@ import com.adrianrusu.mediaapp.core.playback.BambooPlaybackRepository
 class Media3PlaybackEngineBridge(private val playbackRepository: BambooPlaybackRepository) :
     Player.Listener,
     AutoCloseable {
+    private var platformProjectionDepth = 0
+
     fun bootstrap() {
         playbackRepository.start()
     }
 
+    fun projectPlatformPlaybackState(block: () -> Unit) {
+        platformProjectionDepth += 1
+        try {
+            block()
+        } finally {
+            platformProjectionDepth -= 1
+        }
+    }
+
     override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+        if (platformProjectionDepth > 0) {
+            return
+        }
+
         playbackRepository.dispatch(
             PlaybackEngineCommandMapper.fromPlayWhenReady(playWhenReady)
         )

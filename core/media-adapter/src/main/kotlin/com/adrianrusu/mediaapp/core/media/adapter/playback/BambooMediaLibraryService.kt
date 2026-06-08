@@ -22,6 +22,7 @@ class BambooMediaLibraryService : MediaLibraryService() {
     private var player: ExoPlayer? = null
     private var session: MediaLibrarySession? = null
     private var engineBridge: Media3PlaybackEngineBridge? = null
+    private var stateProjector: BambooMediaSessionStateProjector? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -30,7 +31,13 @@ class BambooMediaLibraryService : MediaLibraryService() {
         val playbackEngineBridge = Media3PlaybackEngineBridge(
             playbackRepository = playbackRepository
         )
+        val playbackStateProjector = BambooMediaSessionStateProjector(
+            playbackRepository = playbackRepository,
+            sink = Media3PlayerStateSink(exoPlayer),
+            playbackEngineBridge = playbackEngineBridge
+        )
         playbackEngineBridge.bootstrap()
+        playbackStateProjector.start()
         exoPlayer.addListener(playbackEngineBridge)
         val sessionPlayer = BambooMediaSessionPlayer(
             delegate = exoPlayer,
@@ -39,6 +46,7 @@ class BambooMediaLibraryService : MediaLibraryService() {
 
         player = exoPlayer
         engineBridge = playbackEngineBridge
+        stateProjector = playbackStateProjector
         session = MediaLibrarySession.Builder(
             this,
             sessionPlayer,
@@ -49,6 +57,8 @@ class BambooMediaLibraryService : MediaLibraryService() {
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? = session
 
     override fun onDestroy() {
+        stateProjector?.close()
+        stateProjector = null
         engineBridge?.let { bridge ->
             player?.removeListener(bridge)
             bridge.close()
