@@ -18,6 +18,9 @@ internal object SettingsReducer {
 
             SettingsIntent.AcknowledgePrivacyNotice ->
                 state.copy(privacyNoticeAcknowledged = true)
+
+            is SettingsIntent.SelectThemePreference ->
+                state.copy(themePreference = intent.preference)
         }
     }
 }

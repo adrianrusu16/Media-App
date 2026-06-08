@@ -30,6 +30,16 @@ The overlay should not be treated as a runtime theme picker. Runtime themes
 belong in app state; RRO packages belong in platform or build-variant
 customization.
 
+## Runtime Preference Boundary
+
+Runtime theme selection starts with `PandaWaveThemePreference.SystemDefault`,
+then can explicitly select `BambooGroveLight` or `MoonlitBambooDark`. The app
+observes that preference through a repository/use-case boundary before passing
+it into `PandaWaveTheme`.
+
+The current repository is in-memory; future storage or backend profile sync
+should replace that repository without changing the design-system token API.
+
 ## Overlayable Target
 
 RRO packages should target the app package and the overlayable group:

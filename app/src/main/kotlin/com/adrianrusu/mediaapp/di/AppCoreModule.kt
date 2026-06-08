@@ -11,6 +11,10 @@ import com.adrianrusu.mediaapp.core.rust.bridge.gateway.EngineServiceConnection
 import com.adrianrusu.mediaapp.core.telemetry.TelemetryLogger
 import com.adrianrusu.mediaapp.core.telemetry.TelemetrySink
 import com.adrianrusu.mediaapp.core.telemetry.sinks.AndroidLogTelemetrySink
+import com.adrianrusu.mediaapp.theme.InMemoryThemePreferenceRepository
+import com.adrianrusu.mediaapp.theme.ObserveThemePreferenceUseCase
+import com.adrianrusu.mediaapp.theme.SetThemePreferenceUseCase
+import com.adrianrusu.mediaapp.theme.ThemePreferenceRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -53,4 +57,16 @@ object AppCoreModule {
     @Provides
     @Singleton
     fun provideTelemetryLogger(sink: TelemetrySink): TelemetryLogger = TelemetryLogger(sink = sink)
+
+    @Provides
+    @Singleton
+    fun provideThemePreferenceRepository(): ThemePreferenceRepository = InMemoryThemePreferenceRepository()
+
+    @Provides
+    fun provideObserveThemePreferenceUseCase(repository: ThemePreferenceRepository): ObserveThemePreferenceUseCase =
+        ObserveThemePreferenceUseCase(repository)
+
+    @Provides
+    fun provideSetThemePreferenceUseCase(repository: ThemePreferenceRepository): SetThemePreferenceUseCase =
+        SetThemePreferenceUseCase(repository)
 }

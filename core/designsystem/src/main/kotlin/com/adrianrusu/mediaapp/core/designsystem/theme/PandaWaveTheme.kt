@@ -1,5 +1,6 @@
 package com.adrianrusu.mediaapp.core.designsystem.theme
 
+import android.content.res.Configuration
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
@@ -17,6 +18,7 @@ import com.adrianrusu.mediaapp.core.designsystem.tokens.PandaWaveColorTokens
 import com.adrianrusu.mediaapp.core.designsystem.tokens.ResourceDesignTokenProvider
 import com.adrianrusu.mediaapp.core.designsystem.tokens.mediumCorner
 import com.adrianrusu.mediaapp.core.designsystem.tokens.smallCorner
+import com.adrianrusu.mediaapp.core.model.theme.PandaWaveThemePreference
 
 enum class PandaWaveThemeId(val displayName: String) {
     BambooGroveLight(displayName = "Bamboo Grove Light"),
@@ -33,23 +35,28 @@ val LocalPandaWaveThemeProfile = staticCompositionLocalOf {
 }
 
 @Composable
-fun PandaWaveTheme(darkTheme: Boolean, content: @Composable () -> Unit) {
+fun PandaWaveTheme(
+    darkTheme: Boolean,
+    themePreference: PandaWaveThemePreference = PandaWaveThemePreference.SystemDefault,
+    content: @Composable () -> Unit
+) {
     val context = LocalContext.current
-    val themeProfile = remember(darkTheme) {
-        if (darkTheme) {
-            PandaWaveThemeProfile(
-                id = PandaWaveThemeId.MoonlitBambooDark,
-                isDark = true
-            )
-        } else {
-            PandaWaveThemeProfile(
-                id = PandaWaveThemeId.BambooGroveLight,
-                isDark = false
-            )
-        }
+    val themeProfile = remember(themePreference, darkTheme) {
+        themePreference.toThemeProfile(systemDark = darkTheme)
     }
-    val tokens = remember(context, darkTheme) {
-        ResourceDesignTokenProvider(context).load()
+    val resourceContext = remember(context, themeProfile.isDark) {
+        val configuration = Configuration(context.resources.configuration).apply {
+            uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or
+                if (themeProfile.isDark) {
+                    Configuration.UI_MODE_NIGHT_YES
+                } else {
+                    Configuration.UI_MODE_NIGHT_NO
+                }
+        }
+        context.createConfigurationContext(configuration)
+    }
+    val tokens = remember(resourceContext) {
+        ResourceDesignTokenProvider(resourceContext).load()
     }
     val shapes = Shapes(
         extraSmall = RoundedCornerShape(tokens.shape.smallCorner),
@@ -69,6 +76,33 @@ fun PandaWaveTheme(darkTheme: Boolean, content: @Composable () -> Unit) {
             content = content
         )
     }
+}
+
+fun PandaWaveThemePreference.toThemeProfile(systemDark: Boolean): PandaWaveThemeProfile = when (this) {
+    PandaWaveThemePreference.SystemDefault ->
+        if (systemDark) {
+            PandaWaveThemeProfile(
+                id = PandaWaveThemeId.MoonlitBambooDark,
+                isDark = true
+            )
+        } else {
+            PandaWaveThemeProfile(
+                id = PandaWaveThemeId.BambooGroveLight,
+                isDark = false
+            )
+        }
+
+    PandaWaveThemePreference.BambooGroveLight ->
+        PandaWaveThemeProfile(
+            id = PandaWaveThemeId.BambooGroveLight,
+            isDark = false
+        )
+
+    PandaWaveThemePreference.MoonlitBambooDark ->
+        PandaWaveThemeProfile(
+            id = PandaWaveThemeId.MoonlitBambooDark,
+            isDark = true
+        )
 }
 
 private fun PandaWaveColorTokens.toColorScheme(darkTheme: Boolean): ColorScheme {

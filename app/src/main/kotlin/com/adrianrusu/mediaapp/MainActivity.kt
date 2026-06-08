@@ -10,6 +10,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.adrianrusu.mediaapp.appshell.presentation.AppShellScreen
 import com.adrianrusu.mediaapp.appshell.presentation.AppShellViewModel
 import com.adrianrusu.mediaapp.core.designsystem.theme.PandaWaveTheme
+import com.adrianrusu.mediaapp.theme.AppThemeViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -20,9 +21,14 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val viewModel: AppShellViewModel = hiltViewModel()
+            val themeViewModel: AppThemeViewModel = hiltViewModel()
             val state = viewModel.state.collectAsStateWithLifecycle()
+            val themePreference = themeViewModel.preference.collectAsStateWithLifecycle()
 
-            PandaWaveTheme(darkTheme = isSystemInDarkTheme()) {
+            PandaWaveTheme(
+                darkTheme = isSystemInDarkTheme(),
+                themePreference = themePreference.value
+            ) {
                 AppShellScreen(
                     state = state.value,
                     onIntent = viewModel::onIntent
