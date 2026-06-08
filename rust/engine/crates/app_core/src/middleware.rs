@@ -13,6 +13,26 @@ pub trait Middleware: Send + Sync {
     fn after_dispatch(&self, _engine: &Engine, _outcome: &EngineOutcome) {}
 }
 
+/// A simple middleware that logs engine actions.
+pub struct LoggerMiddleware;
+impl Middleware for LoggerMiddleware {
+    fn before_dispatch(&self, _engine: &Engine, command: &EngineCommand) {
+        println!("[PandaEngine] Dispatching command: {:?}", command.command_type);
+    }
+}
+
+/// A middleware that tracks engine performance and command usage (placeholder).
+pub struct TelemetryMiddleware;
+impl Middleware for TelemetryMiddleware {
+    fn after_dispatch(&self, _engine: &Engine, outcome: &EngineOutcome) {
+        // In a real app, this would send data to an analytics service
+        println!(
+            "[Telemetry] Command result: {:?}, New state: {:?}",
+            outcome.event.event_type, outcome.snapshot.playback_state
+        );
+    }
+}
+
 /// A composite middleware that runs a list of middlewares in order.
 #[derive(Default)]
 pub struct MiddlewarePipeline {

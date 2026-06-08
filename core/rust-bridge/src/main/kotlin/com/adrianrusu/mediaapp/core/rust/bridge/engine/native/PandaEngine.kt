@@ -90,6 +90,8 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         private const val PLAYBACK_IDLE = 0
         private const val PLAYBACK_PLAYING = 1
         private const val PLAYBACK_PAUSED = 2
+        private const val PLAYBACK_BUFFERING = 3
+        private const val PLAYBACK_ERROR = 4
 
         private const val RESTRICTION_UNKNOWN = 0
 
@@ -111,6 +113,8 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             PLAYBACK_IDLE -> EngineSnapshot.PLAYBACK_IDLE
             PLAYBACK_PLAYING -> EngineSnapshot.PLAYBACK_PLAYING
             PLAYBACK_PAUSED -> EngineSnapshot.PLAYBACK_PAUSED
+            PLAYBACK_BUFFERING -> EngineSnapshot.PLAYBACK_BUFFERING
+            PLAYBACK_ERROR -> EngineSnapshot.PLAYBACK_ERROR
             else -> EngineSnapshot.PLAYBACK_IDLE
         }
 

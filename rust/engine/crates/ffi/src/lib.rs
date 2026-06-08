@@ -1,6 +1,7 @@
 use panda_engine_core::{
     Engine, EngineCommand, EngineCommandType, EngineEventType, EngineOutcome, EngineSnapshot,
-    Middleware, MiddlewarePipeline, PlaybackState, RestrictionState,
+    LoggerMiddleware, MiddlewarePipeline, PlaybackState, RestrictionState,
+    TelemetryMiddleware,
 };
 
 pub const FFI_COMMAND_BOOTSTRAP: i32 = 0;
@@ -55,17 +56,10 @@ pub extern "C" fn panda_engine_create(now_epoch_millis: u64) -> *mut PandaEngine
     // Setup default state-of-the-art middleware (e.g., logging)
     let mut pipeline = MiddlewarePipeline::new();
     pipeline.add(Box::new(LoggerMiddleware));
+    pipeline.add(Box::new(TelemetryMiddleware));
     engine.set_middleware(pipeline);
 
     Box::into_raw(Box::new(PandaEngine { engine }))
-}
-
-/// A simple middleware that logs engine actions (placeholder for real logging).
-struct LoggerMiddleware;
-impl Middleware for LoggerMiddleware {
-    fn before_dispatch(&self, _engine: &Engine, command: &EngineCommand) {
-        println!("[PandaEngine] Dispatching command: {:?}", command.command_type);
-    }
 }
 
 /// Destroys a PandaEngine instance and frees its memory.

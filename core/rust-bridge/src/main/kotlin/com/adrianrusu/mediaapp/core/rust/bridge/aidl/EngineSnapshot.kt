@@ -38,6 +38,8 @@ data class EngineSnapshot(
         const val PLAYBACK_IDLE = "idle"
         const val PLAYBACK_PLAYING = "playing"
         const val PLAYBACK_PAUSED = "paused"
+        const val PLAYBACK_BUFFERING = "buffering"
+        const val PLAYBACK_ERROR = "error"
         const val RESTRICTION_UNKNOWN = "unknown"
 
         fun idle(nowMillis: Long): EngineSnapshot = EngineSnapshot(
