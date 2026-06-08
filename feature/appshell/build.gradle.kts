@@ -12,6 +12,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":core:designsystem"))
     implementation(project(":core:playback"))
     implementation(project(":core:telemetry-adapter"))
     implementation(project(":core:ui"))

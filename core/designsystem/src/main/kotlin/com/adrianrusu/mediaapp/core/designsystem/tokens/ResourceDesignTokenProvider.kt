@@ -33,6 +33,10 @@ class ResourceDesignTokenProvider(context: Context) {
             mediumCornerPx = dimension(R.dimen.mediaapp_shape_corner_md),
             miniPlayerHeightPx = dimension(R.dimen.mediaapp_miniplayer_height)
         ),
+        sizing = PandaWaveSizingTokens(
+            touchTargetMdPx = dimension(R.dimen.mediaapp_touch_target_md),
+            touchTargetLgPx = dimension(R.dimen.mediaapp_touch_target_lg)
+        ),
         restrictions = PandaWaveRestrictionTokens(
             maxBrowseColumnsUnrestricted =
                 resources.getInteger(R.integer.mediaapp_max_browse_columns_unrestricted),

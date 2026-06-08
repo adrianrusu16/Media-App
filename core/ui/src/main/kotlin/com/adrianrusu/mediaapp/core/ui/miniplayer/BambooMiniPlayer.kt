@@ -21,7 +21,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
+import com.adrianrusu.mediaapp.core.designsystem.tokens.LocalPandaWaveDesignTokens
+import com.adrianrusu.mediaapp.core.designsystem.tokens.lg
+import com.adrianrusu.mediaapp.core.designsystem.tokens.md
+import com.adrianrusu.mediaapp.core.designsystem.tokens.miniPlayerHeight
+import com.adrianrusu.mediaapp.core.designsystem.tokens.xs
 import com.adrianrusu.mediaapp.core.ui.playback.BambooPlaybackText
 
 @Composable
@@ -33,21 +37,26 @@ fun BambooMiniPlayer(
     controlsEnabled: Boolean = false,
     modifier: Modifier = Modifier
 ) {
+    val tokens = LocalPandaWaveDesignTokens.current
+
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .heightIn(min = 96.dp),
+            .heightIn(min = tokens.shape.miniPlayerHeight),
         color = MaterialTheme.colorScheme.surfaceVariant,
-        tonalElevation = 3.dp
+        tonalElevation = tokens.spacing.xs
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.padding(
+                horizontal = tokens.spacing.lg,
+                vertical = tokens.spacing.md
+            ),
+            horizontalArrangement = Arrangement.spacedBy(tokens.spacing.md),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(tokens.spacing.xs)
             ) {
                 Text(
                     text = state.title,
@@ -72,7 +81,7 @@ fun BambooMiniPlayer(
                 }
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(tokens.spacing.xs)) {
                 IconButton(
                     enabled = controlsEnabled,
                     onClick = onSkipPreviousClick

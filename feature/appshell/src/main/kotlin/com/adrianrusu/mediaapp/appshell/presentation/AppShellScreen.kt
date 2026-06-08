@@ -19,10 +19,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import com.adrianrusu.mediaapp.appshell.domain.AppDestination
 import com.adrianrusu.mediaapp.appshell.domain.AppShellIntent
 import com.adrianrusu.mediaapp.appshell.domain.AppShellState
+import com.adrianrusu.mediaapp.core.designsystem.tokens.LocalPandaWaveDesignTokens
+import com.adrianrusu.mediaapp.core.designsystem.tokens.lg
+import com.adrianrusu.mediaapp.core.designsystem.tokens.md
+import com.adrianrusu.mediaapp.core.designsystem.tokens.sm
+import com.adrianrusu.mediaapp.core.designsystem.tokens.xs
 import com.adrianrusu.mediaapp.core.playback.BambooEngineConnectionStatus
 import com.adrianrusu.mediaapp.core.playback.BambooEngineConnectionUiState
 import com.adrianrusu.mediaapp.core.ui.miniplayer.BambooMiniPlayer
@@ -81,12 +85,14 @@ fun AppShellScreen(state: AppShellState, onIntent: (AppShellIntent) -> Unit, mod
 
 @Composable
 private fun AppShellContent(state: AppShellState, onIntent: (AppShellIntent) -> Unit, contentPadding: PaddingValues) {
+    val tokens = LocalPandaWaveDesignTokens.current
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(contentPadding),
-        contentPadding = PaddingValues(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        contentPadding = PaddingValues(tokens.spacing.lg),
+        verticalArrangement = Arrangement.spacedBy(tokens.spacing.md)
     ) {
         item {
             Header(
@@ -116,6 +122,8 @@ private fun Header(
     isRestricted: Boolean,
     engineConnection: BambooEngineConnectionUiState
 ) {
+    val tokens = LocalPandaWaveDesignTokens.current
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -123,7 +131,7 @@ private fun Header(
     ) {
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            verticalArrangement = Arrangement.spacedBy(tokens.spacing.xs)
         ) {
             Text(
                 text = "PandaWave",
@@ -139,7 +147,7 @@ private fun Header(
 
         Column(
             horizontalAlignment = Alignment.End,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(tokens.spacing.sm)
         ) {
             StatusChip(
                 label = restrictionLabel,
@@ -155,6 +163,8 @@ private fun Header(
 
 @Composable
 private fun StatusChip(label: String, isHighlighted: Boolean) {
+    val tokens = LocalPandaWaveDesignTokens.current
+
     Surface(
         color = if (isHighlighted) {
             MaterialTheme.colorScheme.primaryContainer
@@ -164,7 +174,10 @@ private fun StatusChip(label: String, isHighlighted: Boolean) {
         shape = MaterialTheme.shapes.small
     ) {
         Text(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            modifier = Modifier.padding(
+                horizontal = tokens.spacing.md,
+                vertical = tokens.spacing.sm
+            ),
             text = label,
             style = MaterialTheme.typography.labelLarge
         )
@@ -173,8 +186,10 @@ private fun StatusChip(label: String, isHighlighted: Boolean) {
 
 @Composable
 private fun QuickActions(onIntent: (AppShellIntent) -> Unit) {
+    val tokens = LocalPandaWaveDesignTokens.current
+
     Row(
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.spacedBy(tokens.spacing.md)
     ) {
         Button(
             onClick = {

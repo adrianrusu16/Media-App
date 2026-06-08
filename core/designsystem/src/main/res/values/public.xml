@@ -18,6 +18,8 @@
     <public type="dimen" name="mediaapp_shape_corner_sm" />
     <public type="dimen" name="mediaapp_shape_corner_md" />
     <public type="dimen" name="mediaapp_miniplayer_height" />
+    <public type="dimen" name="mediaapp_touch_target_md" />
+    <public type="dimen" name="mediaapp_touch_target_lg" />
     <public type="integer" name="mediaapp_max_browse_columns_unrestricted" />
     <public type="integer" name="mediaapp_max_browse_columns_restricted" />
     <public type="integer" name="mediaapp_max_visible_actions_restricted" />

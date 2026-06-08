@@ -20,6 +20,8 @@
             <item type="dimen" name="mediaapp_shape_corner_sm" />
             <item type="dimen" name="mediaapp_shape_corner_md" />
             <item type="dimen" name="mediaapp_miniplayer_height" />
+            <item type="dimen" name="mediaapp_touch_target_md" />
+            <item type="dimen" name="mediaapp_touch_target_lg" />
             <item type="integer" name="mediaapp_max_browse_columns_unrestricted" />
             <item type="integer" name="mediaapp_max_browse_columns_restricted" />
             <item type="integer" name="mediaapp_max_visible_actions_restricted" />

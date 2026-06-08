@@ -25,9 +25,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.adrianrusu.mediaapp.core.designsystem.tokens.LocalPandaWaveDesignTokens
+import com.adrianrusu.mediaapp.core.designsystem.tokens.lg
+import com.adrianrusu.mediaapp.core.designsystem.tokens.md
+import com.adrianrusu.mediaapp.core.designsystem.tokens.sm
+import com.adrianrusu.mediaapp.core.designsystem.tokens.touchTargetLg
+import com.adrianrusu.mediaapp.core.designsystem.tokens.touchTargetMd
+import com.adrianrusu.mediaapp.core.designsystem.tokens.xs
 import com.adrianrusu.mediaapp.core.ui.playback.BambooPlaybackText
 import com.adrianrusu.mediaapp.feature.nowplaying.domain.NowPlayingIntent
 import com.adrianrusu.mediaapp.feature.nowplaying.domain.NowPlayingState
@@ -51,9 +57,11 @@ private fun NowPlayingScreen(
     onIntent: (NowPlayingIntent) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val tokens = LocalPandaWaveDesignTokens.current
+
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(tokens.spacing.md)
     ) {
         NowPlayingStatusCard(state = state)
         PlaybackControls(
@@ -66,16 +74,18 @@ private fun NowPlayingScreen(
 
 @Composable
 private fun NowPlayingStatusCard(state: NowPlayingState) {
+    val tokens = LocalPandaWaveDesignTokens.current
+
     Surface(
         color = MaterialTheme.colorScheme.surfaceVariant,
-        tonalElevation = 2.dp,
+        tonalElevation = tokens.spacing.xs,
         shape = MaterialTheme.shapes.small
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(22.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(tokens.spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(tokens.spacing.sm)
         ) {
             Text(
                 text = "Now playing",
@@ -102,21 +112,23 @@ private fun NowPlayingStatusCard(state: NowPlayingState) {
 
 @Composable
 private fun PlaybackControls(state: NowPlayingState, onIntent: (NowPlayingIntent) -> Unit) {
+    val tokens = LocalPandaWaveDesignTokens.current
+
     Surface(
         color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 1.dp,
+        tonalElevation = tokens.spacing.xs,
         shape = MaterialTheme.shapes.small
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(18.dp),
+                .padding(tokens.spacing.md),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(tokens.spacing.xs)
             ) {
                 Text(
                     text = state.playbackState.name,
@@ -135,11 +147,11 @@ private fun PlaybackControls(state: NowPlayingState, onIntent: (NowPlayingIntent
             }
 
             Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(tokens.spacing.sm),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(
-                    modifier = Modifier.size(48.dp),
+                    modifier = Modifier.size(tokens.sizing.touchTargetMd),
                     enabled = state.canDispatchEngineCommands,
                     onClick = {
                         onIntent(NowPlayingIntent.SkipPrevious)
@@ -151,7 +163,7 @@ private fun PlaybackControls(state: NowPlayingState, onIntent: (NowPlayingIntent
                     )
                 }
                 FilledIconButton(
-                    modifier = Modifier.size(56.dp),
+                    modifier = Modifier.size(tokens.sizing.touchTargetLg),
                     enabled = state.canDispatchEngineCommands,
                     onClick = {
                         onIntent(NowPlayingIntent.TogglePlayback)
@@ -163,7 +175,7 @@ private fun PlaybackControls(state: NowPlayingState, onIntent: (NowPlayingIntent
                     )
                 }
                 IconButton(
-                    modifier = Modifier.size(48.dp),
+                    modifier = Modifier.size(tokens.sizing.touchTargetMd),
                     enabled = state.canDispatchEngineCommands,
                     onClick = {
                         onIntent(NowPlayingIntent.SkipNext)
@@ -174,9 +186,9 @@ private fun PlaybackControls(state: NowPlayingState, onIntent: (NowPlayingIntent
                         contentDescription = BambooPlaybackText.ACTION_SKIP_NEXT
                     )
                 }
-                Box(modifier = Modifier.size(4.dp))
+                Box(modifier = Modifier.size(tokens.spacing.xs))
                 IconButton(
-                    modifier = Modifier.size(48.dp),
+                    modifier = Modifier.size(tokens.sizing.touchTargetMd),
                     enabled = state.canDispatchEngineCommands,
                     onClick = {
                         onIntent(NowPlayingIntent.Refresh)
@@ -194,20 +206,22 @@ private fun PlaybackControls(state: NowPlayingState, onIntent: (NowPlayingIntent
 
 @Composable
 private fun EngineStateCard(state: NowPlayingState) {
+    val tokens = LocalPandaWaveDesignTokens.current
+
     Surface(
         color = if (state.restriction.isRestricted) {
             MaterialTheme.colorScheme.primaryContainer
         } else {
             MaterialTheme.colorScheme.surface
         },
-        tonalElevation = 1.dp,
+        tonalElevation = tokens.spacing.xs,
         shape = MaterialTheme.shapes.small
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+                .padding(tokens.spacing.md),
+            verticalArrangement = Arrangement.spacedBy(tokens.spacing.sm)
         ) {
             Text(
                 text = "Engine state",

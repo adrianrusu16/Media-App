@@ -10,13 +10,18 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
+import com.adrianrusu.mediaapp.core.designsystem.tokens.LocalPandaWaveDesignTokens
+import com.adrianrusu.mediaapp.core.designsystem.tokens.md
+import com.adrianrusu.mediaapp.core.designsystem.tokens.sm
+import com.adrianrusu.mediaapp.core.designsystem.tokens.xs
 
 @Composable
 fun FeatureOverviewScreen(items: List<FeatureOverviewItem>, modifier: Modifier = Modifier) {
+    val tokens = LocalPandaWaveDesignTokens.current
+
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(tokens.spacing.md)
     ) {
         items.forEach { item ->
             FeatureOverviewRow(item = item)
@@ -26,16 +31,18 @@ fun FeatureOverviewScreen(items: List<FeatureOverviewItem>, modifier: Modifier =
 
 @Composable
 private fun FeatureOverviewRow(item: FeatureOverviewItem) {
+    val tokens = LocalPandaWaveDesignTokens.current
+
     Surface(
         color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 1.dp,
+        tonalElevation = tokens.spacing.xs,
         shape = MaterialTheme.shapes.small
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+                .padding(tokens.spacing.md),
+            verticalArrangement = Arrangement.spacedBy(tokens.spacing.sm)
         ) {
             Text(
                 text = item.title,
