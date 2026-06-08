@@ -50,11 +50,15 @@ class InMemoryNowPlayingRepositoryTest {
         repository.start()
         repository.dispatch(NowPlayingIntent.Refresh)
         repository.dispatch(NowPlayingIntent.TogglePlayback)
+        repository.dispatch(NowPlayingIntent.SkipPrevious)
+        repository.dispatch(NowPlayingIntent.SkipNext)
 
         assertEquals(
             listOf(
                 BambooPlaybackIntent.Refresh,
-                BambooPlaybackIntent.TogglePlayback
+                BambooPlaybackIntent.TogglePlayback,
+                BambooPlaybackIntent.SkipPrevious,
+                BambooPlaybackIntent.SkipNext
             ),
             playback.intents
         )

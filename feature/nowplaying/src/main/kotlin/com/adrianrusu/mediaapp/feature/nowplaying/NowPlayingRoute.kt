@@ -1,13 +1,22 @@
 package com.adrianrusu.mediaapp.feature.nowplaying
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -19,6 +28,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.adrianrusu.mediaapp.core.ui.playback.BambooPlaybackText
 import com.adrianrusu.mediaapp.feature.nowplaying.domain.NowPlayingIntent
 import com.adrianrusu.mediaapp.feature.nowplaying.domain.NowPlayingState
 import com.adrianrusu.mediaapp.feature.nowplaying.presentation.NowPlayingViewModel
@@ -101,24 +111,82 @@ private fun PlaybackControls(state: NowPlayingState, onIntent: (NowPlayingIntent
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(18.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Button(
-                enabled = state.canDispatchEngineCommands,
-                onClick = {
-                    onIntent(NowPlayingIntent.TogglePlayback)
-                }
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Text(text = state.primaryActionLabel)
+                Text(
+                    text = state.playbackState.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = state.primaryActionLabel,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
-            OutlinedButton(
-                enabled = state.canDispatchEngineCommands,
-                onClick = {
-                    onIntent(NowPlayingIntent.Refresh)
-                }
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = "Refresh")
+                IconButton(
+                    modifier = Modifier.size(48.dp),
+                    enabled = state.canDispatchEngineCommands,
+                    onClick = {
+                        onIntent(NowPlayingIntent.SkipPrevious)
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.SkipPrevious,
+                        contentDescription = BambooPlaybackText.ACTION_SKIP_PREVIOUS
+                    )
+                }
+                FilledIconButton(
+                    modifier = Modifier.size(56.dp),
+                    enabled = state.canDispatchEngineCommands,
+                    onClick = {
+                        onIntent(NowPlayingIntent.TogglePlayback)
+                    }
+                ) {
+                    Icon(
+                        imageVector = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                        contentDescription = state.primaryActionLabel
+                    )
+                }
+                IconButton(
+                    modifier = Modifier.size(48.dp),
+                    enabled = state.canDispatchEngineCommands,
+                    onClick = {
+                        onIntent(NowPlayingIntent.SkipNext)
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.SkipNext,
+                        contentDescription = BambooPlaybackText.ACTION_SKIP_NEXT
+                    )
+                }
+                Box(modifier = Modifier.size(4.dp))
+                IconButton(
+                    modifier = Modifier.size(48.dp),
+                    enabled = state.canDispatchEngineCommands,
+                    onClick = {
+                        onIntent(NowPlayingIntent.Refresh)
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Refresh,
+                        contentDescription = "Refresh"
+                    )
+                }
             }
         }
     }

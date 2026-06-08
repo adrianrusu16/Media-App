@@ -36,6 +36,8 @@ internal class InMemoryNowPlayingRepository(private val playbackRepository: Bamb
         when (intent) {
             NowPlayingIntent.Refresh -> playbackRepository.dispatch(BambooPlaybackIntent.Refresh)
             NowPlayingIntent.TogglePlayback -> playbackRepository.dispatch(BambooPlaybackIntent.TogglePlayback)
+            NowPlayingIntent.SkipPrevious -> playbackRepository.dispatch(BambooPlaybackIntent.SkipPrevious)
+            NowPlayingIntent.SkipNext -> playbackRepository.dispatch(BambooPlaybackIntent.SkipNext)
         }
     }
 
