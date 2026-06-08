@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="mediaapp_color_brand_primary">#3F6046</color>
+    <color name="mediaapp_color_brand_on_primary">#F8F6EF</color>
+    <color name="mediaapp_color_brand_secondary">#5A4A2C</color>
+    <color name="mediaapp_color_brand_on_secondary">#F8F6EF</color>
+    <color name="mediaapp_color_surface">#F8F6EF</color>
+    <color name="mediaapp_color_on_surface">#141C18</color>
+    <color name="mediaapp_color_surface_variant">#C9D8BF</color>
+    <color name="mediaapp_color_on_surface_variant">#394A3B</color>
+    <color name="mediaapp_color_error">#BA1A1A</color>
+    <color name="mediaapp_color_on_error">#FFFFFF</color>
+
+    <dimen name="mediaapp_spacing_xs">4dp</dimen>
+    <dimen name="mediaapp_spacing_sm">8dp</dimen>
+    <dimen name="mediaapp_spacing_md">16dp</dimen>
+    <dimen name="mediaapp_spacing_lg">24dp</dimen>
+    <dimen name="mediaapp_spacing_xl">32dp</dimen>
+    <dimen name="mediaapp_shape_corner_sm">4dp</dimen>
+    <dimen name="mediaapp_shape_corner_md">8dp</dimen>
+    <dimen name="mediaapp_miniplayer_height">96dp</dimen>
+    <dimen name="mediaapp_touch_target_md">48dp</dimen>
+    <dimen name="mediaapp_touch_target_lg">56dp</dimen>
+    <dimen name="mediaapp_elevation_card_resting">1dp</dimen>
+
+    <integer name="mediaapp_max_browse_columns_unrestricted">4</integer>
+    <integer name="mediaapp_max_browse_columns_restricted">2</integer>
+    <integer name="mediaapp_max_visible_actions_restricted">3</integer>
+</resources>

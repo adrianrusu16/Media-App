@@ -19,6 +19,17 @@ those preferences through the backend when account state exists.
 RROs are still useful, but they are a platform/OEM customization layer over the
 public token contract rather than the primary user preference system.
 
+## Sample Overlay
+
+`:rro:bamboo-grove-overlay` is a buildable sample overlay APK that targets
+`com.adrianrusu.mediaapp` and `PandaWaveDesignTokens`. It mirrors the app-owned
+Bamboo Grove palette with a slightly deeper forest treatment, and exists to
+prove the overlay contract for AAOS/OEM integration.
+
+The overlay should not be treated as a runtime theme picker. Runtime themes
+belong in app state; RRO packages belong in platform or build-variant
+customization.
+
 ## Overlayable Target
 
 RRO packages should target the app package and the overlayable group:
