@@ -17,14 +17,16 @@ import com.google.common.util.concurrent.ListenableFuture
  * and queue state. The root exists so AAOS browsers can connect to PandaWave
  * without receiving an unsupported library response.
  */
-internal object BambooMediaLibrarySessionCallback : MediaLibrarySession.Callback {
+internal class BambooMediaLibrarySessionCallback(private val controlsEnabled: () -> Boolean) :
+    MediaLibrarySession.Callback {
     override fun onConnect(
         session: MediaSession,
         controller: MediaSession.ControllerInfo
     ): MediaSession.ConnectionResult = MediaSession.ConnectionResult.AcceptedResultBuilder(session)
         .setAvailablePlayerCommands(
             BambooMediaSessionCommandPolicy.availablePlayerCommands(
-                session.player.availableCommands
+                playerCommands = session.player.availableCommands,
+                controlsEnabled = controlsEnabled()
             )
         )
         .build()

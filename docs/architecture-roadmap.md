@@ -159,7 +159,7 @@ The first Android playback foundation is intentionally platform-only: a Media3
 controllers, while library contents and command policy stay reserved for the
 Rust engine wiring milestone.
 Media3 play-state changes are projected into `BambooPlaybackRepository`, so system and
-AAOS media controls share the same command gating and Rust boundary as in-app controls. Bamboo playback snapshots are projected back into Media3 metadata and play readiness so platform surfaces show the same current track as Compose.
+AAOS media controls share the same command gating and Rust boundary as in-app controls. Bamboo playback snapshots are projected back into Media3 metadata and play readiness so platform surfaces show the same current track as Compose. Media3 controller commands are also gated by engine readiness so AAOS controls stay disabled until PandaEngine is explicitly ready.
 
 ## Security Posture
 
@@ -188,6 +188,7 @@ AAOS media controls share the same command gating and Rust boundary as in-app co
 - Keep HAL/VHAL integrations behind an OEM-only adapter boundary.
 - Use CarUiLib and Car UI plugins where available in OEM/system-image builds,
   while preserving a Compose Material fallback for regular distribution.
+
 
 
 

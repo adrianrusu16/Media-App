@@ -23,6 +23,7 @@ class BambooMediaLibraryService : MediaLibraryService() {
     private var session: MediaLibrarySession? = null
     private var engineBridge: Media3PlaybackEngineBridge? = null
     private var stateProjector: BambooMediaSessionStateProjector? = null
+    private var commandAvailabilityProjector: BambooMediaSessionCommandAvailabilityProjector? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -31,32 +32,47 @@ class BambooMediaLibraryService : MediaLibraryService() {
         val playbackEngineBridge = Media3PlaybackEngineBridge(
             playbackRepository = playbackRepository
         )
+        val sessionPlayer = BambooMediaSessionPlayer(
+            delegate = exoPlayer,
+            playbackEngineBridge = playbackEngineBridge,
+            controlsEnabled = { playbackRepository.state.value.canDispatchEngineCommands }
+        )
+        val mediaLibrarySession = MediaLibrarySession.Builder(
+            this,
+            sessionPlayer,
+            BambooMediaLibrarySessionCallback(
+                controlsEnabled = { playbackRepository.state.value.canDispatchEngineCommands }
+            )
+        ).build()
         val playbackStateProjector = BambooMediaSessionStateProjector(
             playbackRepository = playbackRepository,
             sink = Media3PlayerStateSink(exoPlayer),
             playbackEngineBridge = playbackEngineBridge
         )
-        playbackEngineBridge.bootstrap()
-        playbackStateProjector.start()
-        exoPlayer.addListener(playbackEngineBridge)
-        val sessionPlayer = BambooMediaSessionPlayer(
-            delegate = exoPlayer,
-            playbackEngineBridge = playbackEngineBridge
+        val mediaCommandAvailabilityProjector = BambooMediaSessionCommandAvailabilityProjector(
+            playbackRepository = playbackRepository,
+            sink = Media3SessionCommandAvailabilitySink(
+                sessionProvider = { session }
+            )
         )
 
         player = exoPlayer
         engineBridge = playbackEngineBridge
+        session = mediaLibrarySession
         stateProjector = playbackStateProjector
-        session = MediaLibrarySession.Builder(
-            this,
-            sessionPlayer,
-            BambooMediaLibrarySessionCallback
-        ).build()
+        commandAvailabilityProjector = mediaCommandAvailabilityProjector
+
+        playbackEngineBridge.bootstrap()
+        playbackStateProjector.start()
+        mediaCommandAvailabilityProjector.start()
+        exoPlayer.addListener(playbackEngineBridge)
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? = session
 
     override fun onDestroy() {
+        commandAvailabilityProjector?.close()
+        commandAvailabilityProjector = null
         stateProjector?.close()
         stateProjector = null
         engineBridge?.let { bridge ->

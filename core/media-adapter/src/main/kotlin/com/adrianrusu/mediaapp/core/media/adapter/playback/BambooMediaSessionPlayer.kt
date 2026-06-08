@@ -7,10 +7,12 @@ import androidx.media3.common.util.UnstableApi
 @UnstableApi
 internal class BambooMediaSessionPlayer(
     delegate: Player,
-    private val playbackEngineBridge: Media3PlaybackEngineBridge
+    private val playbackEngineBridge: Media3PlaybackEngineBridge,
+    private val controlsEnabled: () -> Boolean
 ) : ForwardingPlayer(delegate) {
     override fun getAvailableCommands(): Player.Commands = BambooMediaSessionCommandPolicy.availablePlayerCommands(
-        super.getAvailableCommands()
+        playerCommands = super.getAvailableCommands(),
+        controlsEnabled = controlsEnabled()
     )
 
     override fun seekToPreviousMediaItem() {

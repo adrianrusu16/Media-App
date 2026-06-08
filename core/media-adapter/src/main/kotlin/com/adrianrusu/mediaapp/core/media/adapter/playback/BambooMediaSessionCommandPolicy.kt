@@ -5,18 +5,48 @@ import androidx.media3.common.util.UnstableApi
 
 @UnstableApi
 internal object BambooMediaSessionCommandPolicy {
-    fun availablePlayerCommands(playerCommands: Player.Commands): Player.Commands = Player.Commands.Builder()
-        .addIf(Player.COMMAND_PLAY_PAUSE, playerCommands.contains(Player.COMMAND_PLAY_PAUSE))
-        .addIf(Player.COMMAND_PREPARE, playerCommands.contains(Player.COMMAND_PREPARE))
-        .addIf(Player.COMMAND_STOP, playerCommands.contains(Player.COMMAND_STOP))
-        .addIf(Player.COMMAND_GET_CURRENT_MEDIA_ITEM, playerCommands.contains(Player.COMMAND_GET_CURRENT_MEDIA_ITEM))
-        .addIf(Player.COMMAND_GET_METADATA, playerCommands.contains(Player.COMMAND_GET_METADATA))
-        .addIf(Player.COMMAND_SEEK_TO_PREVIOUS, playerCommands.contains(Player.COMMAND_SEEK_TO_PREVIOUS))
-        .addIf(
-            Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM,
-            playerCommands.contains(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
-        )
-        .addIf(Player.COMMAND_SEEK_TO_NEXT, playerCommands.contains(Player.COMMAND_SEEK_TO_NEXT))
-        .addIf(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM, playerCommands.contains(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM))
-        .build()
+    fun availablePlayerCommands(playerCommands: Player.Commands, controlsEnabled: Boolean): Player.Commands =
+        Player.Commands.Builder()
+            .apply {
+                availableCommandTypes(
+                    supportedCommandTypes = ProjectedCommandTypes.filter(playerCommands::contains).toSet(),
+                    controlsEnabled = controlsEnabled
+                ).forEach { command ->
+                    add(command)
+                }
+            }
+            .build()
+
+    fun availableCommandTypes(supportedCommandTypes: Set<Int>, controlsEnabled: Boolean): Set<Int> = buildSet {
+        MetadataCommandTypes.forEach { command ->
+            if (command in supportedCommandTypes) {
+                add(command)
+            }
+        }
+
+        if (controlsEnabled) {
+            ControlCommandTypes.forEach { command ->
+                if (command in supportedCommandTypes) {
+                    add(command)
+                }
+            }
+        }
+    }
 }
+
+private val MetadataCommandTypes = listOf(
+    Player.COMMAND_GET_CURRENT_MEDIA_ITEM,
+    Player.COMMAND_GET_METADATA
+)
+
+private val ControlCommandTypes = listOf(
+    Player.COMMAND_PLAY_PAUSE,
+    Player.COMMAND_PREPARE,
+    Player.COMMAND_STOP,
+    Player.COMMAND_SEEK_TO_PREVIOUS,
+    Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM,
+    Player.COMMAND_SEEK_TO_NEXT,
+    Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM
+)
+
+private val ProjectedCommandTypes = MetadataCommandTypes + ControlCommandTypes
