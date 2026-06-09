@@ -1,6 +1,6 @@
 mod command;
-mod effect;
 mod concurrent;
+mod effect;
 mod error;
 mod event;
 mod middleware;
@@ -62,8 +62,8 @@ pub use middleware::{
 pub use observability::{EngineObserver, EventBus};
 pub use persistence::{EnginePersistentState, NoopPersistence, Persistence};
 pub use platform_event::{EnginePlatformEvent, EnginePlatformEventType};
-pub use player::{MediaPlayer, MockPlayer};
 pub use playback::{ControlState, PlaybackState, PlayerControls, RestrictionState};
+pub use player::{MediaPlayer, MockPlayer};
 pub use queue::{QueueManager, RepeatMode};
 pub use reducer::{Engine, EngineOutcome};
 pub use repository::{InMemoryRepository, MediaItem, MediaRepository};

@@ -56,7 +56,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     private external fun nativeSnapshot(handle: Long): LongArray
 
     private external fun nativeDispatch(handle: Long, commandType: Int, nowEpochMillis: Long): LongArray
-    
+
     private external fun nativeDispatchPlatformEvent(
         handle: Long,
         eventType: Int,

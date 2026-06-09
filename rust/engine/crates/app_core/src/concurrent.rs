@@ -1,7 +1,7 @@
-use std::sync::{Arc, Mutex};
-use crate::reducer::{Engine, EngineOutcome};
 use crate::command::EngineCommand;
 use crate::platform_event::EnginePlatformEvent;
+use crate::reducer::{Engine, EngineOutcome};
+use std::sync::{Arc, Mutex};
 
 /// A thread-safe wrapper around the Engine.
 ///
@@ -28,7 +28,11 @@ impl ConcurrentEngine {
     }
 
     /// Dispatches a platform event to the engine in a thread-safe manner.
-    pub fn dispatch_platform_event(&self, event: EnginePlatformEvent, now_epoch_millis: u64) -> EngineOutcome {
+    pub fn dispatch_platform_event(
+        &self,
+        event: EnginePlatformEvent,
+        now_epoch_millis: u64,
+    ) -> EngineOutcome {
         let mut engine = self.inner.lock().unwrap();
         engine.dispatch_platform_event(event, now_epoch_millis)
     }
@@ -40,7 +44,7 @@ impl ConcurrentEngine {
     }
 
     /// Accesses the engine's snapshot in a thread-safe manner.
-    /// 
+    ///
     /// Note: This returns a clone of the snapshot to avoid keeping the lock open.
     pub fn snapshot(&self) -> crate::snapshot::EngineSnapshot {
         let engine = self.inner.lock().unwrap();
@@ -48,11 +52,11 @@ impl ConcurrentEngine {
     }
 
     /// Provides access to the inner engine through a closure.
-    /// 
+    ///
     /// This is useful for performing multiple operations while holding the lock.
-    pub fn with_engine<F, R>(&self, f: F) -> R 
-    where 
-        F: FnOnce(&mut Engine) -> R
+    pub fn with_engine<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&mut Engine) -> R,
     {
         let mut engine = self.inner.lock().unwrap();
         f(&mut engine)

@@ -6,9 +6,8 @@ use tracing_subscriber::prelude::*;
 
 use panda_engine_core::{
     ConcurrentEngine, Engine, EngineCommand, EngineCommandType, EngineEffect, EngineEvent,
-    EngineEventType, EngineObserver, EngineOutcome, EngineSnapshot,
-    LoggerMiddleware, MediaItem, MiddlewarePipeline, PlaybackState, RepeatMode, RestrictionState,
-    TelemetryMiddleware,
+    EngineEventType, EngineObserver, EngineOutcome, EngineSnapshot, LoggerMiddleware, MediaItem,
+    MiddlewarePipeline, PlaybackState, RepeatMode, RestrictionState, TelemetryMiddleware,
 };
 
 pub const FFI_COMMAND_BOOTSTRAP: i32 = 0;
@@ -168,7 +167,11 @@ pub extern "C" fn panda_engine_init_logging(max_level: i32) {
         _ => LevelFilter::Info,
     };
 
-    android_logger::init_once(Config::default().with_max_level(level).with_tag("PandaEngine"));
+    android_logger::init_once(
+        Config::default()
+            .with_max_level(level)
+            .with_tag("PandaEngine"),
+    );
 
     let _ = tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer().with_writer(std::io::stdout))
@@ -190,7 +193,9 @@ pub extern "C" fn panda_engine_create(now_epoch_millis: u64) -> *mut PandaEngine
     pipeline.add(Box::new(LoggerMiddleware));
     let bus = engine.event_bus();
     pipeline.add(Box::new(TelemetryMiddleware::new(bus.clone())));
-    pipeline.add(Box::new(panda_engine_core::AnalyticsMiddleware::new(bus.clone())));
+    pipeline.add(Box::new(panda_engine_core::AnalyticsMiddleware::new(
+        bus.clone(),
+    )));
     pipeline.add(Box::new(panda_engine_core::ThrottlingMiddleware::new(300))); // 300ms throttle
     pipeline.add(Box::new(panda_engine_core::FocusMiddleware));
     engine.set_middleware(pipeline);
@@ -221,7 +226,9 @@ pub unsafe extern "C" fn panda_engine_set_observer(
             last_event: engine.last_event.clone(),
         });
         engine.observer = Some(observer.clone());
-        engine.engine.with_engine(|e| e.event_bus().subscribe(Box::new(observer)));
+        engine
+            .engine
+            .with_engine(|e| e.event_bus().subscribe(Box::new(observer)));
     }
 }
 
@@ -427,7 +434,9 @@ pub unsafe extern "C" fn panda_engine_queue_set_repeat_mode(engine: *mut PandaEn
             2 => RepeatMode::All,
             _ => RepeatMode::None,
         };
-        engine.engine.with_engine(|e| e.queue().set_repeat_mode(repeat_mode));
+        engine
+            .engine
+            .with_engine(|e| e.queue().set_repeat_mode(repeat_mode));
     }
 }
 
@@ -438,7 +447,9 @@ pub unsafe extern "C" fn panda_engine_queue_set_repeat_mode(engine: *mut PandaEn
 pub unsafe extern "C" fn panda_engine_queue_set_shuffle(engine: *mut PandaEngine, enabled: bool) {
     let engine = unsafe { engine.as_mut() };
     if let Some(engine) = engine {
-        engine.engine.with_engine(|e| e.queue().set_shuffle(enabled));
+        engine
+            .engine
+            .with_engine(|e| e.queue().set_shuffle(enabled));
     }
 }
 
@@ -491,9 +502,7 @@ pub unsafe extern "C" fn panda_engine_get_effect_media_id(
         let effects = engine.last_effects.lock().unwrap();
         if let Some(EngineEffect::UpdateMetadata { media_id, .. }) = effects.get(index) {
             // Leak for simplicity in this prototype or use a better buffer management
-            return CString::new(media_id.as_str())
-                .unwrap()
-                .into_raw();
+            return CString::new(media_id.as_str()).unwrap().into_raw();
         }
     }
     ptr::null()
@@ -757,7 +766,9 @@ fn event_to_ffi(event_type: &EngineEventType) -> i32 {
 /// # Safety
 /// [engine] must be a valid pointer. Returns a pointer to a C-string that must be freed by the caller.
 #[unsafe(no_mangle)]
-    pub unsafe extern "C" fn panda_engine_get_last_event_message(engine: *const PandaEngine) -> *const c_char {
+pub unsafe extern "C" fn panda_engine_get_last_event_message(
+    engine: *const PandaEngine,
+) -> *const c_char {
     let engine = unsafe { engine.as_ref() };
     if let Some(engine) = engine {
         let event = engine.last_event.lock().unwrap();
@@ -778,8 +789,7 @@ mod tests {
     fn dispatch_play_returns_buffering_snapshot() {
         let engine = panda_engine_create(100);
         unsafe { panda_engine_dispatch(engine, FFI_COMMAND_START_SESSION, ptr::null(), 150) };
-        let outcome =
-            unsafe { panda_engine_dispatch(engine, FFI_COMMAND_PLAY, ptr::null(), 200) };
+        let outcome = unsafe { panda_engine_dispatch(engine, FFI_COMMAND_PLAY, ptr::null(), 200) };
         unsafe {
             panda_engine_destroy(engine);
         }
@@ -839,9 +849,9 @@ mod tests {
                 artist: "A".to_string(),
                 ..Default::default()
             }];
-            (*engine)
-                .engine
-                .with_engine(|e| e.set_repository(Box::new(panda_engine_core::InMemoryRepository::new(items))));
+            (*engine).engine.with_engine(|e| {
+                e.set_repository(Box::new(panda_engine_core::InMemoryRepository::new(items)))
+            });
         }
 
         let query = CString::new("Rust").unwrap();
@@ -871,7 +881,7 @@ mod tests {
         // We check after a command that should trigger an analytics report in before_dispatch
         // or after_dispatch. Since TelemetryMiddleware also reports the final event,
         // we might need to be careful.
-        
+
         unsafe {
             panda_engine_dispatch(engine, FFI_COMMAND_PLAY, ptr::null(), 200);
         }
@@ -883,7 +893,7 @@ mod tests {
             .to_string_lossy()
             .into_owned();
 
-        // The last event might be "command_applied" from TelemetryMiddleware, 
+        // The last event might be "command_applied" from TelemetryMiddleware,
         // OR it might be "state_transition" from AnalyticsMiddleware if it ran last.
         // Given the order in panda_engine_create:
         // 1. TelemetryMiddleware
@@ -892,8 +902,12 @@ mod tests {
         // Wait, MiddlewarePipeline::after_dispatch:
         // for mw in &self.middlewares { mw.after_dispatch(engine, outcome); }
         // So yes, AnalyticsMiddleware runs second, its report should be last.
-        
-        assert!(msg.contains("state_transition") || msg.contains("play_requested") || msg.contains("play"));
+
+        assert!(
+            msg.contains("state_transition")
+                || msg.contains("play_requested")
+                || msg.contains("play")
+        );
 
         unsafe {
             panda_engine_destroy(engine);

@@ -9,10 +9,8 @@ import android.os.Build
 /**
  * Handles Android Audio Focus requests and changes for the media app.
  */
-class BambooAudioFocusHandler(
-    private val context: Context,
-    private val onFocusChange: (Int) -> Unit
-) : AudioManager.OnAudioFocusChangeListener {
+class BambooAudioFocusHandler(private val context: Context, private val onFocusChange: (Int) -> Unit) :
+    AudioManager.OnAudioFocusChangeListener {
 
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private var focusRequest: AudioFocusRequest? = null

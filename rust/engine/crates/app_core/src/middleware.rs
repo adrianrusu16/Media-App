@@ -75,21 +75,23 @@ impl Middleware for RecoveryMiddleware {
             && error.error_type == EngineErrorType::NetworkError
             && !error.is_fatal
         {
-            warn!("[Recovery] Non-fatal network error detected. Attempting to skip to next track...");
+            warn!(
+                "[Recovery] Non-fatal network error detected. Attempting to skip to next track..."
+            );
 
-                // Dispatch SkipNext to recover
-                let recovery_outcome = engine.dispatch(
-                    EngineCommand::skip_next(),
-                    outcome.snapshot.updated_at_epoch_millis,
-                );
+            // Dispatch SkipNext to recover
+            let recovery_outcome = engine.dispatch(
+                EngineCommand::skip_next(),
+                outcome.snapshot.updated_at_epoch_millis,
+            );
 
-                // Update the current outcome with the recovery result
-                *outcome = recovery_outcome;
+            // Update the current outcome with the recovery result
+            *outcome = recovery_outcome;
 
-                // Add a notification that we recovered
-                outcome.snapshot.last_error = Some(EngineError::media_skipped(
-                    "Skipped track due to network error",
-                ));
+            // Add a notification that we recovered
+            outcome.snapshot.last_error = Some(EngineError::media_skipped(
+                "Skipped track due to network error",
+            ));
         }
     }
 }
@@ -99,17 +101,23 @@ pub struct ValidationMiddleware;
 impl Middleware for ValidationMiddleware {
     fn before_dispatch(&self, engine: &Engine, command: &EngineCommand) {
         let snapshot = engine.snapshot();
-        
+
         // Block commands if the engine is busy/buffering
         if !snapshot.can_dispatch() {
-             warn!("[Validation] Rejecting command {:?} because the engine is currently busy (state: {:?}, is_busy: {})", 
-                command.command_type, snapshot.playback_state, snapshot.is_busy);
-             // In a future version, we could inject a cancellation flag into the EngineOutcome
-             // but for now, the warning serves as an audit log for the middleware decision.
+            warn!(
+                "[Validation] Rejecting command {:?} because the engine is currently busy (state: {:?}, is_busy: {})",
+                command.command_type, snapshot.playback_state, snapshot.is_busy
+            );
+            // In a future version, we could inject a cancellation flag into the EngineOutcome
+            // but for now, the warning serves as an audit log for the middleware decision.
         }
 
-        if command.command_type == crate::command::EngineCommandType::Play && snapshot.session.is_none() {
-             warn!("[Validation] Play command received without an active session. This may be ignored by the reducer.");
+        if command.command_type == crate::command::EngineCommandType::Play
+            && snapshot.session.is_none()
+        {
+            warn!(
+                "[Validation] Play command received without an active session. This may be ignored by the reducer."
+            );
         }
     }
 }
@@ -132,7 +140,7 @@ impl ThrottlingMiddleware {
         let key = format!("{:?}", command.command_type);
         let mut last_map = self.last_command_at.lock().unwrap();
         let last = last_map.get(&key).cloned().unwrap_or(0);
-        
+
         if now < last + self.min_interval_ms {
             true
         } else {
@@ -146,8 +154,11 @@ impl Middleware for ThrottlingMiddleware {
     fn before_dispatch(&self, engine: &Engine, command: &EngineCommand) {
         let now = engine.snapshot().updated_at_epoch_millis;
         if self.should_throttle(command, now) {
-            warn!("[Throttling] Throttling command {:?} (too rapid)", command.command_type);
-            // In a more advanced implementation, we could set a flag in the command 
+            warn!(
+                "[Throttling] Throttling command {:?} (too rapid)",
+                command.command_type
+            );
+            // In a more advanced implementation, we could set a flag in the command
             // to mark it as rejected/ignored by the middleware.
         }
     }
@@ -178,7 +189,8 @@ impl AnalyticsMiddleware {
             "{{\"event\": \"{}\", \"media_id\": {:?}, \"properties\": {}}}",
             event_name, media_id, properties
         );
-        self.bus.notify_event_emitted(&EngineEvent::analytics_reported(payload));
+        self.bus
+            .notify_event_emitted(&EngineEvent::analytics_reported(payload));
     }
 }
 
@@ -203,29 +215,32 @@ impl Middleware for AnalyticsMiddleware {
 
     fn after_dispatch(&self, engine: &mut Engine, outcome: &mut EngineOutcome) {
         let snapshot = engine.snapshot();
-        
+
         // Report state transitions
         if outcome.event.event_type == crate::event::EngineEventType::CommandApplied {
-             self.report(
+            self.report(
                 "state_transition",
                 snapshot.media_id.as_deref(),
-                &format!("{{\"to_state\": \"{:?}\"}}", snapshot.playback_state)
+                &format!("{{\"to_state\": \"{:?}\"}}", snapshot.playback_state),
             );
         }
 
         // Heartbeat logic during playback
         if snapshot.playback_state == PlaybackState::Playing {
             let now = snapshot.updated_at_epoch_millis;
-            let last = self.last_heartbeat_at.load(std::sync::atomic::Ordering::Relaxed);
-            
+            let last = self
+                .last_heartbeat_at
+                .load(std::sync::atomic::Ordering::Relaxed);
+
             // Send heartbeat every 10 seconds (10000ms)
             if now >= last + 10000 {
                 self.report(
                     "playback_heartbeat",
                     snapshot.media_id.as_deref(),
-                    &format!("{{\"position_ms\": {}}}", snapshot.position_millis)
+                    &format!("{{\"position_ms\": {}}}", snapshot.position_millis),
                 );
-                self.last_heartbeat_at.store(now, std::sync::atomic::Ordering::Relaxed);
+                self.last_heartbeat_at
+                    .store(now, std::sync::atomic::Ordering::Relaxed);
             }
         }
     }

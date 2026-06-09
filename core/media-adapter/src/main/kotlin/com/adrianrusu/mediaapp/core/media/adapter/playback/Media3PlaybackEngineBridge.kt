@@ -65,6 +65,7 @@ class Media3PlaybackEngineBridge(
             Player.STATE_READY -> {
                 dispatchPlatformEvent(EnginePlatformEvent.TYPE_MEDIA_LOADED)
             }
+
             Player.STATE_BUFFERING -> {
                 // We could dispatch a buffering event if needed, but Rust handles this via commands
             }

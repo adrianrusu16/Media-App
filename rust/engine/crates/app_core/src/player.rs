@@ -1,5 +1,5 @@
 /// A trait representing a media player that can execute playback commands.
-/// 
+///
 /// In a state-of-the-art AAOS middleware, the actual media playback is often
 /// handled by a platform-specific component (like ExoPlayer on Android).
 /// This trait allows the Rust engine to remain agnostic of the underlying

@@ -10,9 +10,7 @@ internal interface BambooCatalogSource {
     fun search(query: String): List<BambooCatalogNode>
 }
 
-internal class EngineBambooCatalogSource(
-    private val playbackBridge: Media3PlaybackEngineBridge
-) : BambooCatalogSource {
+internal class EngineBambooCatalogSource(private val playbackBridge: Media3PlaybackEngineBridge) : BambooCatalogSource {
     override fun children(parentId: String): List<BambooCatalogNode> {
         // Here we would normally call the bridge to get children from Rust.
         // For now, we return placeholder root nodes, or empty for others.

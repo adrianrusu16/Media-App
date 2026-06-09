@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.android.library) apply false
     alias(libs.plugins.spotless)
+    alias(libs.plugins.detekt)
 }
 
 val detektCli by configurations.creating {
@@ -12,6 +13,13 @@ val detektCli by configurations.creating {
 
 dependencies {
     detektCli(libs.detekt.cli)
+}
+
+detekt {
+    toolVersion = libs.versions.detekt.get()
+    config.setFrom(files("config/detekt/detekt.yml"))
+    buildUponDefaultConfig = true
+    basePath = rootDir
 }
 
 spotless {
@@ -40,45 +48,8 @@ val detektSource = files(
     }
 )
 
-tasks.register<JavaExec>("detektAll") {
-    group = "verification"
-    description = "Runs Detekt static analysis across Kotlin source sets."
-
-    classpath = detektCli
-    mainClass.set("dev.detekt.cli.Main")
-
-    inputs.files(detektSource)
-    inputs.file(layout.projectDirectory.file("config/detekt/detekt.yml"))
-    outputs.dir(layout.buildDirectory.dir("reports/detekt"))
-
-    doFirst {
-        val reportDir = layout.buildDirectory.dir("reports/detekt").get().asFile
-        reportDir.mkdirs()
-
-        args(
-            "--input",
-            detektSource.files.joinToString(separator = java.io.File.pathSeparator) {
-                it.absolutePath
-            },
-            "--config",
-            layout.projectDirectory.file("config/detekt/detekt.yml").asFile.absolutePath,
-            "--build-upon-default-config",
-            "--base-path",
-            rootDir.absolutePath,
-            "--fail-on-severity",
-            "Error",
-            "--report",
-            "html:${reportDir.resolve("detekt.html").absolutePath}",
-            "--report",
-            "checkstyle:${reportDir.resolve("detekt.xml").absolutePath}",
-            "--report",
-            "sarif:${reportDir.resolve("detekt.sarif").absolutePath}"
-        )
-    }
-}
-
 tasks.register("qualityCheck") {
     group = "verification"
     description = "Runs Kotlin formatting and static analysis checks."
-    dependsOn("spotlessCheck", "detektAll")
+    dependsOn("spotlessCheck", "detekt")
 }

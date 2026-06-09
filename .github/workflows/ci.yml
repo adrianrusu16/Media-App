@@ -46,7 +46,8 @@ jobs:
         run: >
           ./gradlew
           --no-configuration-cache
-          qualityCheck
+          spotlessCheck
+          detekt
           :core:playback:testDebugUnitTest
           :core:media-adapter:testDebugUnitTest
           :app:assembleDebug

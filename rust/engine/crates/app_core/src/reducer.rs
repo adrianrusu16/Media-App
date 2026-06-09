@@ -5,8 +5,8 @@ use crate::event::EngineEvent;
 use crate::middleware::MiddlewarePipeline;
 use crate::persistence::{EnginePersistentState, NoopPersistence, Persistence};
 use crate::platform_event::{EnginePlatformEvent, EnginePlatformEventType};
-use crate::player::MediaPlayer;
 use crate::playback::PlaybackState;
+use crate::player::MediaPlayer;
 use crate::queue::QueueManager;
 use crate::repository::{InMemoryRepository, MediaRepository};
 use crate::session::MediaSession;
@@ -275,12 +275,14 @@ impl Engine {
             }
             EngineCommandType::SkipNext => {
                 if let Some(next_media) = self.queue.next_item() {
-                    next_snapshot = Self::update_media_state(next_media, next_snapshot, &mut effects);
+                    next_snapshot =
+                        Self::update_media_state(next_media, next_snapshot, &mut effects);
                 }
             }
             EngineCommandType::SkipPrevious => {
                 if let Some(prev_media) = self.queue.previous_item() {
-                    next_snapshot = Self::update_media_state(prev_media, next_snapshot, &mut effects);
+                    next_snapshot =
+                        Self::update_media_state(prev_media, next_snapshot, &mut effects);
                 }
             }
             EngineCommandType::Play => {
@@ -289,9 +291,11 @@ impl Engine {
                     if self.snapshot.media_id.is_none() {
                         // If playing from idle/nothing, try to load first item from queue
                         if let Some(media) = self.queue.current_item() {
-                            next_snapshot = Self::update_media_state(media, next_snapshot, &mut effects);
+                            next_snapshot =
+                                Self::update_media_state(media, next_snapshot, &mut effects);
                         } else if let Some(media) = self.queue.next_item() {
-                            next_snapshot = Self::update_media_state(media, next_snapshot, &mut effects);
+                            next_snapshot =
+                                Self::update_media_state(media, next_snapshot, &mut effects);
                         }
                     }
                 } else {
@@ -821,7 +825,13 @@ mod tests {
         let snapshot = engine.snapshot();
         // Since there are only 2 items and we are at index 1, skip_next should be disabled
         // and skip_prev should be enabled.
-        assert!(!snapshot.controls.skip_next.is_enabled, "Skip next should be disabled at the end of queue");
-        assert!(snapshot.controls.skip_prev.is_enabled, "Skip prev should be enabled when not at the start");
+        assert!(
+            !snapshot.controls.skip_next.is_enabled,
+            "Skip next should be disabled at the end of queue"
+        );
+        assert!(
+            snapshot.controls.skip_prev.is_enabled,
+            "Skip prev should be enabled when not at the start"
+        );
     }
 }
