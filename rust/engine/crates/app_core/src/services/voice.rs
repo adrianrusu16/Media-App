@@ -40,6 +40,14 @@ pub trait VoiceEngine: Send + Sync + Debug {
     fn set_vocabulary(&mut self, _vocabulary: Vec<String>) -> Result<(), String> {
         Ok(())
     }
+
+    /// Provides contextual metadata to the voice engine.
+    /// 
+    /// This can include the current track title, artist, or recently played items
+    /// to help the NLU resolve ambiguous commands (e.g., "play this artist again").
+    fn set_context(&mut self, _current_track: Option<(String, String)>) {
+        // Default: do nothing
+    }
 }
 
 /// A simple mock implementation of [VoiceEngine] for testing.

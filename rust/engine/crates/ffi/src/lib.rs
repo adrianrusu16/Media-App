@@ -716,6 +716,34 @@ impl From<(&EngineOutcome, i32)> for FfiEngineOutcome {
     }
 }
 
+/// Restores the engine state from persistence.
+///
+/// # Safety
+/// [engine] must be a valid pointer returned by [panda_engine_create].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn panda_engine_restore(engine: *mut PandaEngine) -> bool {
+    let engine = unsafe { engine.as_mut() };
+    if let Some(engine) = engine {
+        engine.engine.with_engine(|e| e.restore().unwrap_or(false))
+    } else {
+        false
+    }
+}
+
+/// Saves the engine state to persistence.
+///
+/// # Safety
+/// [engine] must be a valid pointer returned by [panda_engine_create].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn panda_engine_save(engine: *const PandaEngine) -> bool {
+    let engine = unsafe { engine.as_ref() };
+    if let Some(engine) = engine {
+        engine.engine.with_engine(|e| e.save().is_ok())
+    } else {
+        false
+    }
+}
+
 /// Returns the current voice hypothesis.
 /// 
 /// # Safety
