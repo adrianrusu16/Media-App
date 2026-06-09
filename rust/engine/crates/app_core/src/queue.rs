@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::repository::MediaItem;
+use serde::{Deserialize, Serialize};
 
 /// Defines the playback mode for the queue.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
@@ -14,23 +14,12 @@ pub enum RepeatMode {
 }
 
 /// Manages the list of media items to be played.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct QueueManager {
     items: Vec<MediaItem>,
     current_index: Option<usize>,
     shuffle_enabled: bool,
     repeat_mode: RepeatMode,
-}
-
-impl Default for QueueManager {
-    fn default() -> Self {
-        Self {
-            items: Vec::new(),
-            current_index: None,
-            shuffle_enabled: false,
-            repeat_mode: RepeatMode::default(),
-        }
-    }
 }
 
 impl QueueManager {
@@ -124,8 +113,18 @@ mod tests {
 
     fn mock_items() -> Vec<MediaItem> {
         vec![
-            MediaItem { id: "1".to_string(), title: "S1".to_string(), artist: "A1".to_string(), ..Default::default() },
-            MediaItem { id: "2".to_string(), title: "S2".to_string(), artist: "A2".to_string(), ..Default::default() },
+            MediaItem {
+                id: "1".to_string(),
+                title: "S1".to_string(),
+                artist: "A1".to_string(),
+                ..Default::default()
+            },
+            MediaItem {
+                id: "2".to_string(),
+                title: "S2".to_string(),
+                artist: "A2".to_string(),
+                ..Default::default()
+            },
         ]
     }
 
@@ -134,7 +133,7 @@ mod tests {
         let mut qm = QueueManager::new(mock_items());
         qm.set_repeat_mode(RepeatMode::All);
         qm.set_current_index(1);
-        
+
         let next = qm.next_item().unwrap();
         assert_eq!(next.id, "1");
     }

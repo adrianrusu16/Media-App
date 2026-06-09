@@ -60,10 +60,16 @@ impl EngineCommandType {
             Self::PAUSE_WIRE => Self::Pause,
             Self::SKIP_PREVIOUS_WIRE => Self::SkipPrevious,
             Self::SKIP_NEXT_WIRE => Self::SkipNext,
-            Self::START_SESSION_WIRE => Self::StartSession { user_id: "unknown".to_string() },
+            Self::START_SESSION_WIRE => Self::StartSession {
+                user_id: "unknown".to_string(),
+            },
             Self::END_SESSION_WIRE => Self::EndSession,
-            Self::SEARCH_WIRE => Self::Search { query: "".to_string() },
-            Self::BROWSE_WIRE => Self::Browse { parent_id: "root".to_string() },
+            Self::SEARCH_WIRE => Self::Search {
+                query: "".to_string(),
+            },
+            Self::BROWSE_WIRE => Self::Browse {
+                parent_id: "root".to_string(),
+            },
             Self::SET_SPEED_WIRE => Self::SetSpeed { speed: 1.0 },
             Self::SEEK_WIRE => Self::Seek { position_millis: 0 },
             _ => Self::Unknown(value),

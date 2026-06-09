@@ -1,12 +1,12 @@
+use crate::command::EngineCommand;
 use crate::playback::PlaybackState;
 use crate::reducer::Engine;
-use crate::command::EngineCommand;
 
 /// Trait for background services that need to perform periodic work.
 pub trait EngineService: Send + Sync {
     /// Returns the unique name of the service.
     fn name(&self) -> &'static str;
-    
+
     /// Called periodically by the host to allow the service to perform work.
     fn on_tick(&self, engine: &Engine, now_epoch_millis: u64) -> Option<EngineCommand>;
 }
@@ -21,13 +21,15 @@ impl EngineService for ProgressService {
 
     fn on_tick(&self, engine: &Engine, now_epoch_millis: u64) -> Option<EngineCommand> {
         let snapshot = engine.snapshot();
-        
+
         // Only update progress if we are playing
         if snapshot.playback_state == PlaybackState::Playing {
             let elapsed = now_epoch_millis.saturating_sub(snapshot.updated_at_epoch_millis);
-            if elapsed >= 1000 { // Tick every second
-                 let new_position = snapshot.position_millis + (elapsed as f32 * snapshot.playback_speed) as u64;
-                 return Some(EngineCommand::seek(new_position));
+            if elapsed >= 1000 {
+                // Tick every second
+                let new_position =
+                    snapshot.position_millis + (elapsed as f32 * snapshot.playback_speed) as u64;
+                return Some(EngineCommand::seek(new_position));
             }
         }
         None

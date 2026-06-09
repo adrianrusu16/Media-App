@@ -1,7 +1,7 @@
-use crate::playback::{PlaybackState, RestrictionState};
-use crate::session::MediaSession;
 use crate::error::EngineError;
+use crate::playback::{PlaybackState, RestrictionState};
 use crate::repository::MediaItem;
+use crate::session::MediaSession;
 
 use serde::{Deserialize, Serialize};
 

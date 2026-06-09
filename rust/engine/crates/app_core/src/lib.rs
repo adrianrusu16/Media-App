@@ -1,12 +1,12 @@
-mod error;
-mod effect;
 mod command;
+mod effect;
+mod error;
 mod event;
 mod middleware;
 mod observability;
+mod persistence;
 mod platform_event;
 mod playback;
-mod persistence;
 mod queue;
 mod reducer;
 mod repository;
@@ -25,7 +25,15 @@ pub mod test_utils {
 
     impl MockPersistence {
         pub fn new() -> Self {
-            Self { state: Mutex::new(None) }
+            Self {
+                state: Mutex::new(None),
+            }
+        }
+    }
+
+    impl Default for MockPersistence {
+        fn default() -> Self {
+            Self::new()
         }
     }
 
@@ -39,10 +47,10 @@ pub mod test_utils {
         }
     }
 }
- 
+
+pub use command::{EngineCommand, EngineCommandType};
 pub use effect::EngineEffect;
 pub use error::{EngineError, EngineErrorType};
-pub use command::{EngineCommand, EngineCommandType};
 pub use event::{EngineEvent, EngineEventType};
 pub use middleware::{
     FocusMiddleware, LoggerMiddleware, Middleware, MiddlewarePipeline, TelemetryMiddleware,

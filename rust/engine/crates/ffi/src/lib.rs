@@ -1,4 +1,4 @@
-use std::ffi::{c_char, CString};
+use std::ffi::{CString, c_char};
 use std::ptr;
 use std::sync::Arc;
 
@@ -145,8 +145,16 @@ pub unsafe extern "C" fn panda_engine_set_observer(
     }
 }
 
+/// Advances the engine's internal state by one tick.
+///
+/// # Safety
+/// The `engine` pointer must be a valid, non-null pointer to a `PandaEngine`
+/// previously created with `panda_engine_create`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn panda_engine_tick(engine: *mut PandaEngine, now_epoch_millis: u64) -> usize {
+pub unsafe extern "C" fn panda_engine_tick(
+    engine: *mut PandaEngine,
+    now_epoch_millis: u64,
+) -> usize {
     let engine = unsafe { engine.as_mut() };
     if let Some(engine) = engine {
         let outcomes = engine.engine.tick(now_epoch_millis);
@@ -197,25 +205,42 @@ pub unsafe extern "C" fn panda_engine_dispatch(
     let payload_str = if payload.is_null() {
         None
     } else {
-        Some(unsafe { std::ffi::CStr::from_ptr(payload) }.to_string_lossy().into_owned())
+        Some(
+            unsafe { std::ffi::CStr::from_ptr(payload) }
+                .to_string_lossy()
+                .into_owned(),
+        )
     };
 
     match engine {
         Some(engine) => {
             let command = match command_type {
-                FFI_COMMAND_SEARCH => {
-                    EngineCommand::new(EngineCommandType::Search { query: payload_str.unwrap_or_default() }, None)
-                }
-                FFI_COMMAND_BROWSE => {
-                    EngineCommand::new(EngineCommandType::Browse { parent_id: payload_str.unwrap_or_else(|| "root".to_string()) }, None)
-                }
+                FFI_COMMAND_SEARCH => EngineCommand::new(
+                    EngineCommandType::Search {
+                        query: payload_str.unwrap_or_default(),
+                    },
+                    None,
+                ),
+                FFI_COMMAND_BROWSE => EngineCommand::new(
+                    EngineCommandType::Browse {
+                        parent_id: payload_str.unwrap_or_else(|| "root".to_string()),
+                    },
+                    None,
+                ),
                 FFI_COMMAND_SET_SPEED => {
-                    let speed = payload_str.and_then(|s| s.parse::<f32>().ok()).unwrap_or(1.0);
+                    let speed = payload_str
+                        .and_then(|s| s.parse::<f32>().ok())
+                        .unwrap_or(1.0);
                     EngineCommand::new(EngineCommandType::SetSpeed { speed }, None)
                 }
                 FFI_COMMAND_SEEK => {
                     let pos = payload_str.and_then(|s| s.parse::<u64>().ok()).unwrap_or(0);
-                    EngineCommand::new(EngineCommandType::Seek { position_millis: pos }, None)
+                    EngineCommand::new(
+                        EngineCommandType::Seek {
+                            position_millis: pos,
+                        },
+                        None,
+                    )
                 }
                 _ => EngineCommand::new(command_from_ffi(command_type), payload_str),
             };
@@ -242,7 +267,10 @@ pub unsafe extern "C" fn panda_engine_dispatch_platform_event(
     match engine {
         Some(engine) => {
             let outcome = engine.engine.dispatch_platform_event(
-                panda_engine_core::EnginePlatformEvent::new(platform_event_from_ffi(event_type), None),
+                panda_engine_core::EnginePlatformEvent::new(
+                    platform_event_from_ffi(event_type),
+                    None,
+                ),
                 now_epoch_millis,
             );
             engine.last_effects = outcome.effects.clone();
@@ -276,7 +304,12 @@ pub unsafe extern "C" fn panda_engine_queue_set_items(
             let artist = unsafe { std::ffi::CStr::from_ptr(*artists.add(i)) }
                 .to_string_lossy()
                 .into_owned();
-            items.push(MediaItem { id, title, artist, ..Default::default() });
+            items.push(MediaItem {
+                id,
+                title,
+                artist,
+                ..Default::default()
+            });
         }
         engine.engine.queue().set_items(items);
     }
@@ -340,21 +373,23 @@ pub unsafe extern "C" fn panda_engine_get_effects_types(
     }
 }
 
-/// # Safety
+/// Returns the media ID for the effect at the specified index.
 ///
-/// [engine] must be a valid pointer returned by [panda_engine_create].
-/// Returns a pointer to the media ID if the action at [index] is UpdateMetadata.
+/// # Safety
+/// The `engine` pointer must be a valid, non-null pointer to a `PandaEngine`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn panda_engine_get_effect_media_id(
     engine: *const PandaEngine,
     index: usize,
 ) -> *const std::ffi::c_char {
     let engine = unsafe { engine.as_ref() };
-    if let Some(engine) = engine {
-        if let Some(EngineEffect::UpdateMetadata { media_id, .. }) = engine.last_effects.get(index) {
-            // Leak for simplicity in this prototype, or use a better buffer management
-            return std::ffi::CString::new(media_id.as_str()).unwrap().into_raw();
-        }
+    if let Some(engine) = engine
+        && let Some(EngineEffect::UpdateMetadata { media_id, .. }) = engine.last_effects.get(index)
+    {
+        // Leak for simplicity in this prototype, or use a better buffer management
+        return std::ffi::CString::new(media_id.as_str())
+            .unwrap()
+            .into_raw();
     }
     std::ptr::null()
 }
@@ -423,47 +458,52 @@ impl From<(&EngineOutcome, i32)> for FfiEngineOutcome {
     }
 }
 
-/// # Safety
+/// Returns the ID of the search result at the specified index.
 ///
-/// [engine] must be a valid pointer returned by [panda_engine_create].
+/// # Safety
+/// The `engine` pointer must be a valid, non-null pointer to a `PandaEngine`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn panda_engine_get_search_result_id(
     engine: *const PandaEngine,
     index: usize,
 ) -> *const c_char {
     let engine = unsafe { engine.as_ref() };
-    if let Some(engine) = engine {
-        if let Some(item) = engine.engine.snapshot().search_results.get(index) {
-            let c_str = CString::new(item.id.clone()).unwrap();
-            return c_str.into_raw();
-        }
+    if let Some(engine) = engine
+        && let Some(item) = engine.engine.snapshot().search_results.get(index)
+    {
+        let c_str = CString::new(item.id.clone()).unwrap();
+        return c_str.into_raw();
     }
     ptr::null()
 }
 
-/// # Safety
+/// Returns the title of the search result at the specified index.
 ///
-/// [engine] must be a valid pointer returned by [panda_engine_create].
+/// # Safety
+/// The `engine` pointer must be a valid, non-null pointer to a `PandaEngine`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn panda_engine_get_search_result_title(
     engine: *const PandaEngine,
     index: usize,
 ) -> *const c_char {
     let engine = unsafe { engine.as_ref() };
-    if let Some(engine) = engine {
-        if let Some(item) = engine.engine.snapshot().search_results.get(index) {
-            let c_str = CString::new(item.title.clone()).unwrap();
-            return c_str.into_raw();
-        }
+    if let Some(engine) = engine
+        && let Some(item) = engine.engine.snapshot().search_results.get(index)
+    {
+        let c_str = CString::new(item.title.clone()).unwrap();
+        return c_str.into_raw();
     }
     ptr::null()
 }
 
-/// Returns the error message for the last error, if any.
+/// Returns the last error message from the engine.
 ///
-/// The caller is responsible for freeing the string using [panda_engine_free_string].
+/// # Safety
+/// The `engine` pointer must be a valid, non-null pointer to a `PandaEngine`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn panda_engine_get_last_error_message(engine: *const PandaEngine) -> *const c_char {
+pub unsafe extern "C" fn panda_engine_get_last_error_message(
+    engine: *const PandaEngine,
+) -> *const c_char {
     if engine.is_null() {
         return ptr::null();
     }
@@ -476,7 +516,11 @@ pub unsafe extern "C" fn panda_engine_get_last_error_message(engine: *const Pand
     }
 }
 
-/// Frees a string allocated by the engine.
+/// Frees a string allocated by the Rust engine.
+///
+/// # Safety
+/// The `s` pointer must be a valid, non-null pointer to a string
+/// previously allocated by one of the engine's FFI functions.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn panda_engine_free_string(s: *mut c_char) {
     if s.is_null() {
@@ -494,7 +538,9 @@ fn command_from_ffi(command_type: i32) -> EngineCommandType {
         FFI_COMMAND_PAUSE => EngineCommandType::Pause,
         FFI_COMMAND_SKIP_PREVIOUS => EngineCommandType::SkipPrevious,
         FFI_COMMAND_SKIP_NEXT => EngineCommandType::SkipNext,
-        FFI_COMMAND_START_SESSION => EngineCommandType::StartSession { user_id: "unknown".to_string() },
+        FFI_COMMAND_START_SESSION => EngineCommandType::StartSession {
+            user_id: "unknown".to_string(),
+        },
         FFI_COMMAND_END_SESSION => EngineCommandType::EndSession,
         _ => EngineCommandType::Unknown(command_type.to_string()),
     }
@@ -507,7 +553,9 @@ fn platform_event_from_ffi(event_type: i32) -> panda_engine_core::EnginePlatform
         FFI_PLATFORM_EVENT_APP_BACKGROUNDED => EnginePlatformEventType::AppBackgrounded,
         FFI_PLATFORM_EVENT_SUSPEND_TO_RAM => EnginePlatformEventType::SuspendToRam,
         FFI_PLATFORM_EVENT_RESUME_FROM_RAM => EnginePlatformEventType::ResumeFromRam,
-        FFI_PLATFORM_EVENT_UX_RESTRICTIONS_CHANGED => EnginePlatformEventType::UxRestrictionsChanged,
+        FFI_PLATFORM_EVENT_UX_RESTRICTIONS_CHANGED => {
+            EnginePlatformEventType::UxRestrictionsChanged
+        }
         FFI_PLATFORM_EVENT_AUDIO_FOCUS_CHANGED => EnginePlatformEventType::AudioFocusChanged,
         FFI_PLATFORM_EVENT_MEDIA_LOADED => EnginePlatformEventType::MediaLoaded,
         FFI_PLATFORM_EVENT_MEDIA_ERROR => EnginePlatformEventType::MediaError,
@@ -547,7 +595,8 @@ mod tests {
     fn dispatch_play_returns_buffering_snapshot() {
         let engine = panda_engine_create(100);
         unsafe { panda_engine_dispatch(engine, FFI_COMMAND_START_SESSION, std::ptr::null(), 150) };
-        let outcome = unsafe { panda_engine_dispatch(engine, FFI_COMMAND_PLAY, std::ptr::null(), 200) };
+        let outcome =
+            unsafe { panda_engine_dispatch(engine, FFI_COMMAND_PLAY, std::ptr::null(), 200) };
         unsafe {
             panda_engine_destroy(engine);
         }
@@ -573,18 +622,23 @@ mod tests {
         unsafe { panda_engine_dispatch(engine, FFI_COMMAND_START_SESSION, std::ptr::null(), 150) };
         unsafe {
             let mut items = Vec::new();
-            items.push(MediaItem { id: "1".to_string(), title: "S1".to_string(), artist: "A1".to_string(), ..Default::default() });
+            items.push(MediaItem {
+                id: "1".to_string(),
+                title: "S1".to_string(),
+                artist: "A1".to_string(),
+                ..Default::default()
+            });
             (*engine).engine.queue().set_items(items);
         }
 
         unsafe { panda_engine_dispatch(engine, FFI_COMMAND_PLAY, std::ptr::null(), 200) };
-        
+
         let count = unsafe { panda_engine_get_effects_count(engine) };
         assert!(count >= 2); // UpdateMetadata, RequestFocus, Play
 
         let mut types = vec![0i32; count];
         unsafe { panda_engine_get_effects_types(engine, types.as_mut_ptr()) };
-        
+
         assert!(types.contains(&FFI_EFFECT_PLAY));
         assert!(types.contains(&FFI_EFFECT_REQUEST_AUDIO_FOCUS));
 
@@ -598,17 +652,27 @@ mod tests {
         let engine = panda_engine_create(100);
         unsafe {
             let mut items = Vec::new();
-            items.push(MediaItem { id: "1".to_string(), title: "Rust Song".to_string(), artist: "A".to_string(), ..Default::default() });
-            (*engine).engine.set_repository(Box::new(panda_engine_core::InMemoryRepository::new(items)));
+            items.push(MediaItem {
+                id: "1".to_string(),
+                title: "Rust Song".to_string(),
+                artist: "A".to_string(),
+                ..Default::default()
+            });
+            (*engine)
+                .engine
+                .set_repository(Box::new(panda_engine_core::InMemoryRepository::new(items)));
         }
 
         let query = CString::new("Rust").unwrap();
-        let outcome = unsafe { panda_engine_dispatch(engine, FFI_COMMAND_SEARCH, query.as_ptr(), 200) };
-        
+        let outcome =
+            unsafe { panda_engine_dispatch(engine, FFI_COMMAND_SEARCH, query.as_ptr(), 200) };
+
         assert_eq!(1, outcome.snapshot.search_results_count);
-        
+
         let id_ptr = unsafe { panda_engine_get_search_result_id(engine, 0) };
-        let id = unsafe { CString::from_raw(id_ptr as *mut c_char) }.to_string_lossy().into_owned();
+        let id = unsafe { CString::from_raw(id_ptr as *mut c_char) }
+            .to_string_lossy()
+            .into_owned();
         assert_eq!("1", id);
 
         unsafe {

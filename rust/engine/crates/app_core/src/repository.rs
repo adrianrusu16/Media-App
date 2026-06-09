@@ -2,20 +2,15 @@ use crate::snapshot::EngineSnapshot;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub enum MediaItemType {
+    #[default]
     Track,
     Artist,
     Album,
     Folder,
     Playlist,
     RadioStation,
-}
-
-impl Default for MediaItemType {
-    fn default() -> Self {
-        Self::Track
-    }
 }
 
 /// Represents a media item in the system.

@@ -170,7 +170,8 @@ impl Engine {
         match &command.command_type {
             crate::command::EngineCommandType::StartSession { user_id } => {
                 let session_id = format!("session-{}", now_epoch_millis);
-                let session = MediaSession::new(session_id.clone(), user_id.clone(), now_epoch_millis);
+                let session =
+                    MediaSession::new(session_id.clone(), user_id.clone(), now_epoch_millis);
                 next_snapshot = next_snapshot.with_session(Some(session));
                 effects.push(EngineEffect::SessionStarted { session_id });
             }
@@ -245,25 +246,23 @@ impl Engine {
 
         // Logic-based action emission
         match (prev_playback_state, next_snapshot.playback_state) {
-            (prev, next) if prev != next => {
-                match next {
-                    crate::playback::PlaybackState::Buffering => {
-                        effects.push(EngineEffect::RequestAudioFocus);
-                        effects.push(EngineEffect::Play);
-                    }
-                    crate::playback::PlaybackState::Playing => {
-                        effects.push(EngineEffect::Play);
-                    }
-                    crate::playback::PlaybackState::Paused => {
-                        effects.push(EngineEffect::Pause);
-                    }
-                    crate::playback::PlaybackState::Idle => {
-                        effects.push(EngineEffect::Stop);
-                        effects.push(EngineEffect::AbandonAudioFocus);
-                    }
-                    _ => {}
+            (prev, next) if prev != next => match next {
+                crate::playback::PlaybackState::Buffering => {
+                    effects.push(EngineEffect::RequestAudioFocus);
+                    effects.push(EngineEffect::Play);
                 }
-            }
+                crate::playback::PlaybackState::Playing => {
+                    effects.push(EngineEffect::Play);
+                }
+                crate::playback::PlaybackState::Paused => {
+                    effects.push(EngineEffect::Pause);
+                }
+                crate::playback::PlaybackState::Idle => {
+                    effects.push(EngineEffect::Stop);
+                    effects.push(EngineEffect::AbandonAudioFocus);
+                }
+                _ => {}
+            },
             _ => {}
         }
 
@@ -287,19 +286,17 @@ impl Engine {
         now_epoch_millis: u64,
     ) -> EngineOutcome {
         // Handle Media Button Pressed by converting it to a command
-        if event.event_type == EnginePlatformEventType::MediaButtonPressed {
-            if let Some(payload) = &event.payload {
-                let command_type = EngineCommandType::from_wire(payload.clone());
-                return self.dispatch(EngineCommand::new(command_type, None), now_epoch_millis);
-            }
+        if event.event_type == EnginePlatformEventType::MediaButtonPressed
+            && let Some(payload) = &event.payload
+        {
+            let command_type = EngineCommandType::from_wire(payload.clone());
+            return self.dispatch(EngineCommand::new(command_type, None), now_epoch_millis);
         }
 
         let prev_playback_state = self.snapshot.playback_state;
 
-        let next_playback_state = StateMachine::next_state_from_platform_event(
-            prev_playback_state,
-            &event.event_type,
-        );
+        let next_playback_state =
+            StateMachine::next_state_from_platform_event(prev_playback_state, &event.event_type);
 
         let mut next_snapshot = self
             .snapshot
@@ -312,7 +309,8 @@ impl Engine {
                     .unwrap_or_else(|_| EngineError::player_error(payload.clone()));
                 next_snapshot = next_snapshot.with_error(Some(error));
             } else {
-                next_snapshot = next_snapshot.with_error(Some(EngineError::player_error("Unknown platform error")));
+                next_snapshot = next_snapshot
+                    .with_error(Some(EngineError::player_error("Unknown platform error")));
             }
         } else {
             next_snapshot = next_snapshot.with_error(None);
@@ -320,27 +318,22 @@ impl Engine {
 
         let mut effects = Vec::new();
         match (prev_playback_state, next_playback_state) {
-            (prev, next) if prev != next => {
-                match next {
-                    crate::playback::PlaybackState::Paused => {
-                        effects.push(EngineEffect::Pause);
-                    }
-                    crate::playback::PlaybackState::Playing => {
-                        effects.push(EngineEffect::Play);
-                    }
-                    crate::playback::PlaybackState::Idle => {
-                        effects.push(EngineEffect::Stop);
-                    }
-                    _ => {}
+            (prev, next) if prev != next => match next {
+                crate::playback::PlaybackState::Paused => {
+                    effects.push(EngineEffect::Pause);
                 }
-            }
+                crate::playback::PlaybackState::Playing => {
+                    effects.push(EngineEffect::Play);
+                }
+                crate::playback::PlaybackState::Idle => {
+                    effects.push(EngineEffect::Stop);
+                }
+                _ => {}
+            },
             _ => {}
         }
 
-        self.snapshot = self
-            .snapshot
-            .clone()
-            .with_playback_state(next_playback_state, now_epoch_millis);
+        self.snapshot = next_snapshot;
 
         EngineOutcome {
             snapshot: self.snapshot.clone(),
@@ -399,7 +392,10 @@ mod tests {
         // Idle -> Buffering
         engine.dispatch(EngineCommand::new(EngineCommandType::Play, None), 200);
         // Force state to Playing for test (in real app, this would happen via system event)
-        engine.snapshot = engine.snapshot.clone().with_playback_state(PlaybackState::Playing, 250);
+        engine.snapshot = engine
+            .snapshot
+            .clone()
+            .with_playback_state(PlaybackState::Playing, 250);
 
         let outcome = engine.dispatch(EngineCommand::new(EngineCommandType::SkipNext, None), 300);
 
@@ -424,14 +420,20 @@ mod tests {
 
         assert_eq!(PlaybackState::Playing, outcome.snapshot.playback_state);
         assert_eq!(300, outcome.snapshot.updated_at_epoch_millis);
-        assert_eq!(EngineEventType::PlatformEventApplied, outcome.event.event_type);
+        assert_eq!(
+            EngineEventType::PlatformEventApplied,
+            outcome.event.event_type
+        );
         assert_eq!(Some("media_loaded".to_owned()), outcome.event.message);
     }
 
     #[test]
     fn platform_error_moves_to_error_state() {
         let mut engine = Engine::new(100);
-        engine.snapshot = engine.snapshot.clone().with_playback_state(PlaybackState::Playing, 150);
+        engine.snapshot = engine
+            .snapshot
+            .clone()
+            .with_playback_state(PlaybackState::Playing, 150);
 
         let outcome = engine.dispatch_platform_event(
             EnginePlatformEvent::new(EnginePlatformEventType::MediaError, None),
@@ -444,7 +446,10 @@ mod tests {
     #[test]
     fn audio_focus_loss_pauses_playing_engine() {
         let mut engine = Engine::new(100);
-        engine.snapshot = engine.snapshot.clone().with_playback_state(PlaybackState::Playing, 150);
+        engine.snapshot = engine
+            .snapshot
+            .clone()
+            .with_playback_state(PlaybackState::Playing, 150);
 
         let outcome = engine.dispatch_platform_event(
             EnginePlatformEvent::new(EnginePlatformEventType::AudioFocusChanged, None),
@@ -483,10 +488,12 @@ mod tests {
         assert_eq!(engine.snapshot().media_id, Some("2".to_string()));
         assert_eq!(engine.snapshot().title, Some("Song 2".to_string()));
 
-        // Skip previous (wraps around - though Repeat All is not default, 
-        // in my current impl it stays on last or first if no repeat. 
+        // Skip previous (wraps around - though Repeat All is not default,
+        // in my current impl it stays on last or first if no repeat.
         // Wait, I should check my QueueManager impl)
-        engine.queue().set_repeat_mode(crate::queue::RepeatMode::All);
+        engine
+            .queue()
+            .set_repeat_mode(crate::queue::RepeatMode::All);
         engine.dispatch(EngineCommand::skip_previous(), 400);
         assert_eq!(engine.snapshot().media_id, Some("1".to_string()));
     }
@@ -495,8 +502,18 @@ mod tests {
     fn engine_search_finds_items() {
         let mut engine = Engine::new(100);
         let items = vec![
-            MediaItem { id: "1".to_string(), title: "Rust Song".to_string(), artist: "The Developers".to_string(), ..Default::default() },
-            MediaItem { id: "2".to_string(), title: "Kotlin Blues".to_string(), artist: "The Developers".to_string(), ..Default::default() },
+            MediaItem {
+                id: "1".to_string(),
+                title: "Rust Song".to_string(),
+                artist: "The Developers".to_string(),
+                ..Default::default()
+            },
+            MediaItem {
+                id: "2".to_string(),
+                title: "Kotlin Blues".to_string(),
+                artist: "The Developers".to_string(),
+                ..Default::default()
+            },
         ];
         engine.set_repository(Box::new(InMemoryRepository::new(items)));
 
@@ -508,11 +525,15 @@ mod tests {
     #[test]
     fn browse_returns_items() {
         let mut engine = Engine::new(100);
-        let items = vec![
-            MediaItem { id: "1".to_string(), title: "Song 1".to_string(), artist: "Artist A".to_string(), parent_id: Some("root".to_string()), ..Default::default() },
-        ];
+        let items = vec![MediaItem {
+            id: "1".to_string(),
+            title: "Song 1".to_string(),
+            artist: "Artist A".to_string(),
+            parent_id: Some("root".to_string()),
+            ..Default::default()
+        }];
         engine.set_repository(Box::new(InMemoryRepository::new(items)));
-        
+
         let outcome = engine.dispatch(EngineCommand::browse("root".to_string()), 150);
         assert_eq!(outcome.snapshot.search_results.len(), 1);
         assert_eq!(outcome.snapshot.search_results[0].id, "1");
@@ -522,14 +543,12 @@ mod tests {
     fn play_command_emits_effects() {
         let mut engine = Engine::new(100);
         engine.dispatch(EngineCommand::start_session("user1".to_string()), 120);
-        let items = vec![
-            MediaItem {
-                id: "1".to_string(),
-                title: "Song 1".to_string(),
-                artist: "Artist 1".to_string(),
-                ..Default::default()
-            },
-        ];
+        let items = vec![MediaItem {
+            id: "1".to_string(),
+            title: "Song 1".to_string(),
+            artist: "Artist 1".to_string(),
+            ..Default::default()
+        }];
         engine.queue().set_items(items);
 
         let outcome = engine.dispatch(EngineCommand::play(), 200);
@@ -548,8 +567,11 @@ mod tests {
     fn pause_command_emits_pause_effect() {
         let mut engine = Engine::new(100);
         // Buffering -> Playing
-        engine.snapshot = engine.snapshot.clone().with_playback_state(PlaybackState::Playing, 150);
-        
+        engine.snapshot = engine
+            .snapshot
+            .clone()
+            .with_playback_state(PlaybackState::Playing, 150);
+
         let outcome = engine.dispatch(EngineCommand::pause(), 200);
 
         assert_eq!(PlaybackState::Paused, outcome.snapshot.playback_state);
@@ -559,14 +581,16 @@ mod tests {
     #[test]
     fn tick_updates_progress() {
         let mut engine = Engine::new(100);
-        engine.snapshot = engine.snapshot.clone()
+        engine.snapshot = engine
+            .snapshot
+            .clone()
             .with_playback_state(PlaybackState::Playing, 100)
             .with_position(5000)
             .with_speed(1.0);
-        
+
         // 1 second later
         let outcomes = engine.tick(1100);
-        
+
         assert_eq!(outcomes.len(), 1);
         assert_eq!(outcomes[0].snapshot.position_millis, 6000);
     }

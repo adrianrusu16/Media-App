@@ -1,6 +1,6 @@
-use std::sync::{Arc, Mutex};
 use crate::event::EngineEvent;
 use crate::snapshot::EngineSnapshot;
+use std::sync::{Arc, Mutex};
 
 /// Trait for observing engine state changes and events.
 pub trait EngineObserver: Send + Sync {

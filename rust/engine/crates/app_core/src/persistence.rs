@@ -1,5 +1,5 @@
-use crate::snapshot::EngineSnapshot;
 use crate::queue::QueueManager;
+use crate::snapshot::EngineSnapshot;
 
 /// Represents the persistent state of the engine.
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
@@ -12,7 +12,7 @@ pub struct EnginePersistentState {
 pub trait Persistence: Send + Sync {
     /// Saves the engine state.
     fn save(&self, state: &EnginePersistentState) -> Result<(), String>;
-    
+
     /// Loads the engine state.
     fn load(&self) -> Result<Option<EnginePersistentState>, String>;
 }

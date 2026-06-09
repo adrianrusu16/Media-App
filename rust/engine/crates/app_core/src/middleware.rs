@@ -1,7 +1,7 @@
 use crate::command::EngineCommand;
+use crate::observability::EventBus;
 use crate::reducer::{Engine, EngineOutcome};
 use std::sync::Arc;
-use crate::observability::EventBus;
 
 /// Middleware trait for processing engine operations.
 ///
@@ -19,7 +19,10 @@ pub trait Middleware: Send + Sync {
 pub struct LoggerMiddleware;
 impl Middleware for LoggerMiddleware {
     fn before_dispatch(&self, _engine: &Engine, command: &EngineCommand) {
-        println!("[PandaEngine] Dispatching command: {:?}", command.command_type);
+        println!(
+            "[PandaEngine] Dispatching command: {:?}",
+            command.command_type
+        );
     }
 }
 
