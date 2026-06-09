@@ -1,5 +1,6 @@
 mod command;
 mod effect;
+mod concurrent;
 mod error;
 mod event;
 mod middleware;
@@ -50,6 +51,7 @@ pub mod test_utils {
 }
 
 pub use command::{EngineCommand, EngineCommandType};
+pub use concurrent::ConcurrentEngine;
 pub use effect::EngineEffect;
 pub use error::{EngineError, EngineErrorType};
 pub use event::{EngineEvent, EngineEventType};

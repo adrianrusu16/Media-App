@@ -1,13 +1,14 @@
 use std::ffi::{CString, c_char};
 use std::ptr;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use tracing::info;
 use tracing_subscriber::prelude::*;
 
 use panda_engine_core::{
-    Engine, EngineCommand, EngineCommandType, EngineEffect, EngineEvent, EngineEventType,
-    EngineObserver, EngineOutcome, EngineSnapshot, LoggerMiddleware, MediaItem, MiddlewarePipeline,
-    PlaybackState, RepeatMode, RestrictionState, TelemetryMiddleware,
+    ConcurrentEngine, Engine, EngineCommand, EngineCommandType, EngineEffect, EngineEvent,
+    EngineEventType, EngineObserver, EngineOutcome, EngineSnapshot,
+    LoggerMiddleware, MediaItem, MiddlewarePipeline, PlaybackState, RepeatMode, RestrictionState,
+    TelemetryMiddleware,
 };
 
 pub const FFI_COMMAND_BOOTSTRAP: i32 = 0;
@@ -89,8 +90,8 @@ pub struct FfiEngineOutcome {
 
 /// Opaque handle to the Rust Engine.
 pub struct PandaEngine {
-    engine: Engine,
-    last_effects: Vec<EngineEffect>,
+    engine: ConcurrentEngine,
+    last_effects: Arc<Mutex<Vec<EngineEffect>>>,
     observer: Option<Arc<FfiObserver>>,
 }
 
@@ -163,8 +164,8 @@ pub extern "C" fn panda_engine_create(now_epoch_millis: u64) -> *mut PandaEngine
     engine.set_middleware(pipeline);
 
     Box::into_raw(Box::new(PandaEngine {
-        engine,
-        last_effects: Vec::new(),
+        engine: ConcurrentEngine::new(engine),
+        last_effects: Arc::new(Mutex::new(Vec::new())),
         observer: None,
     }))
 }
@@ -186,7 +187,7 @@ pub unsafe extern "C" fn panda_engine_set_observer(
             on_event_emitted,
         });
         engine.observer = Some(observer.clone());
-        engine.engine.event_bus().subscribe(Box::new(observer));
+        engine.engine.with_engine(|e| e.event_bus().subscribe(Box::new(observer)));
     }
 }
 
@@ -204,7 +205,8 @@ pub unsafe extern "C" fn panda_engine_tick(
     if let Some(engine) = engine {
         let outcomes = engine.engine.tick(now_epoch_millis);
         if let Some(last) = outcomes.last() {
-            engine.last_effects = last.effects.clone();
+            let mut effects = engine.last_effects.lock().unwrap();
+            *effects = last.effects.clone();
         }
         outcomes.len()
     } else {
@@ -231,7 +233,10 @@ pub unsafe extern "C" fn panda_engine_destroy(engine: *mut PandaEngine) {
 pub unsafe extern "C" fn panda_engine_snapshot(engine: *const PandaEngine) -> FfiEngineSnapshot {
     let engine = unsafe { engine.as_ref() };
     match engine {
-        Some(engine) => FfiEngineSnapshot::from(engine.engine.snapshot()),
+        Some(engine) => {
+            let snapshot = engine.engine.snapshot();
+            FfiEngineSnapshot::from(&snapshot)
+        }
         None => FfiEngineSnapshot::invalid(),
     }
 }
@@ -291,7 +296,10 @@ pub unsafe extern "C" fn panda_engine_dispatch(
             };
 
             let outcome = engine.engine.dispatch(command, now_epoch_millis);
-            engine.last_effects = outcome.effects.clone();
+            {
+                let mut effects = engine.last_effects.lock().unwrap();
+                *effects = outcome.effects.clone();
+            }
             FfiEngineOutcome::from((&outcome, command_type))
         }
         None => FfiEngineOutcome::invalid(),
@@ -318,7 +326,10 @@ pub unsafe extern "C" fn panda_engine_dispatch_platform_event(
                 ),
                 now_epoch_millis,
             );
-            engine.last_effects = outcome.effects.clone();
+            {
+                let mut effects = engine.last_effects.lock().unwrap();
+                *effects = outcome.effects.clone();
+            }
             FfiEngineOutcome::from((&outcome, FFI_COMMAND_UNKNOWN))
         }
         None => FfiEngineOutcome::invalid(),
@@ -356,7 +367,7 @@ pub unsafe extern "C" fn panda_engine_queue_set_items(
                 ..Default::default()
             });
         }
-        engine.engine.queue().set_items(items);
+        engine.engine.with_engine(|e| e.queue().set_items(items));
     }
 }
 
@@ -372,7 +383,7 @@ pub unsafe extern "C" fn panda_engine_queue_set_repeat_mode(engine: *mut PandaEn
             2 => RepeatMode::All,
             _ => RepeatMode::None,
         };
-        engine.engine.queue().set_repeat_mode(repeat_mode);
+        engine.engine.with_engine(|e| e.queue().set_repeat_mode(repeat_mode));
     }
 }
 
@@ -383,7 +394,7 @@ pub unsafe extern "C" fn panda_engine_queue_set_repeat_mode(engine: *mut PandaEn
 pub unsafe extern "C" fn panda_engine_queue_set_shuffle(engine: *mut PandaEngine, enabled: bool) {
     let engine = unsafe { engine.as_mut() };
     if let Some(engine) = engine {
-        engine.engine.queue().set_shuffle(enabled);
+        engine.engine.with_engine(|e| e.queue().set_shuffle(enabled));
     }
 }
 
@@ -394,7 +405,10 @@ pub unsafe extern "C" fn panda_engine_queue_set_shuffle(engine: *mut PandaEngine
 pub unsafe extern "C" fn panda_engine_get_effects_count(engine: *const PandaEngine) -> usize {
     let engine = unsafe { engine.as_ref() };
     match engine {
-        Some(engine) => engine.last_effects.len(),
+        Some(engine) => {
+            let effects = engine.last_effects.lock().unwrap();
+            effects.len()
+        }
         None => 0,
     }
 }
@@ -410,7 +424,8 @@ pub unsafe extern "C" fn panda_engine_get_effects_types(
 ) {
     let engine = unsafe { engine.as_ref() };
     if let Some(engine) = engine {
-        for (i, effect) in engine.last_effects.iter().enumerate() {
+        let effects = engine.last_effects.lock().unwrap();
+        for (i, effect) in effects.iter().enumerate() {
             unsafe {
                 *out_types.add(i) = effect_to_ffi(effect);
             }
@@ -428,13 +443,14 @@ pub unsafe extern "C" fn panda_engine_get_effect_media_id(
     index: usize,
 ) -> *const c_char {
     let engine = unsafe { engine.as_ref() };
-    if let Some(engine) = engine
-        && let Some(EngineEffect::UpdateMetadata { media_id, .. }) = engine.last_effects.get(index)
-    {
-        // Leak for simplicity in this prototype or use a better buffer management
-        return CString::new(media_id.as_str())
-            .unwrap()
-            .into_raw();
+    if let Some(engine) = engine {
+        let effects = engine.last_effects.lock().unwrap();
+        if let Some(EngineEffect::UpdateMetadata { media_id, .. }) = effects.get(index) {
+            // Leak for simplicity in this prototype or use a better buffer management
+            return CString::new(media_id.as_str())
+                .unwrap()
+                .into_raw();
+        }
     }
     ptr::null()
 }
@@ -529,11 +545,12 @@ pub unsafe extern "C" fn panda_engine_get_search_result_id(
     index: usize,
 ) -> *const c_char {
     let engine = unsafe { engine.as_ref() };
-    if let Some(engine) = engine
-        && let Some(item) = engine.engine.snapshot().search_results.get(index)
-    {
-        let c_str = CString::new(item.id.clone()).unwrap();
-        return c_str.into_raw();
+    if let Some(engine) = engine {
+        let snapshot = engine.engine.snapshot();
+        if let Some(item) = snapshot.search_results.get(index) {
+            let c_str = CString::new(item.id.clone()).unwrap();
+            return c_str.into_raw();
+        }
     }
     ptr::null()
 }
@@ -548,11 +565,12 @@ pub unsafe extern "C" fn panda_engine_get_search_result_title(
     index: usize,
 ) -> *const c_char {
     let engine = unsafe { engine.as_ref() };
-    if let Some(engine) = engine
-        && let Some(item) = engine.engine.snapshot().search_results.get(index)
-    {
-        let c_str = CString::new(item.title.clone()).unwrap();
-        return c_str.into_raw();
+    if let Some(engine) = engine {
+        let snapshot = engine.engine.snapshot();
+        if let Some(item) = snapshot.search_results.get(index) {
+            let c_str = CString::new(item.title.clone()).unwrap();
+            return c_str.into_raw();
+        }
     }
     ptr::null()
 }
@@ -569,7 +587,8 @@ pub unsafe extern "C" fn panda_engine_get_last_error_message(
         return ptr::null();
     }
     let engine = unsafe { &*engine };
-    if let Some(error) = &engine.engine.snapshot().last_error {
+    let snapshot = engine.engine.snapshot();
+    if let Some(error) = &snapshot.last_error {
         let c_str = CString::new(error.message.clone()).unwrap();
         c_str.into_raw()
     } else {
@@ -682,14 +701,13 @@ mod tests {
         let engine = panda_engine_create(100);
         unsafe { panda_engine_dispatch(engine, FFI_COMMAND_START_SESSION, ptr::null(), 150) };
         unsafe {
-            let mut items = Vec::new();
-            items.push(MediaItem {
+            let items = vec![MediaItem {
                 id: "1".to_string(),
                 title: "S1".to_string(),
                 artist: "A1".to_string(),
                 ..Default::default()
-            });
-            (*engine).engine.queue().set_items(items);
+            }];
+            (*engine).engine.with_engine(|e| e.queue().set_items(items));
         }
 
         unsafe { panda_engine_dispatch(engine, FFI_COMMAND_PLAY, ptr::null(), 200) };
@@ -712,16 +730,15 @@ mod tests {
     fn search_updates_snapshot_results() {
         let engine = panda_engine_create(100);
         unsafe {
-            let mut items = Vec::new();
-            items.push(MediaItem {
+            let items = vec![MediaItem {
                 id: "1".to_string(),
                 title: "Rust Song".to_string(),
                 artist: "A".to_string(),
                 ..Default::default()
-            });
+            }];
             (*engine)
                 .engine
-                .set_repository(Box::new(panda_engine_core::InMemoryRepository::new(items)));
+                .with_engine(|e| e.set_repository(Box::new(panda_engine_core::InMemoryRepository::new(items))));
         }
 
         let query = CString::new("Rust").unwrap();
