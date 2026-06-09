@@ -61,6 +61,8 @@ pub const FFI_EFFECT_SET_SPEED: i32 = 9;
 pub const FFI_EFFECT_NOTIFY_USER: i32 = 10;
 pub const FFI_EFFECT_START_AUDIO_CAPTURE: i32 = 11;
 pub const FFI_EFFECT_STOP_AUDIO_CAPTURE: i32 = 12;
+pub const FFI_EFFECT_DUCK_AUDIO: i32 = 13;
+pub const FFI_EFFECT_UNDUCK_AUDIO: i32 = 14;
 
 pub const FFI_ERROR_NONE: i32 = 0;
 pub const FFI_ERROR_NOT_FOUND: i32 = 1;
@@ -116,6 +118,7 @@ pub struct FfiEngineSnapshot {
     pub is_busy: bool,
     pub can_dispatch: bool,
     pub controls: FfiPlayerControls,
+    pub has_voice_hypothesis: bool,
 }
 
 /// C-compatible representation of the engine outcome.
@@ -601,6 +604,8 @@ fn effect_to_ffi(effect: &EngineEffect) -> i32 {
         EngineEffect::NotifyUser { .. } => FFI_EFFECT_NOTIFY_USER,
         EngineEffect::StartAudioCapture => FFI_EFFECT_START_AUDIO_CAPTURE,
         EngineEffect::StopAudioCapture => FFI_EFFECT_STOP_AUDIO_CAPTURE,
+        EngineEffect::DuckAudio => FFI_EFFECT_DUCK_AUDIO,
+        EngineEffect::UnduckAudio => FFI_EFFECT_UNDUCK_AUDIO,
     }
 }
 
@@ -636,6 +641,7 @@ impl FfiEngineSnapshot {
                 },
                 show_play_icon: true,
             },
+            has_voice_hypothesis: false,
         }
     }
 }
@@ -695,6 +701,7 @@ impl From<&EngineSnapshot> for FfiEngineSnapshot {
                 },
                 show_play_icon: snapshot.controls.show_play_icon,
             },
+            has_voice_hypothesis: snapshot.voice_hypothesis.is_some(),
         }
     }
 }
@@ -707,6 +714,23 @@ impl From<(&EngineOutcome, i32)> for FfiEngineOutcome {
             applied_command_type: command_type,
         }
     }
+}
+
+/// Returns the current voice hypothesis.
+/// 
+/// # Safety
+/// The `engine` pointer must be a valid, non-null pointer to a `PandaEngine`.
+/// The caller is responsible for freeing the returned string using [panda_engine_free_string].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn panda_engine_get_voice_hypothesis(engine: *const PandaEngine) -> *mut c_char {
+    let engine = unsafe { engine.as_ref() };
+    if let Some(engine) = engine {
+        let snapshot = engine.engine.snapshot();
+        if let Some(hypothesis) = &snapshot.voice_hypothesis {
+            return CString::new(hypothesis.as_str()).unwrap().into_raw();
+        }
+    }
+    ptr::null_mut()
 }
 
 /// Returns the ID of the search result at the specified index.

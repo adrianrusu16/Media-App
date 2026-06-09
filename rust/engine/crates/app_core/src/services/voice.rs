@@ -23,8 +23,23 @@ pub trait VoiceEngine: Send + Sync + Debug {
     /// Signals the end of audio input and retrieves the final result.
     fn finish(&mut self) -> Result<VoiceInteractionResult, String>;
 
+    /// Retrieves the current partial hypothesis from the engine.
+    /// 
+    /// This allows the UI to show real-time feedback of what is being recognized.
+    fn get_partial_hypothesis(&self) -> String {
+        String::new()
+    }
+
     /// Resets the engine state for a new interaction.
     fn reset(&mut self);
+
+    /// Updates the vocabulary or grammar for the voice engine.
+    /// 
+    /// This is useful for engines like Vosk that support dynamic grammar
+    /// to improve accuracy by limiting the expected vocabulary.
+    fn set_vocabulary(&mut self, _vocabulary: Vec<String>) -> Result<(), String> {
+        Ok(())
+    }
 }
 
 /// A simple mock implementation of [VoiceEngine] for testing.
@@ -70,6 +85,10 @@ impl VoiceEngine for MockVoiceEngine {
                 Ok(VoiceInteractionResult::NoMatch)
             }
         }
+    }
+
+    fn get_partial_hypothesis(&self) -> String {
+        self.last_query.clone()
     }
 
     fn reset(&mut self) {

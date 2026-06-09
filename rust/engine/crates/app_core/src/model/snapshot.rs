@@ -39,6 +39,8 @@ pub struct EngineSnapshot {
     pub is_busy: bool,
     /// The state of player controls to be displayed in the UI.
     pub controls: PlayerControls,
+    /// The current partial hypothesis for voice interaction.
+    pub voice_hypothesis: Option<String>,
 }
 
 impl EngineSnapshot {
@@ -124,6 +126,13 @@ impl EngineSnapshot {
     #[must_use]
     pub fn with_controls(mut self, controls: PlayerControls) -> Self {
         self.controls = controls;
+        self
+    }
+
+    /// Functional update for the voice hypothesis, returning a new snapshot.
+    #[must_use]
+    pub fn with_voice_hypothesis(mut self, hypothesis: Option<String>) -> Self {
+        self.voice_hypothesis = hypothesis;
         self
     }
 }

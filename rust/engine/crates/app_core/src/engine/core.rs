@@ -348,19 +348,17 @@ impl Engine {
                 if let Some(ve) = &mut self.voice_engine {
                     ve.reset();
                 }
+                effects.push(EngineEffect::DuckAudio);
                 effects.push(EngineEffect::StartAudioCapture);
-                info!("Voice interaction started");
+                info!("Voice interaction started (audio ducked)");
             }
             EngineCommandType::StopVoiceInteraction => {
+                let mut resolved_cmd = None;
                 if let Some(ve) = &mut self.voice_engine {
                     match ve.finish() {
                         Ok(VoiceInteractionResult::Command(cmd)) => {
                             info!("Voice command determined: {:?}", cmd);
-                            // Recursively dispatch the resolved command
-                            let outcome = self.dispatch(cmd, now_epoch_millis);
-                            // Merge effects and update snapshot from the outcome
-                            effects.extend(outcome.effects);
-                            next_snapshot = outcome.snapshot;
+                            resolved_cmd = Some(cmd);
                         }
                         Ok(VoiceInteractionResult::Error(err)) => {
                             warn!("Voice interaction error: {}", err);
@@ -381,14 +379,31 @@ impl Engine {
                     // Fallback: if no internal voice engine, maybe the platform handled it.
                     info!("Voice interaction stopped (no internal engine)");
                 }
+
+                if let Some(cmd) = resolved_cmd {
+                    // Recursively dispatch the resolved command
+                    let outcome = self.dispatch(cmd, now_epoch_millis);
+                    // Merge effects and update snapshot from the outcome
+                    effects.extend(outcome.effects);
+                    next_snapshot = outcome.snapshot;
+                }
+
                 effects.push(EngineEffect::StopAudioCapture);
-                next_snapshot = next_snapshot.with_busy(false);
+                effects.push(EngineEffect::UnduckAudio);
+                next_snapshot = next_snapshot.with_busy(false).with_voice_hypothesis(None);
             }
             EngineCommandType::ProcessVoiceAudio { chunk } => {
-                if let Some(ve) = &mut self.voice_engine
-                    && let Err(e) = ve.process_audio_chunk(chunk)
-                {
-                    warn!("Failed to process voice audio chunk: {}", e);
+                if let Some(ve) = &mut self.voice_engine {
+                    let _ = ve.process_audio_chunk(chunk).map_err(|e| {
+                        warn!("Failed to process voice audio chunk: {}", e);
+                    });
+                    // Update hypothesis in snapshot for real-time UI feedback
+                    let hypothesis = ve.get_partial_hypothesis();
+                    next_snapshot = next_snapshot.with_voice_hypothesis(if hypothesis.is_empty() {
+                        None
+                    } else {
+                        Some(hypothesis)
+                    });
                 }
             }
             EngineCommandType::VoicePlay { query } => {
@@ -1018,6 +1033,7 @@ mod tests {
         // 1. Start interaction
         let outcome = engine.dispatch(EngineCommand::start_voice_interaction(), 110);
         assert!(outcome.snapshot.is_busy);
+        assert!(outcome.effects.contains(&EngineEffect::DuckAudio));
         assert!(outcome.effects.contains(&EngineEffect::StartAudioCapture));
 
         // 2. Process audio
@@ -1027,6 +1043,7 @@ mod tests {
         let outcome = engine.dispatch(EngineCommand::stop_voice_interaction(), 130);
         assert!(!outcome.snapshot.is_busy);
         assert!(outcome.effects.contains(&EngineEffect::StopAudioCapture));
+        assert!(outcome.effects.contains(&EngineEffect::UnduckAudio));
         
         // Verify it resolved to a play command
         assert_eq!(outcome.snapshot.playback_state, PlaybackState::Buffering);

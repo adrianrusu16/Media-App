@@ -28,6 +28,10 @@ pub enum EngineEffect {
     StartAudioCapture,
     /// Request the platform to stop audio capture.
     StopAudioCapture,
+    /// Request the platform to duck other audio sources (lower volume).
+    DuckAudio,
+    /// Request the platform to unduck audio sources.
+    UnduckAudio,
     /// Update the system's media session metadata.
     UpdateMetadata {
         media_id: String,
@@ -61,6 +65,10 @@ impl EngineEffect {
     pub const START_AUDIO_CAPTURE_WIRE: &'static str = "start_audio_capture";
     /// Wire value for StopAudioCapture effect.
     pub const STOP_AUDIO_CAPTURE_WIRE: &'static str = "stop_audio_capture";
+    /// Wire value for DuckAudio effect.
+    pub const DUCK_AUDIO_WIRE: &'static str = "duck_audio";
+    /// Wire value for UnduckAudio effect.
+    pub const UNDUCK_AUDIO_WIRE: &'static str = "unduck_audio";
     /// Wire value for UpdateMetadata effect.
     pub const UPDATE_METADATA_WIRE: &'static str = "update_metadata";
 
@@ -79,6 +87,8 @@ impl EngineEffect {
             Self::NotifyUser { .. } => Self::NOTIFY_USER_WIRE,
             Self::StartAudioCapture => Self::START_AUDIO_CAPTURE_WIRE,
             Self::StopAudioCapture => Self::STOP_AUDIO_CAPTURE_WIRE,
+            Self::DuckAudio => Self::DUCK_AUDIO_WIRE,
+            Self::UnduckAudio => Self::UNDUCK_AUDIO_WIRE,
             Self::UpdateMetadata { .. } => Self::UPDATE_METADATA_WIRE,
         }
     }
