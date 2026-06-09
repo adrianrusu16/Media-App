@@ -30,6 +30,9 @@ impl StateMachine {
             (PlaybackState::Paused, EngineCommandType::SkipNext)
             | (PlaybackState::Paused, EngineCommandType::SkipPrevious) => PlaybackState::Buffering,
 
+            // State: Error
+            (PlaybackState::Error, EngineCommandType::Play) => PlaybackState::Buffering,
+
             // Default: preserve current state for unrecognized transitions
             (current, _) => current,
         }
@@ -57,6 +60,9 @@ impl StateMachine {
             (PlaybackState::Paused, EnginePlatformEventType::AudioFocusChanged) => {
                 PlaybackState::Playing
             }
+
+            // State: Error
+            (PlaybackState::Error, EnginePlatformEventType::MediaLoaded) => PlaybackState::Playing,
 
             // Suspend/Resume logic (simplified)
             (_, EnginePlatformEventType::SuspendToRam) => PlaybackState::Paused,

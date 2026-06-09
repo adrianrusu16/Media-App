@@ -11,6 +11,8 @@ pub enum EngineErrorType {
     PlayerError,
     /// An error related to user permissions or session.
     AuthenticationError,
+    /// The media was skipped due to a non-fatal error.
+    MediaSkipped,
     /// An unknown or unexpected error.
     Unknown,
 }
@@ -39,5 +41,10 @@ impl EngineError {
     /// Convenience for player errors.
     pub fn player_error(message: impl Into<String>) -> Self {
         Self::new(EngineErrorType::PlayerError, message, true)
+    }
+
+    /// Convenience for non-fatal media skip errors.
+    pub fn media_skipped(message: impl Into<String>) -> Self {
+        Self::new(EngineErrorType::MediaSkipped, message, false)
     }
 }

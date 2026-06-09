@@ -1,8 +1,9 @@
 use crate::command::EngineCommand;
+use crate::error::{EngineError, EngineErrorType};
 use crate::observability::EventBus;
 use crate::reducer::{Engine, EngineOutcome};
 use std::sync::Arc;
-use tracing::info;
+use tracing::{info, warn};
 
 /// Middleware trait for processing engine operations.
 ///
@@ -13,7 +14,7 @@ pub trait Middleware: Send + Sync {
     fn before_dispatch(&self, _engine: &Engine, _command: &EngineCommand) {}
 
     /// Called after the command has been dispatched and the outcome generated.
-    fn after_dispatch(&self, _engine: &Engine, _outcome: &EngineOutcome) {}
+    fn after_dispatch(&self, _engine: &mut Engine, _outcome: &mut EngineOutcome) {}
 }
 
 /// A simple middleware that logs engine actions.
@@ -40,7 +41,7 @@ impl Middleware for TelemetryMiddleware {
         info!("[Telemetry] Starting command: {:?}", command.command_type);
     }
 
-    fn after_dispatch(&self, _engine: &Engine, outcome: &EngineOutcome) {
+    fn after_dispatch(&self, _engine: &mut Engine, outcome: &mut EngineOutcome) {
         // Notify the bus about the outcome and event
         self.bus.notify_state_changed(&outcome.snapshot);
         self.bus.notify_event_emitted(&outcome.event);
@@ -60,6 +61,42 @@ impl Middleware for FocusMiddleware {
         if command.command_type == crate::command::EngineCommandType::Play {
             info!("[FocusMiddleware] Requesting audio focus before Play...");
             // In a real app, this might trigger a platform call or internal check
+        }
+    }
+}
+
+/// A middleware that automatically retries or recovers from certain errors.
+pub struct RecoveryMiddleware;
+impl Middleware for RecoveryMiddleware {
+    fn after_dispatch(&self, engine: &mut Engine, outcome: &mut EngineOutcome) {
+        if let Some(error) = &outcome.snapshot.last_error {
+            if error.error_type == EngineErrorType::NetworkError && !error.is_fatal {
+                warn!("[Recovery] Non-fatal network error detected. Attempting to skip to next track...");
+
+                // Dispatch SkipNext to recover
+                let recovery_outcome = engine.dispatch(
+                    EngineCommand::skip_next(),
+                    outcome.snapshot.updated_at_epoch_millis,
+                );
+
+                // Update the current outcome with the recovery result
+                *outcome = recovery_outcome;
+
+                // Add a notification that we recovered
+                outcome.snapshot.last_error = Some(EngineError::media_skipped(
+                    "Skipped track due to network error",
+                ));
+            }
+        }
+    }
+}
+
+/// A middleware that validates commands against business rules before they reach the reducer.
+pub struct ValidationMiddleware;
+impl Middleware for ValidationMiddleware {
+    fn before_dispatch(&self, _engine: &Engine, command: &EngineCommand) {
+        if command.command_type == crate::command::EngineCommandType::Play && _engine.snapshot().session.is_none() {
+             warn!("[Validation] Play command received without an active session. This may be ignored by the reducer.");
         }
     }
 }
@@ -85,7 +122,7 @@ impl MiddlewarePipeline {
         }
     }
 
-    pub fn after_dispatch(&self, engine: &Engine, outcome: &EngineOutcome) {
+    pub fn after_dispatch(&self, engine: &mut Engine, outcome: &mut EngineOutcome) {
         for mw in &self.middlewares {
             mw.after_dispatch(engine, outcome);
         }

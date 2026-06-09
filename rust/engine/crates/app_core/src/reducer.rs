@@ -34,7 +34,7 @@ pub struct EngineOutcome {
 /// based on the current state and a given command.
 pub struct Engine {
     snapshot: EngineSnapshot,
-    middleware: MiddlewarePipeline,
+    middleware: Arc<MiddlewarePipeline>,
     repository: Box<dyn MediaRepository>,
     queue: QueueManager,
     persistence: Box<dyn Persistence>,
@@ -47,7 +47,7 @@ impl Default for Engine {
         let bus = Arc::new(EventBus::default());
         Self {
             snapshot: EngineSnapshot::default(),
-            middleware: MiddlewarePipeline::default(),
+            middleware: Arc::new(MiddlewarePipeline::default()),
             repository: Box::new(InMemoryRepository::new(vec![])),
             queue: QueueManager::default(),
             persistence: Box::new(NoopPersistence),
@@ -71,7 +71,7 @@ impl Engine {
         let bus = Arc::new(EventBus::default());
         Self {
             snapshot: EngineSnapshot::idle(now_epoch_millis),
-            middleware: MiddlewarePipeline::new(),
+            middleware: Arc::new(MiddlewarePipeline::new()),
             repository: Box::new(InMemoryRepository::new(vec![])),
             queue: QueueManager::default(),
             persistence: Box::new(NoopPersistence),
@@ -111,7 +111,7 @@ impl Engine {
 
     /// Sets the middleware pipeline for the engine.
     pub fn set_middleware(&mut self, pipeline: MiddlewarePipeline) {
-        self.middleware = pipeline;
+        self.middleware = Arc::new(pipeline);
     }
 
     /// Sets the persistence for the engine.
@@ -172,7 +172,8 @@ impl Engine {
             "Dispatching command: {:?} at {}",
             command.command_type, now_epoch_millis
         );
-        self.middleware.before_dispatch(self, &command);
+        let middleware = Arc::clone(&self.middleware);
+        middleware.before_dispatch(self, &command);
 
         let prev_playback_state = self.snapshot.playback_state;
 
@@ -276,13 +277,14 @@ impl Engine {
             );
         }
 
-        let outcome = EngineOutcome {
+        let mut outcome = EngineOutcome {
             snapshot: self.snapshot.clone(),
             event: EngineEvent::command_applied(Some(command.command_type.as_wire().to_owned())),
             effects,
         };
 
-        self.middleware.after_dispatch(self, &outcome);
+        let middleware = Arc::clone(&self.middleware);
+        middleware.after_dispatch(self, &mut outcome);
 
         outcome
     }
@@ -343,11 +345,18 @@ impl Engine {
 
         self.snapshot = next_snapshot;
 
-        EngineOutcome {
+        let middleware = Arc::clone(&self.middleware);
+        let outcome = EngineOutcome {
             snapshot: self.snapshot.clone(),
             event: EngineEvent::platform_event_applied(Some(event.event_type.as_wire().to_owned())),
             effects,
-        }
+        };
+
+        // Note: Platform events also pass through after_dispatch for consistency
+        let mut outcome = outcome;
+        middleware.after_dispatch(self, &mut outcome);
+
+        outcome
     }
 }
 
@@ -601,5 +610,60 @@ mod tests {
 
         assert_eq!(outcomes.len(), 1);
         assert_eq!(outcomes[0].snapshot.position_millis, 6000);
+    }
+
+    #[test]
+    fn recovery_middleware_skips_on_network_error() {
+        use crate::middleware::{MiddlewarePipeline, RecoveryMiddleware};
+        let mut engine = Engine::new(100);
+        engine.dispatch(EngineCommand::start_session("user".to_string()), 110);
+
+        let items = vec![
+            MediaItem {
+                id: "1".to_string(),
+                title: "Bad Track".to_string(),
+                ..Default::default()
+            },
+            MediaItem {
+                id: "2".to_string(),
+                title: "Good Track".to_string(),
+                ..Default::default()
+            },
+        ];
+        engine.queue().set_items(items);
+
+        let mut pipeline = MiddlewarePipeline::new();
+        pipeline.add(Box::new(RecoveryMiddleware));
+        engine.set_middleware(pipeline);
+
+        // Initial play
+        engine.dispatch(EngineCommand::play(), 150);
+
+        // Simulate a network error platform event
+        let error = EngineError::new(crate::error::EngineErrorType::NetworkError, "No net", false);
+        let payload = serde_json::to_string(&error).unwrap();
+        let event = EnginePlatformEvent::new(EnginePlatformEventType::MediaError, Some(payload));
+
+        let outcome = engine.dispatch_platform_event(event, 200);
+
+        // RecoveryMiddleware should have triggered skip_next
+        assert_eq!(outcome.snapshot.media_id, Some("2".to_string()));
+        assert_eq!(
+            outcome.snapshot.last_error.unwrap().error_type,
+            crate::error::EngineErrorType::MediaSkipped
+        );
+    }
+
+    #[test]
+    fn error_to_buffering_transition() {
+        let mut engine = Engine::new(100);
+        engine.dispatch(EngineCommand::start_session("user".to_string()), 110);
+        engine.snapshot = engine
+            .snapshot
+            .clone()
+            .with_playback_state(PlaybackState::Error, 100);
+
+        let outcome = engine.dispatch(EngineCommand::play(), 200);
+        assert_eq!(outcome.snapshot.playback_state, PlaybackState::Buffering);
     }
 }

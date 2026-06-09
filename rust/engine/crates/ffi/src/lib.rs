@@ -54,6 +54,14 @@ pub const FFI_EFFECT_UPDATE_METADATA: i32 = 6;
 pub const FFI_EFFECT_SESSION_STARTED: i32 = 7;
 pub const FFI_EFFECT_SESSION_ENDED: i32 = 8;
 
+pub const FFI_ERROR_NONE: i32 = 0;
+pub const FFI_ERROR_NOT_FOUND: i32 = 1;
+pub const FFI_ERROR_NETWORK: i32 = 2;
+pub const FFI_ERROR_PLAYER: i32 = 3;
+pub const FFI_ERROR_AUTHENTICATION: i32 = 4;
+pub const FFI_ERROR_MEDIA_SKIPPED: i32 = 5;
+pub const FFI_ERROR_UNKNOWN: i32 = -1;
+
 /// C-compatible representation of the engine snapshot.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -63,6 +71,7 @@ pub struct FfiEngineSnapshot {
     pub updated_at_epoch_millis: u64,
     pub has_active_session: bool,
     pub has_error: bool,
+    pub error_type: i32,
     pub search_results_count: usize,
     pub playback_speed: f32,
     pub position_millis: u64,
@@ -451,6 +460,7 @@ impl FfiEngineSnapshot {
             updated_at_epoch_millis: 0,
             has_active_session: false,
             has_error: false,
+            error_type: FFI_ERROR_NONE,
             search_results_count: 0,
             playback_speed: 1.0,
             position_millis: 0,
@@ -476,6 +486,20 @@ impl From<&EngineSnapshot> for FfiEngineSnapshot {
             updated_at_epoch_millis: snapshot.updated_at_epoch_millis,
             has_active_session: snapshot.session.is_some(),
             has_error: snapshot.last_error.is_some(),
+            error_type: snapshot
+                .last_error
+                .as_ref()
+                .map(|e| match e.error_type {
+                    panda_engine_core::EngineErrorType::NotFound => FFI_ERROR_NOT_FOUND,
+                    panda_engine_core::EngineErrorType::NetworkError => FFI_ERROR_NETWORK,
+                    panda_engine_core::EngineErrorType::PlayerError => FFI_ERROR_PLAYER,
+                    panda_engine_core::EngineErrorType::AuthenticationError => {
+                        FFI_ERROR_AUTHENTICATION
+                    }
+                    panda_engine_core::EngineErrorType::MediaSkipped => FFI_ERROR_MEDIA_SKIPPED,
+                    panda_engine_core::EngineErrorType::Unknown => FFI_ERROR_UNKNOWN,
+                })
+                .unwrap_or(FFI_ERROR_NONE),
             search_results_count: snapshot.search_results.len(),
             playback_speed: snapshot.playback_speed,
             position_millis: snapshot.position_millis,
