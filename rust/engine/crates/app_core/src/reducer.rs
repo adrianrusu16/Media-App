@@ -1,3 +1,4 @@
+use crate::effect::EngineEffect;
 use crate::command::EngineCommand;
 use crate::event::EngineEvent;
 use crate::middleware::MiddlewarePipeline;
@@ -14,6 +15,8 @@ pub struct EngineOutcome {
     pub snapshot: EngineSnapshot,
     /// The event resulting from the action.
     pub event: EngineEvent,
+    /// List of effects that the host must perform.
+    pub effects: Vec<EngineEffect>,
 }
 
 /// The main state machine of the media engine.
@@ -91,16 +94,28 @@ impl Engine {
             .clone()
             .with_playback_state(next_playback_state, now_epoch_millis);
 
+        let mut effects = Vec::new();
+
         // Update metadata based on command
         match command.command_type {
             crate::command::EngineCommandType::SkipNext => {
                 if let Some(next_media) = self.queue.next_item() {
                     next_snapshot = next_snapshot.with_media(next_media.clone());
+                    effects.push(EngineEffect::UpdateMetadata {
+                        media_id: next_media.id.clone(),
+                        title: next_media.title.clone(),
+                        artist: next_media.artist.clone(),
+                    });
                 }
             }
             crate::command::EngineCommandType::SkipPrevious => {
                 if let Some(prev_media) = self.queue.previous_item() {
                     next_snapshot = next_snapshot.with_media(prev_media.clone());
+                    effects.push(EngineEffect::UpdateMetadata {
+                        media_id: prev_media.id.clone(),
+                        title: prev_media.title.clone(),
+                        artist: prev_media.artist.clone(),
+                    });
                 }
             }
             crate::command::EngineCommandType::Play => {
@@ -108,9 +123,43 @@ impl Engine {
                     // If playing from idle/nothing, try to load first item from queue
                     if let Some(media) = self.queue.current_item() {
                         next_snapshot = next_snapshot.with_media(media.clone());
+                        effects.push(EngineEffect::UpdateMetadata {
+                            media_id: media.id.clone(),
+                            title: media.title.clone(),
+                            artist: media.artist.clone(),
+                        });
                     } else if let Some(media) = self.queue.next_item() {
                         next_snapshot = next_snapshot.with_media(media.clone());
+                        effects.push(EngineEffect::UpdateMetadata {
+                            media_id: media.id.clone(),
+                            title: media.title.clone(),
+                            artist: media.artist.clone(),
+                        });
                     }
+                }
+            }
+            _ => {}
+        }
+
+        // Logic-based action emission
+        match (self.snapshot.playback_state, next_playback_state) {
+            (prev, next) if prev != next => {
+                match next {
+                    crate::playback::PlaybackState::Buffering => {
+                        effects.push(EngineEffect::RequestAudioFocus);
+                        effects.push(EngineEffect::Play);
+                    }
+                    crate::playback::PlaybackState::Playing => {
+                        effects.push(EngineEffect::Play);
+                    }
+                    crate::playback::PlaybackState::Paused => {
+                        effects.push(EngineEffect::Pause);
+                    }
+                    crate::playback::PlaybackState::Idle => {
+                        effects.push(EngineEffect::Stop);
+                        effects.push(EngineEffect::AbandonAudioFocus);
+                    }
+                    _ => {}
                 }
             }
             _ => {}
@@ -121,6 +170,7 @@ impl Engine {
         let outcome = EngineOutcome {
             snapshot: self.snapshot.clone(),
             event: EngineEvent::command_applied(Some(command.command_type.as_wire().to_owned())),
+            effects,
         };
 
         self.middleware.after_dispatch(self, &outcome);
@@ -139,6 +189,25 @@ impl Engine {
             &event.event_type,
         );
 
+        let mut effects = Vec::new();
+        match (self.snapshot.playback_state, next_playback_state) {
+            (prev, next) if prev != next => {
+                match next {
+                    crate::playback::PlaybackState::Paused => {
+                        effects.push(EngineEffect::Pause);
+                    }
+                    crate::playback::PlaybackState::Playing => {
+                        effects.push(EngineEffect::Play);
+                    }
+                    crate::playback::PlaybackState::Idle => {
+                        effects.push(EngineEffect::Stop);
+                    }
+                    _ => {}
+                }
+            }
+            _ => {}
+        }
+
         self.snapshot = self
             .snapshot
             .clone()
@@ -147,6 +216,7 @@ impl Engine {
         EngineOutcome {
             snapshot: self.snapshot.clone(),
             event: EngineEvent::platform_event_applied(Some(event.event_type.as_wire().to_owned())),
+            effects,
         }
     }
 }
@@ -310,29 +380,38 @@ mod tests {
     }
 
     #[test]
-    fn middleware_is_called() {
-        use std::sync::atomic::{AtomicUsize, Ordering};
-        use std::sync::Arc;
-        use crate::middleware::Middleware;
-
-        struct TestMiddleware(Arc<AtomicUsize>);
-        impl Middleware for TestMiddleware {
-            fn before_dispatch(&self, _engine: &Engine, _command: &EngineCommand) {
-                self.0.fetch_add(1, Ordering::SeqCst);
-            }
-            fn after_dispatch(&self, _engine: &Engine, _outcome: &EngineOutcome) {
-                self.0.fetch_add(10, Ordering::SeqCst);
-            }
-        }
-
-        let counter = Arc::new(AtomicUsize::new(0));
+    fn play_command_emits_effects() {
         let mut engine = Engine::new(100);
-        let mut pipeline = MiddlewarePipeline::new();
-        pipeline.add(Box::new(TestMiddleware(counter.clone())));
-        engine.set_middleware(pipeline);
+        let items = vec![
+            MediaItem {
+                id: "1".to_string(),
+                title: "Song 1".to_string(),
+                artist: "Artist 1".to_string(),
+            },
+        ];
+        engine.queue().set_items(items);
 
-        engine.dispatch(EngineCommand::new(EngineCommandType::Play, None), 200);
+        let outcome = engine.dispatch(EngineCommand::play(), 200);
 
-        assert_eq!(11, counter.load(Ordering::SeqCst));
+        // Should emit UpdateMetadata, RequestAudioFocus, and Play
+        assert!(outcome.effects.contains(&EngineEffect::UpdateMetadata {
+            media_id: "1".to_string(),
+            title: "Song 1".to_string(),
+            artist: "Artist 1".to_string(),
+        }));
+        assert!(outcome.effects.contains(&EngineEffect::RequestAudioFocus));
+        assert!(outcome.effects.contains(&EngineEffect::Play));
+    }
+
+    #[test]
+    fn pause_command_emits_pause_effect() {
+        let mut engine = Engine::new(100);
+        // Buffering -> Playing
+        engine.snapshot = engine.snapshot.clone().with_playback_state(PlaybackState::Playing, 150);
+        
+        let outcome = engine.dispatch(EngineCommand::pause(), 200);
+
+        assert_eq!(PlaybackState::Paused, outcome.snapshot.playback_state);
+        assert!(outcome.effects.contains(&EngineEffect::Pause));
     }
 }

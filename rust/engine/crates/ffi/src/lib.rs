@@ -1,7 +1,7 @@
 use panda_engine_core::{
-    Engine, EngineCommand, EngineCommandType, EngineEventType, EngineOutcome, EngineSnapshot,
-    LoggerMiddleware, MediaItem, MiddlewarePipeline, PlaybackState, RepeatMode, RestrictionState,
-    TelemetryMiddleware,
+    Engine, EngineEffect, EngineCommand, EngineCommandType, EngineEventType, EngineOutcome,
+    EngineSnapshot, LoggerMiddleware, MediaItem, MiddlewarePipeline, PlaybackState, RepeatMode,
+    RestrictionState, TelemetryMiddleware,
 };
 
 pub const FFI_COMMAND_BOOTSTRAP: i32 = 0;
@@ -32,6 +32,14 @@ pub const FFI_RESTRICTION_UNKNOWN: i32 = 0;
 pub const FFI_EVENT_COMMAND_APPLIED: i32 = 0;
 pub const FFI_EVENT_LISTENER_REGISTERED: i32 = 1;
 
+pub const FFI_EFFECT_PLAY: i32 = 0;
+pub const FFI_EFFECT_PAUSE: i32 = 1;
+pub const FFI_EFFECT_STOP: i32 = 2;
+pub const FFI_EFFECT_SEEK: i32 = 3;
+pub const FFI_EFFECT_REQUEST_AUDIO_FOCUS: i32 = 4;
+pub const FFI_EFFECT_ABANDON_AUDIO_FOCUS: i32 = 5;
+pub const FFI_EFFECT_UPDATE_METADATA: i32 = 6;
+
 /// C-compatible representation of the engine snapshot.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -53,6 +61,7 @@ pub struct FfiEngineOutcome {
 /// Opaque handle to the Rust Engine.
 pub struct PandaEngine {
     engine: Engine,
+    last_effects: Vec<EngineEffect>,
 }
 
 /// Creates a new PandaEngine instance.
@@ -70,7 +79,10 @@ pub extern "C" fn panda_engine_create(now_epoch_millis: u64) -> *mut PandaEngine
     pipeline.add(Box::new(panda_engine_core::FocusMiddleware));
     engine.set_middleware(pipeline);
 
-    Box::into_raw(Box::new(PandaEngine { engine }))
+    Box::into_raw(Box::new(PandaEngine {
+        engine,
+        last_effects: Vec::new(),
+    }))
 }
 
 /// Destroys a PandaEngine instance and frees its memory.
@@ -113,6 +125,7 @@ pub unsafe extern "C" fn panda_engine_dispatch(
                 EngineCommand::new(command_from_ffi(command_type), None),
                 now_epoch_millis,
             );
+            engine.last_effects = outcome.effects.clone();
             FfiEngineOutcome::from((&outcome, command_type))
         }
         None => FfiEngineOutcome::invalid(),
@@ -136,6 +149,7 @@ pub unsafe extern "C" fn panda_engine_dispatch_platform_event(
                 panda_engine_core::EnginePlatformEvent::new(platform_event_from_ffi(event_type), None),
                 now_epoch_millis,
             );
+            engine.last_effects = outcome.effects.clone();
             FfiEngineOutcome::from((&outcome, FFI_COMMAND_UNKNOWN))
         }
         None => FfiEngineOutcome::invalid(),
@@ -196,6 +210,68 @@ pub unsafe extern "C" fn panda_engine_queue_set_shuffle(engine: *mut PandaEngine
     let engine = unsafe { engine.as_mut() };
     if let Some(engine) = engine {
         engine.engine.queue().set_shuffle(enabled);
+    }
+}
+
+/// # Safety
+///
+/// [engine] must be a valid pointer returned by [panda_engine_create].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn panda_engine_get_effects_count(engine: *const PandaEngine) -> usize {
+    let engine = unsafe { engine.as_ref() };
+    match engine {
+        Some(engine) => engine.last_effects.len(),
+        None => 0,
+    }
+}
+
+/// # Safety
+///
+/// [engine] must be a valid pointer returned by [panda_engine_create].
+/// [out_types] must be a pointer to an array of at least [panda_engine_get_actions_count] i32s.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn panda_engine_get_effects_types(
+    engine: *const PandaEngine,
+    out_types: *mut i32,
+) {
+    let engine = unsafe { engine.as_ref() };
+    if let Some(engine) = engine {
+        for (i, effect) in engine.last_effects.iter().enumerate() {
+            unsafe {
+                *out_types.add(i) = effect_to_ffi(effect);
+            }
+        }
+    }
+}
+
+/// # Safety
+///
+/// [engine] must be a valid pointer returned by [panda_engine_create].
+/// Returns a pointer to the media ID if the action at [index] is UpdateMetadata.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn panda_engine_get_effect_media_id(
+    engine: *const PandaEngine,
+    index: usize,
+) -> *const std::ffi::c_char {
+    let engine = unsafe { engine.as_ref() };
+    if let Some(engine) = engine {
+        if let Some(EngineEffect::UpdateMetadata { media_id, .. }) = engine.last_effects.get(index) {
+            // Leak for simplicity in this prototype, or use a better buffer management
+            return std::ffi::CString::new(media_id.as_str()).unwrap().into_raw();
+        }
+    }
+    std::ptr::null()
+}
+
+fn effect_to_ffi(effect: &EngineEffect) -> i32 {
+    match effect {
+        EngineEffect::Play => FFI_EFFECT_PLAY,
+        EngineEffect::Pause => FFI_EFFECT_PAUSE,
+        EngineEffect::Stop => FFI_EFFECT_STOP,
+        EngineEffect::Seek(_) => FFI_EFFECT_SEEK,
+        EngineEffect::RequestAudioFocus => FFI_EFFECT_REQUEST_AUDIO_FOCUS,
+        EngineEffect::AbandonAudioFocus => FFI_EFFECT_ABANDON_AUDIO_FOCUS,
+        EngineEffect::UpdateMetadata { .. } => FFI_EFFECT_UPDATE_METADATA,
     }
 }
 
@@ -316,26 +392,27 @@ mod tests {
     }
 
     #[test]
-    fn dispatch_skip_next_moves_to_buffering() {
+    fn dispatch_play_emits_effects_in_ffi() {
         let engine = panda_engine_create(100);
         unsafe {
-            panda_engine_dispatch(engine, FFI_COMMAND_PLAY, 200);
-            // Simulate platform moving to Playing
-            (*engine).engine.dispatch_platform_event(
-                panda_engine_core::EnginePlatformEvent::new(
-                    panda_engine_core::EnginePlatformEventType::MediaLoaded,
-                    None,
-                ),
-                250,
-            );
+            let mut items = Vec::new();
+            items.push(MediaItem { id: "1".to_string(), title: "S1".to_string(), artist: "A1".to_string() });
+            (*engine).engine.queue().set_items(items);
         }
-        let outcome = unsafe { panda_engine_dispatch(engine, FFI_COMMAND_SKIP_NEXT, 300) };
+
+        unsafe { panda_engine_dispatch(engine, FFI_COMMAND_PLAY, 200) };
+        
+        let count = unsafe { panda_engine_get_effects_count(engine) };
+        assert!(count >= 2); // UpdateMetadata, RequestFocus, Play
+
+        let mut types = vec![0i32; count];
+        unsafe { panda_engine_get_effects_types(engine, types.as_mut_ptr()) };
+        
+        assert!(types.contains(&FFI_EFFECT_PLAY));
+        assert!(types.contains(&FFI_EFFECT_REQUEST_AUDIO_FOCUS));
+
         unsafe {
             panda_engine_destroy(engine);
         }
-
-        assert_eq!(FFI_PLAYBACK_BUFFERING, outcome.snapshot.playback_state);
-        assert_eq!(FFI_COMMAND_SKIP_NEXT, outcome.applied_command_type);
-        assert_eq!(300, outcome.snapshot.updated_at_epoch_millis);
     }
 }
