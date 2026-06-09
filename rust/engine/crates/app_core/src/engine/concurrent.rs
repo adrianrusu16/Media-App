@@ -1,6 +1,6 @@
+use crate::engine::core::{Engine, EngineOutcome};
 use crate::model::command::EngineCommand;
 use crate::model::platform_event::EnginePlatformEvent;
-use crate::engine::core::{Engine, EngineOutcome};
 use std::sync::{Arc, Mutex};
 
 /// A thread-safe wrapper around the Engine.

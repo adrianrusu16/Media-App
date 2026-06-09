@@ -65,10 +65,8 @@ internal class BambooMediaLibrarySessionCallback(
         browser: MediaSession.ControllerInfo,
         query: String,
         params: MediaLibraryService.LibraryParams?
-    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = Futures.immediateFuture(
-        LibraryResult.ofItemList(
-            catalog.search(query, 0, Int.MAX_VALUE),
-            params
-        )
-    )
+    ): ListenableFuture<LibraryResult<Void>> {
+        session.notifySearchResultChanged(browser, query, Int.MAX_VALUE, params)
+        return Futures.immediateFuture(LibraryResult.ofVoid())
+    }
 }

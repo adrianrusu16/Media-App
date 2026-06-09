@@ -7,6 +7,7 @@ plugins {
 dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:playback"))
+    implementation(project(":core:rust-bridge"))
     implementation(project(":core:telemetry-adapter"))
 
     implementation(libs.androidx.media3.common)

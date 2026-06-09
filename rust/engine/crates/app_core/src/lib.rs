@@ -38,23 +38,23 @@ pub mod test_utils {
     }
 }
 
-pub use crate::model::command::{EngineCommand, EngineCommandType};
+pub use crate::data::persistence::{EnginePersistentState, NoopPersistence, Persistence};
+pub use crate::data::queue::{QueueManager, RepeatMode};
+pub use crate::data::repository::{InMemoryRepository, MediaItem, MediaItemType, MediaRepository};
+pub use crate::data::session::MediaSession;
 pub use crate::engine::concurrent::ConcurrentEngine;
-pub use crate::model::effect::EngineEffect;
-pub use crate::model::error::{EngineError, EngineErrorType};
-pub use crate::model::event::{EngineEvent, EngineEventType};
+pub use crate::engine::core::{Engine, EngineOutcome};
 pub use crate::middleware::{
     AnalyticsMiddleware, FocusMiddleware, LoggerMiddleware, Middleware, MiddlewarePipeline,
     RecoveryMiddleware, TelemetryMiddleware, ThrottlingMiddleware, ValidationMiddleware,
 };
-pub use crate::observability::{EngineObserver, EventBus};
-pub use crate::data::persistence::{EnginePersistentState, NoopPersistence, Persistence};
+pub use crate::model::command::{EngineCommand, EngineCommandType};
+pub use crate::model::effect::EngineEffect;
+pub use crate::model::error::{EngineError, EngineErrorType};
+pub use crate::model::event::{EngineEvent, EngineEventType};
 pub use crate::model::platform_event::{EnginePlatformEvent, EnginePlatformEventType};
 pub use crate::model::playback::{ControlState, PlaybackState, PlayerControls, RestrictionState};
-pub use crate::services::player::{MediaPlayer, MockPlayer};
-pub use crate::data::queue::{QueueManager, RepeatMode};
-pub use crate::engine::core::{Engine, EngineOutcome};
-pub use crate::data::repository::{InMemoryRepository, MediaItem, MediaRepository};
-pub use crate::services::service::{EngineService, ServiceManager};
-pub use crate::data::session::MediaSession;
 pub use crate::model::snapshot::EngineSnapshot;
+pub use crate::observability::{EngineObserver, EventBus};
+pub use crate::services::player::{MediaPlayer, MockPlayer};
+pub use crate::services::service::{EngineService, ServiceManager};

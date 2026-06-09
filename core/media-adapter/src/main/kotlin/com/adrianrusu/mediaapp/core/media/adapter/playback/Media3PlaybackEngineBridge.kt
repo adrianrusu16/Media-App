@@ -117,4 +117,5 @@ private val BambooPlaybackIntent.telemetryName: String
         BambooPlaybackIntent.TogglePlayback -> "toggle_playback"
         BambooPlaybackIntent.SkipPrevious -> "skip_previous"
         BambooPlaybackIntent.SkipNext -> "skip_next"
+        is BambooPlaybackIntent.PlatformEvent -> "platform_event_$type"
     }

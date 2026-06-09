@@ -1,17 +1,17 @@
+use crate::data::persistence::{EnginePersistentState, NoopPersistence, Persistence};
+use crate::data::queue::QueueManager;
+use crate::data::repository::{InMemoryRepository, MediaRepository};
+use crate::data::session::MediaSession;
+use crate::engine::state_machine::StateMachine;
+use crate::middleware::MiddlewarePipeline;
 use crate::model::command::{EngineCommand, EngineCommandType};
 use crate::model::effect::EngineEffect;
 use crate::model::error::EngineError;
 use crate::model::event::EngineEvent;
-use crate::middleware::MiddlewarePipeline;
-use crate::data::persistence::{EnginePersistentState, NoopPersistence, Persistence};
 use crate::model::platform_event::{EnginePlatformEvent, EnginePlatformEventType};
 use crate::model::playback::PlaybackState;
-use crate::services::player::MediaPlayer;
-use crate::data::queue::QueueManager;
-use crate::data::repository::{InMemoryRepository, MediaRepository};
-use crate::data::session::MediaSession;
 use crate::model::snapshot::EngineSnapshot;
-use crate::engine::state_machine::StateMachine;
+use crate::services::player::MediaPlayer;
 use tracing::{info, instrument, warn};
 
 use crate::observability::EventBus;
@@ -449,11 +449,11 @@ impl Engine {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::data::repository::MediaItem;
     use crate::model::command::EngineCommandType;
     use crate::model::event::EngineEventType;
     use crate::model::platform_event::EnginePlatformEventType;
     use crate::model::playback::PlaybackState;
-    use crate::data::repository::MediaItem;
 
     #[test]
     fn starts_idle() {
@@ -726,7 +726,11 @@ mod tests {
         engine.dispatch(EngineCommand::play(), 150);
 
         // Simulate a network error platform event
-        let error = EngineError::new(crate::model::error::EngineErrorType::NetworkError, "No net", false);
+        let error = EngineError::new(
+            crate::model::error::EngineErrorType::NetworkError,
+            "No net",
+            false,
+        );
         let payload = serde_json::to_string(&error).unwrap();
         let event = EnginePlatformEvent::new(EnginePlatformEventType::MediaError, Some(payload));
 

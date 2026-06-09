@@ -1,9 +1,9 @@
+use crate::engine::core::{Engine, EngineOutcome};
 use crate::model::command::{EngineCommand, EngineCommandType};
 use crate::model::error::{EngineError, EngineErrorType};
 use crate::model::event::{EngineEvent, EngineEventType};
-use crate::observability::EventBus;
 use crate::model::playback::PlaybackState;
-use crate::engine::core::{Engine, EngineOutcome};
+use crate::observability::EventBus;
 use std::sync::Arc;
 use tracing::{info, warn};
 
@@ -112,9 +112,7 @@ impl Middleware for ValidationMiddleware {
             // but for now, the warning serves as an audit log for the middleware decision.
         }
 
-        if command.command_type == EngineCommandType::Play
-            && snapshot.session.is_none()
-        {
+        if command.command_type == EngineCommandType::Play && snapshot.session.is_none() {
             warn!(
                 "[Validation] Play command received without an active session. This may be ignored by the reducer."
             );
