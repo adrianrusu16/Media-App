@@ -1,3 +1,6 @@
+use std::ffi::{c_char, CString};
+use std::ptr;
+
 use panda_engine_core::{
     Engine, EngineEffect, EngineCommand, EngineCommandType, EngineEventType, EngineOutcome,
     EngineSnapshot, LoggerMiddleware, MediaItem, MiddlewarePipeline, PlaybackState, RepeatMode,
@@ -52,6 +55,7 @@ pub struct FfiEngineSnapshot {
     pub restriction_state: i32,
     pub updated_at_epoch_millis: u64,
     pub has_active_session: bool,
+    pub has_error: bool,
 }
 
 /// C-compatible representation of the engine outcome.
@@ -289,6 +293,7 @@ impl FfiEngineSnapshot {
             restriction_state: FFI_COMMAND_UNKNOWN,
             updated_at_epoch_millis: 0,
             has_active_session: false,
+            has_error: false,
         }
     }
 }
@@ -310,6 +315,7 @@ impl From<&EngineSnapshot> for FfiEngineSnapshot {
             restriction_state: restriction_to_ffi(snapshot.restriction_state),
             updated_at_epoch_millis: snapshot.updated_at_epoch_millis,
             has_active_session: snapshot.session.is_some(),
+            has_error: snapshot.last_error.is_some(),
         }
     }
 }
@@ -321,6 +327,34 @@ impl From<(&EngineOutcome, i32)> for FfiEngineOutcome {
             event_type: event_to_ffi(&outcome.event.event_type),
             applied_command_type: command_type,
         }
+    }
+}
+
+/// Returns the error message for the last error, if any.
+///
+/// The caller is responsible for freeing the string using [panda_engine_free_string].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn panda_engine_get_last_error_message(engine: *const PandaEngine) -> *const c_char {
+    if engine.is_null() {
+        return ptr::null();
+    }
+    let engine = unsafe { &*engine };
+    if let Some(error) = &engine.engine.snapshot().last_error {
+        let c_str = CString::new(error.message.clone()).unwrap();
+        c_str.into_raw()
+    } else {
+        ptr::null()
+    }
+}
+
+/// Frees a string allocated by the engine.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn panda_engine_free_string(s: *mut c_char) {
+    if s.is_null() {
+        return;
+    }
+    unsafe {
+        let _ = CString::from_raw(s);
     }
 }
 

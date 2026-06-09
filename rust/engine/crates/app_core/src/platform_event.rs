@@ -13,6 +13,8 @@ pub enum EnginePlatformEventType {
     UxRestrictionsChanged,
     /// Audio focus has changed (e.g., gained, lost).
     AudioFocusChanged,
+    /// A media button was pressed (e.g., play, pause, next, prev from steering wheel).
+    MediaButtonPressed,
     /// Media has successfully loaded and is ready to play.
     MediaLoaded,
     /// An error occurred in the platform media player.
@@ -34,6 +36,8 @@ impl EnginePlatformEventType {
     pub const UX_RESTRICTIONS_CHANGED_WIRE: &'static str = "ux_restrictions_changed";
     /// Wire value for AudioFocusChanged event.
     pub const AUDIO_FOCUS_CHANGED_WIRE: &'static str = "audio_focus_changed";
+    /// Wire value for MediaButtonPressed event.
+    pub const MEDIA_BUTTON_PRESSED_WIRE: &'static str = "media_button_pressed";
     /// Wire value for MediaLoaded event.
     pub const MEDIA_LOADED_WIRE: &'static str = "media_loaded";
     /// Wire value for MediaError event.
@@ -49,6 +53,7 @@ impl EnginePlatformEventType {
             Self::RESUME_FROM_RAM_WIRE => Self::ResumeFromRam,
             Self::UX_RESTRICTIONS_CHANGED_WIRE => Self::UxRestrictionsChanged,
             Self::AUDIO_FOCUS_CHANGED_WIRE => Self::AudioFocusChanged,
+            Self::MEDIA_BUTTON_PRESSED_WIRE => Self::MediaButtonPressed,
             Self::MEDIA_LOADED_WIRE => Self::MediaLoaded,
             Self::MEDIA_ERROR_WIRE => Self::MediaError,
             _ => Self::Unknown(value),
@@ -64,6 +69,7 @@ impl EnginePlatformEventType {
             Self::ResumeFromRam => Self::RESUME_FROM_RAM_WIRE,
             Self::UxRestrictionsChanged => Self::UX_RESTRICTIONS_CHANGED_WIRE,
             Self::AudioFocusChanged => Self::AUDIO_FOCUS_CHANGED_WIRE,
+            Self::MediaButtonPressed => Self::MEDIA_BUTTON_PRESSED_WIRE,
             Self::MediaLoaded => Self::MEDIA_LOADED_WIRE,
             Self::MediaError => Self::MEDIA_ERROR_WIRE,
             Self::Unknown(value) => value.as_str(),

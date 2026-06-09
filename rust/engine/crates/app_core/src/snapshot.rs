@@ -1,14 +1,19 @@
 use crate::playback::{PlaybackState, RestrictionState};
 use crate::session::MediaSession;
+use crate::error::EngineError;
+
+use serde::{Deserialize, Serialize};
 
 /// Represents the state-of-the-art snapshot of the media engine at a specific point in time.
 ///
 /// This structure is the "Single Source of Truth" for the UI and other platform components.
 /// It is immutable and should only be updated through the engine's reducer.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct EngineSnapshot {
     /// The current playback status (e.g., Playing, Paused).
     pub playback_state: PlaybackState,
+    /// The last error that occurred, if any.
+    pub last_error: Option<EngineError>,
     /// Unique identifier for the current media item.
     pub media_id: Option<String>,
     /// Displayable title of the current media.
@@ -51,6 +56,13 @@ impl EngineSnapshot {
     #[must_use]
     pub fn with_session(mut self, session: Option<MediaSession>) -> Self {
         self.session = session;
+        self
+    }
+
+    /// Functional update for the error state, returning a new snapshot.
+    #[must_use]
+    pub fn with_error(mut self, error: Option<EngineError>) -> Self {
+        self.last_error = error;
         self
     }
 }

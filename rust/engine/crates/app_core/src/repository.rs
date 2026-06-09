@@ -1,7 +1,9 @@
 use crate::snapshot::EngineSnapshot;
 
+use serde::{Deserialize, Serialize};
+
 /// Represents a media item in the system.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct MediaItem {
     pub id: String,
     pub title: String,

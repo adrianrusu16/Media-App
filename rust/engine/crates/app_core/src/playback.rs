@@ -1,5 +1,7 @@
+use serde::{Deserialize, Serialize};
+
 /// Represents the current playback status of the media engine.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub enum PlaybackState {
     /// No media is loaded or active.
     #[default]
@@ -39,7 +41,7 @@ impl PlaybackState {
 }
 
 /// Represents restrictions that can be applied to playback (e.g., driver distraction).
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub enum RestrictionState {
     /// No specific restriction information is available.
     #[default]

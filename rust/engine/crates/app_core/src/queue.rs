@@ -1,7 +1,8 @@
+use serde::{Deserialize, Serialize};
 use crate::repository::MediaItem;
 
 /// Defines the playback mode for the queue.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub enum RepeatMode {
     /// No repeat, stop after the last item.
     #[default]
@@ -13,6 +14,7 @@ pub enum RepeatMode {
 }
 
 /// Manages the list of media items to be played.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct QueueManager {
     items: Vec<MediaItem>,
     current_index: Option<usize>,

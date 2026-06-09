@@ -1,8 +1,11 @@
+use crate::command::{EngineCommand, EngineCommandType};
 use crate::effect::EngineEffect;
-use crate::command::EngineCommand;
+use crate::error::EngineError;
 use crate::event::EngineEvent;
 use crate::middleware::MiddlewarePipeline;
-use crate::platform_event::EnginePlatformEvent;
+use crate::persistence::{EnginePersistentState, NoopPersistence, Persistence};
+use crate::platform_event::{EnginePlatformEvent, EnginePlatformEventType};
+use crate::playback::PlaybackState;
 use crate::queue::QueueManager;
 use crate::repository::{InMemoryRepository, MediaRepository};
 use crate::session::MediaSession;
@@ -29,6 +32,7 @@ pub struct Engine {
     middleware: MiddlewarePipeline,
     repository: Box<dyn MediaRepository>,
     queue: QueueManager,
+    persistence: Box<dyn Persistence>,
 }
 
 impl Default for Engine {
@@ -38,6 +42,7 @@ impl Default for Engine {
             middleware: MiddlewarePipeline::default(),
             repository: Box::new(InMemoryRepository::new(vec![])),
             queue: QueueManager::default(),
+            persistence: Box::new(NoopPersistence),
         }
     }
 }
@@ -58,6 +63,7 @@ impl Engine {
             middleware: MiddlewarePipeline::new(),
             repository: Box::new(InMemoryRepository::new(vec![])),
             queue: QueueManager::default(),
+            persistence: Box::new(NoopPersistence),
         }
     }
 
@@ -76,6 +82,31 @@ impl Engine {
         self.middleware = pipeline;
     }
 
+    /// Sets the persistence for the engine.
+    pub fn set_persistence(&mut self, persistence: Box<dyn Persistence>) {
+        self.persistence = persistence;
+    }
+
+    /// Tries to restore the engine state from persistence.
+    pub fn restore(&mut self) -> Result<bool, String> {
+        if let Some(state) = self.persistence.load()? {
+            self.snapshot = state.snapshot;
+            self.queue = state.queue;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    /// Saves the current engine state to persistence.
+    pub fn save(&self) -> Result<(), String> {
+        let state = EnginePersistentState {
+            snapshot: self.snapshot.clone(),
+            queue: self.queue.clone(),
+        };
+        self.persistence.save(&state)
+    }
+
     /// Returns the current state of the engine.
     pub fn snapshot(&self) -> &EngineSnapshot {
         &self.snapshot
@@ -87,13 +118,16 @@ impl Engine {
     pub fn dispatch(&mut self, command: EngineCommand, now_epoch_millis: u64) -> EngineOutcome {
         self.middleware.before_dispatch(self, &command);
 
+        let prev_playback_state = self.snapshot.playback_state;
+
         let next_playback_state =
-            StateMachine::next_state_from_command(self.snapshot.playback_state, &command.command_type);
+            StateMachine::next_state_from_command(prev_playback_state, &command.command_type);
 
         let mut next_snapshot = self
             .snapshot
             .clone()
-            .with_playback_state(next_playback_state, now_epoch_millis);
+            .with_playback_state(next_playback_state, now_epoch_millis)
+            .with_error(None);
 
         let mut effects = Vec::new();
 
@@ -159,7 +193,7 @@ impl Engine {
         }
 
         // Logic-based action emission
-        match (self.snapshot.playback_state, next_playback_state) {
+        match (prev_playback_state, next_snapshot.playback_state) {
             (prev, next) if prev != next => {
                 match next {
                     crate::playback::PlaybackState::Buffering => {
@@ -201,13 +235,40 @@ impl Engine {
         event: EnginePlatformEvent,
         now_epoch_millis: u64,
     ) -> EngineOutcome {
+        // Handle Media Button Pressed by converting it to a command
+        if event.event_type == EnginePlatformEventType::MediaButtonPressed {
+            if let Some(payload) = &event.payload {
+                let command_type = EngineCommandType::from_wire(payload.clone());
+                return self.dispatch(EngineCommand::new(command_type, None), now_epoch_millis);
+            }
+        }
+
+        let prev_playback_state = self.snapshot.playback_state;
+
         let next_playback_state = StateMachine::next_state_from_platform_event(
-            self.snapshot.playback_state,
+            prev_playback_state,
             &event.event_type,
         );
 
+        let mut next_snapshot = self
+            .snapshot
+            .clone()
+            .with_playback_state(next_playback_state, now_epoch_millis);
+
+        if next_playback_state == PlaybackState::Error {
+            if let Some(payload) = &event.payload {
+                let error = serde_json::from_str::<EngineError>(payload)
+                    .unwrap_or_else(|_| EngineError::player_error(payload.clone()));
+                next_snapshot = next_snapshot.with_error(Some(error));
+            } else {
+                next_snapshot = next_snapshot.with_error(Some(EngineError::player_error("Unknown platform error")));
+            }
+        } else {
+            next_snapshot = next_snapshot.with_error(None);
+        }
+
         let mut effects = Vec::new();
-        match (self.snapshot.playback_state, next_playback_state) {
+        match (prev_playback_state, next_playback_state) {
             (prev, next) if prev != next => {
                 match next {
                     crate::playback::PlaybackState::Paused => {

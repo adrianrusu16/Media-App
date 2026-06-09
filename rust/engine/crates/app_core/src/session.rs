@@ -1,8 +1,10 @@
+use serde::{Deserialize, Serialize};
+
 /// Represents a media session, which manages the lifecycle of a playback sequence.
 /// 
 /// In AAOS, a MediaSession is critical for system integration, allowing the OS
 /// to control playback, display metadata on the cluster, and manage audio focus.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct MediaSession {
     /// Unique identifier for the session.
     pub session_id: String,
