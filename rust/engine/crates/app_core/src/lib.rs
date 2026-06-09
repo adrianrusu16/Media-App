@@ -3,6 +3,7 @@ mod event;
 mod middleware;
 mod platform_event;
 mod playback;
+mod queue;
 mod reducer;
 mod repository;
 mod snapshot;
@@ -15,6 +16,7 @@ pub use middleware::{
 };
 pub use platform_event::{EnginePlatformEvent, EnginePlatformEventType};
 pub use playback::{PlaybackState, RestrictionState};
+pub use queue::{QueueManager, RepeatMode};
 pub use reducer::{Engine, EngineOutcome};
 pub use repository::{InMemoryRepository, MediaItem, MediaRepository};
 pub use snapshot::EngineSnapshot;

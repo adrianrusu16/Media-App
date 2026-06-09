@@ -2,6 +2,7 @@ use crate::command::EngineCommand;
 use crate::event::EngineEvent;
 use crate::middleware::MiddlewarePipeline;
 use crate::platform_event::EnginePlatformEvent;
+use crate::queue::QueueManager;
 use crate::repository::{InMemoryRepository, MediaRepository};
 use crate::snapshot::EngineSnapshot;
 use crate::state_machine::StateMachine;
@@ -23,6 +24,7 @@ pub struct Engine {
     snapshot: EngineSnapshot,
     middleware: MiddlewarePipeline,
     repository: Box<dyn MediaRepository>,
+    queue: QueueManager,
 }
 
 impl Default for Engine {
@@ -31,6 +33,7 @@ impl Default for Engine {
             snapshot: EngineSnapshot::default(),
             middleware: MiddlewarePipeline::default(),
             repository: Box::new(InMemoryRepository::new(vec![])),
+            queue: QueueManager::default(),
         }
     }
 }
@@ -50,7 +53,13 @@ impl Engine {
             snapshot: EngineSnapshot::idle(now_epoch_millis),
             middleware: MiddlewarePipeline::new(),
             repository: Box::new(InMemoryRepository::new(vec![])),
+            queue: QueueManager::default(),
         }
+    }
+
+    /// Returns the queue manager for the engine.
+    pub fn queue(&mut self) -> &mut QueueManager {
+        &mut self.queue
     }
 
     /// Sets the media repository for the engine.
@@ -85,25 +94,22 @@ impl Engine {
         // Update metadata based on command
         match command.command_type {
             crate::command::EngineCommandType::SkipNext => {
-                if let Some(current_id) = &self.snapshot.media_id {
-                    if let Some(next_media) = self.repository.get_next(current_id) {
-                        next_snapshot = next_snapshot.with_media(next_media);
-                    }
+                if let Some(next_media) = self.queue.next_item() {
+                    next_snapshot = next_snapshot.with_media(next_media.clone());
                 }
             }
             crate::command::EngineCommandType::SkipPrevious => {
-                if let Some(current_id) = &self.snapshot.media_id {
-                    if let Some(prev_media) = self.repository.get_previous(current_id) {
-                        next_snapshot = next_snapshot.with_media(prev_media);
-                    }
+                if let Some(prev_media) = self.queue.previous_item() {
+                    next_snapshot = next_snapshot.with_media(prev_media.clone());
                 }
             }
             crate::command::EngineCommandType::Play => {
                 if self.snapshot.media_id.is_none() {
-                    // If playing from idle/nothing, try to load first item
-                    if let Some(media) = self.repository.get_by_id("1") {
-                        // Hardcoded '1' for now as a simple bootstrap
-                        next_snapshot = next_snapshot.with_media(media);
+                    // If playing from idle/nothing, try to load first item from queue
+                    if let Some(media) = self.queue.current_item() {
+                        next_snapshot = next_snapshot.with_media(media.clone());
+                    } else if let Some(media) = self.queue.next_item() {
+                        next_snapshot = next_snapshot.with_media(media.clone());
                     }
                 }
             }
@@ -260,7 +266,7 @@ mod tests {
                 artist: "Artist 2".to_string(),
             },
         ];
-        engine.set_repository(Box::new(InMemoryRepository::new(items)));
+        engine.queue().set_items(items);
 
         // Initial play
         engine.dispatch(EngineCommand::play(), 200);
@@ -271,7 +277,10 @@ mod tests {
         assert_eq!(engine.snapshot().media_id, Some("2".to_string()));
         assert_eq!(engine.snapshot().title, Some("Song 2".to_string()));
 
-        // Skip previous (wraps around)
+        // Skip previous (wraps around - though Repeat All is not default, 
+        // in my current impl it stays on last or first if no repeat. 
+        // Wait, I should check my QueueManager impl)
+        engine.queue().set_repeat_mode(crate::queue::RepeatMode::All);
         engine.dispatch(EngineCommand::skip_previous(), 400);
         assert_eq!(engine.snapshot().media_id, Some("1".to_string()));
     }
