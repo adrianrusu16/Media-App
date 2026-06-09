@@ -11,6 +11,7 @@ use crate::repository::{InMemoryRepository, MediaRepository};
 use crate::session::MediaSession;
 use crate::snapshot::EngineSnapshot;
 use crate::state_machine::StateMachine;
+use tracing::{info, instrument, warn};
 
 use crate::observability::EventBus;
 use crate::service::ServiceManager;
@@ -124,8 +125,8 @@ impl Engine {
             self.snapshot = state.snapshot;
             self.queue = state.queue;
             // If we were playing, we should probably be paused after restore for safety in AAOS
-            if self.snapshot.playback_state == crate::playback::PlaybackState::Playing {
-                self.snapshot.playback_state = crate::playback::PlaybackState::Paused;
+            if self.snapshot.playback_state == PlaybackState::Playing {
+                self.snapshot.playback_state = PlaybackState::Paused;
             }
             Ok(true)
         } else {
@@ -147,10 +148,30 @@ impl Engine {
         &self.snapshot
     }
 
+    /// Helper to update the snapshot with new media and emit metadata effects.
+    fn update_media_state(
+        media: &crate::repository::MediaItem,
+        snapshot: EngineSnapshot,
+        effects: &mut Vec<EngineEffect>,
+    ) -> EngineSnapshot {
+        let next_snapshot = snapshot.with_media(media.clone());
+        effects.push(EngineEffect::UpdateMetadata {
+            media_id: media.id.clone(),
+            title: media.title.clone(),
+            artist: media.artist.clone(),
+        });
+        next_snapshot
+    }
+
     /// Dispatches a command to the engine, returning the outcome.
     ///
     /// This is the primary way to interact with the engine.
+    #[instrument(skip(self), fields(command_type = ?command.command_type))]
     pub fn dispatch(&mut self, command: EngineCommand, now_epoch_millis: u64) -> EngineOutcome {
+        info!(
+            "Dispatching command: {:?} at {}",
+            command.command_type, now_epoch_millis
+        );
         self.middleware.before_dispatch(self, &command);
 
         let prev_playback_state = self.snapshot.playback_state;
@@ -168,76 +189,56 @@ impl Engine {
 
         // Update metadata based on command
         match &command.command_type {
-            crate::command::EngineCommandType::StartSession { user_id } => {
+            EngineCommandType::StartSession { user_id } => {
                 let session_id = format!("session-{}", now_epoch_millis);
                 let session =
                     MediaSession::new(session_id.clone(), user_id.clone(), now_epoch_millis);
                 next_snapshot = next_snapshot.with_session(Some(session));
                 effects.push(EngineEffect::SessionStarted { session_id });
             }
-            crate::command::EngineCommandType::EndSession => {
+            EngineCommandType::EndSession => {
                 next_snapshot = next_snapshot.with_session(None);
                 effects.push(EngineEffect::SessionEnded);
             }
-            crate::command::EngineCommandType::SkipNext => {
+            EngineCommandType::SkipNext => {
                 if let Some(next_media) = self.queue.next_item() {
-                    next_snapshot = next_snapshot.with_media(next_media.clone());
-                    effects.push(EngineEffect::UpdateMetadata {
-                        media_id: next_media.id.clone(),
-                        title: next_media.title.clone(),
-                        artist: next_media.artist.clone(),
-                    });
+                    next_snapshot = Self::update_media_state(next_media, next_snapshot, &mut effects);
                 }
             }
-            crate::command::EngineCommandType::SkipPrevious => {
+            EngineCommandType::SkipPrevious => {
                 if let Some(prev_media) = self.queue.previous_item() {
-                    next_snapshot = next_snapshot.with_media(prev_media.clone());
-                    effects.push(EngineEffect::UpdateMetadata {
-                        media_id: prev_media.id.clone(),
-                        title: prev_media.title.clone(),
-                        artist: prev_media.artist.clone(),
-                    });
+                    next_snapshot = Self::update_media_state(prev_media, next_snapshot, &mut effects);
                 }
             }
-            crate::command::EngineCommandType::Play => {
+            EngineCommandType::Play => {
                 // Only allow play if we have an active session
                 if next_snapshot.session.is_some() {
                     if self.snapshot.media_id.is_none() {
                         // If playing from idle/nothing, try to load first item from queue
                         if let Some(media) = self.queue.current_item() {
-                            next_snapshot = next_snapshot.with_media(media.clone());
-                            effects.push(EngineEffect::UpdateMetadata {
-                                media_id: media.id.clone(),
-                                title: media.title.clone(),
-                                artist: media.artist.clone(),
-                            });
+                            next_snapshot = Self::update_media_state(media, next_snapshot, &mut effects);
                         } else if let Some(media) = self.queue.next_item() {
-                            next_snapshot = next_snapshot.with_media(media.clone());
-                            effects.push(EngineEffect::UpdateMetadata {
-                                media_id: media.id.clone(),
-                                title: media.title.clone(),
-                                artist: media.artist.clone(),
-                            });
+                            next_snapshot = Self::update_media_state(media, next_snapshot, &mut effects);
                         }
                     }
                 } else {
                     // Revert to idle if no session
-                    next_snapshot.playback_state = crate::playback::PlaybackState::Idle;
+                    next_snapshot.playback_state = PlaybackState::Idle;
                 }
             }
-            crate::command::EngineCommandType::Search { query } => {
+            EngineCommandType::Search { query } => {
                 let results = self.repository.search(query);
                 next_snapshot = next_snapshot.with_search_results(results);
             }
-            crate::command::EngineCommandType::Browse { parent_id } => {
+            EngineCommandType::Browse { parent_id } => {
                 let results = self.repository.browse(parent_id);
                 next_snapshot = next_snapshot.with_search_results(results);
             }
-            crate::command::EngineCommandType::SetSpeed { speed } => {
+            EngineCommandType::SetSpeed { speed } => {
                 next_snapshot = next_snapshot.with_speed(*speed);
                 effects.push(EngineEffect::Play); // Ensure speed change is applied if playing
             }
-            crate::command::EngineCommandType::Seek { position_millis } => {
+            EngineCommandType::Seek { position_millis } => {
                 next_snapshot = next_snapshot.with_position(*position_millis);
                 effects.push(EngineEffect::Play); // Often a seek implies continuing playback
             }
@@ -247,17 +248,17 @@ impl Engine {
         // Logic-based action emission
         match (prev_playback_state, next_snapshot.playback_state) {
             (prev, next) if prev != next => match next {
-                crate::playback::PlaybackState::Buffering => {
+                PlaybackState::Buffering => {
                     effects.push(EngineEffect::RequestAudioFocus);
                     effects.push(EngineEffect::Play);
                 }
-                crate::playback::PlaybackState::Playing => {
+                PlaybackState::Playing => {
                     effects.push(EngineEffect::Play);
                 }
-                crate::playback::PlaybackState::Paused => {
+                PlaybackState::Paused => {
                     effects.push(EngineEffect::Pause);
                 }
-                crate::playback::PlaybackState::Idle => {
+                PlaybackState::Idle => {
                     effects.push(EngineEffect::Stop);
                     effects.push(EngineEffect::AbandonAudioFocus);
                 }
@@ -267,6 +268,13 @@ impl Engine {
         }
 
         self.snapshot = next_snapshot;
+
+        if self.snapshot.playback_state != prev_playback_state {
+            info!(
+                "Playback state transition: {:?} -> {:?}",
+                prev_playback_state, self.snapshot.playback_state
+            );
+        }
 
         let outcome = EngineOutcome {
             snapshot: self.snapshot.clone(),
@@ -319,13 +327,13 @@ impl Engine {
         let mut effects = Vec::new();
         match (prev_playback_state, next_playback_state) {
             (prev, next) if prev != next => match next {
-                crate::playback::PlaybackState::Paused => {
+                PlaybackState::Paused => {
                     effects.push(EngineEffect::Pause);
                 }
-                crate::playback::PlaybackState::Playing => {
+                PlaybackState::Playing => {
                     effects.push(EngineEffect::Play);
                 }
-                crate::playback::PlaybackState::Idle => {
+                PlaybackState::Idle => {
                     effects.push(EngineEffect::Stop);
                 }
                 _ => {}
@@ -391,7 +399,7 @@ mod tests {
         engine.dispatch(EngineCommand::start_session("user1".to_string()), 150);
         // Idle -> Buffering
         engine.dispatch(EngineCommand::new(EngineCommandType::Play, None), 200);
-        // Force state to Playing for test (in real app, this would happen via system event)
+        // Force Playing state for test (in real app, this would happen via system event)
         engine.snapshot = engine
             .snapshot
             .clone()

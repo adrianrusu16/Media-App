@@ -1,6 +1,8 @@
 use std::ffi::{CString, c_char};
 use std::ptr;
 use std::sync::Arc;
+use tracing::info;
+use tracing_subscriber::prelude::*;
 
 use panda_engine_core::{
     Engine, EngineCommand, EngineCommandType, EngineEffect, EngineEvent, EngineEventType,
@@ -92,14 +94,47 @@ unsafe impl Sync for FfiObserver {}
 
 impl EngineObserver for FfiObserver {
     fn on_state_changed(&self, snapshot: &EngineSnapshot) {
+        info!("FFI: Notifying observer of state change");
         let ffi_snapshot = FfiEngineSnapshot::from(snapshot);
         unsafe { (self.on_state_changed)(ffi_snapshot) };
     }
 
     fn on_event_emitted(&self, event: &EngineEvent) {
+        info!("FFI: Notifying observer of event {:?}", event.event_type);
         let event_type = event_to_ffi(&event.event_type);
         unsafe { (self.on_event_emitted)(event_type) };
     }
+}
+
+/// Initializes the logging system for the PandaEngine.
+///
+/// This should be called once at application startup.
+/// On Android, this redirects Rust logs to Logcat.
+///
+/// # Safety
+/// This function is safe to call multiple times, but only the first call will initialize the logger.
+#[unsafe(no_mangle)]
+pub extern "C" fn panda_engine_init_logging(max_level: i32) {
+    use android_logger::Config;
+    use log::LevelFilter;
+
+    let level = match max_level {
+        0 => LevelFilter::Off,
+        1 => LevelFilter::Error,
+        2 => LevelFilter::Warn,
+        3 => LevelFilter::Info,
+        4 => LevelFilter::Debug,
+        5 => LevelFilter::Trace,
+        _ => LevelFilter::Info,
+    };
+
+    android_logger::init_once(Config::default().with_max_level(level).with_tag("PandaEngine"));
+
+    let _ = tracing_subscriber::registry()
+        .with(tracing_subscriber::fmt::layer().with_writer(std::io::stdout))
+        .try_init();
+
+    info!("PandaEngine logging initialized with level {:?}", level);
 }
 
 /// Creates a new PandaEngine instance.
@@ -110,7 +145,7 @@ impl EngineObserver for FfiObserver {
 pub extern "C" fn panda_engine_create(now_epoch_millis: u64) -> *mut PandaEngine {
     let mut engine = Engine::new(now_epoch_millis);
 
-    // Setup default state-of-the-art middleware (e.g., logging)
+    // Set up default state-of-the-art middleware (e.g., logging)
     let mut pipeline = MiddlewarePipeline::new();
     pipeline.add(Box::new(LoggerMiddleware));
     pipeline.add(Box::new(TelemetryMiddleware::new(engine.event_bus())));
@@ -260,7 +295,7 @@ pub unsafe extern "C" fn panda_engine_dispatch(
 pub unsafe extern "C" fn panda_engine_dispatch_platform_event(
     engine: *mut PandaEngine,
     event_type: i32,
-    _payload: *const std::ffi::c_char,
+    _payload: *const c_char,
     now_epoch_millis: u64,
 ) -> FfiEngineOutcome {
     let engine = unsafe { engine.as_mut() };
@@ -286,9 +321,9 @@ pub unsafe extern "C" fn panda_engine_dispatch_platform_event(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn panda_engine_queue_set_items(
     engine: *mut PandaEngine,
-    ids: *const *const std::ffi::c_char,
-    titles: *const *const std::ffi::c_char,
-    artists: *const *const std::ffi::c_char,
+    ids: *const *const c_char,
+    titles: *const *const c_char,
+    artists: *const *const c_char,
     count: usize,
 ) {
     let engine = unsafe { engine.as_mut() };
@@ -381,17 +416,17 @@ pub unsafe extern "C" fn panda_engine_get_effects_types(
 pub unsafe extern "C" fn panda_engine_get_effect_media_id(
     engine: *const PandaEngine,
     index: usize,
-) -> *const std::ffi::c_char {
+) -> *const c_char {
     let engine = unsafe { engine.as_ref() };
     if let Some(engine) = engine
         && let Some(EngineEffect::UpdateMetadata { media_id, .. }) = engine.last_effects.get(index)
     {
-        // Leak for simplicity in this prototype, or use a better buffer management
-        return std::ffi::CString::new(media_id.as_str())
+        // Leak for simplicity in this prototype or use a better buffer management
+        return CString::new(media_id.as_str())
             .unwrap()
             .into_raw();
     }
-    std::ptr::null()
+    ptr::null()
 }
 
 fn effect_to_ffi(effect: &EngineEffect) -> i32 {
@@ -594,9 +629,9 @@ mod tests {
     #[test]
     fn dispatch_play_returns_buffering_snapshot() {
         let engine = panda_engine_create(100);
-        unsafe { panda_engine_dispatch(engine, FFI_COMMAND_START_SESSION, std::ptr::null(), 150) };
+        unsafe { panda_engine_dispatch(engine, FFI_COMMAND_START_SESSION, ptr::null(), 150) };
         let outcome =
-            unsafe { panda_engine_dispatch(engine, FFI_COMMAND_PLAY, std::ptr::null(), 200) };
+            unsafe { panda_engine_dispatch(engine, FFI_COMMAND_PLAY, ptr::null(), 200) };
         unsafe {
             panda_engine_destroy(engine);
         }
@@ -610,7 +645,7 @@ mod tests {
 
     #[test]
     fn null_snapshot_returns_invalid_marker() {
-        let snapshot = unsafe { panda_engine_snapshot(std::ptr::null()) };
+        let snapshot = unsafe { panda_engine_snapshot(ptr::null()) };
 
         assert_eq!(FFI_COMMAND_UNKNOWN, snapshot.playback_state);
         assert_eq!(0, snapshot.updated_at_epoch_millis);
@@ -619,7 +654,7 @@ mod tests {
     #[test]
     fn dispatch_play_emits_effects_in_ffi() {
         let engine = panda_engine_create(100);
-        unsafe { panda_engine_dispatch(engine, FFI_COMMAND_START_SESSION, std::ptr::null(), 150) };
+        unsafe { panda_engine_dispatch(engine, FFI_COMMAND_START_SESSION, ptr::null(), 150) };
         unsafe {
             let mut items = Vec::new();
             items.push(MediaItem {
@@ -631,7 +666,7 @@ mod tests {
             (*engine).engine.queue().set_items(items);
         }
 
-        unsafe { panda_engine_dispatch(engine, FFI_COMMAND_PLAY, std::ptr::null(), 200) };
+        unsafe { panda_engine_dispatch(engine, FFI_COMMAND_PLAY, ptr::null(), 200) };
 
         let count = unsafe { panda_engine_get_effects_count(engine) };
         assert!(count >= 2); // UpdateMetadata, RequestFocus, Play

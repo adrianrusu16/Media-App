@@ -12,3 +12,7 @@ path = "src/lib.rs"
 
 [dependencies]
 panda_engine_core = { package = "media_app_core", path = "../app_core" }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+android_logger = "0.14"
+log = "0.4"

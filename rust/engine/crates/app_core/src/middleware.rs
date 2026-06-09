@@ -2,6 +2,7 @@ use crate::command::EngineCommand;
 use crate::observability::EventBus;
 use crate::reducer::{Engine, EngineOutcome};
 use std::sync::Arc;
+use tracing::info;
 
 /// Middleware trait for processing engine operations.
 ///
@@ -19,10 +20,7 @@ pub trait Middleware: Send + Sync {
 pub struct LoggerMiddleware;
 impl Middleware for LoggerMiddleware {
     fn before_dispatch(&self, _engine: &Engine, command: &EngineCommand) {
-        println!(
-            "[PandaEngine] Dispatching command: {:?}",
-            command.command_type
-        );
+        info!("Dispatching command: {:?}", command.command_type);
     }
 }
 
@@ -39,7 +37,7 @@ impl TelemetryMiddleware {
 
 impl Middleware for TelemetryMiddleware {
     fn before_dispatch(&self, _engine: &Engine, command: &EngineCommand) {
-        println!("[Telemetry] Starting command: {:?}", command.command_type);
+        info!("[Telemetry] Starting command: {:?}", command.command_type);
     }
 
     fn after_dispatch(&self, _engine: &Engine, outcome: &EngineOutcome) {
@@ -47,7 +45,7 @@ impl Middleware for TelemetryMiddleware {
         self.bus.notify_state_changed(&outcome.snapshot);
         self.bus.notify_event_emitted(&outcome.event);
 
-        println!(
+        info!(
             "[Telemetry] Command completed. Event: {:?}, Effects: {}",
             outcome.event.event_type,
             outcome.effects.len()
@@ -60,7 +58,7 @@ pub struct FocusMiddleware;
 impl Middleware for FocusMiddleware {
     fn before_dispatch(&self, _engine: &Engine, command: &EngineCommand) {
         if command.command_type == crate::command::EngineCommandType::Play {
-            println!("[FocusMiddleware] Requesting audio focus before Play...");
+            info!("[FocusMiddleware] Requesting audio focus before Play...");
             // In a real app, this might trigger a platform call or internal check
         }
     }
