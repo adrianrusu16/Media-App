@@ -1,6 +1,7 @@
 use crate::playback::{PlaybackState, RestrictionState};
 use crate::session::MediaSession;
 use crate::error::EngineError;
+use crate::repository::MediaItem;
 
 use serde::{Deserialize, Serialize};
 
@@ -28,6 +29,8 @@ pub struct EngineSnapshot {
     pub updated_at_epoch_millis: u64,
     /// The active media session, if any.
     pub session: Option<MediaSession>,
+    /// The results of the last search or browse operation.
+    pub search_results: Vec<MediaItem>,
 }
 
 impl EngineSnapshot {
@@ -63,6 +66,13 @@ impl EngineSnapshot {
     #[must_use]
     pub fn with_error(mut self, error: Option<EngineError>) -> Self {
         self.last_error = error;
+        self
+    }
+
+    /// Functional update for search results, returning a new snapshot.
+    #[must_use]
+    pub fn with_search_results(mut self, results: Vec<MediaItem>) -> Self {
+        self.search_results = results;
         self
     }
 }

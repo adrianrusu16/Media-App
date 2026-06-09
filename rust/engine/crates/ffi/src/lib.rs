@@ -14,6 +14,8 @@ pub const FFI_COMMAND_SKIP_PREVIOUS: i32 = 3;
 pub const FFI_COMMAND_SKIP_NEXT: i32 = 4;
 pub const FFI_COMMAND_START_SESSION: i32 = 5;
 pub const FFI_COMMAND_END_SESSION: i32 = 6;
+pub const FFI_COMMAND_SEARCH: i32 = 7;
+pub const FFI_COMMAND_BROWSE: i32 = 8;
 pub const FFI_COMMAND_UNKNOWN: i32 = -1;
 
 pub const FFI_PLAYBACK_IDLE: i32 = 0;
@@ -56,6 +58,7 @@ pub struct FfiEngineSnapshot {
     pub updated_at_epoch_millis: u64,
     pub has_active_session: bool,
     pub has_error: bool,
+    pub search_results_count: usize,
 }
 
 /// C-compatible representation of the engine outcome.
@@ -125,15 +128,29 @@ pub unsafe extern "C" fn panda_engine_snapshot(engine: *const PandaEngine) -> Ff
 pub unsafe extern "C" fn panda_engine_dispatch(
     engine: *mut PandaEngine,
     command_type: i32,
+    payload: *const c_char,
     now_epoch_millis: u64,
 ) -> FfiEngineOutcome {
     let engine = unsafe { engine.as_mut() };
+    let payload_str = if payload.is_null() {
+        None
+    } else {
+        Some(unsafe { std::ffi::CStr::from_ptr(payload) }.to_string_lossy().into_owned())
+    };
+
     match engine {
         Some(engine) => {
-            let outcome = engine.engine.dispatch(
-                EngineCommand::new(command_from_ffi(command_type), None),
-                now_epoch_millis,
-            );
+            let command = match command_type {
+                FFI_COMMAND_SEARCH => {
+                    EngineCommand::new(EngineCommandType::Search { query: payload_str.unwrap_or_default() }, None)
+                }
+                FFI_COMMAND_BROWSE => {
+                    EngineCommand::new(EngineCommandType::Browse { parent_id: payload_str.unwrap_or_else(|| "root".to_string()) }, None)
+                }
+                _ => EngineCommand::new(command_from_ffi(command_type), payload_str),
+            };
+
+            let outcome = engine.engine.dispatch(command, now_epoch_millis);
             engine.last_effects = outcome.effects.clone();
             FfiEngineOutcome::from((&outcome, command_type))
         }
@@ -294,6 +311,7 @@ impl FfiEngineSnapshot {
             updated_at_epoch_millis: 0,
             has_active_session: false,
             has_error: false,
+            search_results_count: 0,
         }
     }
 }
@@ -316,6 +334,7 @@ impl From<&EngineSnapshot> for FfiEngineSnapshot {
             updated_at_epoch_millis: snapshot.updated_at_epoch_millis,
             has_active_session: snapshot.session.is_some(),
             has_error: snapshot.last_error.is_some(),
+            search_results_count: snapshot.search_results.len(),
         }
     }
 }
@@ -328,6 +347,42 @@ impl From<(&EngineOutcome, i32)> for FfiEngineOutcome {
             applied_command_type: command_type,
         }
     }
+}
+
+/// # Safety
+///
+/// [engine] must be a valid pointer returned by [panda_engine_create].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn panda_engine_get_search_result_id(
+    engine: *const PandaEngine,
+    index: usize,
+) -> *const c_char {
+    let engine = unsafe { engine.as_ref() };
+    if let Some(engine) = engine {
+        if let Some(item) = engine.engine.snapshot().search_results.get(index) {
+            let c_str = CString::new(item.id.clone()).unwrap();
+            return c_str.into_raw();
+        }
+    }
+    ptr::null()
+}
+
+/// # Safety
+///
+/// [engine] must be a valid pointer returned by [panda_engine_create].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn panda_engine_get_search_result_title(
+    engine: *const PandaEngine,
+    index: usize,
+) -> *const c_char {
+    let engine = unsafe { engine.as_ref() };
+    if let Some(engine) = engine {
+        if let Some(item) = engine.engine.snapshot().search_results.get(index) {
+            let c_str = CString::new(item.title.clone()).unwrap();
+            return c_str.into_raw();
+        }
+    }
+    ptr::null()
 }
 
 /// Returns the error message for the last error, if any.
@@ -417,8 +472,8 @@ mod tests {
     #[test]
     fn dispatch_play_returns_buffering_snapshot() {
         let engine = panda_engine_create(100);
-        unsafe { panda_engine_dispatch(engine, FFI_COMMAND_START_SESSION, 150) };
-        let outcome = unsafe { panda_engine_dispatch(engine, FFI_COMMAND_PLAY, 200) };
+        unsafe { panda_engine_dispatch(engine, FFI_COMMAND_START_SESSION, std::ptr::null(), 150) };
+        let outcome = unsafe { panda_engine_dispatch(engine, FFI_COMMAND_PLAY, std::ptr::null(), 200) };
         unsafe {
             panda_engine_destroy(engine);
         }
@@ -441,14 +496,14 @@ mod tests {
     #[test]
     fn dispatch_play_emits_effects_in_ffi() {
         let engine = panda_engine_create(100);
-        unsafe { panda_engine_dispatch(engine, FFI_COMMAND_START_SESSION, 150) };
+        unsafe { panda_engine_dispatch(engine, FFI_COMMAND_START_SESSION, std::ptr::null(), 150) };
         unsafe {
             let mut items = Vec::new();
             items.push(MediaItem { id: "1".to_string(), title: "S1".to_string(), artist: "A1".to_string() });
             (*engine).engine.queue().set_items(items);
         }
 
-        unsafe { panda_engine_dispatch(engine, FFI_COMMAND_PLAY, 200) };
+        unsafe { panda_engine_dispatch(engine, FFI_COMMAND_PLAY, std::ptr::null(), 200) };
         
         let count = unsafe { panda_engine_get_effects_count(engine) };
         assert!(count >= 2); // UpdateMetadata, RequestFocus, Play
@@ -458,6 +513,29 @@ mod tests {
         
         assert!(types.contains(&FFI_EFFECT_PLAY));
         assert!(types.contains(&FFI_EFFECT_REQUEST_AUDIO_FOCUS));
+
+        unsafe {
+            panda_engine_destroy(engine);
+        }
+    }
+
+    #[test]
+    fn search_updates_snapshot_results() {
+        let engine = panda_engine_create(100);
+        unsafe {
+            let mut items = Vec::new();
+            items.push(MediaItem { id: "1".to_string(), title: "Rust Song".to_string(), artist: "A".to_string() });
+            (*engine).engine.set_repository(Box::new(panda_engine_core::InMemoryRepository::new(items)));
+        }
+
+        let query = CString::new("Rust").unwrap();
+        let outcome = unsafe { panda_engine_dispatch(engine, FFI_COMMAND_SEARCH, query.as_ptr(), 200) };
+        
+        assert_eq!(1, outcome.snapshot.search_results_count);
+        
+        let id_ptr = unsafe { panda_engine_get_search_result_id(engine, 0) };
+        let id = unsafe { CString::from_raw(id_ptr as *mut c_char) }.to_string_lossy().into_owned();
+        assert_eq!("1", id);
 
         unsafe {
             panda_engine_destroy(engine);

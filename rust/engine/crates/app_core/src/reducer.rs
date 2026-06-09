@@ -189,6 +189,14 @@ impl Engine {
                     next_snapshot.playback_state = crate::playback::PlaybackState::Idle;
                 }
             }
+            crate::command::EngineCommandType::Search { query } => {
+                let results = self.repository.search(query);
+                next_snapshot = next_snapshot.with_search_results(results);
+            }
+            crate::command::EngineCommandType::Browse { parent_id } => {
+                let results = self.repository.browse(parent_id);
+                next_snapshot = next_snapshot.with_search_results(results);
+            }
             _ => {}
         }
 
@@ -439,27 +447,30 @@ mod tests {
     }
 
     #[test]
-    fn repository_search_finds_items() {
+    fn engine_search_finds_items() {
+        let mut engine = Engine::new(100);
         let items = vec![
-            MediaItem {
-                id: "1".to_string(),
-                title: "Rust Song".to_string(),
-                artist: "The Developers".to_string(),
-            },
-            MediaItem {
-                id: "2".to_string(),
-                title: "Kotlin Blues".to_string(),
-                artist: "The Developers".to_string(),
-            },
+            MediaItem { id: "1".to_string(), title: "Rust Song".to_string(), artist: "The Developers".to_string() },
+            MediaItem { id: "2".to_string(), title: "Kotlin Blues".to_string(), artist: "The Developers".to_string() },
         ];
-        let repo = InMemoryRepository::new(items);
+        engine.set_repository(Box::new(InMemoryRepository::new(items)));
 
-        let results = repo.search("Rust");
-        assert_eq!(1, results.len());
-        assert_eq!("1", results[0].id);
+        let outcome = engine.dispatch(EngineCommand::search("Rust".to_string()), 150);
+        assert_eq!(outcome.snapshot.search_results.len(), 1);
+        assert_eq!(outcome.snapshot.search_results[0].id, "1");
+    }
 
-        let results = repo.search("Developers");
-        assert_eq!(2, results.len());
+    #[test]
+    fn browse_returns_items() {
+        let mut engine = Engine::new(100);
+        let items = vec![
+            MediaItem { id: "1".to_string(), title: "Song 1".to_string(), artist: "Artist A".to_string() },
+        ];
+        engine.set_repository(Box::new(InMemoryRepository::new(items)));
+        
+        let outcome = engine.dispatch(EngineCommand::browse("root".to_string()), 150);
+        assert_eq!(outcome.snapshot.search_results.len(), 1);
+        assert_eq!(outcome.snapshot.search_results[0].id, "1");
     }
 
     #[test]

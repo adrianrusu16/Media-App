@@ -15,6 +15,10 @@ pub enum EngineCommandType {
     StartSession { user_id: String },
     /// Ends the current media session.
     EndSession,
+    /// Searches for media items matching the provided query string.
+    Search { query: String },
+    /// Retrieves a list of media items that are children of the specified parent ID.
+    Browse { parent_id: String },
     /// A command not recognized by this version of the engine.
     Unknown(String),
 }
@@ -34,6 +38,10 @@ impl EngineCommandType {
     pub const START_SESSION_WIRE: &'static str = "start_session";
     /// Wire value for EndSession command.
     pub const END_SESSION_WIRE: &'static str = "end_session";
+    /// Wire value for Search command.
+    pub const SEARCH_WIRE: &'static str = "search";
+    /// Wire value for Browse command.
+    pub const BROWSE_WIRE: &'static str = "browse";
 
     /// Maps a wire string value to its corresponding enum variant.
     pub fn from_wire(value: impl Into<String>) -> Self {
@@ -46,6 +54,8 @@ impl EngineCommandType {
             Self::SKIP_NEXT_WIRE => Self::SkipNext,
             Self::START_SESSION_WIRE => Self::StartSession { user_id: "unknown".to_string() },
             Self::END_SESSION_WIRE => Self::EndSession,
+            Self::SEARCH_WIRE => Self::Search { query: "".to_string() },
+            Self::BROWSE_WIRE => Self::Browse { parent_id: "root".to_string() },
             _ => Self::Unknown(value),
         }
     }
@@ -60,6 +70,8 @@ impl EngineCommandType {
             Self::SkipNext => Self::SKIP_NEXT_WIRE,
             Self::StartSession { .. } => Self::START_SESSION_WIRE,
             Self::EndSession => Self::END_SESSION_WIRE,
+            Self::Search { .. } => Self::SEARCH_WIRE,
+            Self::Browse { .. } => Self::BROWSE_WIRE,
             Self::Unknown(value) => value.as_str(),
         }
     }
@@ -116,5 +128,15 @@ impl EngineCommand {
     /// Creates an EndSession command.
     pub fn end_session() -> Self {
         Self::new(EngineCommandType::EndSession, None)
+    }
+
+    /// Creates a Search command.
+    pub fn search(query: String) -> Self {
+        Self::new(EngineCommandType::Search { query }, None)
+    }
+
+    /// Creates a Browse command.
+    pub fn browse(parent_id: String) -> Self {
+        Self::new(EngineCommandType::Browse { parent_id }, None)
     }
 }
