@@ -1,17 +1,25 @@
+# IntelliJ IDEA
+.idea/*
+!.idea/vcs.xml
+!.idea/runConfigurations.xml
 *.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
+*.ipr
+*.iws
+
+# Gradle
+.gradle/
+build/
 **/build/
-**/.kotlin/
-/captures
-.externalNativeBuild
-.cxx
+
+# Android
 local.properties
+/captures/
+.externalNativeBuild/
+.cxx/
+
+# Kotlin
+**/.kotlin/
+
+# OS
+.DS_Store
+Thumbs.db
