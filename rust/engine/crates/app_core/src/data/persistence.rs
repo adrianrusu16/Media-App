@@ -1,5 +1,5 @@
-use crate::queue::QueueManager;
-use crate::snapshot::EngineSnapshot;
+use crate::data::queue::QueueManager;
+use crate::model::snapshot::EngineSnapshot;
 
 /// Represents the persistent state of the engine.
 #[derive(Clone, serde::Serialize, serde::Deserialize)]

@@ -1,4 +1,4 @@
-use crate::repository::MediaItem;
+use crate::data::repository::MediaItem;
 use serde::{Deserialize, Serialize};
 
 /// Defines the playback mode for the queue.

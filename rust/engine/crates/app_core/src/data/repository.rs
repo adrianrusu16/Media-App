@@ -1,4 +1,4 @@
-use crate::snapshot::EngineSnapshot;
+use crate::model::snapshot::EngineSnapshot;
 
 use serde::{Deserialize, Serialize};
 

@@ -1,6 +1,6 @@
-use crate::command::EngineCommand;
-use crate::platform_event::EnginePlatformEvent;
-use crate::reducer::{Engine, EngineOutcome};
+use crate::model::command::EngineCommand;
+use crate::model::platform_event::EnginePlatformEvent;
+use crate::engine::core::{Engine, EngineOutcome};
 use std::sync::{Arc, Mutex};
 
 /// A thread-safe wrapper around the Engine.
@@ -46,7 +46,7 @@ impl ConcurrentEngine {
     /// Accesses the engine's snapshot in a thread-safe manner.
     ///
     /// Note: This returns a clone of the snapshot to avoid keeping the lock open.
-    pub fn snapshot(&self) -> crate::snapshot::EngineSnapshot {
+    pub fn snapshot(&self) -> crate::model::snapshot::EngineSnapshot {
         let engine = self.inner.lock().unwrap();
         engine.snapshot().clone()
     }

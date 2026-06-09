@@ -1,5 +1,5 @@
-use crate::event::EngineEvent;
-use crate::snapshot::EngineSnapshot;
+use crate::model::event::EngineEvent;
+use crate::model::snapshot::EngineSnapshot;
 use std::sync::{Arc, Mutex};
 
 /// Trait for observing engine state changes and events.

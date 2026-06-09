@@ -1,24 +1,12 @@
-mod command;
-mod concurrent;
-mod effect;
-mod error;
-mod event;
-mod middleware;
-mod observability;
-mod persistence;
-mod platform_event;
-mod playback;
-mod player;
-mod queue;
-mod reducer;
-mod repository;
-mod service;
-mod session;
-mod snapshot;
-mod state_machine;
+pub mod data;
+pub mod engine;
+pub mod middleware;
+pub mod model;
+pub mod observability;
+pub mod services;
 
 pub mod test_utils {
-    use crate::persistence::{EnginePersistentState, Persistence};
+    use crate::data::persistence::{EnginePersistentState, Persistence};
     use std::sync::Mutex;
 
     pub struct MockPersistence {
@@ -50,23 +38,23 @@ pub mod test_utils {
     }
 }
 
-pub use command::{EngineCommand, EngineCommandType};
-pub use concurrent::ConcurrentEngine;
-pub use effect::EngineEffect;
-pub use error::{EngineError, EngineErrorType};
-pub use event::{EngineEvent, EngineEventType};
-pub use middleware::{
+pub use crate::model::command::{EngineCommand, EngineCommandType};
+pub use crate::engine::concurrent::ConcurrentEngine;
+pub use crate::model::effect::EngineEffect;
+pub use crate::model::error::{EngineError, EngineErrorType};
+pub use crate::model::event::{EngineEvent, EngineEventType};
+pub use crate::middleware::{
     AnalyticsMiddleware, FocusMiddleware, LoggerMiddleware, Middleware, MiddlewarePipeline,
     RecoveryMiddleware, TelemetryMiddleware, ThrottlingMiddleware, ValidationMiddleware,
 };
-pub use observability::{EngineObserver, EventBus};
-pub use persistence::{EnginePersistentState, NoopPersistence, Persistence};
-pub use platform_event::{EnginePlatformEvent, EnginePlatformEventType};
-pub use playback::{ControlState, PlaybackState, PlayerControls, RestrictionState};
-pub use player::{MediaPlayer, MockPlayer};
-pub use queue::{QueueManager, RepeatMode};
-pub use reducer::{Engine, EngineOutcome};
-pub use repository::{InMemoryRepository, MediaItem, MediaRepository};
-pub use service::{EngineService, ServiceManager};
-pub use session::MediaSession;
-pub use snapshot::EngineSnapshot;
+pub use crate::observability::{EngineObserver, EventBus};
+pub use crate::data::persistence::{EnginePersistentState, NoopPersistence, Persistence};
+pub use crate::model::platform_event::{EnginePlatformEvent, EnginePlatformEventType};
+pub use crate::model::playback::{ControlState, PlaybackState, PlayerControls, RestrictionState};
+pub use crate::services::player::{MediaPlayer, MockPlayer};
+pub use crate::data::queue::{QueueManager, RepeatMode};
+pub use crate::engine::core::{Engine, EngineOutcome};
+pub use crate::data::repository::{InMemoryRepository, MediaItem, MediaRepository};
+pub use crate::services::service::{EngineService, ServiceManager};
+pub use crate::data::session::MediaSession;
+pub use crate::model::snapshot::EngineSnapshot;

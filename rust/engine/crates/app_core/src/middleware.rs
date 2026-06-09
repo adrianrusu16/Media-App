@@ -1,9 +1,9 @@
-use crate::command::EngineCommand;
-use crate::error::{EngineError, EngineErrorType};
-use crate::event::EngineEvent;
+use crate::model::command::{EngineCommand, EngineCommandType};
+use crate::model::error::{EngineError, EngineErrorType};
+use crate::model::event::{EngineEvent, EngineEventType};
 use crate::observability::EventBus;
-use crate::playback::PlaybackState;
-use crate::reducer::{Engine, EngineOutcome};
+use crate::model::playback::PlaybackState;
+use crate::engine::core::{Engine, EngineOutcome};
 use std::sync::Arc;
 use tracing::{info, warn};
 
@@ -60,7 +60,7 @@ impl Middleware for TelemetryMiddleware {
 pub struct FocusMiddleware;
 impl Middleware for FocusMiddleware {
     fn before_dispatch(&self, _engine: &Engine, command: &EngineCommand) {
-        if command.command_type == crate::command::EngineCommandType::Play {
+        if command.command_type == EngineCommandType::Play {
             info!("[FocusMiddleware] Requesting audio focus before Play...");
             // In a real app, this might trigger a platform call or internal check
         }
@@ -112,7 +112,7 @@ impl Middleware for ValidationMiddleware {
             // but for now, the warning serves as an audit log for the middleware decision.
         }
 
-        if command.command_type == crate::command::EngineCommandType::Play
+        if command.command_type == EngineCommandType::Play
             && snapshot.session.is_none()
         {
             warn!(
@@ -197,16 +197,16 @@ impl AnalyticsMiddleware {
 impl Middleware for AnalyticsMiddleware {
     fn before_dispatch(&self, _engine: &Engine, command: &EngineCommand) {
         match command.command_type {
-            crate::command::EngineCommandType::Play => {
+            EngineCommandType::Play => {
                 self.report("play_requested", None, "{}");
             }
-            crate::command::EngineCommandType::Pause => {
+            EngineCommandType::Pause => {
                 self.report("pause_requested", None, "{}");
             }
-            crate::command::EngineCommandType::SkipNext => {
+            EngineCommandType::SkipNext => {
                 self.report("skip_next_requested", None, "{}");
             }
-            crate::command::EngineCommandType::SkipPrevious => {
+            EngineCommandType::SkipPrevious => {
                 self.report("skip_prev_requested", None, "{}");
             }
             _ => {}
@@ -217,7 +217,7 @@ impl Middleware for AnalyticsMiddleware {
         let snapshot = engine.snapshot();
 
         // Report state transitions
-        if outcome.event.event_type == crate::event::EngineEventType::CommandApplied {
+        if outcome.event.event_type == EngineEventType::CommandApplied {
             self.report(
                 "state_transition",
                 snapshot.media_id.as_deref(),

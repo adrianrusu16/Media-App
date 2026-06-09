@@ -1,6 +1,6 @@
-use crate::command::EngineCommandType;
-use crate::platform_event::EnginePlatformEventType;
-use crate::playback::PlaybackState;
+use crate::model::command::EngineCommandType;
+use crate::model::platform_event::EnginePlatformEventType;
+use crate::model::playback::PlaybackState;
 
 /// Logic for managing media playback state transitions.
 pub struct StateMachine;

@@ -1,6 +1,6 @@
-use crate::command::EngineCommand;
-use crate::playback::PlaybackState;
-use crate::reducer::Engine;
+use crate::model::command::EngineCommand;
+use crate::model::playback::PlaybackState;
+use crate::engine::core::Engine;
 
 /// Trait for background services that need to perform periodic work.
 pub trait EngineService: Send + Sync {

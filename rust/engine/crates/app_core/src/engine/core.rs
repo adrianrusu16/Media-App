@@ -1,21 +1,21 @@
-use crate::command::{EngineCommand, EngineCommandType};
-use crate::effect::EngineEffect;
-use crate::error::EngineError;
-use crate::event::EngineEvent;
+use crate::model::command::{EngineCommand, EngineCommandType};
+use crate::model::effect::EngineEffect;
+use crate::model::error::EngineError;
+use crate::model::event::EngineEvent;
 use crate::middleware::MiddlewarePipeline;
-use crate::persistence::{EnginePersistentState, NoopPersistence, Persistence};
-use crate::platform_event::{EnginePlatformEvent, EnginePlatformEventType};
-use crate::playback::PlaybackState;
-use crate::player::MediaPlayer;
-use crate::queue::QueueManager;
-use crate::repository::{InMemoryRepository, MediaRepository};
-use crate::session::MediaSession;
-use crate::snapshot::EngineSnapshot;
-use crate::state_machine::StateMachine;
+use crate::data::persistence::{EnginePersistentState, NoopPersistence, Persistence};
+use crate::model::platform_event::{EnginePlatformEvent, EnginePlatformEventType};
+use crate::model::playback::PlaybackState;
+use crate::services::player::MediaPlayer;
+use crate::data::queue::QueueManager;
+use crate::data::repository::{InMemoryRepository, MediaRepository};
+use crate::data::session::MediaSession;
+use crate::model::snapshot::EngineSnapshot;
+use crate::engine::state_machine::StateMachine;
 use tracing::{info, instrument, warn};
 
 use crate::observability::EventBus;
-use crate::service::ServiceManager;
+use crate::services::service::ServiceManager;
 use std::sync::Arc;
 
 /// Result of an engine operation, containing the new state and an event to be broadcasted.
@@ -192,8 +192,8 @@ impl Engine {
     }
 
     /// Derives player controls from the current engine state.
-    fn derive_controls(&self, snapshot: &EngineSnapshot) -> crate::playback::PlayerControls {
-        use crate::playback::{ControlState, PlayerControls};
+    fn derive_controls(&self, snapshot: &EngineSnapshot) -> crate::model::playback::PlayerControls {
+        use crate::model::playback::{ControlState, PlayerControls};
 
         let can_dispatch = snapshot.can_dispatch();
         let is_playing = snapshot.playback_state == PlaybackState::Playing;
@@ -221,7 +221,7 @@ impl Engine {
 
     /// Helper to update the snapshot with new media and emit metadata effects.
     fn update_media_state(
-        media: &crate::repository::MediaItem,
+        media: &crate::data::repository::MediaItem,
         snapshot: EngineSnapshot,
         effects: &mut Vec<EngineEffect>,
     ) -> EngineSnapshot {
@@ -449,11 +449,11 @@ impl Engine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::command::EngineCommandType;
-    use crate::event::EngineEventType;
-    use crate::platform_event::EnginePlatformEventType;
-    use crate::playback::PlaybackState;
-    use crate::repository::MediaItem;
+    use crate::model::command::EngineCommandType;
+    use crate::model::event::EngineEventType;
+    use crate::model::platform_event::EnginePlatformEventType;
+    use crate::model::playback::PlaybackState;
+    use crate::data::repository::MediaItem;
 
     #[test]
     fn starts_idle() {
@@ -596,7 +596,7 @@ mod tests {
         // Wait, I should check my QueueManager impl)
         engine
             .queue()
-            .set_repeat_mode(crate::queue::RepeatMode::All);
+            .set_repeat_mode(crate::data::queue::RepeatMode::All);
         engine.dispatch(EngineCommand::skip_previous(), 400);
         assert_eq!(engine.snapshot().media_id, Some("1".to_string()));
     }
@@ -726,7 +726,7 @@ mod tests {
         engine.dispatch(EngineCommand::play(), 150);
 
         // Simulate a network error platform event
-        let error = EngineError::new(crate::error::EngineErrorType::NetworkError, "No net", false);
+        let error = EngineError::new(crate::model::error::EngineErrorType::NetworkError, "No net", false);
         let payload = serde_json::to_string(&error).unwrap();
         let event = EnginePlatformEvent::new(EnginePlatformEventType::MediaError, Some(payload));
 
@@ -736,13 +736,13 @@ mod tests {
         assert_eq!(outcome.snapshot.media_id, Some("2".to_string()));
         assert_eq!(
             outcome.snapshot.last_error.unwrap().error_type,
-            crate::error::EngineErrorType::MediaSkipped
+            crate::model::error::EngineErrorType::MediaSkipped
         );
     }
 
     #[test]
     fn player_bridge_drives_mock_player() {
-        use crate::player::MockPlayer;
+        use crate::services::player::MockPlayer;
         let mut engine = Engine::new(100);
         let player = Box::new(MockPlayer::new());
         engine.set_player(player);
