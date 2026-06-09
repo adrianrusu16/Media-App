@@ -14,7 +14,7 @@ use crate::model::snapshot::EngineSnapshot;
 use crate::services::player::MediaPlayer;
 use tracing::{info, instrument, warn};
 
-use crate::observability::EventBus;
+use crate::engine::observability::EventBus;
 use crate::services::service::ServiceManager;
 use std::sync::Arc;
 

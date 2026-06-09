@@ -2,7 +2,6 @@ pub mod data;
 pub mod engine;
 pub mod middleware;
 pub mod model;
-pub mod observability;
 pub mod services;
 
 pub mod test_utils {
@@ -44,6 +43,7 @@ pub use crate::data::repository::{InMemoryRepository, MediaItem, MediaItemType, 
 pub use crate::data::session::MediaSession;
 pub use crate::engine::concurrent::ConcurrentEngine;
 pub use crate::engine::core::{Engine, EngineOutcome};
+pub use crate::engine::observability::{EngineObserver, EventBus};
 pub use crate::middleware::{
     AnalyticsMiddleware, FocusMiddleware, LoggerMiddleware, Middleware, MiddlewarePipeline,
     RecoveryMiddleware, TelemetryMiddleware, ThrottlingMiddleware, ValidationMiddleware,
@@ -55,6 +55,5 @@ pub use crate::model::event::{EngineEvent, EngineEventType};
 pub use crate::model::platform_event::{EnginePlatformEvent, EnginePlatformEventType};
 pub use crate::model::playback::{ControlState, PlaybackState, PlayerControls, RestrictionState};
 pub use crate::model::snapshot::EngineSnapshot;
-pub use crate::observability::{EngineObserver, EventBus};
 pub use crate::services::player::{MediaPlayer, MockPlayer};
 pub use crate::services::service::{EngineService, ServiceManager};
