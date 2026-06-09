@@ -41,8 +41,9 @@ from this directory.
 
 1. **Initialize Logging**: `panda_engine_init_logging(level)`
 2. **Create Engine**: `panda_engine_create(now_millis)`
-3. **Set Observer**: `panda_engine_set_observer(...)` for real-time state/event callbacks.
-4. **Dispatch Commands**: `panda_engine_dispatch(engine, type, payload, now_millis)`
-5. **Process Audio**: Stream PCM data via `EngineCommandType::ProcessVoiceAudio` during voice interactions.
-6. **Handle Effects**: After each tick or dispatch, query effects using `panda_engine_get_effects_count/types` and execute them (e.g., call ExoPlayer).
-7. **Manage Persistence**: Use `panda_engine_save` and `panda_engine_restore` during app lifecycle events.
+3. **Enable Vosk (Optional)**: `panda_engine_enable_vosk(engine, model_path)` - Enables offline ASR.
+4. **Set Observer**: `panda_engine_set_observer(...)` for real-time state/event callbacks.
+5. **Dispatch Commands**: `panda_engine_dispatch(engine, type, payload, now_millis)`
+6. **Process Audio**: Stream PCM 16-bit 16kHz Mono data via `EngineCommandType::ProcessVoiceAudio` during voice interactions.
+7. **Handle Effects**: After each tick or dispatch, query effects using `panda_engine_get_effects_count/types` and execute them (e.g., call ExoPlayer).
+8. **Manage Persistence**: Use `panda_engine_save` and `panda_engine_restore` during app lifecycle events.

@@ -57,3 +57,6 @@ pub use crate::model::playback::{ControlState, PlaybackState, PlayerControls, Re
 pub use crate::model::snapshot::EngineSnapshot;
 pub use crate::services::player::{MediaPlayer, MockPlayer};
 pub use crate::services::service::{EngineService, ServiceManager};
+pub use crate::services::voice::{
+    MockVoiceEngine, VoiceEngine, VoiceInteractionResult, VoskVoiceEngine,
+};

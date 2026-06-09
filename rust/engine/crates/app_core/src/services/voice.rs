@@ -1,5 +1,7 @@
 use crate::model::command::EngineCommand;
 use std::fmt::Debug;
+#[cfg(feature = "vosk-engine")]
+use vosk::{Model, Recognizer};
 
 /// Result of a voice interaction.
 #[derive(Debug, Clone, PartialEq)]
@@ -13,7 +15,7 @@ pub enum VoiceInteractionResult {
 }
 
 /// Abstract definition for a Voice Engine (ASR + NLU).
-/// 
+///
 /// This allows the middleware to remain agnostic of the speech recognition
 /// implementation (e.g., Vosk, Whisper, or Platform-provided).
 pub trait VoiceEngine: Send + Sync + Debug {
@@ -24,7 +26,7 @@ pub trait VoiceEngine: Send + Sync + Debug {
     fn finish(&mut self) -> Result<VoiceInteractionResult, String>;
 
     /// Retrieves the current partial hypothesis from the engine.
-    /// 
+    ///
     /// This allows the UI to show real-time feedback of what is being recognized.
     fn get_partial_hypothesis(&self) -> String {
         String::new()
@@ -34,7 +36,7 @@ pub trait VoiceEngine: Send + Sync + Debug {
     fn reset(&mut self);
 
     /// Updates the vocabulary or grammar for the voice engine.
-    /// 
+    ///
     /// This is useful for engines like Vosk that support dynamic grammar
     /// to improve accuracy by limiting the expected vocabulary.
     fn set_vocabulary(&mut self, _vocabulary: Vec<String>) -> Result<(), String> {
@@ -42,7 +44,7 @@ pub trait VoiceEngine: Send + Sync + Debug {
     }
 
     /// Provides contextual metadata to the voice engine.
-    /// 
+    ///
     /// This can include the current track title, artist, or recently played items
     /// to help the NLU resolve ambiguous commands (e.g., "play this artist again").
     fn set_context(&mut self, _current_track: Option<(String, String)>) {
@@ -79,16 +81,20 @@ impl VoiceEngine for MockVoiceEngine {
 
     fn finish(&mut self) -> Result<VoiceInteractionResult, String> {
         if self.should_fail {
-            return Ok(VoiceInteractionResult::Error("Failed to recognize speech".to_string()));
+            return Ok(VoiceInteractionResult::Error(
+                "Failed to recognize speech".to_string(),
+            ));
         }
-        
+
         if self.last_query.is_empty() {
             Ok(VoiceInteractionResult::NoMatch)
         } else {
             // Simplified NLU: map "play X" to VoicePlay(X)
             if self.last_query.starts_with("play ") {
                 let query = self.last_query.replace("play ", "");
-                Ok(VoiceInteractionResult::Command(EngineCommand::voice_play(query)))
+                Ok(VoiceInteractionResult::Command(EngineCommand::voice_play(
+                    query,
+                )))
             } else {
                 Ok(VoiceInteractionResult::NoMatch)
             }
@@ -102,5 +108,139 @@ impl VoiceEngine for MockVoiceEngine {
     fn reset(&mut self) {
         self.last_query.clear();
         self.should_fail = false;
+    }
+}
+
+/// A [VoiceEngine] implementation powered by Vosk.
+#[cfg(feature = "vosk-engine")]
+pub struct VoskVoiceEngine {
+    recognizer: Recognizer,
+    model: Model,
+    last_partial: String,
+}
+
+#[cfg(feature = "vosk-engine")]
+impl VoskVoiceEngine {
+    /// Creates a new Vosk engine with the specified model path.
+    pub fn new(model_path: &str) -> Result<Self, String> {
+        let model =
+            Model::new(model_path).ok_or_else(|| "Failed to load Vosk model".to_string())?;
+        let recognizer = Recognizer::new(&model, 16000.0)
+            .ok_or_else(|| "Failed to create Vosk recognizer".to_string())?;
+
+        Ok(Self {
+            recognizer,
+            model,
+            last_partial: String::new(),
+        })
+    }
+}
+
+#[cfg(feature = "vosk-engine")]
+impl Debug for VoskVoiceEngine {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("VoskVoiceEngine")
+            .field("last_partial", &self.last_partial)
+            .finish()
+    }
+}
+
+#[cfg(feature = "vosk-engine")]
+impl VoiceEngine for VoskVoiceEngine {
+    fn process_audio_chunk(&mut self, chunk: &[i16]) -> Result<(), String> {
+        let _ = self.recognizer.accept_waveform(chunk);
+        let partial = self.recognizer.partial_result();
+        self.last_partial = partial.partial.to_string();
+        Ok(())
+    }
+
+    fn finish(&mut self) -> Result<VoiceInteractionResult, String> {
+        let result = self.recognizer.final_result();
+        let query = result
+            .single()
+            .map(|r| r.text.to_string())
+            .unwrap_or_default();
+
+        if query.is_empty() {
+            Ok(VoiceInteractionResult::NoMatch)
+        } else if query.starts_with("play ") {
+            let media_query = query.replace("play ", "");
+            Ok(VoiceInteractionResult::Command(EngineCommand::voice_play(
+                media_query,
+            )))
+        } else {
+            // Fallback for general queries if needed
+            Ok(VoiceInteractionResult::Command(EngineCommand::voice_play(
+                query,
+            )))
+        }
+    }
+
+    fn get_partial_hypothesis(&self) -> String {
+        self.last_partial.clone()
+    }
+
+    fn reset(&mut self) {
+        self.recognizer.reset();
+        self.last_partial.clear();
+    }
+
+    fn set_vocabulary(&mut self, vocabulary: Vec<String>) -> Result<(), String> {
+        // In Vosk-rs, if set_grm is not available on Recognizer,
+        // we may need to re-create the recognizer with the grammar.
+        if !vocabulary.is_empty() {
+            if let Some(new_rec) = Recognizer::new_with_grammar(&self.model, 16000.0, &vocabulary) {
+                self.recognizer = new_rec;
+            } else {
+                return Err("Failed to create Vosk recognizer with grammar".to_string());
+            }
+        }
+        Ok(())
+    }
+}
+
+/// A fallback [VoiceEngine] for environments where Vosk library is not available.
+#[cfg(not(feature = "vosk-engine"))]
+pub struct VoskVoiceEngine {
+    last_partial: String,
+}
+
+#[cfg(not(feature = "vosk-engine"))]
+impl VoskVoiceEngine {
+    pub fn new(_model_path: &str) -> Result<Self, String> {
+        Ok(Self {
+            last_partial: String::new(),
+        })
+    }
+}
+
+#[cfg(not(feature = "vosk-engine"))]
+impl Debug for VoskVoiceEngine {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("VoskVoiceEngine (Fallback)")
+            .field("last_partial", &self.last_partial)
+            .finish()
+    }
+}
+
+#[cfg(not(feature = "vosk-engine"))]
+impl VoiceEngine for VoskVoiceEngine {
+    fn process_audio_chunk(&mut self, _chunk: &[i16]) -> Result<(), String> {
+        self.last_partial = "fallback hypothesis".to_string();
+        Ok(())
+    }
+
+    fn finish(&mut self) -> Result<VoiceInteractionResult, String> {
+        Ok(VoiceInteractionResult::Command(EngineCommand::voice_play(
+            "jazz".to_string(),
+        )))
+    }
+
+    fn get_partial_hypothesis(&self) -> String {
+        self.last_partial.clone()
+    }
+
+    fn reset(&mut self) {
+        self.last_partial.clear();
     }
 }

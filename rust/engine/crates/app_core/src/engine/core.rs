@@ -395,7 +395,9 @@ impl Engine {
                 if let Some(ve) = &mut self.voice_engine {
                     ve.reset();
                     // Provide contextual metadata to help resolution
-                    let context = if let (Some(title), Some(artist)) = (&self.snapshot.title, &self.snapshot.artist) {
+                    let context = if let (Some(title), Some(artist)) =
+                        (&self.snapshot.title, &self.snapshot.artist)
+                    {
                         Some((title.clone(), artist.clone()))
                     } else {
                         None
@@ -1070,19 +1072,17 @@ mod tests {
 
     #[test]
     fn voice_interaction_lifecycle() {
-        use crate::services::voice::MockVoiceEngine;
         use crate::data::repository::MediaItem;
+        use crate::services::voice::MockVoiceEngine;
 
         let mut engine = Engine::new(100);
         engine.set_voice_engine(Box::new(MockVoiceEngine::new()));
-        engine.set_repository(Box::new(InMemoryRepository::new(vec![
-            MediaItem {
-                id: "jazz_1".to_string(),
-                title: "Jazz Song".to_string(),
-                artist: "Jazz Artist".to_string(),
-                ..Default::default()
-            }
-        ])));
+        engine.set_repository(Box::new(InMemoryRepository::new(vec![MediaItem {
+            id: "jazz_1".to_string(),
+            title: "Jazz Song".to_string(),
+            artist: "Jazz Artist".to_string(),
+            ..Default::default()
+        }])));
 
         // 1. Start interaction
         let outcome = engine.dispatch(EngineCommand::start_voice_interaction(), 110);
@@ -1100,7 +1100,7 @@ mod tests {
         assert!(!outcome.snapshot.is_busy);
         assert!(outcome.effects.contains(&EngineEffect::StopAudioCapture));
         assert!(outcome.effects.contains(&EngineEffect::UnduckAudio));
-        
+
         // Verify it resolved to a play command
         assert_eq!(outcome.snapshot.playback_state, PlaybackState::Buffering);
         assert_eq!(outcome.snapshot.media_id, Some("jazz_1".to_string()));

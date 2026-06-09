@@ -8,6 +8,7 @@ use panda_engine_core::{
     ConcurrentEngine, Engine, EngineCommand, EngineCommandType, EngineEffect, EngineEvent,
     EngineEventType, EngineObserver, EngineOutcome, EngineSnapshot, LoggerMiddleware, MediaItem,
     MiddlewarePipeline, PlaybackState, RepeatMode, RestrictionState, TelemetryMiddleware,
+    VoskVoiceEngine,
 };
 
 pub const FFI_COMMAND_BOOTSTRAP: i32 = 0;
@@ -290,6 +291,37 @@ pub unsafe extern "C" fn panda_engine_tick(
 pub unsafe extern "C" fn panda_engine_destroy(engine: *mut PandaEngine) {
     if !engine.is_null() {
         drop(unsafe { Box::from_raw(engine) });
+    }
+}
+
+/// Enables the Vosk voice engine with the specified model path.
+///
+/// # Safety
+/// [engine] must be a valid pointer returned by [panda_engine_create].
+/// [model_path] must be a valid null-terminated string.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn panda_engine_enable_vosk(
+    engine: *mut PandaEngine,
+    model_path: *const c_char,
+) -> bool {
+    let engine = unsafe { engine.as_mut() };
+    let model_path = unsafe { std::ffi::CStr::from_ptr(model_path).to_str() };
+
+    if let (Some(engine), Ok(path)) = (engine, model_path) {
+        match VoskVoiceEngine::new(path) {
+            Ok(vosk) => {
+                engine
+                    .engine
+                    .with_engine(|e| e.set_voice_engine(Box::new(vosk)));
+                true
+            }
+            Err(e) => {
+                tracing::error!("Failed to enable Vosk: {}", e);
+                false
+            }
+        }
+    } else {
+        false
     }
 }
 
@@ -745,12 +777,14 @@ pub unsafe extern "C" fn panda_engine_save(engine: *const PandaEngine) -> bool {
 }
 
 /// Returns the current voice hypothesis.
-/// 
+///
 /// # Safety
 /// The `engine` pointer must be a valid, non-null pointer to a `PandaEngine`.
 /// The caller is responsible for freeing the returned string using [panda_engine_free_string].
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn panda_engine_get_voice_hypothesis(engine: *const PandaEngine) -> *mut c_char {
+pub unsafe extern "C" fn panda_engine_get_voice_hypothesis(
+    engine: *const PandaEngine,
+) -> *mut c_char {
     let engine = unsafe { engine.as_ref() };
     if let Some(engine) = engine {
         let snapshot = engine.engine.snapshot();
