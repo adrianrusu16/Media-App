@@ -12,6 +12,7 @@ use crate::model::platform_event::{EnginePlatformEvent, EnginePlatformEventType}
 use crate::model::playback::PlaybackState;
 use crate::model::snapshot::EngineSnapshot;
 use crate::services::player::MediaPlayer;
+use crate::services::voice::{VoiceEngine, VoiceInteractionResult};
 use tracing::{info, instrument, warn};
 
 use crate::engine::observability::EventBus;
@@ -43,6 +44,7 @@ pub struct Engine {
     event_bus: Arc<EventBus>,
     service_manager: ServiceManager,
     player: Option<Box<dyn MediaPlayer>>,
+    voice_engine: Option<Box<dyn VoiceEngine>>,
 }
 
 impl Default for Engine {
@@ -58,6 +60,7 @@ impl Default for Engine {
             event_bus: bus,
             service_manager: ServiceManager::new(),
             player: None,
+            voice_engine: None,
         }
     }
 }
@@ -89,6 +92,7 @@ impl Engine {
             event_bus: bus,
             service_manager: ServiceManager::new(),
             player: None,
+            voice_engine: None,
         };
 
         let mut final_snapshot = engine.snapshot.clone();
@@ -142,6 +146,11 @@ impl Engine {
     /// Sets the media player for the engine.
     pub fn set_player(&mut self, player: Box<dyn MediaPlayer>) {
         self.player = Some(player);
+    }
+
+    /// Sets the voice engine for the engine.
+    pub fn set_voice_engine(&mut self, voice_engine: Box<dyn VoiceEngine>) {
+        self.voice_engine = Some(voice_engine);
     }
 
     /// Executes any side effects by driving the player and other components.
@@ -334,6 +343,54 @@ impl Engine {
                 self.config = config.clone();
                 info!("Engine configuration updated: {:?}", config);
             }
+            EngineCommandType::StartVoiceInteraction => {
+                next_snapshot = next_snapshot.with_busy(true);
+                if let Some(ve) = &mut self.voice_engine {
+                    ve.reset();
+                }
+                effects.push(EngineEffect::StartAudioCapture);
+                info!("Voice interaction started");
+            }
+            EngineCommandType::StopVoiceInteraction => {
+                if let Some(ve) = &mut self.voice_engine {
+                    match ve.finish() {
+                        Ok(VoiceInteractionResult::Command(cmd)) => {
+                            info!("Voice command determined: {:?}", cmd);
+                            // Recursively dispatch the resolved command
+                            let outcome = self.dispatch(cmd, now_epoch_millis);
+                            // Merge effects and update snapshot from the outcome
+                            effects.extend(outcome.effects);
+                            next_snapshot = outcome.snapshot;
+                        }
+                        Ok(VoiceInteractionResult::Error(err)) => {
+                            warn!("Voice interaction error: {}", err);
+                            effects.push(EngineEffect::NotifyUser { message: err });
+                        }
+                        Ok(VoiceInteractionResult::NoMatch) => {
+                            info!("No voice command match found");
+                            effects.push(EngineEffect::NotifyUser {
+                                message: "I didn't catch that. Could you repeat?".to_string(),
+                            });
+                        }
+                        Err(err) => {
+                            warn!("Voice engine failure: {}", err);
+                            effects.push(EngineEffect::NotifyUser { message: err });
+                        }
+                    }
+                } else {
+                    // Fallback: if no internal voice engine, maybe the platform handled it.
+                    info!("Voice interaction stopped (no internal engine)");
+                }
+                effects.push(EngineEffect::StopAudioCapture);
+                next_snapshot = next_snapshot.with_busy(false);
+            }
+            EngineCommandType::ProcessVoiceAudio { chunk } => {
+                if let Some(ve) = &mut self.voice_engine
+                    && let Err(e) = ve.process_audio_chunk(chunk)
+                {
+                    warn!("Failed to process voice audio chunk: {}", e);
+                }
+            }
             EngineCommandType::VoicePlay { query } => {
                 next_snapshot = next_snapshot.with_busy(true);
                 let results = self.repository.search(query);
@@ -341,6 +398,11 @@ impl Engine {
                     let media = first.clone();
                     next_snapshot = Self::update_media_state(&media, next_snapshot, &mut effects);
                     next_snapshot.playback_state = PlaybackState::Buffering;
+                } else {
+                    info!("Voice search found no results for: {}", query);
+                    effects.push(EngineEffect::NotifyUser {
+                        message: format!("No results found for {}", query),
+                    });
                 }
                 next_snapshot = next_snapshot.with_busy(false);
             }
@@ -920,6 +982,55 @@ mod tests {
         let snapshot = engine.snapshot();
         assert_eq!(snapshot.playback_state, PlaybackState::Buffering);
         assert_eq!(snapshot.media_id, Some("1".to_string()));
+    }
+
+    #[test]
+    fn voice_play_no_results_emits_notify() {
+        let mut engine = Engine::new(100);
+        engine.set_repository(Box::new(InMemoryRepository::new(vec![])));
+
+        let outcome = engine.dispatch(EngineCommand::voice_play("NonExistent".to_string()), 150);
+
+        assert!(outcome.effects.iter().any(|e| match e {
+            EngineEffect::NotifyUser { message } => message.contains("No results found"),
+            _ => false,
+        }));
+        // State should remain Idle (default)
+        assert_eq!(engine.snapshot().playback_state, PlaybackState::Idle);
+    }
+
+    #[test]
+    fn voice_interaction_lifecycle() {
+        use crate::services::voice::MockVoiceEngine;
+        use crate::data::repository::MediaItem;
+
+        let mut engine = Engine::new(100);
+        engine.set_voice_engine(Box::new(MockVoiceEngine::new()));
+        engine.set_repository(Box::new(InMemoryRepository::new(vec![
+            MediaItem {
+                id: "jazz_1".to_string(),
+                title: "Jazz Song".to_string(),
+                artist: "Jazz Artist".to_string(),
+                ..Default::default()
+            }
+        ])));
+
+        // 1. Start interaction
+        let outcome = engine.dispatch(EngineCommand::start_voice_interaction(), 110);
+        assert!(outcome.snapshot.is_busy);
+        assert!(outcome.effects.contains(&EngineEffect::StartAudioCapture));
+
+        // 2. Process audio
+        engine.dispatch(EngineCommand::process_voice_audio(vec![0; 100]), 120);
+
+        // 3. Stop interaction (triggers finish -> VoicePlay("jazz"))
+        let outcome = engine.dispatch(EngineCommand::stop_voice_interaction(), 130);
+        assert!(!outcome.snapshot.is_busy);
+        assert!(outcome.effects.contains(&EngineEffect::StopAudioCapture));
+        
+        // Verify it resolved to a play command
+        assert_eq!(outcome.snapshot.playback_state, PlaybackState::Buffering);
+        assert_eq!(outcome.snapshot.media_id, Some("jazz_1".to_string()));
     }
 
     #[test]

@@ -21,6 +21,9 @@ pub const FFI_COMMAND_SEARCH: i32 = 7;
 pub const FFI_COMMAND_BROWSE: i32 = 8;
 pub const FFI_COMMAND_SET_SPEED: i32 = 9;
 pub const FFI_COMMAND_SEEK: i32 = 10;
+pub const FFI_COMMAND_START_VOICE: i32 = 11;
+pub const FFI_COMMAND_STOP_VOICE: i32 = 12;
+pub const FFI_COMMAND_PROCESS_VOICE: i32 = 13;
 pub const FFI_COMMAND_UNKNOWN: i32 = -1;
 
 pub const FFI_PLAYBACK_IDLE: i32 = 0;
@@ -55,6 +58,9 @@ pub const FFI_EFFECT_UPDATE_METADATA: i32 = 6;
 pub const FFI_EFFECT_SESSION_STARTED: i32 = 7;
 pub const FFI_EFFECT_SESSION_ENDED: i32 = 8;
 pub const FFI_EFFECT_SET_SPEED: i32 = 9;
+pub const FFI_EFFECT_NOTIFY_USER: i32 = 10;
+pub const FFI_EFFECT_START_AUDIO_CAPTURE: i32 = 11;
+pub const FFI_EFFECT_STOP_AUDIO_CAPTURE: i32 = 12;
 
 pub const FFI_ERROR_NONE: i32 = 0;
 pub const FFI_ERROR_NOT_FOUND: i32 = 1;
@@ -382,6 +388,16 @@ pub unsafe extern "C" fn panda_engine_dispatch(
                         None,
                     )
                 }
+                FFI_COMMAND_PROCESS_VOICE => {
+                    // Expecting payload to be a comma-separated list of i16 for simplicity in this demo
+                    // In production, we'd use a more efficient way to pass buffers (e.g. raw pointer)
+                    let chunk = payload_str
+                        .unwrap_or_default()
+                        .split(',')
+                        .filter_map(|s| s.trim().parse::<i16>().ok())
+                        .collect();
+                    EngineCommand::process_voice_audio(chunk)
+                }
                 _ => EngineCommand::new(command_from_ffi(command_type), payload_str),
             };
 
@@ -551,6 +567,25 @@ pub unsafe extern "C" fn panda_engine_get_effect_media_id(
     ptr::null()
 }
 
+/// Returns the message for the NotifyUser effect at the specified index.
+///
+/// # Safety
+/// The `engine` pointer must be a valid, non-null pointer to a `PandaEngine`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn panda_engine_get_effect_notify_message(
+    engine: *const PandaEngine,
+    index: usize,
+) -> *const c_char {
+    let engine = unsafe { engine.as_ref() };
+    if let Some(engine) = engine {
+        let effects = engine.last_effects.lock().unwrap();
+        if let Some(EngineEffect::NotifyUser { message }) = effects.get(index) {
+            return CString::new(message.as_str()).unwrap().into_raw();
+        }
+    }
+    ptr::null()
+}
+
 fn effect_to_ffi(effect: &EngineEffect) -> i32 {
     match effect {
         EngineEffect::Play => FFI_EFFECT_PLAY,
@@ -563,6 +598,9 @@ fn effect_to_ffi(effect: &EngineEffect) -> i32 {
         EngineEffect::SessionStarted { .. } => FFI_EFFECT_SESSION_STARTED,
         EngineEffect::SessionEnded => FFI_EFFECT_SESSION_ENDED,
         EngineEffect::SetSpeed(_) => FFI_EFFECT_SET_SPEED,
+        EngineEffect::NotifyUser { .. } => FFI_EFFECT_NOTIFY_USER,
+        EngineEffect::StartAudioCapture => FFI_EFFECT_START_AUDIO_CAPTURE,
+        EngineEffect::StopAudioCapture => FFI_EFFECT_STOP_AUDIO_CAPTURE,
     }
 }
 
@@ -758,6 +796,8 @@ fn command_from_ffi(command_type: i32) -> EngineCommandType {
             user_id: "unknown".to_string(),
         },
         FFI_COMMAND_END_SESSION => EngineCommandType::EndSession,
+        FFI_COMMAND_START_VOICE => EngineCommandType::StartVoiceInteraction,
+        FFI_COMMAND_STOP_VOICE => EngineCommandType::StopVoiceInteraction,
         _ => EngineCommandType::Unknown(command_type.to_string()),
     }
 }

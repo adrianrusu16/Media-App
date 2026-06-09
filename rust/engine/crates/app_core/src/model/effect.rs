@@ -22,6 +22,12 @@ pub enum EngineEffect {
     SessionStarted { session_id: String },
     /// Request the platform to destroy the current MediaSession.
     SessionEnded,
+    /// Request the platform to notify the user (e.g., voice feedback).
+    NotifyUser { message: String },
+    /// Request the platform to start audio capture for voice interaction.
+    StartAudioCapture,
+    /// Request the platform to stop audio capture.
+    StopAudioCapture,
     /// Update the system's media session metadata.
     UpdateMetadata {
         media_id: String,
@@ -49,6 +55,12 @@ impl EngineEffect {
     pub const SESSION_STARTED_WIRE: &'static str = "session_started";
     /// Wire value for SessionEnded effect.
     pub const SESSION_ENDED_WIRE: &'static str = "session_ended";
+    /// Wire value for NotifyUser effect.
+    pub const NOTIFY_USER_WIRE: &'static str = "notify_user";
+    /// Wire value for StartAudioCapture effect.
+    pub const START_AUDIO_CAPTURE_WIRE: &'static str = "start_audio_capture";
+    /// Wire value for StopAudioCapture effect.
+    pub const STOP_AUDIO_CAPTURE_WIRE: &'static str = "stop_audio_capture";
     /// Wire value for UpdateMetadata effect.
     pub const UPDATE_METADATA_WIRE: &'static str = "update_metadata";
 
@@ -64,6 +76,9 @@ impl EngineEffect {
             Self::AbandonAudioFocus => Self::ABANDON_AUDIO_FOCUS_WIRE,
             Self::SessionStarted { .. } => Self::SESSION_STARTED_WIRE,
             Self::SessionEnded => Self::SESSION_ENDED_WIRE,
+            Self::NotifyUser { .. } => Self::NOTIFY_USER_WIRE,
+            Self::StartAudioCapture => Self::START_AUDIO_CAPTURE_WIRE,
+            Self::StopAudioCapture => Self::STOP_AUDIO_CAPTURE_WIRE,
             Self::UpdateMetadata { .. } => Self::UPDATE_METADATA_WIRE,
         }
     }

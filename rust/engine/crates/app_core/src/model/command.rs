@@ -29,6 +29,12 @@ pub enum EngineCommandType {
     },
     /// Voice-based search and play command.
     VoicePlay { query: String },
+    /// Start a new voice interaction (ASR/NLU).
+    StartVoiceInteraction,
+    /// Finalize and stop current voice interaction.
+    StopVoiceInteraction,
+    /// Process a chunk of audio for the current voice interaction.
+    ProcessVoiceAudio { chunk: Vec<i16> },
     /// Plays a specific media item by its ID.
     PlayMediaById { media_id: String },
     /// Sets a sleep timer for a specific duration in milliseconds.
@@ -64,6 +70,12 @@ impl EngineCommandType {
     pub const UPDATE_CONFIG_WIRE: &'static str = "update_config";
     /// Wire value for VoicePlay command.
     pub const VOICE_PLAY_WIRE: &'static str = "voice_play";
+    /// Wire value for StartVoiceInteraction command.
+    pub const START_VOICE_INTERACTION_WIRE: &'static str = "start_voice_interaction";
+    /// Wire value for StopVoiceInteraction command.
+    pub const STOP_VOICE_INTERACTION_WIRE: &'static str = "stop_voice_interaction";
+    /// Wire value for ProcessVoiceAudio command.
+    pub const PROCESS_VOICE_AUDIO_WIRE: &'static str = "process_voice_audio";
     /// Wire value for PlayMediaById command.
     pub const PLAY_MEDIA_BY_ID_WIRE: &'static str = "play_media_by_id";
     /// Wire value for SetSleepTimer command.
@@ -96,6 +108,9 @@ impl EngineCommandType {
             Self::VOICE_PLAY_WIRE => Self::VoicePlay {
                 query: "".to_string(),
             },
+            Self::START_VOICE_INTERACTION_WIRE => Self::StartVoiceInteraction,
+            Self::STOP_VOICE_INTERACTION_WIRE => Self::StopVoiceInteraction,
+            Self::PROCESS_VOICE_AUDIO_WIRE => Self::ProcessVoiceAudio { chunk: vec![] },
             Self::PLAY_MEDIA_BY_ID_WIRE => Self::PlayMediaById {
                 media_id: "".to_string(),
             },
@@ -122,6 +137,9 @@ impl EngineCommandType {
             Self::Seek { .. } => Self::SEEK_WIRE,
             Self::UpdateConfig { .. } => Self::UPDATE_CONFIG_WIRE,
             Self::VoicePlay { .. } => Self::VOICE_PLAY_WIRE,
+            Self::StartVoiceInteraction => Self::START_VOICE_INTERACTION_WIRE,
+            Self::StopVoiceInteraction => Self::STOP_VOICE_INTERACTION_WIRE,
+            Self::ProcessVoiceAudio { .. } => Self::PROCESS_VOICE_AUDIO_WIRE,
             Self::PlayMediaById { .. } => Self::PLAY_MEDIA_BY_ID_WIRE,
             Self::SetSleepTimer { .. } => Self::SET_SLEEP_TIMER_WIRE,
             Self::Unknown(value) => value.as_str(),
@@ -210,6 +228,21 @@ impl EngineCommand {
     /// Creates a VoicePlay command.
     pub fn voice_play(query: String) -> Self {
         Self::new(EngineCommandType::VoicePlay { query }, None)
+    }
+
+    /// Creates a command to start a voice interaction.
+    pub fn start_voice_interaction() -> Self {
+        Self::new(EngineCommandType::StartVoiceInteraction, None)
+    }
+
+    /// Creates a command to stop a voice interaction.
+    pub fn stop_voice_interaction() -> Self {
+        Self::new(EngineCommandType::StopVoiceInteraction, None)
+    }
+
+    /// Creates a command to process voice audio data.
+    pub fn process_voice_audio(chunk: Vec<i16>) -> Self {
+        Self::new(EngineCommandType::ProcessVoiceAudio { chunk }, None)
     }
 
     /// Creates a PlayMediaById command.
