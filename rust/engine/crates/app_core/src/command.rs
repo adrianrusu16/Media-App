@@ -11,6 +11,10 @@ pub enum EngineCommandType {
     SkipPrevious,
     /// Skips to the next track or item.
     SkipNext,
+    /// Starts a new media session.
+    StartSession { user_id: String },
+    /// Ends the current media session.
+    EndSession,
     /// A command not recognized by this version of the engine.
     Unknown(String),
 }
@@ -26,6 +30,10 @@ impl EngineCommandType {
     pub const SKIP_PREVIOUS_WIRE: &'static str = "skip_previous";
     /// Wire value for SkipNext command.
     pub const SKIP_NEXT_WIRE: &'static str = "skip_next";
+    /// Wire value for StartSession command.
+    pub const START_SESSION_WIRE: &'static str = "start_session";
+    /// Wire value for EndSession command.
+    pub const END_SESSION_WIRE: &'static str = "end_session";
 
     /// Maps a wire string value to its corresponding enum variant.
     pub fn from_wire(value: impl Into<String>) -> Self {
@@ -36,6 +44,8 @@ impl EngineCommandType {
             Self::PAUSE_WIRE => Self::Pause,
             Self::SKIP_PREVIOUS_WIRE => Self::SkipPrevious,
             Self::SKIP_NEXT_WIRE => Self::SkipNext,
+            Self::START_SESSION_WIRE => Self::StartSession { user_id: "unknown".to_string() },
+            Self::END_SESSION_WIRE => Self::EndSession,
             _ => Self::Unknown(value),
         }
     }
@@ -48,6 +58,8 @@ impl EngineCommandType {
             Self::Pause => Self::PAUSE_WIRE,
             Self::SkipPrevious => Self::SKIP_PREVIOUS_WIRE,
             Self::SkipNext => Self::SKIP_NEXT_WIRE,
+            Self::StartSession { .. } => Self::START_SESSION_WIRE,
+            Self::EndSession => Self::END_SESSION_WIRE,
             Self::Unknown(value) => value.as_str(),
         }
     }
@@ -94,5 +106,15 @@ impl EngineCommand {
     /// Creates a SkipPrevious command.
     pub fn skip_previous() -> Self {
         Self::new(EngineCommandType::SkipPrevious, None)
+    }
+
+    /// Creates a StartSession command.
+    pub fn start_session(user_id: String) -> Self {
+        Self::new(EngineCommandType::StartSession { user_id }, None)
+    }
+
+    /// Creates an EndSession command.
+    pub fn end_session() -> Self {
+        Self::new(EngineCommandType::EndSession, None)
     }
 }

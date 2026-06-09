@@ -1,4 +1,5 @@
 use crate::playback::{PlaybackState, RestrictionState};
+use crate::session::MediaSession;
 
 /// Represents the state-of-the-art snapshot of the media engine at a specific point in time.
 ///
@@ -20,6 +21,8 @@ pub struct EngineSnapshot {
     pub restriction_state: RestrictionState,
     /// Unix timestamp in milliseconds when this snapshot was created/updated.
     pub updated_at_epoch_millis: u64,
+    /// The active media session, if any.
+    pub session: Option<MediaSession>,
 }
 
 impl EngineSnapshot {
@@ -41,6 +44,13 @@ impl EngineSnapshot {
     ) -> Self {
         self.playback_state = playback_state;
         self.updated_at_epoch_millis = now_epoch_millis;
+        self
+    }
+
+    /// Functional update for the session, returning a new snapshot.
+    #[must_use]
+    pub fn with_session(mut self, session: Option<MediaSession>) -> Self {
+        self.session = session;
         self
     }
 }

@@ -7,6 +7,7 @@ mod playback;
 mod queue;
 mod reducer;
 mod repository;
+mod session;
 mod snapshot;
 mod state_machine;
  
@@ -21,4 +22,5 @@ pub use playback::{PlaybackState, RestrictionState};
 pub use queue::{QueueManager, RepeatMode};
 pub use reducer::{Engine, EngineOutcome};
 pub use repository::{InMemoryRepository, MediaItem, MediaRepository};
+pub use session::MediaSession;
 pub use snapshot::EngineSnapshot;

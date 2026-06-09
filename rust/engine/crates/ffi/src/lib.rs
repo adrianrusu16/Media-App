@@ -9,6 +9,8 @@ pub const FFI_COMMAND_PLAY: i32 = 1;
 pub const FFI_COMMAND_PAUSE: i32 = 2;
 pub const FFI_COMMAND_SKIP_PREVIOUS: i32 = 3;
 pub const FFI_COMMAND_SKIP_NEXT: i32 = 4;
+pub const FFI_COMMAND_START_SESSION: i32 = 5;
+pub const FFI_COMMAND_END_SESSION: i32 = 6;
 pub const FFI_COMMAND_UNKNOWN: i32 = -1;
 
 pub const FFI_PLAYBACK_IDLE: i32 = 0;
@@ -39,6 +41,8 @@ pub const FFI_EFFECT_SEEK: i32 = 3;
 pub const FFI_EFFECT_REQUEST_AUDIO_FOCUS: i32 = 4;
 pub const FFI_EFFECT_ABANDON_AUDIO_FOCUS: i32 = 5;
 pub const FFI_EFFECT_UPDATE_METADATA: i32 = 6;
+pub const FFI_EFFECT_SESSION_STARTED: i32 = 7;
+pub const FFI_EFFECT_SESSION_ENDED: i32 = 8;
 
 /// C-compatible representation of the engine snapshot.
 #[repr(C)]
@@ -47,6 +51,7 @@ pub struct FfiEngineSnapshot {
     pub playback_state: i32,
     pub restriction_state: i32,
     pub updated_at_epoch_millis: u64,
+    pub has_active_session: bool,
 }
 
 /// C-compatible representation of the engine outcome.
@@ -272,6 +277,8 @@ fn effect_to_ffi(effect: &EngineEffect) -> i32 {
         EngineEffect::RequestAudioFocus => FFI_EFFECT_REQUEST_AUDIO_FOCUS,
         EngineEffect::AbandonAudioFocus => FFI_EFFECT_ABANDON_AUDIO_FOCUS,
         EngineEffect::UpdateMetadata { .. } => FFI_EFFECT_UPDATE_METADATA,
+        EngineEffect::SessionStarted { .. } => FFI_EFFECT_SESSION_STARTED,
+        EngineEffect::SessionEnded => FFI_EFFECT_SESSION_ENDED,
     }
 }
 
@@ -281,6 +288,7 @@ impl FfiEngineSnapshot {
             playback_state: FFI_COMMAND_UNKNOWN,
             restriction_state: FFI_COMMAND_UNKNOWN,
             updated_at_epoch_millis: 0,
+            has_active_session: false,
         }
     }
 }
@@ -301,6 +309,7 @@ impl From<&EngineSnapshot> for FfiEngineSnapshot {
             playback_state: playback_to_ffi(snapshot.playback_state),
             restriction_state: restriction_to_ffi(snapshot.restriction_state),
             updated_at_epoch_millis: snapshot.updated_at_epoch_millis,
+            has_active_session: snapshot.session.is_some(),
         }
     }
 }
@@ -322,6 +331,8 @@ fn command_from_ffi(command_type: i32) -> EngineCommandType {
         FFI_COMMAND_PAUSE => EngineCommandType::Pause,
         FFI_COMMAND_SKIP_PREVIOUS => EngineCommandType::SkipPrevious,
         FFI_COMMAND_SKIP_NEXT => EngineCommandType::SkipNext,
+        FFI_COMMAND_START_SESSION => EngineCommandType::StartSession { user_id: "unknown".to_string() },
+        FFI_COMMAND_END_SESSION => EngineCommandType::EndSession,
         _ => EngineCommandType::Unknown(command_type.to_string()),
     }
 }
@@ -372,12 +383,14 @@ mod tests {
     #[test]
     fn dispatch_play_returns_buffering_snapshot() {
         let engine = panda_engine_create(100);
+        unsafe { panda_engine_dispatch(engine, FFI_COMMAND_START_SESSION, 150) };
         let outcome = unsafe { panda_engine_dispatch(engine, FFI_COMMAND_PLAY, 200) };
         unsafe {
             panda_engine_destroy(engine);
         }
 
         assert_eq!(FFI_PLAYBACK_BUFFERING, outcome.snapshot.playback_state);
+        assert!(outcome.snapshot.has_active_session);
         assert_eq!(FFI_EVENT_COMMAND_APPLIED, outcome.event_type);
         assert_eq!(FFI_COMMAND_PLAY, outcome.applied_command_type);
         assert_eq!(200, outcome.snapshot.updated_at_epoch_millis);
@@ -394,6 +407,7 @@ mod tests {
     #[test]
     fn dispatch_play_emits_effects_in_ffi() {
         let engine = panda_engine_create(100);
+        unsafe { panda_engine_dispatch(engine, FFI_COMMAND_START_SESSION, 150) };
         unsafe {
             let mut items = Vec::new();
             items.push(MediaItem { id: "1".to_string(), title: "S1".to_string(), artist: "A1".to_string() });

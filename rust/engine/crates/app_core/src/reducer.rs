@@ -5,6 +5,7 @@ use crate::middleware::MiddlewarePipeline;
 use crate::platform_event::EnginePlatformEvent;
 use crate::queue::QueueManager;
 use crate::repository::{InMemoryRepository, MediaRepository};
+use crate::session::MediaSession;
 use crate::snapshot::EngineSnapshot;
 use crate::state_machine::StateMachine;
 
@@ -97,7 +98,17 @@ impl Engine {
         let mut effects = Vec::new();
 
         // Update metadata based on command
-        match command.command_type {
+        match &command.command_type {
+            crate::command::EngineCommandType::StartSession { user_id } => {
+                let session_id = format!("session-{}", now_epoch_millis);
+                let session = MediaSession::new(session_id.clone(), user_id.clone(), now_epoch_millis);
+                next_snapshot = next_snapshot.with_session(Some(session));
+                effects.push(EngineEffect::SessionStarted { session_id });
+            }
+            crate::command::EngineCommandType::EndSession => {
+                next_snapshot = next_snapshot.with_session(None);
+                effects.push(EngineEffect::SessionEnded);
+            }
             crate::command::EngineCommandType::SkipNext => {
                 if let Some(next_media) = self.queue.next_item() {
                     next_snapshot = next_snapshot.with_media(next_media.clone());
@@ -119,23 +130,29 @@ impl Engine {
                 }
             }
             crate::command::EngineCommandType::Play => {
-                if self.snapshot.media_id.is_none() {
-                    // If playing from idle/nothing, try to load first item from queue
-                    if let Some(media) = self.queue.current_item() {
-                        next_snapshot = next_snapshot.with_media(media.clone());
-                        effects.push(EngineEffect::UpdateMetadata {
-                            media_id: media.id.clone(),
-                            title: media.title.clone(),
-                            artist: media.artist.clone(),
-                        });
-                    } else if let Some(media) = self.queue.next_item() {
-                        next_snapshot = next_snapshot.with_media(media.clone());
-                        effects.push(EngineEffect::UpdateMetadata {
-                            media_id: media.id.clone(),
-                            title: media.title.clone(),
-                            artist: media.artist.clone(),
-                        });
+                // Only allow play if we have an active session
+                if next_snapshot.session.is_some() {
+                    if self.snapshot.media_id.is_none() {
+                        // If playing from idle/nothing, try to load first item from queue
+                        if let Some(media) = self.queue.current_item() {
+                            next_snapshot = next_snapshot.with_media(media.clone());
+                            effects.push(EngineEffect::UpdateMetadata {
+                                media_id: media.id.clone(),
+                                title: media.title.clone(),
+                                artist: media.artist.clone(),
+                            });
+                        } else if let Some(media) = self.queue.next_item() {
+                            next_snapshot = next_snapshot.with_media(media.clone());
+                            effects.push(EngineEffect::UpdateMetadata {
+                                media_id: media.id.clone(),
+                                title: media.title.clone(),
+                                artist: media.artist.clone(),
+                            });
+                        }
                     }
+                } else {
+                    // Revert to idle if no session
+                    next_snapshot.playback_state = crate::playback::PlaybackState::Idle;
                 }
             }
             _ => {}
@@ -241,6 +258,7 @@ mod tests {
     #[test]
     fn play_command_moves_idle_to_buffering() {
         let mut engine = Engine::new(100);
+        engine.dispatch(EngineCommand::start_session("user1".to_string()), 150);
         let outcome = engine.dispatch(EngineCommand::new(EngineCommandType::Play, None), 200);
 
         assert_eq!(PlaybackState::Buffering, outcome.snapshot.playback_state);
@@ -251,6 +269,7 @@ mod tests {
     #[test]
     fn unknown_command_preserves_playback_state() {
         let mut engine = Engine::new(100);
+        engine.dispatch(EngineCommand::start_session("user1".to_string()), 150);
         // Idle -> Buffering
         engine.dispatch(EngineCommand::new(EngineCommandType::Play, None), 200);
 
@@ -264,6 +283,7 @@ mod tests {
     #[test]
     fn skip_command_from_playing_moves_to_buffering() {
         let mut engine = Engine::new(100);
+        engine.dispatch(EngineCommand::start_session("user1".to_string()), 150);
         // Idle -> Buffering
         engine.dispatch(EngineCommand::new(EngineCommandType::Play, None), 200);
         // Force state to Playing for test (in real app, this would happen via system event)
@@ -279,6 +299,7 @@ mod tests {
     #[test]
     fn platform_event_can_drive_state_transitions() {
         let mut engine = Engine::new(100);
+        engine.dispatch(EngineCommand::start_session("user1".to_string()), 150);
         // Idle -> Buffering
         engine.dispatch(EngineCommand::new(EngineCommandType::Play, None), 200);
         assert_eq!(PlaybackState::Buffering, engine.snapshot().playback_state);
@@ -324,6 +345,7 @@ mod tests {
     #[test]
     fn skip_updates_metadata() {
         let mut engine = Engine::new(100);
+        engine.dispatch(EngineCommand::start_session("user1".to_string()), 120);
         let items = vec![
             MediaItem {
                 id: "1".to_string(),
@@ -382,6 +404,7 @@ mod tests {
     #[test]
     fn play_command_emits_effects() {
         let mut engine = Engine::new(100);
+        engine.dispatch(EngineCommand::start_session("user1".to_string()), 120);
         let items = vec![
             MediaItem {
                 id: "1".to_string(),

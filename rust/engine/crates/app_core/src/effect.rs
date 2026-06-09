@@ -16,6 +16,10 @@ pub enum EngineEffect {
     RequestAudioFocus,
     /// Abandon audio focus.
     AbandonAudioFocus,
+    /// Request the platform to create a new MediaSession.
+    SessionStarted { session_id: String },
+    /// Request the platform to destroy the current MediaSession.
+    SessionEnded,
     /// Update the system's media session metadata.
     UpdateMetadata {
         media_id: String,
@@ -37,6 +41,10 @@ impl EngineEffect {
     pub const REQUEST_AUDIO_FOCUS_WIRE: &'static str = "request_audio_focus";
     /// Wire value for AbandonAudioFocus effect.
     pub const ABANDON_AUDIO_FOCUS_WIRE: &'static str = "abandon_audio_focus";
+    /// Wire value for SessionStarted effect.
+    pub const SESSION_STARTED_WIRE: &'static str = "session_started";
+    /// Wire value for SessionEnded effect.
+    pub const SESSION_ENDED_WIRE: &'static str = "session_ended";
     /// Wire value for UpdateMetadata effect.
     pub const UPDATE_METADATA_WIRE: &'static str = "update_metadata";
 
@@ -49,6 +57,8 @@ impl EngineEffect {
             Self::Seek(_) => Self::SEEK_WIRE,
             Self::RequestAudioFocus => Self::REQUEST_AUDIO_FOCUS_WIRE,
             Self::AbandonAudioFocus => Self::ABANDON_AUDIO_FOCUS_WIRE,
+            Self::SessionStarted { .. } => Self::SESSION_STARTED_WIRE,
+            Self::SessionEnded => Self::SESSION_ENDED_WIRE,
             Self::UpdateMetadata { .. } => Self::UPDATE_METADATA_WIRE,
         }
     }
