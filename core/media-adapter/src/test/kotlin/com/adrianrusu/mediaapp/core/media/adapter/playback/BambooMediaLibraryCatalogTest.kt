@@ -115,10 +115,30 @@ class BambooMediaLibraryCatalogTest {
         assertTrue(children.all { item -> item.mediaMetadata.isBrowsable == true })
         assertTrue(children.none { item -> item.mediaMetadata.isPlayable == true })
     }
+
+    @Test
+    fun searchDelegatesToSource() {
+        val catalog = BambooMediaLibraryCatalog(
+            source = object : BambooCatalogSource {
+                override fun children(parentId: String): List<BambooCatalogNode> = emptyList()
+                override fun search(query: String): List<BambooCatalogNode> = if (query == "test") {
+                    listOf(node("result"))
+                } else {
+                    emptyList()
+                }
+            }
+        )
+
+        val results = catalog.search("test", 0, 10)
+
+        assertEquals(1, results.size)
+        assertEquals("result", results[0].mediaId)
+    }
 }
 
 private object EmptyCatalogSource : BambooCatalogSource {
     override fun children(parentId: String): List<BambooCatalogNode> = emptyList()
+    override fun search(query: String): List<BambooCatalogNode> = emptyList()
 }
 
 private class FixedCatalogSource(private val parentId: String, private val children: List<BambooCatalogNode>) :
@@ -127,6 +147,22 @@ private class FixedCatalogSource(private val parentId: String, private val child
         this.parentId -> children
         else -> emptyList()
     }
+
+    override fun search(query: String): List<BambooCatalogNode> = emptyList()
+}
+
+private object PlaceholderBambooCatalogSource : BambooCatalogSource {
+    override fun children(parentId: String): List<BambooCatalogNode> = if (parentId == LibraryItems.ROOT_MEDIA_ID) {
+        listOf(
+            BambooCatalogNode("pandawave.library.saved", "Saved music", isBrowsable = true, isPlayable = false),
+            BambooCatalogNode("pandawave.library.downloads", "Downloads", isBrowsable = true, isPlayable = false),
+            BambooCatalogNode("pandawave.library.recent", "Recently played", isBrowsable = true, isPlayable = false)
+        )
+    } else {
+        emptyList()
+    }
+
+    override fun search(query: String): List<BambooCatalogNode> = emptyList()
 }
 
 private fun node(id: String): BambooCatalogNode = BambooCatalogNode(
