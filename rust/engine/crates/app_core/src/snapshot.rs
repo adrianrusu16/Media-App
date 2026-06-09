@@ -1,5 +1,5 @@
 use crate::error::EngineError;
-use crate::playback::{PlaybackState, RestrictionState};
+use crate::playback::{PlaybackState, PlayerControls, RestrictionState};
 use crate::repository::MediaItem;
 use crate::session::MediaSession;
 
@@ -35,18 +35,35 @@ pub struct EngineSnapshot {
     pub playback_speed: f32,
     /// The current playback position in milliseconds.
     pub position_millis: u64,
+    /// Indicates if the engine is currently busy (e.g., buffering, searching) and might ignore new commands.
+    pub is_busy: bool,
+    /// The state of player controls to be displayed in the UI.
+    pub controls: PlayerControls,
 }
 
 impl EngineSnapshot {
     /// Creates a new idle snapshot, typically used as the initial state.
     pub fn idle(now_epoch_millis: u64) -> Self {
-        Self {
+        let mut snapshot = Self {
             playback_state: PlaybackState::Idle,
             updated_at_epoch_millis: now_epoch_millis,
             playback_speed: 1.0,
             position_millis: 0,
+            is_busy: false,
             ..Default::default()
-        }
+        };
+        // Initialize controls with default visible/enabled states for Idle
+        snapshot.controls.show_play_icon = true;
+        snapshot.controls.play_pause.is_visible = true;
+        snapshot.controls.play_pause.is_enabled = true;
+        // Skip controls depend on queue, but for a fresh idle snapshot, we don't know the queue.
+        // The reducer's new() will call derive_controls after creating the idle snapshot.
+        snapshot
+    }
+
+    /// Returns true if the snapshot indicates that the engine can currently accept and process user commands.
+    pub fn can_dispatch(&self) -> bool {
+        !self.is_busy && self.playback_state != PlaybackState::Buffering
     }
 
     /// Functional update for the playback state, returning a new snapshot.
@@ -93,6 +110,20 @@ impl EngineSnapshot {
     #[must_use]
     pub fn with_position(mut self, position_millis: u64) -> Self {
         self.position_millis = position_millis;
+        self
+    }
+
+    /// Functional update for the busy state, returning a new snapshot.
+    #[must_use]
+    pub fn with_busy(mut self, is_busy: bool) -> Self {
+        self.is_busy = is_busy;
+        self
+    }
+
+    /// Functional update for the player controls, returning a new snapshot.
+    #[must_use]
+    pub fn with_controls(mut self, controls: PlayerControls) -> Self {
+        self.controls = controls;
         self
     }
 }

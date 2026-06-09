@@ -65,6 +65,25 @@ pub const FFI_ERROR_AUTHENTICATION: i32 = 4;
 pub const FFI_ERROR_MEDIA_SKIPPED: i32 = 5;
 pub const FFI_ERROR_UNKNOWN: i32 = -1;
 
+/// C-compatible representation of a specific player control state.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct FfiControlState {
+    pub is_visible: bool,
+    pub is_enabled: bool,
+    pub is_active: bool,
+}
+
+/// C-compatible representation of the player controls.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct FfiPlayerControls {
+    pub play_pause: FfiControlState,
+    pub skip_next: FfiControlState,
+    pub skip_prev: FfiControlState,
+    pub show_play_icon: bool,
+}
+
 /// C-compatible representation of the engine snapshot.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -78,6 +97,9 @@ pub struct FfiEngineSnapshot {
     pub search_results_count: usize,
     pub playback_speed: f32,
     pub position_millis: u64,
+    pub is_busy: bool,
+    pub can_dispatch: bool,
+    pub controls: FfiPlayerControls,
 }
 
 /// C-compatible representation of the engine outcome.
@@ -169,6 +191,7 @@ pub extern "C" fn panda_engine_create(now_epoch_millis: u64) -> *mut PandaEngine
     let bus = engine.event_bus();
     pipeline.add(Box::new(TelemetryMiddleware::new(bus.clone())));
     pipeline.add(Box::new(panda_engine_core::AnalyticsMiddleware::new(bus.clone())));
+    pipeline.add(Box::new(panda_engine_core::ThrottlingMiddleware::new(300))); // 300ms throttle
     pipeline.add(Box::new(panda_engine_core::FocusMiddleware));
     engine.set_middleware(pipeline);
 
@@ -503,6 +526,26 @@ impl FfiEngineSnapshot {
             search_results_count: 0,
             playback_speed: 1.0,
             position_millis: 0,
+            is_busy: false,
+            can_dispatch: false,
+            controls: FfiPlayerControls {
+                play_pause: FfiControlState {
+                    is_visible: false,
+                    is_enabled: false,
+                    is_active: false,
+                },
+                skip_next: FfiControlState {
+                    is_visible: false,
+                    is_enabled: false,
+                    is_active: false,
+                },
+                skip_prev: FfiControlState {
+                    is_visible: false,
+                    is_enabled: false,
+                    is_active: false,
+                },
+                show_play_icon: true,
+            },
         }
     }
 }
@@ -542,6 +585,26 @@ impl From<&EngineSnapshot> for FfiEngineSnapshot {
             search_results_count: snapshot.search_results.len(),
             playback_speed: snapshot.playback_speed,
             position_millis: snapshot.position_millis,
+            is_busy: snapshot.is_busy,
+            can_dispatch: snapshot.can_dispatch(),
+            controls: FfiPlayerControls {
+                play_pause: FfiControlState {
+                    is_visible: snapshot.controls.play_pause.is_visible,
+                    is_enabled: snapshot.controls.play_pause.is_enabled,
+                    is_active: snapshot.controls.play_pause.is_active,
+                },
+                skip_next: FfiControlState {
+                    is_visible: snapshot.controls.skip_next.is_visible,
+                    is_enabled: snapshot.controls.skip_next.is_enabled,
+                    is_active: snapshot.controls.skip_next.is_active,
+                },
+                skip_prev: FfiControlState {
+                    is_visible: snapshot.controls.skip_prev.is_visible,
+                    is_enabled: snapshot.controls.skip_prev.is_enabled,
+                    is_active: snapshot.controls.skip_prev.is_active,
+                },
+                show_play_icon: snapshot.controls.show_play_icon,
+            },
         }
     }
 }

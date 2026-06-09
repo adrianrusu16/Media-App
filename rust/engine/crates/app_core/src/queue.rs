@@ -105,6 +105,35 @@ impl QueueManager {
         self.items = items;
         self.current_index = if self.items.is_empty() { None } else { Some(0) };
     }
+
+    /// Returns true if there is a next item in the queue.
+    pub fn has_next(&self) -> bool {
+        if self.items.is_empty() {
+            return false;
+        }
+        if self.repeat_mode != RepeatMode::None {
+            return true;
+        }
+        let current = self.current_index.unwrap_or(0);
+        current + 1 < self.items.len()
+    }
+
+    /// Returns true if there is a previous item in the queue.
+    pub fn has_previous(&self) -> bool {
+        if self.items.is_empty() {
+            return false;
+        }
+        if self.repeat_mode != RepeatMode::None {
+            return true;
+        }
+        let current = self.current_index.unwrap_or(0);
+        current > 0
+    }
+
+    /// Returns the current index in the queue.
+    pub fn current_index(&self) -> Option<usize> {
+        self.current_index
+    }
 }
 
 #[cfg(test)]

@@ -59,3 +59,27 @@ impl RestrictionState {
         }
     }
 }
+
+/// Represents the state of a specific player control (e.g., Play, Skip).
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+pub struct ControlState {
+    /// Whether the control should be visible to the user.
+    pub is_visible: bool,
+    /// Whether the control is enabled and can be interacted with.
+    pub is_enabled: bool,
+    /// Whether the control is currently in an "active" or "toggled" state (e.g., Repeat mode).
+    pub is_active: bool,
+}
+
+/// A collection of player controls that the UI should display.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+pub struct PlayerControls {
+    /// State of the Play/Pause toggle control.
+    pub play_pause: ControlState,
+    /// State of the Skip to Next control.
+    pub skip_next: ControlState,
+    /// State of the Skip to Previous control.
+    pub skip_prev: ControlState,
+    /// Whether the "Play" icon should be shown (true) or "Pause" icon (false).
+    pub show_play_icon: bool,
+}

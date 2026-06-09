@@ -72,15 +72,27 @@ impl Engine {
     /// Initializes a new engine instance with the given timestamp.
     pub fn new(now_epoch_millis: u64) -> Self {
         let bus = Arc::new(EventBus::default());
-        Self {
-            snapshot: EngineSnapshot::idle(now_epoch_millis),
+        let snapshot = EngineSnapshot::idle(now_epoch_millis);
+        let queue = QueueManager::default();
+
+        // Create initial engine to derive controls
+        let engine = Self {
+            snapshot,
             middleware: Arc::new(MiddlewarePipeline::new()),
             repository: Box::new(InMemoryRepository::new(vec![])),
-            queue: QueueManager::default(),
+            queue,
             persistence: Box::new(NoopPersistence),
             event_bus: bus,
             service_manager: ServiceManager::new(),
             player: None,
+        };
+
+        let mut final_snapshot = engine.snapshot.clone();
+        final_snapshot.controls = engine.derive_controls(&final_snapshot);
+
+        Self {
+            snapshot: final_snapshot,
+            ..engine
         }
     }
 
@@ -174,6 +186,39 @@ impl Engine {
         &self.snapshot
     }
 
+    /// Forces a refresh of the player controls based on the current state.
+    pub fn refresh_controls(&mut self) {
+        self.snapshot.controls = self.derive_controls(&self.snapshot);
+    }
+
+    /// Derives player controls from the current engine state.
+    fn derive_controls(&self, snapshot: &EngineSnapshot) -> crate::playback::PlayerControls {
+        use crate::playback::{ControlState, PlayerControls};
+
+        let can_dispatch = snapshot.can_dispatch();
+        let is_playing = snapshot.playback_state == PlaybackState::Playing;
+        let is_buffering = snapshot.playback_state == PlaybackState::Buffering;
+
+        PlayerControls {
+            play_pause: ControlState {
+                is_visible: true,
+                is_enabled: can_dispatch || is_buffering, // Can pause while buffering
+                is_active: is_playing,
+            },
+            skip_next: ControlState {
+                is_visible: true,
+                is_enabled: can_dispatch && self.queue.has_next(),
+                is_active: false,
+            },
+            skip_prev: ControlState {
+                is_visible: true,
+                is_enabled: can_dispatch && self.queue.has_previous(),
+                is_active: false,
+            },
+            show_play_icon: !is_playing,
+        }
+    }
+
     /// Helper to update the snapshot with new media and emit metadata effects.
     fn update_media_state(
         media: &crate::repository::MediaItem,
@@ -210,7 +255,8 @@ impl Engine {
             .snapshot
             .clone()
             .with_playback_state(next_playback_state, now_epoch_millis)
-            .with_error(None);
+            .with_error(None)
+            .with_busy(false);
 
         let mut effects = Vec::new();
 
@@ -254,12 +300,14 @@ impl Engine {
                 }
             }
             EngineCommandType::Search { query } => {
+                next_snapshot = next_snapshot.with_busy(true);
                 let results = self.repository.search(query);
-                next_snapshot = next_snapshot.with_search_results(results);
+                next_snapshot = next_snapshot.with_search_results(results).with_busy(false);
             }
             EngineCommandType::Browse { parent_id } => {
+                next_snapshot = next_snapshot.with_busy(true);
                 let results = self.repository.browse(parent_id);
-                next_snapshot = next_snapshot.with_search_results(results);
+                next_snapshot = next_snapshot.with_search_results(results).with_busy(false);
             }
             EngineCommandType::SetSpeed { speed } => {
                 next_snapshot = next_snapshot.with_speed(*speed);
@@ -295,6 +343,7 @@ impl Engine {
         }
 
         self.snapshot = next_snapshot;
+        self.snapshot.controls = self.derive_controls(&self.snapshot);
 
         if self.snapshot.playback_state != prev_playback_state {
             info!(
@@ -373,6 +422,7 @@ impl Engine {
         }
 
         self.snapshot = next_snapshot;
+        self.snapshot.controls = self.derive_controls(&self.snapshot);
 
         let middleware = Arc::clone(&self.middleware);
         let outcome = EngineOutcome {
@@ -716,5 +766,62 @@ mod tests {
 
         assert_eq!(outcome.snapshot.playback_state, PlaybackState::Playing);
         assert!(outcome.effects.contains(&EngineEffect::Play));
+    }
+
+    #[test]
+    fn controls_are_derived_correctly() {
+        let mut engine = Engine::new(100);
+        let items = vec![
+            MediaItem {
+                id: "1".to_string(),
+                ..Default::default()
+            },
+            MediaItem {
+                id: "2".to_string(),
+                ..Default::default()
+            },
+        ];
+        engine.queue().set_items(items);
+        engine.refresh_controls();
+
+        // Idle state
+        let snapshot = engine.snapshot();
+        assert!(snapshot.controls.show_play_icon);
+        assert!(snapshot.controls.play_pause.is_enabled);
+        assert!(!snapshot.controls.skip_prev.is_enabled);
+        assert!(snapshot.controls.skip_next.is_enabled);
+
+        // Playing state
+        engine.dispatch(EngineCommand::start_session("user".to_string()), 110);
+        engine.dispatch(EngineCommand::play(), 120); // Moves to Buffering
+        engine.dispatch_platform_event(
+            EnginePlatformEvent::new(EnginePlatformEventType::MediaLoaded, None),
+            130,
+        );
+
+        let snapshot = engine.snapshot();
+        assert_eq!(snapshot.playback_state, PlaybackState::Playing);
+        assert!(!snapshot.controls.show_play_icon);
+        assert!(snapshot.controls.play_pause.is_active);
+        // engine.queue() is a mutable borrow, so we can't use snapshot (immutable borrow) after it.
+        // We check the queue index before or after using the snapshot.
+        let idx = engine.queue().current_index();
+        assert_eq!(idx, Some(0));
+
+        // Skip to end
+        engine.dispatch(EngineCommand::skip_next(), 140);
+        // Skip moves state to Buffering, we need to load it to Playing to enable controls
+        engine.dispatch_platform_event(
+            EnginePlatformEvent::new(EnginePlatformEventType::MediaLoaded, None),
+            145,
+        );
+
+        let idx = engine.queue().current_index();
+        assert_eq!(idx, Some(1));
+        let snapshot = engine.snapshot();
+        // Since there are only 2 items and we are at index 1, skip_next should be disabled
+        // and skip_prev should be enabled.
+        assert!(!snapshot.controls.skip_next.is_enabled, "Skip next should be disabled at the end of queue");
+        assert!(snapshot.controls.skip_prev.is_enabled, "Skip prev should be enabled when not at the start");
     }
 }

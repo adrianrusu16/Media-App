@@ -57,13 +57,13 @@ pub use error::{EngineError, EngineErrorType};
 pub use event::{EngineEvent, EngineEventType};
 pub use middleware::{
     AnalyticsMiddleware, FocusMiddleware, LoggerMiddleware, Middleware, MiddlewarePipeline,
-    RecoveryMiddleware, TelemetryMiddleware, ValidationMiddleware,
+    RecoveryMiddleware, TelemetryMiddleware, ThrottlingMiddleware, ValidationMiddleware,
 };
 pub use observability::{EngineObserver, EventBus};
 pub use persistence::{EnginePersistentState, NoopPersistence, Persistence};
 pub use platform_event::{EnginePlatformEvent, EnginePlatformEventType};
 pub use player::{MediaPlayer, MockPlayer};
-pub use playback::{PlaybackState, RestrictionState};
+pub use playback::{ControlState, PlaybackState, PlayerControls, RestrictionState};
 pub use queue::{QueueManager, RepeatMode};
 pub use reducer::{Engine, EngineOutcome};
 pub use repository::{InMemoryRepository, MediaItem, MediaRepository};

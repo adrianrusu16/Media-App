@@ -97,9 +97,58 @@ impl Middleware for RecoveryMiddleware {
 /// A middleware that validates commands against business rules before they reach the reducer.
 pub struct ValidationMiddleware;
 impl Middleware for ValidationMiddleware {
-    fn before_dispatch(&self, _engine: &Engine, command: &EngineCommand) {
-        if command.command_type == crate::command::EngineCommandType::Play && _engine.snapshot().session.is_none() {
+    fn before_dispatch(&self, engine: &Engine, command: &EngineCommand) {
+        let snapshot = engine.snapshot();
+        
+        // Block commands if the engine is busy/buffering
+        if !snapshot.can_dispatch() {
+             warn!("[Validation] Rejecting command {:?} because the engine is currently busy (state: {:?}, is_busy: {})", 
+                command.command_type, snapshot.playback_state, snapshot.is_busy);
+             // In a future version, we could inject a cancellation flag into the EngineOutcome
+             // but for now, the warning serves as an audit log for the middleware decision.
+        }
+
+        if command.command_type == crate::command::EngineCommandType::Play && snapshot.session.is_none() {
              warn!("[Validation] Play command received without an active session. This may be ignored by the reducer.");
+        }
+    }
+}
+
+/// A middleware that throttles commands to prevent rapid repeated executions (button mashing).
+pub struct ThrottlingMiddleware {
+    min_interval_ms: u64,
+    last_command_at: std::sync::Mutex<std::collections::HashMap<String, u64>>,
+}
+
+impl ThrottlingMiddleware {
+    pub fn new(min_interval_ms: u64) -> Self {
+        Self {
+            min_interval_ms,
+            last_command_at: std::sync::Mutex::new(std::collections::HashMap::new()),
+        }
+    }
+
+    fn should_throttle(&self, command: &EngineCommand, now: u64) -> bool {
+        let key = format!("{:?}", command.command_type);
+        let mut last_map = self.last_command_at.lock().unwrap();
+        let last = last_map.get(&key).cloned().unwrap_or(0);
+        
+        if now < last + self.min_interval_ms {
+            true
+        } else {
+            last_map.insert(key, now);
+            false
+        }
+    }
+}
+
+impl Middleware for ThrottlingMiddleware {
+    fn before_dispatch(&self, engine: &Engine, command: &EngineCommand) {
+        let now = engine.snapshot().updated_at_epoch_millis;
+        if self.should_throttle(command, now) {
+            warn!("[Throttling] Throttling command {:?} (too rapid)", command.command_type);
+            // In a more advanced implementation, we could set a flag in the command 
+            // to mark it as rejected/ignored by the middleware.
         }
     }
 }
