@@ -12,8 +12,11 @@ use crate::session::MediaSession;
 use crate::snapshot::EngineSnapshot;
 use crate::state_machine::StateMachine;
 
+use crate::observability::EventBus;
+use std::sync::Arc;
+
 /// Result of an engine operation, containing the new state and an event to be broadcasted.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct EngineOutcome {
     /// The updated engine state.
     pub snapshot: EngineSnapshot,
@@ -33,16 +36,19 @@ pub struct Engine {
     repository: Box<dyn MediaRepository>,
     queue: QueueManager,
     persistence: Box<dyn Persistence>,
+    event_bus: Arc<EventBus>,
 }
 
 impl Default for Engine {
     fn default() -> Self {
+        let bus = Arc::new(EventBus::default());
         Self {
             snapshot: EngineSnapshot::default(),
             middleware: MiddlewarePipeline::default(),
             repository: Box::new(InMemoryRepository::new(vec![])),
             queue: QueueManager::default(),
             persistence: Box::new(NoopPersistence),
+            event_bus: bus,
         }
     }
 }
@@ -58,13 +64,20 @@ impl std::fmt::Debug for Engine {
 impl Engine {
     /// Initializes a new engine instance with the given timestamp.
     pub fn new(now_epoch_millis: u64) -> Self {
+        let bus = Arc::new(EventBus::default());
         Self {
             snapshot: EngineSnapshot::idle(now_epoch_millis),
             middleware: MiddlewarePipeline::new(),
             repository: Box::new(InMemoryRepository::new(vec![])),
             queue: QueueManager::default(),
             persistence: Box::new(NoopPersistence),
+            event_bus: bus,
         }
+    }
+
+    /// Returns the event bus for the engine.
+    pub fn event_bus(&self) -> Arc<EventBus> {
+        self.event_bus.clone()
     }
 
     /// Returns the queue manager for the engine.
@@ -92,6 +105,10 @@ impl Engine {
         if let Some(state) = self.persistence.load()? {
             self.snapshot = state.snapshot;
             self.queue = state.queue;
+            // If we were playing, we should probably be paused after restore for safety in AAOS
+            if self.snapshot.playback_state == crate::playback::PlaybackState::Playing {
+                self.snapshot.playback_state = crate::playback::PlaybackState::Paused;
+            }
             Ok(true)
         } else {
             Ok(false)
@@ -196,6 +213,14 @@ impl Engine {
             crate::command::EngineCommandType::Browse { parent_id } => {
                 let results = self.repository.browse(parent_id);
                 next_snapshot = next_snapshot.with_search_results(results);
+            }
+            crate::command::EngineCommandType::SetSpeed { speed } => {
+                next_snapshot = next_snapshot.with_speed(*speed);
+                effects.push(EngineEffect::Play); // Ensure speed change is applied if playing
+            }
+            crate::command::EngineCommandType::Seek { position_millis } => {
+                next_snapshot = next_snapshot.with_position(*position_millis);
+                effects.push(EngineEffect::Play); // Often a seek implies continuing playback
             }
             _ => {}
         }

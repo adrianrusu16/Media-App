@@ -1,5 +1,5 @@
 /// Represents the different types of commands the engine can process.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum EngineCommandType {
     /// Initial setup command to prepare the engine.
     Bootstrap,
@@ -19,6 +19,10 @@ pub enum EngineCommandType {
     Search { query: String },
     /// Retrieves a list of media items that are children of the specified parent ID.
     Browse { parent_id: String },
+    /// Changes the playback speed.
+    SetSpeed { speed: f32 },
+    /// Seeks to a specific position in milliseconds.
+    Seek { position_millis: u64 },
     /// A command not recognized by this version of the engine.
     Unknown(String),
 }
@@ -42,6 +46,10 @@ impl EngineCommandType {
     pub const SEARCH_WIRE: &'static str = "search";
     /// Wire value for Browse command.
     pub const BROWSE_WIRE: &'static str = "browse";
+    /// Wire value for SetSpeed command.
+    pub const SET_SPEED_WIRE: &'static str = "set_speed";
+    /// Wire value for Seek command.
+    pub const SEEK_WIRE: &'static str = "seek";
 
     /// Maps a wire string value to its corresponding enum variant.
     pub fn from_wire(value: impl Into<String>) -> Self {
@@ -56,6 +64,8 @@ impl EngineCommandType {
             Self::END_SESSION_WIRE => Self::EndSession,
             Self::SEARCH_WIRE => Self::Search { query: "".to_string() },
             Self::BROWSE_WIRE => Self::Browse { parent_id: "root".to_string() },
+            Self::SET_SPEED_WIRE => Self::SetSpeed { speed: 1.0 },
+            Self::SEEK_WIRE => Self::Seek { position_millis: 0 },
             _ => Self::Unknown(value),
         }
     }
@@ -72,13 +82,15 @@ impl EngineCommandType {
             Self::EndSession => Self::END_SESSION_WIRE,
             Self::Search { .. } => Self::SEARCH_WIRE,
             Self::Browse { .. } => Self::BROWSE_WIRE,
+            Self::SetSpeed { .. } => Self::SET_SPEED_WIRE,
+            Self::Seek { .. } => Self::SEEK_WIRE,
             Self::Unknown(value) => value.as_str(),
         }
     }
 }
 
 /// A command sent to the engine to trigger a state transition.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct EngineCommand {
     /// The type of the command.
     pub command_type: EngineCommandType,
@@ -138,5 +150,15 @@ impl EngineCommand {
     /// Creates a Browse command.
     pub fn browse(parent_id: String) -> Self {
         Self::new(EngineCommandType::Browse { parent_id }, None)
+    }
+
+    /// Creates a SetSpeed command.
+    pub fn set_speed(speed: f32) -> Self {
+        Self::new(EngineCommandType::SetSpeed { speed }, None)
+    }
+
+    /// Creates a Seek command.
+    pub fn seek(position_millis: u64) -> Self {
+        Self::new(EngineCommandType::Seek { position_millis }, None)
     }
 }

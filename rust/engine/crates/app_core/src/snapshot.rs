@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// This structure is the "Single Source of Truth" for the UI and other platform components.
 /// It is immutable and should only be updated through the engine's reducer.
-#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct EngineSnapshot {
     /// The current playback status (e.g., Playing, Paused).
     pub playback_state: PlaybackState,
@@ -31,6 +31,10 @@ pub struct EngineSnapshot {
     pub session: Option<MediaSession>,
     /// The results of the last search or browse operation.
     pub search_results: Vec<MediaItem>,
+    /// The current playback speed (1.0 is normal).
+    pub playback_speed: f32,
+    /// The current playback position in milliseconds.
+    pub position_millis: u64,
 }
 
 impl EngineSnapshot {
@@ -39,6 +43,8 @@ impl EngineSnapshot {
         Self {
             playback_state: PlaybackState::Idle,
             updated_at_epoch_millis: now_epoch_millis,
+            playback_speed: 1.0,
+            position_millis: 0,
             ..Default::default()
         }
     }
@@ -73,6 +79,20 @@ impl EngineSnapshot {
     #[must_use]
     pub fn with_search_results(mut self, results: Vec<MediaItem>) -> Self {
         self.search_results = results;
+        self
+    }
+
+    /// Functional update for the playback speed, returning a new snapshot.
+    #[must_use]
+    pub fn with_speed(mut self, speed: f32) -> Self {
+        self.playback_speed = speed;
+        self
+    }
+
+    /// Functional update for the playback position, returning a new snapshot.
+    #[must_use]
+    pub fn with_position(mut self, position_millis: u64) -> Self {
+        self.position_millis = position_millis;
         self
     }
 }

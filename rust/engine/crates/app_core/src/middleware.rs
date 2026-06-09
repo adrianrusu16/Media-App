@@ -1,5 +1,7 @@
 use crate::command::EngineCommand;
 use crate::reducer::{Engine, EngineOutcome};
+use std::sync::Arc;
+use crate::observability::EventBus;
 
 /// Middleware trait for processing engine operations.
 ///
@@ -21,14 +23,31 @@ impl Middleware for LoggerMiddleware {
     }
 }
 
-/// A middleware that tracks engine performance and command usage (placeholder).
-pub struct TelemetryMiddleware;
+/// A middleware that tracks engine performance and command usage.
+pub struct TelemetryMiddleware {
+    bus: Arc<EventBus>,
+}
+
+impl TelemetryMiddleware {
+    pub fn new(bus: Arc<EventBus>) -> Self {
+        Self { bus }
+    }
+}
+
 impl Middleware for TelemetryMiddleware {
+    fn before_dispatch(&self, _engine: &Engine, command: &EngineCommand) {
+        println!("[Telemetry] Starting command: {:?}", command.command_type);
+    }
+
     fn after_dispatch(&self, _engine: &Engine, outcome: &EngineOutcome) {
-        // In a real app, this would send data to an analytics service
+        // Notify the bus about the outcome and event
+        self.bus.notify_state_changed(&outcome.snapshot);
+        self.bus.notify_event_emitted(&outcome.event);
+
         println!(
-            "[Telemetry] Command result: {:?}, New state: {:?}",
-            outcome.event.event_type, outcome.snapshot.playback_state
+            "[Telemetry] Command completed. Event: {:?}, Effects: {}",
+            outcome.event.event_type,
+            outcome.effects.len()
         );
     }
 }

@@ -3,6 +3,7 @@ mod effect;
 mod command;
 mod event;
 mod middleware;
+mod observability;
 mod platform_event;
 mod playback;
 mod persistence;
@@ -45,6 +46,7 @@ pub use event::{EngineEvent, EngineEventType};
 pub use middleware::{
     FocusMiddleware, LoggerMiddleware, Middleware, MiddlewarePipeline, TelemetryMiddleware,
 };
+pub use observability::{EngineObserver, EventBus};
 pub use persistence::{EnginePersistentState, NoopPersistence, Persistence};
 pub use platform_event::{EnginePlatformEvent, EnginePlatformEventType};
 pub use playback::{PlaybackState, RestrictionState};

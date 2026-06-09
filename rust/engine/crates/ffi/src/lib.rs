@@ -1,10 +1,11 @@
 use std::ffi::{c_char, CString};
 use std::ptr;
+use std::sync::Arc;
 
 use panda_engine_core::{
-    Engine, EngineEffect, EngineCommand, EngineCommandType, EngineEventType, EngineOutcome,
-    EngineSnapshot, LoggerMiddleware, MediaItem, MiddlewarePipeline, PlaybackState, RepeatMode,
-    RestrictionState, TelemetryMiddleware,
+    Engine, EngineCommand, EngineCommandType, EngineEffect, EngineEvent, EngineEventType,
+    EngineObserver, EngineOutcome, EngineSnapshot, LoggerMiddleware, MediaItem, MiddlewarePipeline,
+    PlaybackState, RepeatMode, RestrictionState, TelemetryMiddleware,
 };
 
 pub const FFI_COMMAND_BOOTSTRAP: i32 = 0;
@@ -16,6 +17,8 @@ pub const FFI_COMMAND_START_SESSION: i32 = 5;
 pub const FFI_COMMAND_END_SESSION: i32 = 6;
 pub const FFI_COMMAND_SEARCH: i32 = 7;
 pub const FFI_COMMAND_BROWSE: i32 = 8;
+pub const FFI_COMMAND_SET_SPEED: i32 = 9;
+pub const FFI_COMMAND_SEEK: i32 = 10;
 pub const FFI_COMMAND_UNKNOWN: i32 = -1;
 
 pub const FFI_PLAYBACK_IDLE: i32 = 0;
@@ -51,7 +54,7 @@ pub const FFI_EFFECT_SESSION_ENDED: i32 = 8;
 
 /// C-compatible representation of the engine snapshot.
 #[repr(C)]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct FfiEngineSnapshot {
     pub playback_state: i32,
     pub restriction_state: i32,
@@ -59,11 +62,13 @@ pub struct FfiEngineSnapshot {
     pub has_active_session: bool,
     pub has_error: bool,
     pub search_results_count: usize,
+    pub playback_speed: f32,
+    pub position_millis: u64,
 }
 
 /// C-compatible representation of the engine outcome.
 #[repr(C)]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct FfiEngineOutcome {
     pub snapshot: FfiEngineSnapshot,
     pub event_type: i32,
@@ -74,6 +79,27 @@ pub struct FfiEngineOutcome {
 pub struct PandaEngine {
     engine: Engine,
     last_effects: Vec<EngineEffect>,
+    observer: Option<Arc<FfiObserver>>,
+}
+
+struct FfiObserver {
+    on_state_changed: unsafe extern "C" fn(FfiEngineSnapshot),
+    on_event_emitted: unsafe extern "C" fn(i32),
+}
+
+unsafe impl Send for FfiObserver {}
+unsafe impl Sync for FfiObserver {}
+
+impl EngineObserver for FfiObserver {
+    fn on_state_changed(&self, snapshot: &EngineSnapshot) {
+        let ffi_snapshot = FfiEngineSnapshot::from(snapshot);
+        unsafe { (self.on_state_changed)(ffi_snapshot) };
+    }
+
+    fn on_event_emitted(&self, event: &EngineEvent) {
+        let event_type = event_to_ffi(&event.event_type);
+        unsafe { (self.on_event_emitted)(event_type) };
+    }
 }
 
 /// Creates a new PandaEngine instance.
@@ -87,14 +113,36 @@ pub extern "C" fn panda_engine_create(now_epoch_millis: u64) -> *mut PandaEngine
     // Setup default state-of-the-art middleware (e.g., logging)
     let mut pipeline = MiddlewarePipeline::new();
     pipeline.add(Box::new(LoggerMiddleware));
-    pipeline.add(Box::new(TelemetryMiddleware));
+    pipeline.add(Box::new(TelemetryMiddleware::new(engine.event_bus())));
     pipeline.add(Box::new(panda_engine_core::FocusMiddleware));
     engine.set_middleware(pipeline);
 
     Box::into_raw(Box::new(PandaEngine {
         engine,
         last_effects: Vec::new(),
+        observer: None,
     }))
+}
+
+/// Registers callbacks for engine observability.
+///
+/// # Safety
+/// [engine] must be a valid pointer returned by [panda_engine_create].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn panda_engine_set_observer(
+    engine: *mut PandaEngine,
+    on_state_changed: unsafe extern "C" fn(FfiEngineSnapshot),
+    on_event_emitted: unsafe extern "C" fn(i32),
+) {
+    let engine = unsafe { engine.as_mut() };
+    if let Some(engine) = engine {
+        let observer = Arc::new(FfiObserver {
+            on_state_changed,
+            on_event_emitted,
+        });
+        engine.observer = Some(observer.clone());
+        engine.engine.event_bus().subscribe(Box::new(observer));
+    }
 }
 
 /// Destroys a PandaEngine instance and frees its memory.
@@ -146,6 +194,14 @@ pub unsafe extern "C" fn panda_engine_dispatch(
                 }
                 FFI_COMMAND_BROWSE => {
                     EngineCommand::new(EngineCommandType::Browse { parent_id: payload_str.unwrap_or_else(|| "root".to_string()) }, None)
+                }
+                FFI_COMMAND_SET_SPEED => {
+                    let speed = payload_str.and_then(|s| s.parse::<f32>().ok()).unwrap_or(1.0);
+                    EngineCommand::new(EngineCommandType::SetSpeed { speed }, None)
+                }
+                FFI_COMMAND_SEEK => {
+                    let pos = payload_str.and_then(|s| s.parse::<u64>().ok()).unwrap_or(0);
+                    EngineCommand::new(EngineCommandType::Seek { position_millis: pos }, None)
                 }
                 _ => EngineCommand::new(command_from_ffi(command_type), payload_str),
             };
@@ -312,6 +368,8 @@ impl FfiEngineSnapshot {
             has_active_session: false,
             has_error: false,
             search_results_count: 0,
+            playback_speed: 1.0,
+            position_millis: 0,
         }
     }
 }
@@ -335,6 +393,8 @@ impl From<&EngineSnapshot> for FfiEngineSnapshot {
             has_active_session: snapshot.session.is_some(),
             has_error: snapshot.last_error.is_some(),
             search_results_count: snapshot.search_results.len(),
+            playback_speed: snapshot.playback_speed,
+            position_millis: snapshot.position_millis,
         }
     }
 }
