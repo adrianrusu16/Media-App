@@ -13,6 +13,7 @@ use crate::snapshot::EngineSnapshot;
 use crate::state_machine::StateMachine;
 
 use crate::observability::EventBus;
+use crate::service::ServiceManager;
 use std::sync::Arc;
 
 /// Result of an engine operation, containing the new state and an event to be broadcasted.
@@ -37,6 +38,7 @@ pub struct Engine {
     queue: QueueManager,
     persistence: Box<dyn Persistence>,
     event_bus: Arc<EventBus>,
+    service_manager: ServiceManager,
 }
 
 impl Default for Engine {
@@ -49,6 +51,7 @@ impl Default for Engine {
             queue: QueueManager::default(),
             persistence: Box::new(NoopPersistence),
             event_bus: bus,
+            service_manager: ServiceManager::new(),
         }
     }
 }
@@ -72,6 +75,7 @@ impl Engine {
             queue: QueueManager::default(),
             persistence: Box::new(NoopPersistence),
             event_bus: bus,
+            service_manager: ServiceManager::new(),
         }
     }
 
@@ -83,6 +87,20 @@ impl Engine {
     /// Returns the queue manager for the engine.
     pub fn queue(&mut self) -> &mut QueueManager {
         &mut self.queue
+    }
+
+    /// Returns the service manager for the engine.
+    pub fn services(&mut self) -> &mut ServiceManager {
+        &mut self.service_manager
+    }
+
+    /// Ticks all background services and processes any commands they emit.
+    pub fn tick(&mut self, now_epoch_millis: u64) -> Vec<EngineOutcome> {
+        let commands = self.service_manager.tick(self, now_epoch_millis);
+        commands
+            .into_iter()
+            .map(|cmd| self.dispatch(cmd, now_epoch_millis))
+            .collect()
     }
 
     /// Sets the media repository for the engine.
@@ -445,11 +463,13 @@ mod tests {
                 id: "1".to_string(),
                 title: "Song 1".to_string(),
                 artist: "Artist 1".to_string(),
+                ..Default::default()
             },
             MediaItem {
                 id: "2".to_string(),
                 title: "Song 2".to_string(),
                 artist: "Artist 2".to_string(),
+                ..Default::default()
             },
         ];
         engine.queue().set_items(items);
@@ -475,8 +495,8 @@ mod tests {
     fn engine_search_finds_items() {
         let mut engine = Engine::new(100);
         let items = vec![
-            MediaItem { id: "1".to_string(), title: "Rust Song".to_string(), artist: "The Developers".to_string() },
-            MediaItem { id: "2".to_string(), title: "Kotlin Blues".to_string(), artist: "The Developers".to_string() },
+            MediaItem { id: "1".to_string(), title: "Rust Song".to_string(), artist: "The Developers".to_string(), ..Default::default() },
+            MediaItem { id: "2".to_string(), title: "Kotlin Blues".to_string(), artist: "The Developers".to_string(), ..Default::default() },
         ];
         engine.set_repository(Box::new(InMemoryRepository::new(items)));
 
@@ -489,7 +509,7 @@ mod tests {
     fn browse_returns_items() {
         let mut engine = Engine::new(100);
         let items = vec![
-            MediaItem { id: "1".to_string(), title: "Song 1".to_string(), artist: "Artist A".to_string() },
+            MediaItem { id: "1".to_string(), title: "Song 1".to_string(), artist: "Artist A".to_string(), parent_id: Some("root".to_string()), ..Default::default() },
         ];
         engine.set_repository(Box::new(InMemoryRepository::new(items)));
         
@@ -507,6 +527,7 @@ mod tests {
                 id: "1".to_string(),
                 title: "Song 1".to_string(),
                 artist: "Artist 1".to_string(),
+                ..Default::default()
             },
         ];
         engine.queue().set_items(items);
@@ -533,5 +554,20 @@ mod tests {
 
         assert_eq!(PlaybackState::Paused, outcome.snapshot.playback_state);
         assert!(outcome.effects.contains(&EngineEffect::Pause));
+    }
+
+    #[test]
+    fn tick_updates_progress() {
+        let mut engine = Engine::new(100);
+        engine.snapshot = engine.snapshot.clone()
+            .with_playback_state(PlaybackState::Playing, 100)
+            .with_position(5000)
+            .with_speed(1.0);
+        
+        // 1 second later
+        let outcomes = engine.tick(1100);
+        
+        assert_eq!(outcomes.len(), 1);
+        assert_eq!(outcomes[0].snapshot.position_millis, 6000);
     }
 }

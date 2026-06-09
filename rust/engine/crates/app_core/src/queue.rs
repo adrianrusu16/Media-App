@@ -124,8 +124,8 @@ mod tests {
 
     fn mock_items() -> Vec<MediaItem> {
         vec![
-            MediaItem { id: "1".to_string(), title: "S1".to_string(), artist: "A1".to_string() },
-            MediaItem { id: "2".to_string(), title: "S2".to_string(), artist: "A2".to_string() },
+            MediaItem { id: "1".to_string(), title: "S1".to_string(), artist: "A1".to_string(), ..Default::default() },
+            MediaItem { id: "2".to_string(), title: "S2".to_string(), artist: "A2".to_string(), ..Default::default() },
         ]
     }
 

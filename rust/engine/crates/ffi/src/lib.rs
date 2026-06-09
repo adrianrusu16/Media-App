@@ -145,6 +145,20 @@ pub unsafe extern "C" fn panda_engine_set_observer(
     }
 }
 
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn panda_engine_tick(engine: *mut PandaEngine, now_epoch_millis: u64) -> usize {
+    let engine = unsafe { engine.as_mut() };
+    if let Some(engine) = engine {
+        let outcomes = engine.engine.tick(now_epoch_millis);
+        if let Some(last) = outcomes.last() {
+            engine.last_effects = last.effects.clone();
+        }
+        outcomes.len()
+    } else {
+        0
+    }
+}
+
 /// Destroys a PandaEngine instance and frees its memory.
 ///
 /// # Safety
@@ -262,7 +276,7 @@ pub unsafe extern "C" fn panda_engine_queue_set_items(
             let artist = unsafe { std::ffi::CStr::from_ptr(*artists.add(i)) }
                 .to_string_lossy()
                 .into_owned();
-            items.push(MediaItem { id, title, artist });
+            items.push(MediaItem { id, title, artist, ..Default::default() });
         }
         engine.engine.queue().set_items(items);
     }
@@ -559,7 +573,7 @@ mod tests {
         unsafe { panda_engine_dispatch(engine, FFI_COMMAND_START_SESSION, std::ptr::null(), 150) };
         unsafe {
             let mut items = Vec::new();
-            items.push(MediaItem { id: "1".to_string(), title: "S1".to_string(), artist: "A1".to_string() });
+            items.push(MediaItem { id: "1".to_string(), title: "S1".to_string(), artist: "A1".to_string(), ..Default::default() });
             (*engine).engine.queue().set_items(items);
         }
 
@@ -584,7 +598,7 @@ mod tests {
         let engine = panda_engine_create(100);
         unsafe {
             let mut items = Vec::new();
-            items.push(MediaItem { id: "1".to_string(), title: "Rust Song".to_string(), artist: "A".to_string() });
+            items.push(MediaItem { id: "1".to_string(), title: "Rust Song".to_string(), artist: "A".to_string(), ..Default::default() });
             (*engine).engine.set_repository(Box::new(panda_engine_core::InMemoryRepository::new(items)));
         }
 

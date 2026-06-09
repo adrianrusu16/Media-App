@@ -2,12 +2,30 @@ use crate::snapshot::EngineSnapshot;
 
 use serde::{Deserialize, Serialize};
 
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum MediaItemType {
+    Track,
+    Artist,
+    Album,
+    Folder,
+    Playlist,
+    RadioStation,
+}
+
+impl Default for MediaItemType {
+    fn default() -> Self {
+        Self::Track
+    }
+}
+
 /// Represents a media item in the system.
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct MediaItem {
     pub id: String,
     pub title: String,
     pub artist: String,
+    pub item_type: MediaItemType,
+    pub parent_id: Option<String>,
 }
 
 /// Abstract definition for media data management.
@@ -66,9 +84,12 @@ impl MediaRepository for InMemoryRepository {
         Some(self.items[prev_index].clone())
     }
 
-    fn browse(&self, _parent_id: &str) -> Vec<MediaItem> {
-        // Simple mock: return all items for any browse request
-        self.items.clone()
+    fn browse(&self, parent_id: &str) -> Vec<MediaItem> {
+        self.items
+            .iter()
+            .filter(|i| i.parent_id.as_deref() == Some(parent_id))
+            .cloned()
+            .collect()
     }
 
     fn search(&self, query: &str) -> Vec<MediaItem> {
