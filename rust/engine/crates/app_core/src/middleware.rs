@@ -69,9 +69,11 @@ impl Middleware for FocusMiddleware {
 pub struct RecoveryMiddleware;
 impl Middleware for RecoveryMiddleware {
     fn after_dispatch(&self, engine: &mut Engine, outcome: &mut EngineOutcome) {
-        if let Some(error) = &outcome.snapshot.last_error {
-            if error.error_type == EngineErrorType::NetworkError && !error.is_fatal {
-                warn!("[Recovery] Non-fatal network error detected. Attempting to skip to next track...");
+        if let Some(error) = &outcome.snapshot.last_error
+            && error.error_type == EngineErrorType::NetworkError
+            && !error.is_fatal
+        {
+            warn!("[Recovery] Non-fatal network error detected. Attempting to skip to next track...");
 
                 // Dispatch SkipNext to recover
                 let recovery_outcome = engine.dispatch(
@@ -86,7 +88,6 @@ impl Middleware for RecoveryMiddleware {
                 outcome.snapshot.last_error = Some(EngineError::media_skipped(
                     "Skipped track due to network error",
                 ));
-            }
         }
     }
 }

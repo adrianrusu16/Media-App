@@ -7,6 +7,7 @@ mod observability;
 mod persistence;
 mod platform_event;
 mod playback;
+mod player;
 mod queue;
 mod reducer;
 mod repository;
@@ -59,6 +60,7 @@ pub use middleware::{
 pub use observability::{EngineObserver, EventBus};
 pub use persistence::{EnginePersistentState, NoopPersistence, Persistence};
 pub use platform_event::{EnginePlatformEvent, EnginePlatformEventType};
+pub use player::{MediaPlayer, MockPlayer};
 pub use playback::{PlaybackState, RestrictionState};
 pub use queue::{QueueManager, RepeatMode};
 pub use reducer::{Engine, EngineOutcome};

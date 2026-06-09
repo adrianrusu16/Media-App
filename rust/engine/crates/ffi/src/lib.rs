@@ -53,6 +53,7 @@ pub const FFI_EFFECT_ABANDON_AUDIO_FOCUS: i32 = 5;
 pub const FFI_EFFECT_UPDATE_METADATA: i32 = 6;
 pub const FFI_EFFECT_SESSION_STARTED: i32 = 7;
 pub const FFI_EFFECT_SESSION_ENDED: i32 = 8;
+pub const FFI_EFFECT_SET_SPEED: i32 = 9;
 
 pub const FFI_ERROR_NONE: i32 = 0;
 pub const FFI_ERROR_NOT_FOUND: i32 = 1;
@@ -449,6 +450,7 @@ fn effect_to_ffi(effect: &EngineEffect) -> i32 {
         EngineEffect::UpdateMetadata { .. } => FFI_EFFECT_UPDATE_METADATA,
         EngineEffect::SessionStarted { .. } => FFI_EFFECT_SESSION_STARTED,
         EngineEffect::SessionEnded => FFI_EFFECT_SESSION_ENDED,
+        EngineEffect::SetSpeed(_) => FFI_EFFECT_SET_SPEED,
     }
 }
 

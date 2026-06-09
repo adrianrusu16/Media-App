@@ -2,7 +2,7 @@
 ///
 /// These effects typically represent side effects that cannot be executed
 /// within the pure logic of the engine (e.g., controlling a hardware player).
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum EngineEffect {
     /// Request the platform to start audio playback.
     Play,
@@ -12,6 +12,8 @@ pub enum EngineEffect {
     Stop,
     /// Request the platform to seek a specific position (in milliseconds).
     Seek(u64),
+    /// Request the platform to set the playback speed.
+    SetSpeed(f32),
     /// Request audio focus from the system.
     RequestAudioFocus,
     /// Abandon audio focus.
@@ -41,6 +43,8 @@ impl EngineEffect {
     pub const REQUEST_AUDIO_FOCUS_WIRE: &'static str = "request_audio_focus";
     /// Wire value for AbandonAudioFocus effect.
     pub const ABANDON_AUDIO_FOCUS_WIRE: &'static str = "abandon_audio_focus";
+    /// Wire value for SetSpeed effect.
+    pub const SET_SPEED_WIRE: &'static str = "set_speed";
     /// Wire value for SessionStarted effect.
     pub const SESSION_STARTED_WIRE: &'static str = "session_started";
     /// Wire value for SessionEnded effect.
@@ -55,6 +59,7 @@ impl EngineEffect {
             Self::Pause => Self::PAUSE_WIRE,
             Self::Stop => Self::STOP_WIRE,
             Self::Seek(_) => Self::SEEK_WIRE,
+            Self::SetSpeed(_) => Self::SET_SPEED_WIRE,
             Self::RequestAudioFocus => Self::REQUEST_AUDIO_FOCUS_WIRE,
             Self::AbandonAudioFocus => Self::ABANDON_AUDIO_FOCUS_WIRE,
             Self::SessionStarted { .. } => Self::SESSION_STARTED_WIRE,
