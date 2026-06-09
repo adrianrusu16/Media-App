@@ -109,3 +109,95 @@ impl EngineSnapshot {
         self
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn mock_items() -> Vec<MediaItem> {
+        vec![
+            MediaItem {
+                id: "1".to_string(),
+                title: "Song A".to_string(),
+                artist: "Artist X".to_string(),
+                item_type: MediaItemType::Track,
+                parent_id: Some("album1".to_string()),
+            },
+            MediaItem {
+                id: "2".to_string(),
+                title: "Song B".to_string(),
+                artist: "Artist Y".to_string(),
+                item_type: MediaItemType::Track,
+                parent_id: Some("album1".to_string()),
+            },
+            MediaItem {
+                id: "3".to_string(),
+                title: "Different".to_string(),
+                artist: "Artist X".to_string(),
+                item_type: MediaItemType::Track,
+                parent_id: Some("album2".to_string()),
+            },
+        ]
+    }
+
+    #[test]
+    fn test_get_by_id() {
+        let repo = InMemoryRepository::new(mock_items());
+        assert_eq!(repo.get_by_id("1").unwrap().title, "Song A");
+        assert!(repo.get_by_id("99").is_none());
+    }
+
+    #[test]
+    fn test_get_next_prev_wrap() {
+        let repo = InMemoryRepository::new(mock_items());
+        assert_eq!(repo.get_next("3").unwrap().id, "1");
+        assert_eq!(repo.get_previous("1").unwrap().id, "3");
+    }
+
+    #[test]
+    fn test_browse() {
+        let repo = InMemoryRepository::new(mock_items());
+        let album1_items = repo.browse("album1");
+        assert_eq!(album1_items.len(), 2);
+        assert!(album1_items.iter().all(|i| i.parent_id.as_deref() == Some("album1")));
+        
+        assert!(repo.browse("nonexistent").is_empty());
+    }
+
+    #[test]
+    fn test_search() {
+        let repo = InMemoryRepository::new(mock_items());
+        
+        // Search by title
+        let results = repo.search("Song");
+        assert_eq!(results.len(), 2);
+        
+        // Search by artist
+        let results = repo.search("Artist X");
+        assert_eq!(results.len(), 2);
+        assert!(results.iter().any(|i| i.id == "1"));
+        assert!(results.iter().any(|i| i.id == "3"));
+        
+        // Case insensitive
+        let results = repo.search("song");
+        assert_eq!(results.len(), 2);
+        
+        assert!(repo.search("xyz").is_empty());
+    }
+
+    #[test]
+    fn test_with_media_snapshot() {
+        use crate::model::snapshot::EngineSnapshot;
+        let snapshot = EngineSnapshot::default();
+        let item = MediaItem {
+            id: "1".to_string(),
+            title: "T".to_string(),
+            artist: "A".to_string(),
+            ..Default::default()
+        };
+        let updated = snapshot.with_media(item);
+        assert_eq!(updated.media_id, Some("1".to_string()));
+        assert_eq!(updated.title, Some("T".to_string()));
+        assert_eq!(updated.artist, Some("A".to_string()));
+    }
+}

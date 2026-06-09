@@ -107,7 +107,8 @@ impl VoiceEngine for MockVoiceEngine {
 
     fn reset(&mut self) {
         self.last_query.clear();
-        self.should_fail = false;
+        // Keep should_fail if we want to test multiple failures,
+        // but core.rs calls ve.reset() in StartVoiceInteraction
     }
 }
 
@@ -199,7 +200,7 @@ impl VoiceEngine for VoskVoiceEngine {
     }
 }
 
-/// A fallback [VoiceEngine] for environments where Vosk library is not available.
+/// A fallback [VoiceEngine] for environments where the Vosk library is not available.
 #[cfg(not(feature = "vosk-engine"))]
 pub struct VoskVoiceEngine {
     last_partial: String,
@@ -242,5 +243,42 @@ impl VoiceEngine for VoskVoiceEngine {
 
     fn reset(&mut self) {
         self.last_partial.clear();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_fallback_vosk_engine() {
+        let mut ve = VoskVoiceEngine::new("any_path").unwrap();
+        assert_eq!(ve.get_partial_hypothesis(), "");
+        
+        ve.process_audio_chunk(&[0; 100]).unwrap();
+        assert_eq!(ve.get_partial_hypothesis(), "fallback hypothesis");
+        
+        let result = ve.finish().unwrap();
+        if let VoiceInteractionResult::Command(cmd) = result {
+            if let crate::model::command::EngineCommandType::VoicePlay { query } = cmd.command_type {
+                assert_eq!(query, "jazz");
+            } else {
+                panic!("Expected VoicePlay command");
+            }
+        } else {
+            panic!("Expected command");
+        }
+        
+        ve.reset();
+        assert_eq!(ve.get_partial_hypothesis(), "");
+    }
+
+    #[test]
+    fn test_mock_voice_engine_no_match() {
+        let mut ve = MockVoiceEngine::new();
+        // MockVoiceEngine returns "jazz" by default unless set_fail(true)
+        // But let's verify reset works
+        ve.reset();
+        assert_eq!(ve.get_partial_hypothesis(), "");
     }
 }

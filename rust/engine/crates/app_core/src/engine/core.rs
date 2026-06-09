@@ -1136,4 +1136,149 @@ mod tests {
         engine.tick(700);
         assert_eq!(engine.snapshot().playback_state, PlaybackState::Paused);
     }
+
+    #[test]
+    fn engine_save_and_restore_cycle() {
+        use crate::data::repository::MediaItem;
+        use crate::test_utils::MockPersistence;
+        use std::sync::Arc;
+
+        let persistence = Arc::new(MockPersistence::new());
+
+        let mut engine = Engine::new(100);
+        let items = vec![MediaItem {
+            id: "1".to_string(),
+            title: "T1".to_string(),
+            artist: "A1".to_string(),
+            ..Default::default()
+        }];
+        engine.set_repository(Box::new(InMemoryRepository::new(items.clone())));
+        engine.queue().set_items(items);
+        engine.set_persistence(Box::new(persistence.clone()));
+
+        engine.dispatch(EngineCommand::start_session("u1".to_string()), 150);
+        engine.dispatch(EngineCommand::play(), 200);
+        engine.dispatch_platform_event(
+            crate::model::platform_event::EnginePlatformEvent::new(
+                crate::model::platform_event::EnginePlatformEventType::MediaLoaded,
+                None,
+            ),
+            250,
+        );
+
+        assert_eq!(engine.snapshot().playback_state, PlaybackState::Playing);
+        engine.save().expect("Save failed");
+
+        // New engine, restore
+        let mut engine2 = Engine::new(1000);
+        // Explicitly set config to match engine1
+        let mut config2 = crate::model::config::EngineConfig::new();
+        config2.auto_resume = false;
+        engine2.dispatch(EngineCommand::update_config(config2), 1010);
+
+        engine2.set_persistence(Box::new(persistence));
+        let restored = engine2.restore().expect("Restore failed");
+
+        assert!(restored);
+        // By default, restore moves Playing -> Paused (unless auto_resume is true)
+        assert_eq!(engine2.snapshot().playback_state, PlaybackState::Paused);
+        assert_eq!(engine2.snapshot().media_id, Some("1".to_string()));
+    }
+
+    #[test]
+    fn engine_auto_resume_on_restore() {
+        use crate::data::repository::MediaItem;
+        use crate::test_utils::MockPersistence;
+        use std::sync::Arc;
+
+        let persistence = Arc::new(MockPersistence::new());
+
+        let mut engine = Engine::new(100);
+        engine.set_persistence(Box::new(persistence.clone()));
+        // Enable auto_resume
+        let mut config = crate::model::config::EngineConfig::new();
+        config.auto_resume = true;
+        engine.dispatch(EngineCommand::update_config(config), 110);
+
+        let items = vec![MediaItem {
+            id: "1".to_string(),
+            ..Default::default()
+        }];
+        engine.queue().set_items(items);
+        engine.dispatch(EngineCommand::start_session("u1".to_string()), 150);
+        engine.dispatch(EngineCommand::play(), 200);
+        engine.dispatch_platform_event(
+            crate::model::platform_event::EnginePlatformEvent::new(
+                crate::model::platform_event::EnginePlatformEventType::MediaLoaded,
+                None,
+            ),
+            250,
+        );
+
+        engine.save().expect("Save failed");
+
+        // Restore in new engine with auto_resume config
+        let mut engine2 = Engine::new(1000);
+        let mut config2 = crate::model::config::EngineConfig::new();
+        config2.auto_resume = true;
+        engine2.dispatch(EngineCommand::update_config(config2), 1010);
+        engine2.set_persistence(Box::new(persistence));
+
+        let restored = engine2.restore().expect("Restore failed");
+        assert!(restored);
+        // Should be Buffering (initiating reload) if auto_resume is true
+        assert_eq!(engine2.snapshot().playback_state, PlaybackState::Buffering);
+    }
+
+    #[test]
+    fn voice_interaction_error_handling() {
+        use crate::services::voice::MockVoiceEngine;
+
+        let mut engine = Engine::new(100);
+        let mut ve = MockVoiceEngine::new();
+        ve.set_fail(true);
+        engine.set_voice_engine(Box::new(ve));
+
+        engine.dispatch(EngineCommand::start_voice_interaction(), 110);
+        let _outcome = engine.dispatch(EngineCommand::process_voice_audio(vec![0; 100]), 120);
+
+        // Process audio itself might not fail yet, but stop_voice_interaction will call finish()
+        let outcome = engine.dispatch(EngineCommand::stop_voice_interaction(), 130);
+
+        assert!(outcome.effects.iter().any(|e| match e {
+            EngineEffect::NotifyUser { message } => message.contains("Failed to recognize speech"),
+            _ => false,
+        }));
+        assert_eq!(engine.snapshot().playback_state, PlaybackState::Idle);
+    }
+
+    #[test]
+    fn persistence_integration_test() {
+        use crate::data::repository::MediaItem;
+        use crate::test_utils::MockPersistence;
+        use std::sync::Arc;
+
+        let persistence = Arc::new(MockPersistence::new());
+        let mut engine = Engine::new(100);
+        engine.set_persistence(Box::new(persistence.clone()));
+
+        // 1. Setup state
+        let items = vec![MediaItem { id: "1".to_string(), ..Default::default() }];
+        engine.queue().set_items(items);
+        engine.dispatch(EngineCommand::start_session("u1".to_string()), 150);
+        
+        // 2. Save
+        engine.save().expect("First save");
+        
+        // 3. Verify persistence contains data
+        let state = persistence.load().unwrap().expect("Should have data");
+        assert_eq!(state.snapshot.media_id, None); // Haven't played yet
+        
+        // 4. Play and save again
+        engine.dispatch(EngineCommand::play(), 200);
+        engine.save().expect("Second save");
+        
+        let state2 = persistence.load().unwrap().expect("Should have data");
+        assert_eq!(state2.snapshot.media_id, Some("1".to_string()));
+    }
 }

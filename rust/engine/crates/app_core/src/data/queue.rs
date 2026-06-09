@@ -176,4 +176,40 @@ mod tests {
         let prev = qm.previous_item().unwrap();
         assert_eq!(prev.id, "2");
     }
+
+    #[test]
+    fn test_next_item_repeat_one_stays_on_same() {
+        let mut qm = QueueManager::new(mock_items());
+        qm.set_repeat_mode(RepeatMode::One);
+        qm.set_current_index(0);
+
+        let next = qm.next_item().unwrap();
+        assert_eq!(next.id, "1");
+        let next2 = qm.next_item().unwrap();
+        assert_eq!(next2.id, "1");
+    }
+
+    #[test]
+    fn test_has_next_with_repeat_modes() {
+        let mut qm = QueueManager::new(mock_items());
+        qm.set_current_index(1); // Last item
+
+        assert!(!qm.has_next()); // None
+
+        qm.set_repeat_mode(RepeatMode::All);
+        assert!(qm.has_next());
+
+        qm.set_repeat_mode(RepeatMode::One);
+        assert!(qm.has_next());
+    }
+
+    #[test]
+    fn test_empty_queue_handling() {
+        let mut qm = QueueManager::new(vec![]);
+        assert!(qm.current_item().is_none());
+        assert!(qm.next_item().is_none());
+        assert!(qm.previous_item().is_none());
+        assert!(!qm.has_next());
+        assert!(!qm.has_previous());
+    }
 }

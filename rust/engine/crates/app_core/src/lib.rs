@@ -35,6 +35,15 @@ pub mod test_utils {
             Ok(self.state.lock().unwrap().clone())
         }
     }
+
+    impl<P: Persistence + ?Sized> Persistence for std::sync::Arc<P> {
+        fn save(&self, state: &EnginePersistentState) -> Result<(), String> {
+            (**self).save(state)
+        }
+        fn load(&self) -> Result<Option<EnginePersistentState>, String> {
+            (**self).load()
+        }
+    }
 }
 
 pub use crate::data::persistence::{EnginePersistentState, NoopPersistence, Persistence};

@@ -1082,4 +1082,76 @@ mod tests {
             panda_engine_destroy(engine);
         }
     }
+
+    #[test]
+    fn ffi_config_and_save_restore() {
+        let engine = panda_engine_create(100);
+        
+        unsafe {
+            let persistence = Box::new(panda_engine_core::test_utils::MockPersistence::new());
+            (*engine).engine.with_engine(|e| e.set_persistence(persistence));
+        }
+
+        // Initial config
+        let config = unsafe { panda_engine_get_config(engine) };
+        assert!(config.auto_resume); // Default is true in engine/core.rs if not changed
+
+        // Save
+        let saved = unsafe { panda_engine_save(engine) };
+        assert!(saved);
+
+        // Restore
+        let restored = unsafe { panda_engine_restore(engine) };
+        assert!(restored);
+
+        unsafe {
+            panda_engine_destroy(engine);
+        }
+    }
+
+    #[test]
+    fn ffi_null_pointer_safety() {
+        unsafe {
+            // These should just return safely or handle nulls
+            assert!(!panda_engine_save(std::ptr::null_mut()));
+            assert!(!panda_engine_restore(std::ptr::null_mut()));
+            assert_eq!(panda_engine_dispatch(std::ptr::null_mut(), 0, std::ptr::null()), 0);
+            assert_eq!(panda_engine_get_effects_count(std::ptr::null_mut()), 0);
+            assert_eq!(panda_engine_get_effect_type(std::ptr::null_mut(), 0), 0);
+            
+            let snapshot = panda_engine_snapshot(std::ptr::null_mut());
+            assert!(!snapshot.can_dispatch);
+            
+            let config = panda_engine_get_config(std::ptr::null_mut());
+            assert!(!config.auto_resume);
+            
+            panda_engine_tick(std::ptr::null_mut(), 100);
+            panda_engine_destroy(std::ptr::null_mut());
+        }
+    }
+
+    #[test]
+    fn ffi_voice_hypothesis_retrieval() {
+        let engine = panda_engine_create(100);
+        
+        unsafe {
+            // Start voice interaction
+            panda_engine_dispatch(engine, 10, std::ptr::null()); // FFI_COMMAND_START_VOICE
+            
+            // Send some audio
+            let audio = [0i16; 160];
+            panda_engine_dispatch_voice_audio(engine, audio.as_ptr(), audio.len() as i32);
+            
+            let mut buf = [0u8; 256];
+            let len = panda_engine_get_voice_hypothesis(engine, buf.as_mut_ptr(), buf.len() as i32);
+            assert!(len > 0);
+            
+            let hypothesis = CStr::from_ptr(buf.as_ptr() as *const i8).to_string_lossy();
+            assert!(hypothesis.len() > 0);
+        }
+
+        unsafe {
+            panda_engine_destroy(engine);
+        }
+    }
 }

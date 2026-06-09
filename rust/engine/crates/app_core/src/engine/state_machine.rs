@@ -106,4 +106,52 @@ mod tests {
             )
         );
     }
+
+    #[test]
+    fn test_buffering_to_paused_on_pause_command() {
+        assert_eq!(
+            PlaybackState::Paused,
+            StateMachine::next_state_from_command(
+                PlaybackState::Buffering,
+                &EngineCommandType::Pause
+            )
+        );
+    }
+
+    #[test]
+    fn test_paused_to_playing_on_audio_focus_gain() {
+        assert_eq!(
+            PlaybackState::Playing,
+            StateMachine::next_state_from_platform_event(
+                PlaybackState::Paused,
+                &EnginePlatformEventType::AudioFocusChanged
+            )
+        );
+    }
+
+    #[test]
+    fn test_error_to_buffering_on_play_command() {
+        assert_eq!(
+            PlaybackState::Buffering,
+            StateMachine::next_state_from_command(PlaybackState::Error, &EngineCommandType::Play)
+        );
+    }
+
+    #[test]
+    fn test_suspend_to_ram_pauses_any_state() {
+        assert_eq!(
+            PlaybackState::Paused,
+            StateMachine::next_state_from_platform_event(
+                PlaybackState::Playing,
+                &EnginePlatformEventType::SuspendToRam
+            )
+        );
+        assert_eq!(
+            PlaybackState::Paused,
+            StateMachine::next_state_from_platform_event(
+                PlaybackState::Buffering,
+                &EnginePlatformEventType::SuspendToRam
+            )
+        );
+    }
 }
