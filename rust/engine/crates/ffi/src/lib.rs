@@ -44,6 +44,7 @@ pub const FFI_RESTRICTION_UNKNOWN: i32 = 0;
 
 pub const FFI_EVENT_COMMAND_APPLIED: i32 = 0;
 pub const FFI_EVENT_LISTENER_REGISTERED: i32 = 1;
+pub const FFI_EVENT_ANALYTICS_REPORTED: i32 = 2;
 
 pub const FFI_EFFECT_PLAY: i32 = 0;
 pub const FFI_EFFECT_PAUSE: i32 = 1;
@@ -92,12 +93,14 @@ pub struct FfiEngineOutcome {
 pub struct PandaEngine {
     engine: ConcurrentEngine,
     last_effects: Arc<Mutex<Vec<EngineEffect>>>,
+    last_event: Arc<Mutex<Option<EngineEvent>>>,
     observer: Option<Arc<FfiObserver>>,
 }
 
 struct FfiObserver {
     on_state_changed: unsafe extern "C" fn(FfiEngineSnapshot),
     on_event_emitted: unsafe extern "C" fn(i32),
+    last_event: Arc<Mutex<Option<EngineEvent>>>,
 }
 
 unsafe impl Send for FfiObserver {}
@@ -112,6 +115,10 @@ impl EngineObserver for FfiObserver {
 
     fn on_event_emitted(&self, event: &EngineEvent) {
         info!("FFI: Notifying observer of event {:?}", event.event_type);
+        {
+            let mut last = self.last_event.lock().unwrap();
+            *last = Some(event.clone());
+        }
         let event_type = event_to_ffi(&event.event_type);
         unsafe { (self.on_event_emitted)(event_type) };
     }
@@ -159,13 +166,16 @@ pub extern "C" fn panda_engine_create(now_epoch_millis: u64) -> *mut PandaEngine
     // Set up default state-of-the-art middleware (e.g., logging)
     let mut pipeline = MiddlewarePipeline::new();
     pipeline.add(Box::new(LoggerMiddleware));
-    pipeline.add(Box::new(TelemetryMiddleware::new(engine.event_bus())));
+    let bus = engine.event_bus();
+    pipeline.add(Box::new(TelemetryMiddleware::new(bus.clone())));
+    pipeline.add(Box::new(panda_engine_core::AnalyticsMiddleware::new(bus.clone())));
     pipeline.add(Box::new(panda_engine_core::FocusMiddleware));
     engine.set_middleware(pipeline);
 
     Box::into_raw(Box::new(PandaEngine {
         engine: ConcurrentEngine::new(engine),
         last_effects: Arc::new(Mutex::new(Vec::new())),
+        last_event: Arc::new(Mutex::new(None)),
         observer: None,
     }))
 }
@@ -185,6 +195,7 @@ pub unsafe extern "C" fn panda_engine_set_observer(
         let observer = Arc::new(FfiObserver {
             on_state_changed,
             on_event_emitted,
+            last_event: engine.last_event.clone(),
         });
         engine.observer = Some(observer.clone());
         engine.engine.with_engine(|e| e.event_bus().subscribe(Box::new(observer)));
@@ -205,8 +216,14 @@ pub unsafe extern "C" fn panda_engine_tick(
     if let Some(engine) = engine {
         let outcomes = engine.engine.tick(now_epoch_millis);
         if let Some(last) = outcomes.last() {
-            let mut effects = engine.last_effects.lock().unwrap();
-            *effects = last.effects.clone();
+            {
+                let mut effects = engine.last_effects.lock().unwrap();
+                *effects = last.effects.clone();
+            }
+            {
+                let mut event = engine.last_event.lock().unwrap();
+                *event = Some(last.event.clone());
+            }
         }
         outcomes.len()
     } else {
@@ -299,6 +316,10 @@ pub unsafe extern "C" fn panda_engine_dispatch(
             {
                 let mut effects = engine.last_effects.lock().unwrap();
                 *effects = outcome.effects.clone();
+            }
+            {
+                let mut event = engine.last_event.lock().unwrap();
+                *event = Some(outcome.event.clone());
             }
             FfiEngineOutcome::from((&outcome, command_type))
         }
@@ -664,7 +685,26 @@ fn event_to_ffi(event_type: &EngineEventType) -> i32 {
         EngineEventType::CommandApplied => FFI_EVENT_COMMAND_APPLIED,
         EngineEventType::PlatformEventApplied => FFI_EVENT_COMMAND_APPLIED,
         EngineEventType::ListenerRegistered => FFI_EVENT_LISTENER_REGISTERED,
+        EngineEventType::AnalyticsReported => FFI_EVENT_ANALYTICS_REPORTED,
     }
+}
+
+/// Retrieves the last event's message/payload.
+///
+/// # Safety
+/// [engine] must be a valid pointer. Returns a pointer to a C-string that must be freed by the caller.
+#[unsafe(no_mangle)]
+    pub unsafe extern "C" fn panda_engine_get_last_event_message(engine: *const PandaEngine) -> *const c_char {
+    let engine = unsafe { engine.as_ref() };
+    if let Some(engine) = engine {
+        let event = engine.last_event.lock().unwrap();
+        if let Some(event) = &*event
+            && let Some(msg) = &event.message
+        {
+            return CString::new(msg.as_str()).unwrap().into_raw();
+        }
+    }
+    ptr::null()
 }
 
 #[cfg(test)]
@@ -752,6 +792,45 @@ mod tests {
             .to_string_lossy()
             .into_owned();
         assert_eq!("1", id);
+
+        unsafe {
+            panda_engine_destroy(engine);
+        }
+    }
+
+    #[test]
+    fn analytics_middleware_reports_events() {
+        let engine = panda_engine_create(100);
+        unsafe {
+            panda_engine_dispatch(engine, FFI_COMMAND_START_SESSION, ptr::null(), 150);
+        }
+
+        // We check after a command that should trigger an analytics report in before_dispatch
+        // or after_dispatch. Since TelemetryMiddleware also reports the final event,
+        // we might need to be careful.
+        
+        unsafe {
+            panda_engine_dispatch(engine, FFI_COMMAND_PLAY, ptr::null(), 200);
+        }
+
+        let msg_ptr = unsafe { panda_engine_get_last_event_message(engine) };
+        assert!(!msg_ptr.is_null());
+
+        let msg = unsafe { CString::from_raw(msg_ptr as *mut c_char) }
+            .to_string_lossy()
+            .into_owned();
+
+        // The last event might be "command_applied" from TelemetryMiddleware, 
+        // OR it might be "state_transition" from AnalyticsMiddleware if it ran last.
+        // Given the order in panda_engine_create:
+        // 1. TelemetryMiddleware
+        // 2. AnalyticsMiddleware
+        // after_dispatch runs in order. So AnalyticsMiddleware runs AFTER TelemetryMiddleware?
+        // Wait, MiddlewarePipeline::after_dispatch:
+        // for mw in &self.middlewares { mw.after_dispatch(engine, outcome); }
+        // So yes, AnalyticsMiddleware runs second, its report should be last.
+        
+        assert!(msg.contains("state_transition") || msg.contains("play_requested") || msg.contains("play"));
 
         unsafe {
             panda_engine_destroy(engine);

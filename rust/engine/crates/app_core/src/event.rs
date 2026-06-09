@@ -7,6 +7,8 @@ pub enum EngineEventType {
     PlatformEventApplied,
     /// A new listener has been registered with the engine.
     ListenerRegistered,
+    /// An analytics event occurred (e.g., playback started, track finished).
+    AnalyticsReported,
 }
 
 impl EngineEventType {
@@ -16,6 +18,8 @@ impl EngineEventType {
     pub const PLATFORM_EVENT_APPLIED_WIRE: &'static str = "platform_event_applied";
     /// Wire value for ListenerRegistered event.
     pub const LISTENER_REGISTERED_WIRE: &'static str = "listener_registered";
+    /// Wire value for AnalyticsReported event.
+    pub const ANALYTICS_REPORTED_WIRE: &'static str = "analytics_reported";
 
     /// Returns the wire string representation of the event type.
     pub fn as_wire(&self) -> &'static str {
@@ -23,6 +27,7 @@ impl EngineEventType {
             Self::CommandApplied => Self::COMMAND_APPLIED_WIRE,
             Self::PlatformEventApplied => Self::PLATFORM_EVENT_APPLIED_WIRE,
             Self::ListenerRegistered => Self::LISTENER_REGISTERED_WIRE,
+            Self::AnalyticsReported => Self::ANALYTICS_REPORTED_WIRE,
         }
     }
 }
@@ -50,6 +55,14 @@ impl EngineEvent {
         Self {
             event_type: EngineEventType::PlatformEventApplied,
             message,
+        }
+    }
+
+    /// Creates a new AnalyticsReported event.
+    pub fn analytics_reported(payload: String) -> Self {
+        Self {
+            event_type: EngineEventType::AnalyticsReported,
+            message: Some(payload),
         }
     }
 }

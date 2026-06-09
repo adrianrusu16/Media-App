@@ -56,8 +56,8 @@ pub use effect::EngineEffect;
 pub use error::{EngineError, EngineErrorType};
 pub use event::{EngineEvent, EngineEventType};
 pub use middleware::{
-    FocusMiddleware, LoggerMiddleware, Middleware, MiddlewarePipeline, RecoveryMiddleware,
-    TelemetryMiddleware, ValidationMiddleware,
+    AnalyticsMiddleware, FocusMiddleware, LoggerMiddleware, Middleware, MiddlewarePipeline,
+    RecoveryMiddleware, TelemetryMiddleware, ValidationMiddleware,
 };
 pub use observability::{EngineObserver, EventBus};
 pub use persistence::{EnginePersistentState, NoopPersistence, Persistence};
