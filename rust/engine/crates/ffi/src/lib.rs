@@ -64,6 +64,17 @@ pub const FFI_ERROR_AUTHENTICATION: i32 = 4;
 pub const FFI_ERROR_MEDIA_SKIPPED: i32 = 5;
 pub const FFI_ERROR_UNKNOWN: i32 = -1;
 
+/// C-compatible representation of the engine configuration.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct FfiEngineConfig {
+    pub vehicle_name: *const c_char,
+    pub hifi_enabled: bool,
+    pub max_volume: u8,
+    pub auto_resume: bool,
+    pub preferred_language: *const c_char,
+}
+
 /// C-compatible representation of a specific player control state.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -285,6 +296,38 @@ pub unsafe extern "C" fn panda_engine_snapshot(engine: *const PandaEngine) -> Ff
             FfiEngineSnapshot::from(&snapshot)
         }
         None => FfiEngineSnapshot::invalid(),
+    }
+}
+
+/// # Safety
+///
+/// [engine] must be a valid pointer returned by [panda_engine_create].
+/// The caller is responsible for freeing the strings in the returned config using [panda_engine_free_string].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn panda_engine_get_config(engine: *const PandaEngine) -> FfiEngineConfig {
+    let engine = unsafe { engine.as_ref() };
+    match engine {
+        Some(engine) => {
+            let config = engine.engine.config();
+            FfiEngineConfig {
+                vehicle_name: CString::new(config.vehicle_name.clone())
+                    .unwrap()
+                    .into_raw(),
+                hifi_enabled: config.hifi_enabled,
+                max_volume: config.max_volume,
+                auto_resume: config.auto_resume,
+                preferred_language: CString::new(config.preferred_language.clone())
+                    .unwrap()
+                    .into_raw(),
+            }
+        }
+        None => FfiEngineConfig {
+            vehicle_name: ptr::null(),
+            hifi_enabled: false,
+            max_volume: 0,
+            auto_resume: false,
+            preferred_language: ptr::null(),
+        },
     }
 }
 

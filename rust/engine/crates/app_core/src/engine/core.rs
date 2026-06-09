@@ -35,6 +35,7 @@ pub struct EngineOutcome {
 /// based on the current state and a given command.
 pub struct Engine {
     snapshot: EngineSnapshot,
+    config: crate::model::config::EngineConfig,
     middleware: Arc<MiddlewarePipeline>,
     repository: Box<dyn MediaRepository>,
     queue: QueueManager,
@@ -49,6 +50,7 @@ impl Default for Engine {
         let bus = Arc::new(EventBus::default());
         Self {
             snapshot: EngineSnapshot::default(),
+            config: crate::model::config::EngineConfig::default(),
             middleware: Arc::new(MiddlewarePipeline::default()),
             repository: Box::new(InMemoryRepository::new(vec![])),
             queue: QueueManager::default(),
@@ -73,11 +75,13 @@ impl Engine {
     pub fn new(now_epoch_millis: u64) -> Self {
         let bus = Arc::new(EventBus::default());
         let snapshot = EngineSnapshot::idle(now_epoch_millis);
+        let config = crate::model::config::EngineConfig::default();
         let queue = QueueManager::default();
 
         // Create initial engine to derive controls
         let engine = Self {
             snapshot,
+            config,
             middleware: Arc::new(MiddlewarePipeline::new()),
             repository: Box::new(InMemoryRepository::new(vec![])),
             queue,
@@ -184,6 +188,11 @@ impl Engine {
     /// Returns the current state of the engine.
     pub fn snapshot(&self) -> &EngineSnapshot {
         &self.snapshot
+    }
+
+    /// Returns the current configuration of the engine.
+    pub fn config(&self) -> &crate::model::config::EngineConfig {
+        &self.config
     }
 
     /// Forces a refresh of the player controls based on the current state.
@@ -320,6 +329,46 @@ impl Engine {
             EngineCommandType::Seek { position_millis } => {
                 next_snapshot = next_snapshot.with_position(*position_millis);
                 effects.push(EngineEffect::Play); // Often a seek implies continuing playback
+            }
+            EngineCommandType::UpdateConfig { config } => {
+                self.config = config.clone();
+                info!("Engine configuration updated: {:?}", config);
+            }
+            EngineCommandType::VoicePlay { query } => {
+                next_snapshot = next_snapshot.with_busy(true);
+                let results = self.repository.search(query);
+                if let Some(first) = results.first() {
+                    let media = first.clone();
+                    next_snapshot = Self::update_media_state(&media, next_snapshot, &mut effects);
+                    next_snapshot.playback_state = PlaybackState::Buffering;
+                }
+                next_snapshot = next_snapshot.with_busy(false);
+            }
+            EngineCommandType::PlayMediaById { media_id } => {
+                next_snapshot = next_snapshot.with_busy(true);
+                if let Some(media) = self.repository.get_by_id(media_id) {
+                    next_snapshot = Self::update_media_state(&media, next_snapshot, &mut effects);
+                    next_snapshot.playback_state = PlaybackState::Buffering;
+                }
+                next_snapshot = next_snapshot.with_busy(false);
+            }
+            EngineCommandType::SetSleepTimer { duration_millis } => {
+                use crate::services::service::SleepTimerService;
+                if let Some(timer_service) =
+                    self.service_manager.find_service::<SleepTimerService>()
+                {
+                    match duration_millis {
+                        Some(duration) => {
+                            let fire_at = now_epoch_millis + duration;
+                            timer_service.set_timer(fire_at);
+                            info!("Sleep timer set to fire in {}ms", duration);
+                        }
+                        None => {
+                            timer_service.set_timer(0);
+                            info!("Sleep timer cancelled");
+                        }
+                    }
+                }
             }
             _ => {}
         }
@@ -766,7 +815,7 @@ mod tests {
         // Check the player state through the engine (we need to cast or just check effects were emitted)
         // Since we don't have direct access to the Boxed player easily, we can check outcomes
         // but the goal was to verify execute_effects works.
-        // Let's verify that PlaybackState is Buffering and then MediaLoaded event moves it to Playing
+        // Let's verify that PlaybackState is Buffering and then the MediaLoaded event moves it to Playing
         let outcome = engine.dispatch_platform_event(
             EnginePlatformEvent::new(EnginePlatformEventType::MediaLoaded, None),
             130,
@@ -827,7 +876,7 @@ mod tests {
         let idx = engine.queue().current_index();
         assert_eq!(idx, Some(1));
         let snapshot = engine.snapshot();
-        // Since there are only 2 items and we are at index 1, skip_next should be disabled
+        // Since there are only 2 items, and we are at index 1, skip_next should be disabled
         // and skip_prev should be enabled.
         assert!(
             !snapshot.controls.skip_next.is_enabled,
@@ -837,5 +886,70 @@ mod tests {
             snapshot.controls.skip_prev.is_enabled,
             "Skip prev should be enabled when not at the start"
         );
+    }
+
+    #[test]
+    fn update_config_updates_snapshot() {
+        let mut engine = Engine::new(100);
+        let new_config = crate::model::config::EngineConfig::new()
+            .with_vehicle_name("Model S".to_string())
+            .with_hifi(true);
+
+        engine.dispatch(EngineCommand::update_config(new_config.clone()), 150);
+
+        let config = engine.config();
+        assert_eq!(config.vehicle_name, "Model S");
+        assert!(config.hifi_enabled);
+    }
+
+    #[test]
+    fn voice_play_starts_playback() {
+        let mut engine = Engine::new(100);
+        // Set up repository with some items
+        let items = vec![MediaItem {
+            id: "1".to_string(),
+            title: "Song 1".to_string(),
+            artist: "Artist 1".to_string(),
+            ..Default::default()
+        }];
+        engine.set_repository(Box::new(InMemoryRepository::new(items)));
+
+        // "Song 1" matches ID "1" in InMemoryRepository
+        engine.dispatch(EngineCommand::voice_play("Song 1".to_string()), 150);
+
+        let snapshot = engine.snapshot();
+        assert_eq!(snapshot.playback_state, PlaybackState::Buffering);
+        assert_eq!(snapshot.media_id, Some("1".to_string()));
+    }
+
+    #[test]
+    fn sleep_timer_pauses_playback() {
+        let mut engine = Engine::new(100);
+        let items = vec![MediaItem {
+            id: "1".to_string(),
+            ..Default::default()
+        }];
+        engine.set_repository(Box::new(InMemoryRepository::new(items.clone())));
+        engine.queue().set_items(items); // Manually set queue
+        engine.dispatch(EngineCommand::start_session("user1".to_string()), 50);
+
+        engine.dispatch(EngineCommand::play(), 100);
+        // Buffering -> Loaded -> Playing
+        engine.dispatch_platform_event(
+            EnginePlatformEvent::new(EnginePlatformEventType::MediaLoaded, None),
+            110,
+        );
+        assert_eq!(engine.snapshot().playback_state, PlaybackState::Playing);
+
+        // Set sleep timer for 500ms
+        engine.dispatch(EngineCommand::set_sleep_timer(Some(500)), 150);
+
+        // Tick before it fires
+        engine.tick(300);
+        assert_eq!(engine.snapshot().playback_state, PlaybackState::Playing);
+
+        // Tick after it fires (150 + 500 = 650)
+        engine.tick(700);
+        assert_eq!(engine.snapshot().playback_state, PlaybackState::Paused);
     }
 }

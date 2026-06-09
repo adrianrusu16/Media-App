@@ -51,6 +51,12 @@ impl ConcurrentEngine {
         engine.snapshot().clone()
     }
 
+    /// Accesses the engine's configuration in a thread-safe manner.
+    pub fn config(&self) -> crate::model::config::EngineConfig {
+        let engine = self.inner.lock().unwrap();
+        engine.config().clone()
+    }
+
     /// Provides access to the inner engine through a closure.
     ///
     /// This is useful for performing multiple operations while holding the lock.

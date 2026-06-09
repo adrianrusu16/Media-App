@@ -1,4 +1,5 @@
 pub mod command;
+pub mod config;
 pub mod effect;
 pub mod error;
 pub mod event;

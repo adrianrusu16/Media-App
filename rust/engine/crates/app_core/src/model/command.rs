@@ -23,6 +23,16 @@ pub enum EngineCommandType {
     SetSpeed { speed: f32 },
     /// Seeks to a specific position in milliseconds.
     Seek { position_millis: u64 },
+    /// Updates the engine's configuration.
+    UpdateConfig {
+        config: crate::model::config::EngineConfig,
+    },
+    /// Voice-based search and play command.
+    VoicePlay { query: String },
+    /// Plays a specific media item by its ID.
+    PlayMediaById { media_id: String },
+    /// Sets a sleep timer for a specific duration in milliseconds.
+    SetSleepTimer { duration_millis: Option<u64> },
     /// A command not recognized by this version of the engine.
     Unknown(String),
 }
@@ -50,6 +60,14 @@ impl EngineCommandType {
     pub const SET_SPEED_WIRE: &'static str = "set_speed";
     /// Wire value for Seek command.
     pub const SEEK_WIRE: &'static str = "seek";
+    /// Wire value for UpdateConfig command.
+    pub const UPDATE_CONFIG_WIRE: &'static str = "update_config";
+    /// Wire value for VoicePlay command.
+    pub const VOICE_PLAY_WIRE: &'static str = "voice_play";
+    /// Wire value for PlayMediaById command.
+    pub const PLAY_MEDIA_BY_ID_WIRE: &'static str = "play_media_by_id";
+    /// Wire value for SetSleepTimer command.
+    pub const SET_SLEEP_TIMER_WIRE: &'static str = "set_sleep_timer";
 
     /// Maps a wire string value to its corresponding enum variant.
     pub fn from_wire(value: impl Into<String>) -> Self {
@@ -72,6 +90,18 @@ impl EngineCommandType {
             },
             Self::SET_SPEED_WIRE => Self::SetSpeed { speed: 1.0 },
             Self::SEEK_WIRE => Self::Seek { position_millis: 0 },
+            Self::UPDATE_CONFIG_WIRE => Self::UpdateConfig {
+                config: crate::model::config::EngineConfig::default(),
+            },
+            Self::VOICE_PLAY_WIRE => Self::VoicePlay {
+                query: "".to_string(),
+            },
+            Self::PLAY_MEDIA_BY_ID_WIRE => Self::PlayMediaById {
+                media_id: "".to_string(),
+            },
+            Self::SET_SLEEP_TIMER_WIRE => Self::SetSleepTimer {
+                duration_millis: None,
+            },
             _ => Self::Unknown(value),
         }
     }
@@ -90,6 +120,10 @@ impl EngineCommandType {
             Self::Browse { .. } => Self::BROWSE_WIRE,
             Self::SetSpeed { .. } => Self::SET_SPEED_WIRE,
             Self::Seek { .. } => Self::SEEK_WIRE,
+            Self::UpdateConfig { .. } => Self::UPDATE_CONFIG_WIRE,
+            Self::VoicePlay { .. } => Self::VOICE_PLAY_WIRE,
+            Self::PlayMediaById { .. } => Self::PLAY_MEDIA_BY_ID_WIRE,
+            Self::SetSleepTimer { .. } => Self::SET_SLEEP_TIMER_WIRE,
             Self::Unknown(value) => value.as_str(),
         }
     }
@@ -166,5 +200,25 @@ impl EngineCommand {
     /// Creates a Seek command.
     pub fn seek(position_millis: u64) -> Self {
         Self::new(EngineCommandType::Seek { position_millis }, None)
+    }
+
+    /// Creates an UpdateConfig command.
+    pub fn update_config(config: crate::model::config::EngineConfig) -> Self {
+        Self::new(EngineCommandType::UpdateConfig { config }, None)
+    }
+
+    /// Creates a VoicePlay command.
+    pub fn voice_play(query: String) -> Self {
+        Self::new(EngineCommandType::VoicePlay { query }, None)
+    }
+
+    /// Creates a PlayMediaById command.
+    pub fn play_media_by_id(media_id: String) -> Self {
+        Self::new(EngineCommandType::PlayMediaById { media_id }, None)
+    }
+
+    /// Creates a SetSleepTimer command.
+    pub fn set_sleep_timer(duration_millis: Option<u64>) -> Self {
+        Self::new(EngineCommandType::SetSleepTimer { duration_millis }, None)
     }
 }

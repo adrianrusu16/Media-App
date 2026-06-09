@@ -1,9 +1,9 @@
 use crate::engine::core::{Engine, EngineOutcome};
+use crate::engine::observability::EventBus;
 use crate::model::command::{EngineCommand, EngineCommandType};
 use crate::model::error::{EngineError, EngineErrorType};
 use crate::model::event::{EngineEvent, EngineEventType};
 use crate::model::playback::PlaybackState;
-use crate::engine::observability::EventBus;
 use std::sync::Arc;
 use tracing::{info, warn};
 
