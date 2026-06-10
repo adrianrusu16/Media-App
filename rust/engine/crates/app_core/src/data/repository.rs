@@ -161,6 +161,50 @@ mod tests {
         assert_eq!(repo.get_previous("1").unwrap().id, "3");
     }
 
+    #[test]
+    fn test_get_next_prev_middle() {
+        let repo = InMemoryRepository::new(mock_items());
+        assert_eq!(repo.get_next("1").unwrap().id, "2");
+        assert_eq!(repo.get_previous("3").unwrap().id, "2");
+    }
+
+    #[test]
+    fn test_get_next_prev_unknown_id() {
+        let repo = InMemoryRepository::new(mock_items());
+        assert!(repo.get_next("nope").is_none());
+        assert!(repo.get_previous("nope").is_none());
+    }
+
+    #[test]
+    fn test_get_next_prev_single_item_wraps_to_self() {
+        let repo = InMemoryRepository::new(vec![MediaItem {
+            id: "only".to_string(),
+            title: "Solo".to_string(),
+            artist: "Artist".to_string(),
+            item_type: MediaItemType::Track,
+            parent_id: None,
+        }]);
+        assert_eq!(repo.get_next("only").unwrap().id, "only");
+        assert_eq!(repo.get_previous("only").unwrap().id, "only");
+    }
+
+    #[tokio::test]
+    async fn test_browse_and_search_on_empty_repository() {
+        let repo = InMemoryRepository::new(vec![]);
+        assert!(repo.browse("album1").await.unwrap().is_empty());
+        assert!(repo.search("anything").await.unwrap().is_empty());
+        assert!(repo.get_by_id("1").is_none());
+        assert!(repo.get_next("1").is_none());
+    }
+
+    #[tokio::test]
+    async fn test_search_empty_query_matches_all() {
+        let repo = InMemoryRepository::new(mock_items());
+        // An empty query is a substring of every title/artist, so it matches all.
+        let results = repo.search("").await.unwrap();
+        assert_eq!(results.len(), 3);
+    }
+
     #[tokio::test]
     async fn test_browse() {
         let repo = InMemoryRepository::new(mock_items());

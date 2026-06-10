@@ -212,4 +212,58 @@ mod tests {
         assert!(!qm.has_next());
         assert!(!qm.has_previous());
     }
+
+    #[test]
+    fn test_next_item_repeat_none_clamps_on_last() {
+        let mut qm = QueueManager::new(mock_items());
+        qm.set_current_index(1); // last item, RepeatMode::None
+
+        let next = qm.next_item().unwrap();
+        assert_eq!(next.id, "2"); // stays on last
+        assert_eq!(qm.current_index(), Some(1));
+    }
+
+    #[test]
+    fn test_previous_item_repeat_none_clamps_on_first() {
+        let mut qm = QueueManager::new(mock_items());
+        qm.set_current_index(0);
+
+        let prev = qm.previous_item().unwrap();
+        assert_eq!(prev.id, "1"); // stays on first
+        assert_eq!(qm.current_index(), Some(0));
+    }
+
+    #[test]
+    fn test_has_previous_with_repeat_modes() {
+        let mut qm = QueueManager::new(mock_items());
+        qm.set_current_index(0); // first item
+
+        assert!(!qm.has_previous()); // None
+
+        qm.set_repeat_mode(RepeatMode::All);
+        assert!(qm.has_previous());
+
+        qm.set_repeat_mode(RepeatMode::One);
+        assert!(qm.has_previous());
+    }
+
+    #[test]
+    fn test_set_items_resets_current_index() {
+        let mut qm = QueueManager::new(vec![]);
+        assert_eq!(qm.current_index(), None);
+
+        qm.set_items(mock_items());
+        assert_eq!(qm.current_index(), Some(0));
+
+        qm.set_items(vec![]);
+        assert_eq!(qm.current_index(), None);
+    }
+
+    #[test]
+    fn test_set_current_index_ignores_out_of_bounds() {
+        let mut qm = QueueManager::new(mock_items());
+        qm.set_current_index(0);
+        qm.set_current_index(99); // out of bounds, ignored
+        assert_eq!(qm.current_index(), Some(0));
+    }
 }
