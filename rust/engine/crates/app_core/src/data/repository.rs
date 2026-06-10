@@ -27,7 +27,12 @@ pub struct MediaItem {
 ///
 /// This allows the engine to remain agnostic of the underlying data source
 /// (e.g., SQLite, Network, Mock).
-#[tonic::async_trait]
+///
+/// In test builds, `mockall` auto-generates a `MockMediaRepository` that can be
+/// configured with custom return values, argument matchers, call-count
+/// expectations, and (via `returning` closures) slow/async behavior.
+#[cfg_attr(test, mockall::automock)]
+#[async_trait::async_trait]
 pub trait MediaRepository: Send + Sync {
     /// Retrieves a media item by its unique identifier.
     fn get_by_id(&self, id: &str) -> Option<MediaItem>;
@@ -59,7 +64,7 @@ impl InMemoryRepository {
     }
 }
 
-#[tonic::async_trait]
+#[async_trait::async_trait]
 impl MediaRepository for InMemoryRepository {
     fn get_by_id(&self, id: &str) -> Option<MediaItem> {
         self.items.iter().find(|i| i.id == id).cloned()

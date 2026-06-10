@@ -329,17 +329,64 @@ mod tests {
 
     #[tokio::test]
     async fn test_validation_middleware_detects_busy() {
+        use crate::data::repository::{MediaItem, MockMediaRepository};
+
         let middleware = ValidationMiddleware;
         let mut engine = Engine::new(100);
-        
-        // Async search that will keep busy during the call
-        // (InMemoryRepository is fast, so we just check post-dispatch state)
-        engine.dispatch(EngineCommand::search("query".to_string()), 150).await;
-        assert!(!engine.snapshot().is_busy); // becomes false after completion
-        
+
+        // State-of-the-art: inject a mockall-generated repository that the engine
+        // awaits during the (async) search. We assert the search is invoked with
+        // the expected query exactly once and returns controlled results.
+        let mut repo = MockMediaRepository::new();
+        repo.expect_search()
+            .withf(|query| query == "query")
+            .times(1)
+            .returning(|_| {
+                Ok(vec![MediaItem {
+                    id: "result-1".to_string(),
+                    title: "Result One".to_string(),
+                    ..Default::default()
+                }])
+            });
+        engine.set_repository(Box::new(repo));
+
+        engine
+            .dispatch(EngineCommand::search("query".to_string()), 150)
+            .await;
+
+        // The engine sets `is_busy` while awaiting the repository and clears it
+        // once the future resolves; after dispatch completes it must be false.
+        assert!(!engine.snapshot().is_busy);
+        // The awaited results are committed to the snapshot.
+        assert_eq!(engine.snapshot().search_results.len(), 1);
+        assert_eq!(engine.snapshot().search_results[0].id, "result-1");
+
         let command = EngineCommand::play();
         middleware.before_dispatch(&engine, &command);
         // Smoke test for warnings in logs
+    }
+
+    #[tokio::test]
+    async fn test_search_clears_busy_on_repository_error() {
+        use crate::data::repository::MockMediaRepository;
+
+        // Watch-out coverage: even when the backend (repository) errors out, the
+        // engine must release the busy flag and surface empty results rather than
+        // getting stuck in a busy state.
+        let mut engine = Engine::new(100);
+
+        let mut repo = MockMediaRepository::new();
+        repo.expect_search()
+            .times(1)
+            .returning(|_| Err(anyhow::anyhow!("backend unavailable")));
+        engine.set_repository(Box::new(repo));
+
+        engine
+            .dispatch(EngineCommand::search("query".to_string()), 150)
+            .await;
+
+        assert!(!engine.snapshot().is_busy);
+        assert!(engine.snapshot().search_results.is_empty());
     }
 
     #[tokio::test]
