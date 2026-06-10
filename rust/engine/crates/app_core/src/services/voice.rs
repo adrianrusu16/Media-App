@@ -281,4 +281,89 @@ mod tests {
         ve.reset();
         assert_eq!(ve.get_partial_hypothesis(), "");
     }
+
+    #[test]
+    fn test_mock_voice_engine_success_maps_to_voice_play() {
+        let mut ve = MockVoiceEngine::new();
+        ve.process_audio_chunk(&[0; 10]).unwrap();
+        // The mock accumulates "play jazz" and the partial hypothesis reflects it.
+        assert_eq!(ve.get_partial_hypothesis(), "play jazz");
+
+        let result = ve.finish().unwrap();
+        match result {
+            VoiceInteractionResult::Command(cmd) => {
+                if let crate::model::command::EngineCommandType::VoicePlay { query } =
+                    cmd.command_type
+                {
+                    assert_eq!(query, "jazz");
+                } else {
+                    panic!("Expected VoicePlay command");
+                }
+            }
+            other => panic!("Expected a command, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_mock_voice_engine_finish_without_audio_is_no_match() {
+        let mut ve = MockVoiceEngine::new();
+        // No audio processed, so the accumulated query is empty.
+        assert!(matches!(
+            ve.finish().unwrap(),
+            VoiceInteractionResult::NoMatch
+        ));
+    }
+
+    #[test]
+    fn test_mock_voice_engine_process_audio_fails_when_set_to_fail() {
+        let mut ve = MockVoiceEngine::new();
+        ve.set_fail(true);
+        let err = ve.process_audio_chunk(&[0; 10]).unwrap_err();
+        assert_eq!(err, "Mock ASR failure");
+    }
+
+    #[test]
+    fn test_mock_voice_engine_finish_returns_error_when_set_to_fail() {
+        let mut ve = MockVoiceEngine::new();
+        ve.set_fail(true);
+        match ve.finish().unwrap() {
+            VoiceInteractionResult::Error(msg) => {
+                assert_eq!(msg, "Failed to recognize speech");
+            }
+            other => panic!("Expected an error result, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_mock_voice_engine_reset_clears_accumulated_query() {
+        let mut ve = MockVoiceEngine::new();
+        ve.process_audio_chunk(&[0; 10]).unwrap();
+        assert_eq!(ve.get_partial_hypothesis(), "play jazz");
+
+        ve.reset();
+        assert_eq!(ve.get_partial_hypothesis(), "");
+        // After reset, finishing with no audio yields NoMatch.
+        assert!(matches!(
+            ve.finish().unwrap(),
+            VoiceInteractionResult::NoMatch
+        ));
+    }
+
+    #[test]
+    fn test_voice_engine_default_trait_methods() {
+        // `set_vocabulary` and `set_context` have default no-op implementations
+        // that should succeed without altering behavior.
+        let mut ve = MockVoiceEngine::new();
+        assert!(ve.set_vocabulary(vec!["play".to_string(), "jazz".to_string()]).is_ok());
+        ve.set_context(Some(("Song A".to_string(), "Artist X".to_string())));
+        ve.set_context(None);
+    }
+
+    #[test]
+    fn test_fallback_vosk_engine_set_vocabulary_is_ok() {
+        let mut ve = VoskVoiceEngine::new("any_path").unwrap();
+        // The fallback engine accepts vocabulary updates without error.
+        assert!(ve.set_vocabulary(vec!["play".to_string()]).is_ok());
+        assert!(ve.set_vocabulary(vec![]).is_ok());
+    }
 }
