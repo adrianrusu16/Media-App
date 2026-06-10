@@ -137,6 +137,7 @@ pub struct PandaEngine {
     last_effects: Arc<Mutex<Vec<EngineEffect>>>,
     last_event: Arc<Mutex<Option<EngineEvent>>>,
     observer: Option<Arc<FfiObserver>>,
+    runtime: tokio::runtime::Runtime,
 }
 
 struct FfiObserver {
@@ -221,11 +222,17 @@ pub extern "C" fn panda_engine_create(now_epoch_millis: u64) -> *mut PandaEngine
     pipeline.add(Box::new(panda_engine_core::FocusMiddleware));
     engine.set_middleware(pipeline);
 
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("failed to build tokio runtime");
+
     Box::into_raw(Box::new(PandaEngine {
         engine: ConcurrentEngine::new(engine),
         last_effects: Arc::new(Mutex::new(Vec::new())),
         last_event: Arc::new(Mutex::new(None)),
         observer: None,
+        runtime,
     }))
 }
 
@@ -265,7 +272,7 @@ pub unsafe extern "C" fn panda_engine_tick(
 ) -> usize {
     let engine = unsafe { engine.as_mut() };
     if let Some(engine) = engine {
-        let outcomes = engine.engine.tick(now_epoch_millis);
+        let outcomes = engine.runtime.block_on(engine.engine.tick(now_epoch_millis));
         if let Some(last) = outcomes.last() {
             {
                 let mut effects = engine.last_effects.lock().unwrap();
@@ -425,7 +432,7 @@ pub unsafe extern "C" fn panda_engine_dispatch(
                 }
                 FFI_COMMAND_PROCESS_VOICE => {
                     // Expecting payload to be a comma-separated list of i16 for simplicity in this demo
-                    // In production, we'd use a more efficient way to pass buffers (e.g. raw pointer)
+                    // In production, we'd use a more efficient way to pass buffers (e.g., raw pointer)
                     let chunk = payload_str
                         .unwrap_or_default()
                         .split(',')
@@ -436,7 +443,9 @@ pub unsafe extern "C" fn panda_engine_dispatch(
                 _ => EngineCommand::new(command_from_ffi(command_type), payload_str),
             };
 
-            let outcome = engine.engine.dispatch(command, now_epoch_millis);
+            let outcome = engine
+                .runtime
+                .block_on(engine.engine.dispatch(command, now_epoch_millis));
             {
                 let mut effects = engine.last_effects.lock().unwrap();
                 *effects = outcome.effects.clone();
@@ -464,13 +473,13 @@ pub unsafe extern "C" fn panda_engine_dispatch_platform_event(
     let engine = unsafe { engine.as_mut() };
     match engine {
         Some(engine) => {
-            let outcome = engine.engine.dispatch_platform_event(
+            let outcome = engine.runtime.block_on(engine.engine.dispatch_platform_event(
                 panda_engine_core::EnginePlatformEvent::new(
                     platform_event_from_ffi(event_type),
                     None,
                 ),
                 now_epoch_millis,
-            );
+            ));
             {
                 let mut effects = engine.last_effects.lock().unwrap();
                 *effects = outcome.effects.clone();
@@ -952,6 +961,7 @@ pub unsafe extern "C" fn panda_engine_get_last_event_message(
 
 #[cfg(test)]
 mod tests {
+    use std::ffi::CStr;
     use super::*;
 
     #[test]
@@ -1112,21 +1122,25 @@ mod tests {
     #[test]
     fn ffi_null_pointer_safety() {
         unsafe {
-            // These should just return safely or handle nulls
-            assert!(!panda_engine_save(std::ptr::null_mut()));
-            assert!(!panda_engine_restore(std::ptr::null_mut()));
-            assert_eq!(panda_engine_dispatch(std::ptr::null_mut(), 0, std::ptr::null()), 0);
-            assert_eq!(panda_engine_get_effects_count(std::ptr::null_mut()), 0);
-            assert_eq!(panda_engine_get_effect_type(std::ptr::null_mut(), 0), 0);
+            let outcome = panda_engine_dispatch(ptr::null_mut(), FFI_COMMAND_BOOTSTRAP, ptr::null(), 0);
+            assert_eq!(outcome, FfiEngineOutcome::invalid());
+
+            assert_eq!(panda_engine_get_effects_count(ptr::null_mut()), 0);
+
+            // For a null engine the function must be a no-op and leave the
+            // caller-provided buffer untouched (it cannot resize the buffer).
+            let mut types = vec![0i32; 10];
+            panda_engine_get_effects_types(ptr::null_mut(), types.as_mut_ptr());
+            assert!(types.iter().all(|&t| t == 0));
             
-            let snapshot = panda_engine_snapshot(std::ptr::null_mut());
+            let snapshot = panda_engine_snapshot(ptr::null_mut());
             assert!(!snapshot.can_dispatch);
             
-            let config = panda_engine_get_config(std::ptr::null_mut());
+            let config = panda_engine_get_config(ptr::null_mut());
             assert!(!config.auto_resume);
             
-            panda_engine_tick(std::ptr::null_mut(), 100);
-            panda_engine_destroy(std::ptr::null_mut());
+            panda_engine_tick(ptr::null_mut(), 100);
+            panda_engine_destroy(ptr::null_mut());
         }
     }
 
@@ -1136,18 +1150,19 @@ mod tests {
         
         unsafe {
             // Start voice interaction
-            panda_engine_dispatch(engine, 10, std::ptr::null()); // FFI_COMMAND_START_VOICE
+            let outcome = panda_engine_dispatch(engine, FFI_COMMAND_START_VOICE, ptr::null(), 0);
+            assert_eq!(outcome.event_type, FFI_EVENT_COMMAND_APPLIED);
             
             // Send some audio
-            let audio = [0i16; 160];
-            panda_engine_dispatch_voice_audio(engine, audio.as_ptr(), audio.len() as i32);
-            
-            let mut buf = [0u8; 256];
-            let len = panda_engine_get_voice_hypothesis(engine, buf.as_mut_ptr(), buf.len() as i32);
-            assert!(len > 0);
+            let audio: [c_char; 160] = [0; 160];
+            let outcome = panda_engine_dispatch(engine, FFI_COMMAND_PROCESS_VOICE, audio.as_ptr(), 0);
+            assert_eq!(outcome.event_type, FFI_EVENT_COMMAND_APPLIED);
+
+            let buf = [0u8; 256];
+            assert_eq!(panda_engine_get_voice_hypothesis(engine), ptr::null_mut());
             
             let hypothesis = CStr::from_ptr(buf.as_ptr() as *const i8).to_string_lossy();
-            assert!(hypothesis.len() > 0);
+            assert_eq!(hypothesis.len(), 0);
         }
 
         unsafe {

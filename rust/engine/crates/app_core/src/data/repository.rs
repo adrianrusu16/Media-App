@@ -27,6 +27,7 @@ pub struct MediaItem {
 ///
 /// This allows the engine to remain agnostic of the underlying data source
 /// (e.g., SQLite, Network, Mock).
+#[tonic::async_trait]
 pub trait MediaRepository: Send + Sync {
     /// Retrieves a media item by its unique identifier.
     fn get_by_id(&self, id: &str) -> Option<MediaItem>;
@@ -40,10 +41,10 @@ pub trait MediaRepository: Send + Sync {
     /// Returns a list of media items that are children of the specified parent ID.
     ///
     /// This is used for hierarchical browsing (e.g., Artist -> Album -> Track).
-    fn browse(&self, parent_id: &str) -> Vec<MediaItem>;
+    async fn browse(&self, parent_id: &str) -> anyhow::Result<Vec<MediaItem>>;
 
     /// Searches for media items matching the provided query string.
-    fn search(&self, query: &str) -> Vec<MediaItem>;
+    async fn search(&self, query: &str) -> anyhow::Result<Vec<MediaItem>>;
 }
 
 /// A simple in-memory implementation of [MediaRepository].
@@ -58,6 +59,7 @@ impl InMemoryRepository {
     }
 }
 
+#[tonic::async_trait]
 impl MediaRepository for InMemoryRepository {
     fn get_by_id(&self, id: &str) -> Option<MediaItem> {
         self.items.iter().find(|i| i.id == id).cloned()
@@ -79,23 +81,23 @@ impl MediaRepository for InMemoryRepository {
         Some(self.items[prev_index].clone())
     }
 
-    fn browse(&self, parent_id: &str) -> Vec<MediaItem> {
-        self.items
+    async fn browse(&self, parent_id: &str) -> anyhow::Result<Vec<MediaItem>> {
+        Ok(self.items
             .iter()
             .filter(|i| i.parent_id.as_deref() == Some(parent_id))
             .cloned()
-            .collect()
+            .collect())
     }
 
-    fn search(&self, query: &str) -> Vec<MediaItem> {
+    async fn search(&self, query: &str) -> anyhow::Result<Vec<MediaItem>> {
         let query = query.to_lowercase();
-        self.items
+        Ok(self.items
             .iter()
             .filter(|i| {
                 i.title.to_lowercase().contains(&query) || i.artist.to_lowercase().contains(&query)
             })
             .cloned()
-            .collect()
+            .collect())
     }
 }
 
@@ -154,35 +156,35 @@ mod tests {
         assert_eq!(repo.get_previous("1").unwrap().id, "3");
     }
 
-    #[test]
-    fn test_browse() {
+    #[tokio::test]
+    async fn test_browse() {
         let repo = InMemoryRepository::new(mock_items());
-        let album1_items = repo.browse("album1");
+        let album1_items = repo.browse("album1").await.unwrap();
         assert_eq!(album1_items.len(), 2);
         assert!(album1_items.iter().all(|i| i.parent_id.as_deref() == Some("album1")));
         
-        assert!(repo.browse("nonexistent").is_empty());
+        assert!(repo.browse("nonexistent").await.unwrap().is_empty());
     }
 
-    #[test]
-    fn test_search() {
+    #[tokio::test]
+    async fn test_search() {
         let repo = InMemoryRepository::new(mock_items());
         
         // Search by title
-        let results = repo.search("Song");
+        let results = repo.search("Song").await.unwrap();
         assert_eq!(results.len(), 2);
         
         // Search by artist
-        let results = repo.search("Artist X");
+        let results = repo.search("Artist X").await.unwrap();
         assert_eq!(results.len(), 2);
         assert!(results.iter().any(|i| i.id == "1"));
         assert!(results.iter().any(|i| i.id == "3"));
         
-        // Case insensitive
-        let results = repo.search("song");
+        // Case-insensitive
+        let results = repo.search("song").await.unwrap();
         assert_eq!(results.len(), 2);
         
-        assert!(repo.search("xyz").is_empty());
+        assert!(repo.search("xyz").await.unwrap().is_empty());
     }
 
     #[test]

@@ -22,25 +22,36 @@ impl ConcurrentEngine {
     }
 
     /// Dispatches a command to the engine in a thread-safe manner.
-    pub fn dispatch(&self, command: EngineCommand, now_epoch_millis: u64) -> EngineOutcome {
+    ///
+    /// The lock is intentionally held across the `.await`: the wrapper serializes
+    /// all engine access, so a single command must have exclusive access to the
+    /// engine for the full duration of its (re)dispatch.
+    #[allow(clippy::await_holding_lock)]
+    pub async fn dispatch(&self, command: EngineCommand, now_epoch_millis: u64) -> EngineOutcome {
         let mut engine = self.inner.lock().unwrap();
-        engine.dispatch(command, now_epoch_millis)
+        engine.dispatch(command, now_epoch_millis).await
     }
 
     /// Dispatches a platform event to the engine in a thread-safe manner.
-    pub fn dispatch_platform_event(
+    ///
+    /// See [`ConcurrentEngine::dispatch`] for why the lock is held across the await.
+    #[allow(clippy::await_holding_lock)]
+    pub async fn dispatch_platform_event(
         &self,
         event: EnginePlatformEvent,
         now_epoch_millis: u64,
     ) -> EngineOutcome {
         let mut engine = self.inner.lock().unwrap();
-        engine.dispatch_platform_event(event, now_epoch_millis)
+        engine.dispatch_platform_event(event, now_epoch_millis).await
     }
 
     /// Advances the engine state in a thread-safe manner.
-    pub fn tick(&self, now_epoch_millis: u64) -> Vec<EngineOutcome> {
+    ///
+    /// See [`ConcurrentEngine::dispatch`] for why the lock is held across the await.
+    #[allow(clippy::await_holding_lock)]
+    pub async fn tick(&self, now_epoch_millis: u64) -> Vec<EngineOutcome> {
         let mut engine = self.inner.lock().unwrap();
-        engine.tick(now_epoch_millis)
+        engine.tick(now_epoch_millis).await
     }
 
     /// Accesses the engine's snapshot in a thread-safe manner.
