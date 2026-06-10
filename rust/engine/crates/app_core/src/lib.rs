@@ -2,6 +2,7 @@ pub mod data;
 pub mod engine;
 pub mod middleware;
 pub mod model;
+pub mod networking;
 pub mod services;
 
 pub mod test_utils {
@@ -53,6 +54,7 @@ pub use crate::data::session::MediaSession;
 pub use crate::engine::concurrent::ConcurrentEngine;
 pub use crate::engine::core::{Engine, EngineOutcome};
 pub use crate::engine::observability::{EngineObserver, EventBus};
+pub use crate::networking::{BackendClient, RemoteRepository};
 pub use crate::middleware::{
     AnalyticsMiddleware, FocusMiddleware, LoggerMiddleware, Middleware, MiddlewarePipeline,
     RecoveryMiddleware, TelemetryMiddleware, ThrottlingMiddleware, ValidationMiddleware,
