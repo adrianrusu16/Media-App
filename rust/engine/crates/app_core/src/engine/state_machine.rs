@@ -154,4 +154,131 @@ mod tests {
             )
         );
     }
+
+    #[test]
+    fn test_idle_bootstrap_stays_idle() {
+        assert_eq!(
+            PlaybackState::Idle,
+            StateMachine::next_state_from_command(
+                PlaybackState::Idle,
+                &EngineCommandType::Bootstrap
+            )
+        );
+    }
+
+    #[test]
+    fn test_playing_to_paused_on_pause() {
+        assert_eq!(
+            PlaybackState::Paused,
+            StateMachine::next_state_from_command(PlaybackState::Playing, &EngineCommandType::Pause)
+        );
+    }
+
+    #[test]
+    fn test_playing_to_buffering_on_skip() {
+        assert_eq!(
+            PlaybackState::Buffering,
+            StateMachine::next_state_from_command(
+                PlaybackState::Playing,
+                &EngineCommandType::SkipNext
+            )
+        );
+        assert_eq!(
+            PlaybackState::Buffering,
+            StateMachine::next_state_from_command(
+                PlaybackState::Playing,
+                &EngineCommandType::SkipPrevious
+            )
+        );
+    }
+
+    #[test]
+    fn test_paused_to_playing_on_play_command() {
+        assert_eq!(
+            PlaybackState::Playing,
+            StateMachine::next_state_from_command(PlaybackState::Paused, &EngineCommandType::Play)
+        );
+    }
+
+    #[test]
+    fn test_paused_to_buffering_on_skip() {
+        assert_eq!(
+            PlaybackState::Buffering,
+            StateMachine::next_state_from_command(
+                PlaybackState::Paused,
+                &EngineCommandType::SkipNext
+            )
+        );
+        assert_eq!(
+            PlaybackState::Buffering,
+            StateMachine::next_state_from_command(
+                PlaybackState::Paused,
+                &EngineCommandType::SkipPrevious
+            )
+        );
+    }
+
+    #[test]
+    fn test_buffering_to_error_on_media_error() {
+        assert_eq!(
+            PlaybackState::Error,
+            StateMachine::next_state_from_platform_event(
+                PlaybackState::Buffering,
+                &EnginePlatformEventType::MediaError
+            )
+        );
+    }
+
+    #[test]
+    fn test_error_to_playing_on_media_loaded() {
+        assert_eq!(
+            PlaybackState::Playing,
+            StateMachine::next_state_from_platform_event(
+                PlaybackState::Error,
+                &EnginePlatformEventType::MediaLoaded
+            )
+        );
+    }
+
+    #[test]
+    fn test_playing_to_paused_on_audio_focus_change() {
+        assert_eq!(
+            PlaybackState::Paused,
+            StateMachine::next_state_from_platform_event(
+                PlaybackState::Playing,
+                &EnginePlatformEventType::AudioFocusChanged
+            )
+        );
+    }
+
+    #[test]
+    fn test_unrecognized_command_preserves_state() {
+        // Pause has no transition out of Idle, so the state is preserved.
+        assert_eq!(
+            PlaybackState::Idle,
+            StateMachine::next_state_from_command(PlaybackState::Idle, &EngineCommandType::Pause)
+        );
+        // A Seek command never changes the playback state.
+        assert_eq!(
+            PlaybackState::Playing,
+            StateMachine::next_state_from_command(
+                PlaybackState::Playing,
+                &EngineCommandType::Seek {
+                    position_millis: 1_000
+                }
+            )
+        );
+    }
+
+    #[test]
+    fn test_unrecognized_event_preserves_state() {
+        // MediaLoaded has no transition from Idle, so the state is preserved.
+        assert_eq!(
+            PlaybackState::Idle,
+            StateMachine::next_state_from_platform_event(
+                PlaybackState::Idle,
+                &EnginePlatformEventType::MediaLoaded
+            )
+        );
+    }
 }
