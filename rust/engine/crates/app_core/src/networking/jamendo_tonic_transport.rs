@@ -2,14 +2,17 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use tokio::sync::Mutex;
+use tokio_stream::StreamExt;
 use tonic::metadata::MetadataValue;
 use tonic::service::Interceptor;
 use tonic::service::interceptor::InterceptedService;
 use tonic::transport::{Channel, Endpoint};
 
+use crate::data::repository::MediaItem;
+use crate::networking::backend_client::{BackendClient, MediaItemStream};
 use crate::networking::jamendo_audio_source_client::JamendoGrpcApi;
 use crate::networking::jamendo_proto::generated::{
-    HealthRequest, ResolveTrackRequest, ResolveTrackResponse,
+    HealthRequest, ResolveTrackRequest, ResolveTrackResponse, SearchRequest, SearchResult,
     jamendo_service_client::JamendoServiceClient,
 };
 
@@ -54,6 +57,22 @@ impl Interceptor for StaticMetadataInterceptor {
 
 type JamendoGrpcClient =
     JamendoServiceClient<InterceptedService<Channel, StaticMetadataInterceptor>>;
+
+struct SearchStreamLifecycle {
+    query: String,
+    completed: bool,
+}
+
+impl Drop for SearchStreamLifecycle {
+    fn drop(&mut self) {
+        if !self.completed {
+            tracing::debug!(
+                query = %self.query,
+                "jamendo search gRPC stream cancelled"
+            );
+        }
+    }
+}
 
 pub struct JamendoTonicTransport {
     client: Arc<Mutex<JamendoGrpcClient>>,
@@ -107,6 +126,100 @@ impl JamendoTonicTransport {
         tracing::debug!(?health, "jamendo health probe completed");
         Ok(health)
     }
+
+    fn map_search_result(item: SearchResult) -> anyhow::Result<MediaItem> {
+        if item.id.trim().is_empty() {
+            anyhow::bail!("jamendo search result missing id")
+        }
+
+        if item.title.trim().is_empty() {
+            anyhow::bail!("jamendo search result missing title")
+        }
+
+        Ok(MediaItem {
+            id: item.id,
+            title: item.title,
+            artist: item.artist.unwrap_or_default(),
+            ..Default::default()
+        })
+    }
+}
+
+#[async_trait::async_trait]
+impl BackendClient for JamendoTonicTransport {
+    async fn fetch_children(&self, parent_id: &str) -> anyhow::Result<Vec<MediaItem>> {
+        Err(anyhow::anyhow!(
+            "jamendo does not support browse/fetch_children for parent_id={parent_id}"
+        ))
+    }
+
+    async fn search(&self, query: &str) -> anyhow::Result<Vec<MediaItem>> {
+        let mut stream = self.search_stream(query).await?;
+        let mut items = Vec::new();
+        while let Some(item) = stream.next().await {
+            items.push(item?);
+        }
+        Ok(items)
+    }
+
+    async fn search_stream(&self, query: &str) -> anyhow::Result<MediaItemStream> {
+        let normalized_query = query.trim().to_string();
+        if normalized_query.is_empty() {
+            anyhow::bail!("search query cannot be blank")
+        }
+
+        tracing::debug!(query = %normalized_query, "jamendo search gRPC stream start");
+        let mut client = self.client.lock().await;
+        let response = client
+            .search(tonic::Request::new(SearchRequest {
+                query: normalized_query.clone(),
+            }))
+            .await
+            .with_context(|| format!("jamendo search RPC failed for query={normalized_query}"))?;
+        let mut upstream = response.into_inner();
+        let stream = async_stream::stream! {
+            let mut lifecycle = SearchStreamLifecycle {
+                query: normalized_query.clone(),
+                completed: false,
+            };
+
+            while let Some(item) = upstream.next().await {
+                match item {
+                    Ok(search_result) => {
+                        let mapped = Self::map_search_result(search_result);
+                        match &mapped {
+                            Ok(media_item) => tracing::debug!(
+                                query = %normalized_query,
+                                id = %media_item.id,
+                                "jamendo search gRPC stream item_received"
+                            ),
+                            Err(error) => tracing::warn!(
+                                query = %normalized_query,
+                                error = %error,
+                                "jamendo search gRPC stream mapping_failed"
+                            ),
+                        }
+                        yield mapped;
+                    }
+                    Err(status) => {
+                        tracing::warn!(
+                            query = %normalized_query,
+                            code = ?status.code(),
+                            "jamendo search gRPC stream failed"
+                        );
+                        yield Err(anyhow::Error::new(status).context(format!(
+                            "jamendo search stream failed for query={normalized_query}"
+                        )));
+                        return;
+                    }
+                }
+            }
+
+            lifecycle.completed = true;
+            tracing::debug!(query = %normalized_query, "jamendo search gRPC stream completed");
+        };
+        Ok(Box::pin(stream))
+    }
 }
 
 #[async_trait::async_trait]
@@ -138,6 +251,47 @@ impl JamendoGrpcApi for JamendoTonicTransport {
 mod tests {
     use super::*;
     use crate::networking::jamendo_proto::generated::health_response::State;
+
+    #[test]
+    fn map_search_result_maps_payload_to_media_item() {
+        let item = JamendoTonicTransport::map_search_result(SearchResult {
+            id: "track-1".to_string(),
+            title: "A Song".to_string(),
+            artist: Some("An Artist".to_string()),
+            album: None,
+            art_uri: None,
+        })
+        .unwrap();
+
+        assert_eq!(item.id, "track-1");
+        assert_eq!(item.title, "A Song");
+        assert_eq!(item.artist, "An Artist");
+    }
+
+    #[test]
+    fn map_search_result_rejects_missing_required_fields() {
+        assert!(
+            JamendoTonicTransport::map_search_result(SearchResult {
+                id: "".to_string(),
+                title: "Title".to_string(),
+                artist: None,
+                album: None,
+                art_uri: None,
+            })
+            .is_err()
+        );
+
+        assert!(
+            JamendoTonicTransport::map_search_result(SearchResult {
+                id: "track-1".to_string(),
+                title: "".to_string(),
+                artist: None,
+                album: None,
+                art_uri: None,
+            })
+            .is_err()
+        );
+    }
 
     #[test]
     fn maps_health_state_values() {
