@@ -222,4 +222,38 @@ mod tests {
                 .contains("fetch_children failed after 1 attempt(s)")
         );
     }
+
+    #[tokio::test]
+    async fn search_retryable_error_retries_and_succeeds_with_policy() {
+        let mut client = MockBackendClient::new();
+        let mut calls = 0;
+
+        client.expect_search().times(2).returning(move |_| {
+            calls += 1;
+            if calls == 1 {
+                Err(anyhow::anyhow!("transient: backend unavailable"))
+            } else {
+                Ok(vec![MediaItem {
+                    id: "policy-ok-1".to_string(),
+                    title: "Recovered by policy retry".to_string(),
+                    ..Default::default()
+                }])
+            }
+        });
+
+        fn retry_only_transient(error: &anyhow::Error) -> bool {
+            error.to_string().contains("transient")
+        }
+
+        let retrying = RetryingBackendClient::new_with_policy(
+            Arc::new(client),
+            3,
+            Duration::from_millis(1),
+            retry_only_transient,
+        );
+        let result = retrying.search("query").await.unwrap();
+
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].id, "policy-ok-1");
+    }
 }
