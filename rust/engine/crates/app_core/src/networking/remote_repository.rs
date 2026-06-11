@@ -99,4 +99,26 @@ mod tests {
         let repo = RemoteRepository::new(Arc::new(client));
         assert!(repo.search("anything").await.is_err());
     }
+
+    #[tokio::test]
+    async fn browse_propagates_backend_error() {
+        let mut client = MockBackendClient::new();
+        client
+            .expect_fetch_children()
+            .times(1)
+            .returning(|_| Err(anyhow::anyhow!("upstream timeout")));
+
+        let repo = RemoteRepository::new(Arc::new(client));
+        assert!(repo.browse("root").await.is_err());
+    }
+
+    #[test]
+    fn sync_navigation_methods_return_none_without_cache() {
+        let client = MockBackendClient::new();
+        let repo = RemoteRepository::new(Arc::new(client));
+
+        assert!(repo.get_by_id("track-1").is_none());
+        assert!(repo.get_next("track-1").is_none());
+        assert!(repo.get_previous("track-1").is_none());
+    }
 }
