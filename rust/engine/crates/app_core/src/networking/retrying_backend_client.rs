@@ -195,4 +195,31 @@ mod tests {
                 .contains("search failed after 1 attempt(s)")
         );
     }
+
+    #[tokio::test]
+    async fn fetch_children_non_retryable_error_fails_immediately_even_when_retries_configured() {
+        let mut client = MockBackendClient::new();
+        client
+            .expect_fetch_children()
+            .times(1)
+            .returning(|_| Err(anyhow::anyhow!("fatal: parent does not exist")));
+
+        fn retry_only_transient(error: &anyhow::Error) -> bool {
+            error.to_string().contains("transient")
+        }
+
+        let retrying = RetryingBackendClient::new_with_policy(
+            Arc::new(client),
+            3,
+            Duration::from_millis(1),
+            retry_only_transient,
+        );
+        let error = retrying.fetch_children("root").await.unwrap_err();
+
+        assert!(
+            error
+                .to_string()
+                .contains("fetch_children failed after 1 attempt(s)")
+        );
+    }
 }
