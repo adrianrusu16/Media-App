@@ -16,9 +16,15 @@ pub unsafe extern "C" fn panda_engine_queue_set_items(
     if let Some(engine) = engine {
         let mut items = Vec::with_capacity(count);
         for i in 0..count {
-            let id = unsafe { std::ffi::CStr::from_ptr(*ids.add(i)) }.to_string_lossy().into_owned();
-            let title = unsafe { std::ffi::CStr::from_ptr(*titles.add(i)) }.to_string_lossy().into_owned();
-            let artist = unsafe { std::ffi::CStr::from_ptr(*artists.add(i)) }.to_string_lossy().into_owned();
+            let id = unsafe { std::ffi::CStr::from_ptr(*ids.add(i)) }
+                .to_string_lossy()
+                .into_owned();
+            let title = unsafe { std::ffi::CStr::from_ptr(*titles.add(i)) }
+                .to_string_lossy()
+                .into_owned();
+            let artist = unsafe { std::ffi::CStr::from_ptr(*artists.add(i)) }
+                .to_string_lossy()
+                .into_owned();
             items.push(MediaItem {
                 id,
                 title,
@@ -39,7 +45,9 @@ pub unsafe extern "C" fn panda_engine_queue_set_repeat_mode(engine: *mut PandaEn
             2 => RepeatMode::All,
             _ => RepeatMode::None,
         };
-        engine.engine.with_engine(|e| e.queue().set_repeat_mode(repeat_mode));
+        engine
+            .engine
+            .with_engine(|e| e.queue().set_repeat_mode(repeat_mode));
     }
 }
 
@@ -47,6 +55,8 @@ pub unsafe extern "C" fn panda_engine_queue_set_repeat_mode(engine: *mut PandaEn
 pub unsafe extern "C" fn panda_engine_queue_set_shuffle(engine: *mut PandaEngine, enabled: bool) {
     let engine = unsafe { engine.as_mut() };
     if let Some(engine) = engine {
-        engine.engine.with_engine(|e| e.queue().set_shuffle(enabled));
+        engine
+            .engine
+            .with_engine(|e| e.queue().set_shuffle(enabled));
     }
 }

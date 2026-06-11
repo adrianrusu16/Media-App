@@ -6,6 +6,24 @@ Android modules communicate with the engine through the AIDL service boundary in
 `:core:rust-bridge`, while Rust owns deterministic domain behavior (commands,
 events, snapshots, middleware, recovery, and effect emission).
 
+## Quick Start
+
+From `engine/`:
+
+```powershell
+# 1) Fast confidence check
+cargo check -p media_app_core -p panda_engine_ffi
+
+# 2) Run focused tests for the most touched boundaries
+cargo test -p media_app_core core::core_tests -- --nocapture
+cargo test -p panda_engine_ffi -- --nocapture
+
+# 3) Run full app_core suite before larger merges
+cargo test -p media_app_core -- --nocapture
+```
+
+If you are changing architecture/module boundaries, also run `cargo test --workspace`.
+
 ## Current State (Middleware / Engine)
 
 - Async-first engine dispatch with explicit `is_busy` lifecycle for long-running work.
@@ -85,6 +103,24 @@ cargo test --workspace
 cargo clippy --workspace --tests
 cargo fmt --check
 cargo llvm-cov
+```
+
+### Recommended verification profiles
+
+```powershell
+# Fast (inner-loop): compile + critical boundaries
+cargo check -p media_app_core -p panda_engine_ffi
+cargo test -p media_app_core core::core_tests -- --nocapture
+cargo test -p panda_engine_ffi -- --nocapture
+
+# Refactor-safe (when touching data/networking/middleware)
+cargo test -p media_app_core -- --nocapture
+cargo test -p panda_engine_ffi -- --nocapture
+
+# Full gate (pre-merge / release hardening)
+cargo test --workspace -- --nocapture
+cargo clippy --workspace --tests
+cargo fmt --check
 ```
 
 ### Targeted verification during refactors
@@ -199,6 +235,18 @@ sequenceDiagram
 6. **Process Audio**: Stream PCM 16-bit 16kHz mono via `EngineCommandType::ProcessVoiceAudio`.
 7. **Handle Effects**: Query `panda_engine_get_effects_count/types` and execute platform effects.
 8. **Persist/Restore**: Use `panda_engine_save` and `panda_engine_restore` on lifecycle transitions.
+
+## Troubleshooting
+
+- **`cargo test --workspace` reports 0 tests**:
+  - Confirm you are in `rust/engine` and running against the intended workspace root.
+  - Run targeted crates explicitly (`-p media_app_core`, `-p panda_engine_ffi`) to verify expected suites.
+- **FFI tests pass but Android integration fails**:
+  - Re-check observer lifecycle (`create` -> `set_observer` -> `dispatch` -> `destroy`).
+  - Verify payload/event constants used on Android still match `ffi::constants`.
+- **Intermittent networking failures in tests**:
+  - Prefer retry-wrapper targeted tests first to isolate transport vs policy behavior.
+  - Re-run with `-- --nocapture` and inspect mapped error transitions in test output.
 
 ## Contribution Notes (modularization guardrails)
 

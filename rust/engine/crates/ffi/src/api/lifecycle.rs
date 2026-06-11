@@ -62,10 +62,15 @@ pub unsafe extern "C" fn panda_engine_set_observer(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn panda_engine_tick(engine: *mut PandaEngine, now_epoch_millis: u64) -> usize {
+pub unsafe extern "C" fn panda_engine_tick(
+    engine: *mut PandaEngine,
+    now_epoch_millis: u64,
+) -> usize {
     let engine = unsafe { engine.as_mut() };
     if let Some(engine) = engine {
-        let outcomes = engine.runtime.block_on(engine.engine.tick(now_epoch_millis));
+        let outcomes = engine
+            .runtime
+            .block_on(engine.engine.tick(now_epoch_millis));
         if let Some(last) = outcomes.last() {
             remember_outcome(engine, last);
         }
@@ -83,14 +88,19 @@ pub unsafe extern "C" fn panda_engine_destroy(engine: *mut PandaEngine) {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn panda_engine_enable_vosk(engine: *mut PandaEngine, model_path: *const c_char) -> bool {
+pub unsafe extern "C" fn panda_engine_enable_vosk(
+    engine: *mut PandaEngine,
+    model_path: *const c_char,
+) -> bool {
     let engine = unsafe { engine.as_mut() };
     let model_path = unsafe { std::ffi::CStr::from_ptr(model_path).to_str() };
 
     if let (Some(engine), Ok(path)) = (engine, model_path) {
         match VoskVoiceEngine::new(path) {
             Ok(vosk) => {
-                engine.engine.with_engine(|e| e.set_voice_engine(Box::new(vosk)));
+                engine
+                    .engine
+                    .with_engine(|e| e.set_voice_engine(Box::new(vosk)));
                 true
             }
             Err(e) => {

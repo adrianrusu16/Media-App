@@ -41,7 +41,9 @@ pub(crate) fn command_from_ffi(command_type: i32) -> EngineCommandType {
     }
 }
 
-pub(crate) fn platform_event_from_ffi(event_type: i32) -> panda_engine_core::EnginePlatformEventType {
+pub(crate) fn platform_event_from_ffi(
+    event_type: i32,
+) -> panda_engine_core::EnginePlatformEventType {
     use panda_engine_core::EnginePlatformEventType;
 
     match event_type {
@@ -49,7 +51,9 @@ pub(crate) fn platform_event_from_ffi(event_type: i32) -> panda_engine_core::Eng
         FFI_PLATFORM_EVENT_APP_BACKGROUNDED => EnginePlatformEventType::AppBackgrounded,
         FFI_PLATFORM_EVENT_SUSPEND_TO_RAM => EnginePlatformEventType::SuspendToRam,
         FFI_PLATFORM_EVENT_RESUME_FROM_RAM => EnginePlatformEventType::ResumeFromRam,
-        FFI_PLATFORM_EVENT_UX_RESTRICTIONS_CHANGED => EnginePlatformEventType::UxRestrictionsChanged,
+        FFI_PLATFORM_EVENT_UX_RESTRICTIONS_CHANGED => {
+            EnginePlatformEventType::UxRestrictionsChanged
+        }
         FFI_PLATFORM_EVENT_AUDIO_FOCUS_CHANGED => EnginePlatformEventType::AudioFocusChanged,
         FFI_PLATFORM_EVENT_MEDIA_LOADED => EnginePlatformEventType::MediaLoaded,
         FFI_PLATFORM_EVENT_MEDIA_ERROR => EnginePlatformEventType::MediaError,

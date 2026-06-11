@@ -20,7 +20,11 @@ pub unsafe extern "C" fn panda_engine_dispatch(
     let payload_str = if payload.is_null() {
         None
     } else {
-        Some(unsafe { std::ffi::CStr::from_ptr(payload) }.to_string_lossy().into_owned())
+        Some(
+            unsafe { std::ffi::CStr::from_ptr(payload) }
+                .to_string_lossy()
+                .into_owned(),
+        )
     };
 
     match engine {
@@ -39,12 +43,19 @@ pub unsafe extern "C" fn panda_engine_dispatch(
                     None,
                 ),
                 FFI_COMMAND_SET_SPEED => {
-                    let speed = payload_str.and_then(|s| s.parse::<f32>().ok()).unwrap_or(1.0);
+                    let speed = payload_str
+                        .and_then(|s| s.parse::<f32>().ok())
+                        .unwrap_or(1.0);
                     EngineCommand::new(EngineCommandType::SetSpeed { speed }, None)
                 }
                 FFI_COMMAND_SEEK => {
                     let pos = payload_str.and_then(|s| s.parse::<u64>().ok()).unwrap_or(0);
-                    EngineCommand::new(EngineCommandType::Seek { position_millis: pos }, None)
+                    EngineCommand::new(
+                        EngineCommandType::Seek {
+                            position_millis: pos,
+                        },
+                        None,
+                    )
                 }
                 FFI_COMMAND_PROCESS_VOICE => {
                     let chunk = payload_str
@@ -57,7 +68,9 @@ pub unsafe extern "C" fn panda_engine_dispatch(
                 _ => EngineCommand::new(command_from_ffi(command_type), payload_str),
             };
 
-            let outcome = engine.runtime.block_on(engine.engine.dispatch(command, now_epoch_millis));
+            let outcome = engine
+                .runtime
+                .block_on(engine.engine.dispatch(command, now_epoch_millis));
             remember_outcome(engine, &outcome);
             FfiEngineOutcome::from((&outcome, command_type))
         }
@@ -75,10 +88,15 @@ pub unsafe extern "C" fn panda_engine_dispatch_platform_event(
     let engine = unsafe { engine.as_mut() };
     match engine {
         Some(engine) => {
-            let outcome = engine.runtime.block_on(engine.engine.dispatch_platform_event(
-                panda_engine_core::EnginePlatformEvent::new(platform_event_from_ffi(event_type), None),
-                now_epoch_millis,
-            ));
+            let outcome = engine
+                .runtime
+                .block_on(engine.engine.dispatch_platform_event(
+                    panda_engine_core::EnginePlatformEvent::new(
+                        platform_event_from_ffi(event_type),
+                        None,
+                    ),
+                    now_epoch_millis,
+                ));
             remember_outcome(engine, &outcome);
             FfiEngineOutcome::from((&outcome, FFI_COMMAND_UNKNOWN))
         }

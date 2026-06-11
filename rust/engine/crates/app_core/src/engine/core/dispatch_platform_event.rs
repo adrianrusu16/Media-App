@@ -31,8 +31,8 @@ impl Engine {
                     .unwrap_or_else(|_| EngineError::player_error(payload.clone()));
                 next_snapshot = next_snapshot.with_error(Some(error));
             } else {
-                next_snapshot =
-                    next_snapshot.with_error(Some(EngineError::player_error("Unknown platform error")));
+                next_snapshot = next_snapshot
+                    .with_error(Some(EngineError::player_error("Unknown platform error")));
             }
         } else {
             next_snapshot = next_snapshot.with_error(None);

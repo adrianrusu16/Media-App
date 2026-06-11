@@ -67,9 +67,9 @@ fn search_updates_snapshot_results() {
             artist: "A".to_string(),
             ..Default::default()
         }];
-        (*engine)
-            .engine
-            .with_engine(|e| e.set_repository(Box::new(panda_engine_core::InMemoryRepository::new(items))));
+        (*engine).engine.with_engine(|e| {
+            e.set_repository(Box::new(panda_engine_core::InMemoryRepository::new(items)))
+        });
     }
 
     let query = CString::new("Rust").unwrap();

@@ -6,8 +6,8 @@ use panda_engine_core::{
 };
 use tracing::info;
 
-use crate::mappings::event_to_ffi;
 use crate::FfiEngineSnapshot;
+use crate::mappings::event_to_ffi;
 
 /// Opaque handle to the Rust Engine.
 pub struct PandaEngine {

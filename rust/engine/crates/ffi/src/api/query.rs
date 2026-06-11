@@ -22,11 +22,15 @@ pub unsafe extern "C" fn panda_engine_get_config(engine: *const PandaEngine) -> 
         Some(engine) => {
             let config = engine.engine.config();
             FfiEngineConfig {
-                vehicle_name: CString::new(config.vehicle_name.clone()).unwrap().into_raw(),
+                vehicle_name: CString::new(config.vehicle_name.clone())
+                    .unwrap()
+                    .into_raw(),
                 hifi_enabled: config.hifi_enabled,
                 max_volume: config.max_volume,
                 auto_resume: config.auto_resume,
-                preferred_language: CString::new(config.preferred_language.clone()).unwrap().into_raw(),
+                preferred_language: CString::new(config.preferred_language.clone())
+                    .unwrap()
+                    .into_raw(),
             }
         }
         None => FfiEngineConfig {
@@ -49,7 +53,10 @@ pub unsafe extern "C" fn panda_engine_get_effects_count(engine: *const PandaEngi
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn panda_engine_get_effects_types(engine: *const PandaEngine, out_types: *mut i32) {
+pub unsafe extern "C" fn panda_engine_get_effects_types(
+    engine: *const PandaEngine,
+    out_types: *mut i32,
+) {
     let engine = unsafe { engine.as_ref() };
     if let Some(engine) = engine {
         let effects = engine.last_effects.lock().unwrap();
@@ -60,7 +67,10 @@ pub unsafe extern "C" fn panda_engine_get_effects_types(engine: *const PandaEngi
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn panda_engine_get_effect_media_id(engine: *const PandaEngine, index: usize) -> *const c_char {
+pub unsafe extern "C" fn panda_engine_get_effect_media_id(
+    engine: *const PandaEngine,
+    index: usize,
+) -> *const c_char {
     let engine = unsafe { engine.as_ref() };
     if let Some(engine) = engine {
         let effects = engine.last_effects.lock().unwrap();
@@ -72,7 +82,10 @@ pub unsafe extern "C" fn panda_engine_get_effect_media_id(engine: *const PandaEn
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn panda_engine_get_effect_notify_message(engine: *const PandaEngine, index: usize) -> *const c_char {
+pub unsafe extern "C" fn panda_engine_get_effect_notify_message(
+    engine: *const PandaEngine,
+    index: usize,
+) -> *const c_char {
     let engine = unsafe { engine.as_ref() };
     if let Some(engine) = engine {
         let effects = engine.last_effects.lock().unwrap();
@@ -84,7 +97,9 @@ pub unsafe extern "C" fn panda_engine_get_effect_notify_message(engine: *const P
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn panda_engine_get_voice_hypothesis(engine: *const PandaEngine) -> *mut c_char {
+pub unsafe extern "C" fn panda_engine_get_voice_hypothesis(
+    engine: *const PandaEngine,
+) -> *mut c_char {
     let engine = unsafe { engine.as_ref() };
     if let Some(engine) = engine {
         let snapshot = engine.engine.snapshot();
@@ -96,7 +111,10 @@ pub unsafe extern "C" fn panda_engine_get_voice_hypothesis(engine: *const PandaE
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn panda_engine_get_search_result_id(engine: *const PandaEngine, index: usize) -> *const c_char {
+pub unsafe extern "C" fn panda_engine_get_search_result_id(
+    engine: *const PandaEngine,
+    index: usize,
+) -> *const c_char {
     let engine = unsafe { engine.as_ref() };
     if let Some(engine) = engine {
         let snapshot = engine.engine.snapshot();
@@ -108,7 +126,10 @@ pub unsafe extern "C" fn panda_engine_get_search_result_id(engine: *const PandaE
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn panda_engine_get_search_result_title(engine: *const PandaEngine, index: usize) -> *const c_char {
+pub unsafe extern "C" fn panda_engine_get_search_result_title(
+    engine: *const PandaEngine,
+    index: usize,
+) -> *const c_char {
     let engine = unsafe { engine.as_ref() };
     if let Some(engine) = engine {
         let snapshot = engine.engine.snapshot();
@@ -120,7 +141,9 @@ pub unsafe extern "C" fn panda_engine_get_search_result_title(engine: *const Pan
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn panda_engine_get_last_error_message(engine: *const PandaEngine) -> *const c_char {
+pub unsafe extern "C" fn panda_engine_get_last_error_message(
+    engine: *const PandaEngine,
+) -> *const c_char {
     if engine.is_null() {
         return ptr::null();
     }
@@ -144,11 +167,15 @@ pub unsafe extern "C" fn panda_engine_free_string(s: *mut c_char) {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn panda_engine_get_last_event_message(engine: *const PandaEngine) -> *const c_char {
+pub unsafe extern "C" fn panda_engine_get_last_event_message(
+    engine: *const PandaEngine,
+) -> *const c_char {
     let engine = unsafe { engine.as_ref() };
     if let Some(engine) = engine {
         let event = engine.last_event.lock().unwrap();
-        if let Some(event) = &*event && let Some(msg) = &event.message {
+        if let Some(event) = &*event
+            && let Some(msg) = &event.message
+        {
             return CString::new(msg.as_str()).unwrap().into_raw();
         }
     }

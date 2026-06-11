@@ -22,11 +22,11 @@ use std::sync::Arc;
 // Core engine orchestration root:
 // - Public `Engine` API surface lives here.
 // - Heavy execution paths are delegated to focused submodules below.
+mod controls;
 mod dispatch_command;
 mod dispatch_platform_event;
 mod effects;
 mod persistence_state;
-mod controls;
 
 /// Result of an engine operation, containing the new state and an event to be broadcasted.
 #[derive(Clone, Debug, PartialEq)]
@@ -191,10 +191,10 @@ impl Engine {
         event: EnginePlatformEvent,
         now_epoch_millis: u64,
     ) -> EngineOutcome {
-        self.dispatch_platform_event_impl(event, now_epoch_millis).await
+        self.dispatch_platform_event_impl(event, now_epoch_millis)
+            .await
     }
 }
-
 
 #[cfg(test)]
 mod core_tests;

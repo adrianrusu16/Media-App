@@ -62,7 +62,7 @@ fn test_throttling_middleware() {
 #[tokio::test]
 async fn test_validation_middleware_detects_busy() {
     use crate::data::repository::{MediaItem, MockMediaRepository};
-    use tokio::time::{sleep, Duration};
+    use tokio::time::{Duration, sleep};
 
     let middleware = ValidationMiddleware;
     let mut engine = Engine::new(100);
