@@ -40,7 +40,7 @@ from this directory.
 - **Thread Safety**: Concurrent access model optimized for Android's multi-threaded environment.
 - **Effect System**: Pure logic emits side-effects (Effects) for the platform to execute.
 - **Persistence**: Cross-session state recovery with AAOS-compliant resume logic.
-- **Networking Boundary**: `BackendClient`, `RetryingBackendClient`, and `RemoteRepository` isolate transport and retry concerns so core engine logic remains transport-agnostic.
+- **Networking Boundary**: `BackendClient`/`RemoteRepository` and `AudioSourceClient`/`JamendoAudioSourceClient`/`RetryingAudioSourceClient` isolate transport, source-download, and retry concerns so core engine logic remains transport-agnostic.
 
 ## FFI Integration Guide (Android)
 
