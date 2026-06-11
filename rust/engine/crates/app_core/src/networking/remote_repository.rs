@@ -10,19 +10,25 @@ use crate::networking::backend_client::BackendClient;
 /// about the [`BackendClient`] trait and delegates the async, network-bound
 /// operations (`browse`, `search`) to it. The concrete transport (tonic/gRPC,
 /// etc.) is hidden inside whichever `BackendClient` is injected.
-pub struct RemoteRepository {
-    client: Arc<dyn BackendClient>,
+pub struct RemoteRepository<C> {
+    client: Arc<C>,
 }
 
-impl RemoteRepository {
+impl<C> RemoteRepository<C>
+where
+    C: BackendClient,
+{
     /// Creates a new repository that delegates remote calls to `client`.
-    pub fn new(client: Arc<dyn BackendClient>) -> Self {
+    pub fn new(client: Arc<C>) -> Self {
         Self { client }
     }
 }
 
 #[async_trait::async_trait]
-impl MediaRepository for RemoteRepository {
+impl<C> MediaRepository for RemoteRepository<C>
+where
+    C: BackendClient,
+{
     fn get_by_id(&self, _id: &str) -> Option<MediaItem> {
         // Synchronous lookups are not yet supported by the remote backend.
         // A future revision may add a local cache populated by browse/search.

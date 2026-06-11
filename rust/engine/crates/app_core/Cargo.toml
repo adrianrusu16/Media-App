@@ -14,7 +14,7 @@ async-trait = "0.1.89"
 anyhow = "1.0.102"
 tokio = { version = "1", features = ["full"] }
 mockall = "0.13"
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+tonic = { version = "0.12", features = ["transport"] }
 
 [features]
 default = []
