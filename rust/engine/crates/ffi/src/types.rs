@@ -1,0 +1,174 @@
+use std::ffi::c_char;
+
+use panda_engine_core::{EngineOutcome, EngineSnapshot};
+
+use crate::mappings::{event_to_ffi, playback_to_ffi, restriction_to_ffi};
+use crate::{
+    FFI_COMMAND_UNKNOWN, FFI_ERROR_AUTHENTICATION, FFI_ERROR_MEDIA_SKIPPED, FFI_ERROR_NETWORK,
+    FFI_ERROR_NONE, FFI_ERROR_NOT_FOUND, FFI_ERROR_PLAYER, FFI_ERROR_UNKNOWN,
+};
+
+/// C-compatible representation of the engine configuration.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct FfiEngineConfig {
+    pub vehicle_name: *const c_char,
+    pub hifi_enabled: bool,
+    pub max_volume: u8,
+    pub auto_resume: bool,
+    pub preferred_language: *const c_char,
+}
+
+/// C-compatible representation of a specific player control state.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct FfiControlState {
+    pub is_visible: bool,
+    pub is_enabled: bool,
+    pub is_active: bool,
+}
+
+/// C-compatible representation of the player controls.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct FfiPlayerControls {
+    pub play_pause: FfiControlState,
+    pub skip_next: FfiControlState,
+    pub skip_prev: FfiControlState,
+    pub show_play_icon: bool,
+}
+
+/// C-compatible representation of the engine snapshot.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct FfiEngineSnapshot {
+    pub playback_state: i32,
+    pub restriction_state: i32,
+    pub updated_at_epoch_millis: u64,
+    pub has_active_session: bool,
+    pub has_error: bool,
+    pub error_type: i32,
+    pub search_results_count: usize,
+    pub playback_speed: f32,
+    pub position_millis: u64,
+    pub is_busy: bool,
+    pub can_dispatch: bool,
+    pub controls: FfiPlayerControls,
+    pub has_voice_hypothesis: bool,
+}
+
+/// C-compatible representation of the engine outcome.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct FfiEngineOutcome {
+    pub snapshot: FfiEngineSnapshot,
+    pub event_type: i32,
+    pub applied_command_type: i32,
+}
+
+impl FfiEngineSnapshot {
+    pub(crate) fn invalid() -> Self {
+        Self {
+            playback_state: FFI_COMMAND_UNKNOWN,
+            restriction_state: FFI_COMMAND_UNKNOWN,
+            updated_at_epoch_millis: 0,
+            has_active_session: false,
+            has_error: false,
+            error_type: FFI_ERROR_NONE,
+            search_results_count: 0,
+            playback_speed: 1.0,
+            position_millis: 0,
+            is_busy: false,
+            can_dispatch: false,
+            controls: FfiPlayerControls {
+                play_pause: FfiControlState {
+                    is_visible: false,
+                    is_enabled: false,
+                    is_active: false,
+                },
+                skip_next: FfiControlState {
+                    is_visible: false,
+                    is_enabled: false,
+                    is_active: false,
+                },
+                skip_prev: FfiControlState {
+                    is_visible: false,
+                    is_enabled: false,
+                    is_active: false,
+                },
+                show_play_icon: true,
+            },
+            has_voice_hypothesis: false,
+        }
+    }
+}
+
+impl FfiEngineOutcome {
+    pub(crate) fn invalid() -> Self {
+        Self {
+            snapshot: FfiEngineSnapshot::invalid(),
+            event_type: FFI_COMMAND_UNKNOWN,
+            applied_command_type: FFI_COMMAND_UNKNOWN,
+        }
+    }
+}
+
+impl From<&EngineSnapshot> for FfiEngineSnapshot {
+    fn from(snapshot: &EngineSnapshot) -> Self {
+        Self {
+            playback_state: playback_to_ffi(snapshot.playback_state),
+            restriction_state: restriction_to_ffi(snapshot.restriction_state),
+            updated_at_epoch_millis: snapshot.updated_at_epoch_millis,
+            has_active_session: snapshot.session.is_some(),
+            has_error: snapshot.last_error.is_some(),
+            error_type: snapshot
+                .last_error
+                .as_ref()
+                .map(|e| match e.error_type {
+                    panda_engine_core::EngineErrorType::NotFound => FFI_ERROR_NOT_FOUND,
+                    panda_engine_core::EngineErrorType::NetworkError => FFI_ERROR_NETWORK,
+                    panda_engine_core::EngineErrorType::PlayerError => FFI_ERROR_PLAYER,
+                    panda_engine_core::EngineErrorType::AuthenticationError => {
+                        FFI_ERROR_AUTHENTICATION
+                    }
+                    panda_engine_core::EngineErrorType::MediaSkipped => FFI_ERROR_MEDIA_SKIPPED,
+                    panda_engine_core::EngineErrorType::Unknown => FFI_ERROR_UNKNOWN,
+                })
+                .unwrap_or(FFI_ERROR_NONE),
+            search_results_count: snapshot.search_results.len(),
+            playback_speed: snapshot.playback_speed,
+            position_millis: snapshot.position_millis,
+            is_busy: snapshot.is_busy,
+            can_dispatch: snapshot.can_dispatch(),
+            controls: FfiPlayerControls {
+                play_pause: FfiControlState {
+                    is_visible: snapshot.controls.play_pause.is_visible,
+                    is_enabled: snapshot.controls.play_pause.is_enabled,
+                    is_active: snapshot.controls.play_pause.is_active,
+                },
+                skip_next: FfiControlState {
+                    is_visible: snapshot.controls.skip_next.is_visible,
+                    is_enabled: snapshot.controls.skip_next.is_enabled,
+                    is_active: snapshot.controls.skip_next.is_active,
+                },
+                skip_prev: FfiControlState {
+                    is_visible: snapshot.controls.skip_prev.is_visible,
+                    is_enabled: snapshot.controls.skip_prev.is_enabled,
+                    is_active: snapshot.controls.skip_prev.is_active,
+                },
+                show_play_icon: snapshot.controls.show_play_icon,
+            },
+            has_voice_hypothesis: snapshot.voice_hypothesis.is_some(),
+        }
+    }
+}
+
+impl From<(&EngineOutcome, i32)> for FfiEngineOutcome {
+    fn from((outcome, command_type): (&EngineOutcome, i32)) -> Self {
+        Self {
+            snapshot: FfiEngineSnapshot::from(&outcome.snapshot),
+            event_type: event_to_ffi(&outcome.event.event_type),
+            applied_command_type: command_type,
+        }
+    }
+}
