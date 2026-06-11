@@ -12,6 +12,8 @@
 
 pub mod backend_client;
 pub mod remote_repository;
+pub mod retrying_backend_client;
 
 pub use backend_client::BackendClient;
 pub use remote_repository::RemoteRepository;
+pub use retrying_backend_client::RetryingBackendClient;
