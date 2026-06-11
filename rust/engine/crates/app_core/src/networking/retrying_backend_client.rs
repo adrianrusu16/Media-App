@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use crate::data::repository::MediaItem;
-use crate::networking::backend_client::BackendClient;
+use crate::networking::backend_client::{BackendClient, MediaItemStream};
 use anyhow::Context;
 
 #[derive(Clone, Copy)]
@@ -223,12 +223,44 @@ where
             }
         }
     }
+
+    async fn search_stream(&self, query: &str) -> anyhow::Result<MediaItemStream> {
+        let mut attempts = 0;
+        let mut total_retry_delay = Duration::ZERO;
+        loop {
+            match self.inner.search_stream(query).await {
+                Ok(stream) => return Ok(stream),
+                Err(error) if attempts < self.max_retry_attempts && (self.retry_if)(&error) => {
+                    attempts += 1;
+                    let Some(sleep_delay) =
+                        self.retry_sleep_delay_for_attempt(attempts, total_retry_delay)
+                    else {
+                        return Err(error).context(format!(
+                            "search_stream failed after {} attempt(s)",
+                            attempts
+                        ));
+                    };
+
+                    total_retry_delay = total_retry_delay.saturating_add(sleep_delay);
+                    tokio::time::sleep(sleep_delay).await;
+                    let _ = error;
+                }
+                Err(error) => {
+                    return Err(error).context(format!(
+                        "search_stream failed after {} attempt(s)",
+                        attempts + 1
+                    ));
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::networking::backend_client::MockBackendClient;
+    use tokio_stream::StreamExt;
 
     #[test]
     fn exponential_backoff_delay_caps_at_max_retry_delay() {
@@ -539,5 +571,70 @@ mod tests {
 
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].id, "policy-child-1");
+    }
+
+    #[tokio::test]
+    async fn search_stream_retryable_error_retries_and_succeeds_with_policy() {
+        let mut client = MockBackendClient::new();
+        let mut calls = 0;
+
+        client.expect_search_stream().times(2).returning(move |_| {
+            calls += 1;
+            if calls == 1 {
+                Err(anyhow::anyhow!("transient: stream startup unavailable"))
+            } else {
+                Ok(Box::pin(tokio_stream::iter(vec![Ok(MediaItem {
+                    id: "stream-policy-ok-1".to_string(),
+                    title: "Recovered stream by policy retry".to_string(),
+                    ..Default::default()
+                })])))
+            }
+        });
+
+        fn retry_only_transient(error: &anyhow::Error) -> bool {
+            error.to_string().contains("transient")
+        }
+
+        let retrying = RetryingBackendClient::new_with_policy(
+            Arc::new(client),
+            3,
+            Duration::from_millis(1),
+            retry_only_transient,
+        );
+        let mut stream = retrying.search_stream("query").await.unwrap();
+        let first = stream.next().await.unwrap().unwrap();
+
+        assert_eq!(first.id, "stream-policy-ok-1");
+        assert!(stream.next().await.is_none());
+    }
+
+    #[tokio::test]
+    async fn search_stream_non_retryable_error_fails_immediately_even_when_retries_configured() {
+        let mut client = MockBackendClient::new();
+        client
+            .expect_search_stream()
+            .times(1)
+            .returning(|_| Err(anyhow::anyhow!("fatal: invalid stream query")));
+
+        fn retry_only_transient(error: &anyhow::Error) -> bool {
+            error.to_string().contains("transient")
+        }
+
+        let retrying = RetryingBackendClient::new_with_policy(
+            Arc::new(client),
+            3,
+            Duration::from_millis(1),
+            retry_only_transient,
+        );
+        let error = match retrying.search_stream("query").await {
+            Ok(_) => panic!("expected search_stream to fail for non-retryable error"),
+            Err(error) => error,
+        };
+
+        assert!(
+            error
+                .to_string()
+                .contains("search_stream failed after 1 attempt(s)")
+        );
     }
 }
