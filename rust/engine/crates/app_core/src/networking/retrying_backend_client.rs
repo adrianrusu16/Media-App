@@ -256,4 +256,38 @@ mod tests {
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].id, "policy-ok-1");
     }
+
+    #[tokio::test]
+    async fn fetch_children_retryable_error_retries_and_succeeds_with_policy() {
+        let mut client = MockBackendClient::new();
+        let mut calls = 0;
+
+        client.expect_fetch_children().times(2).returning(move |_| {
+            calls += 1;
+            if calls == 1 {
+                Err(anyhow::anyhow!("transient: backend unavailable"))
+            } else {
+                Ok(vec![MediaItem {
+                    id: "policy-child-1".to_string(),
+                    title: "Recovered child by policy retry".to_string(),
+                    ..Default::default()
+                }])
+            }
+        });
+
+        fn retry_only_transient(error: &anyhow::Error) -> bool {
+            error.to_string().contains("transient")
+        }
+
+        let retrying = RetryingBackendClient::new_with_policy(
+            Arc::new(client),
+            3,
+            Duration::from_millis(1),
+            retry_only_transient,
+        );
+        let result = retrying.fetch_children("root").await.unwrap();
+
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].id, "policy-child-1");
+    }
 }
