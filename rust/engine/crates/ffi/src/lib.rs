@@ -272,7 +272,9 @@ pub unsafe extern "C" fn panda_engine_tick(
 ) -> usize {
     let engine = unsafe { engine.as_mut() };
     if let Some(engine) = engine {
-        let outcomes = engine.runtime.block_on(engine.engine.tick(now_epoch_millis));
+        let outcomes = engine
+            .runtime
+            .block_on(engine.engine.tick(now_epoch_millis));
         if let Some(last) = outcomes.last() {
             {
                 let mut effects = engine.last_effects.lock().unwrap();
@@ -473,13 +475,15 @@ pub unsafe extern "C" fn panda_engine_dispatch_platform_event(
     let engine = unsafe { engine.as_mut() };
     match engine {
         Some(engine) => {
-            let outcome = engine.runtime.block_on(engine.engine.dispatch_platform_event(
-                panda_engine_core::EnginePlatformEvent::new(
-                    platform_event_from_ffi(event_type),
-                    None,
-                ),
-                now_epoch_millis,
-            ));
+            let outcome = engine
+                .runtime
+                .block_on(engine.engine.dispatch_platform_event(
+                    panda_engine_core::EnginePlatformEvent::new(
+                        platform_event_from_ffi(event_type),
+                        None,
+                    ),
+                    now_epoch_millis,
+                ));
             {
                 let mut effects = engine.last_effects.lock().unwrap();
                 *effects = outcome.effects.clone();
@@ -961,8 +965,40 @@ pub unsafe extern "C" fn panda_engine_get_last_event_message(
 
 #[cfg(test)]
 mod tests {
-    use std::ffi::CStr;
     use super::*;
+    use panda_engine_core::MediaRepository;
+    use std::ffi::CStr;
+    use std::time::Duration;
+
+    struct SlowSearchRepository;
+
+    #[async_trait::async_trait]
+    impl MediaRepository for SlowSearchRepository {
+        fn get_by_id(&self, _id: &str) -> Option<MediaItem> {
+            None
+        }
+
+        fn get_next(&self, _current_id: &str) -> Option<MediaItem> {
+            None
+        }
+
+        fn get_previous(&self, _current_id: &str) -> Option<MediaItem> {
+            None
+        }
+
+        async fn browse(&self, _parent_id: &str) -> anyhow::Result<Vec<MediaItem>> {
+            Ok(vec![])
+        }
+
+        async fn search(&self, _query: &str) -> anyhow::Result<Vec<MediaItem>> {
+            tokio::time::sleep(Duration::from_millis(80)).await;
+            Ok(vec![MediaItem {
+                id: "slow-1".to_string(),
+                title: "Slow Result".to_string(),
+                ..Default::default()
+            }])
+        }
+    }
 
     #[test]
     fn dispatch_play_returns_buffering_snapshot() {
@@ -1096,10 +1132,12 @@ mod tests {
     #[test]
     fn ffi_config_and_save_restore() {
         let engine = panda_engine_create(100);
-        
+
         unsafe {
             let persistence = Box::new(panda_engine_core::test_utils::MockPersistence::new());
-            (*engine).engine.with_engine(|e| e.set_persistence(persistence));
+            (*engine)
+                .engine
+                .with_engine(|e| e.set_persistence(persistence));
         }
 
         // Initial config
@@ -1122,7 +1160,8 @@ mod tests {
     #[test]
     fn ffi_null_pointer_safety() {
         unsafe {
-            let outcome = panda_engine_dispatch(ptr::null_mut(), FFI_COMMAND_BOOTSTRAP, ptr::null(), 0);
+            let outcome =
+                panda_engine_dispatch(ptr::null_mut(), FFI_COMMAND_BOOTSTRAP, ptr::null(), 0);
             assert_eq!(outcome, FfiEngineOutcome::invalid());
 
             assert_eq!(panda_engine_get_effects_count(ptr::null_mut()), 0);
@@ -1132,13 +1171,13 @@ mod tests {
             let mut types = vec![0i32; 10];
             panda_engine_get_effects_types(ptr::null_mut(), types.as_mut_ptr());
             assert!(types.iter().all(|&t| t == 0));
-            
+
             let snapshot = panda_engine_snapshot(ptr::null_mut());
             assert!(!snapshot.can_dispatch);
-            
+
             let config = panda_engine_get_config(ptr::null_mut());
             assert!(!config.auto_resume);
-            
+
             panda_engine_tick(ptr::null_mut(), 100);
             panda_engine_destroy(ptr::null_mut());
         }
@@ -1147,23 +1186,59 @@ mod tests {
     #[test]
     fn ffi_voice_hypothesis_retrieval() {
         let engine = panda_engine_create(100);
-        
+
         unsafe {
             // Start voice interaction
             let outcome = panda_engine_dispatch(engine, FFI_COMMAND_START_VOICE, ptr::null(), 0);
             assert_eq!(outcome.event_type, FFI_EVENT_COMMAND_APPLIED);
-            
+
             // Send some audio
             let audio: [c_char; 160] = [0; 160];
-            let outcome = panda_engine_dispatch(engine, FFI_COMMAND_PROCESS_VOICE, audio.as_ptr(), 0);
+            let outcome =
+                panda_engine_dispatch(engine, FFI_COMMAND_PROCESS_VOICE, audio.as_ptr(), 0);
             assert_eq!(outcome.event_type, FFI_EVENT_COMMAND_APPLIED);
 
             let buf = [0u8; 256];
             assert_eq!(panda_engine_get_voice_hypothesis(engine), ptr::null_mut());
-            
+
             let hypothesis = CStr::from_ptr(buf.as_ptr() as *const i8).to_string_lossy();
             assert_eq!(hypothesis.len(), 0);
         }
+
+        unsafe {
+            panda_engine_destroy(engine);
+        }
+    }
+
+    #[test]
+    fn ffi_block_on_bridge_handles_slow_async_dispatch_without_deadlock() {
+        let engine = panda_engine_create(100);
+        unsafe {
+            (*engine)
+                .engine
+                .with_engine(|e| e.set_repository(Box::new(SlowSearchRepository)));
+        }
+
+        let query = CString::new("slow").unwrap();
+        let (tx, rx) = std::sync::mpsc::channel();
+        let engine_addr = engine as usize;
+        let query_addr = query.as_ptr() as usize;
+        std::thread::spawn(move || {
+            let outcome = unsafe {
+                panda_engine_dispatch(
+                    engine_addr as *mut PandaEngine,
+                    FFI_COMMAND_SEARCH,
+                    query_addr as *const c_char,
+                    200,
+                )
+            };
+            let _ = tx.send(outcome);
+        });
+
+        let outcome = rx
+            .recv_timeout(Duration::from_millis(400))
+            .expect("dispatch timed out, possible deadlock in FFI block_on bridge");
+        assert_eq!(1, outcome.snapshot.search_results_count);
 
         unsafe {
             panda_engine_destroy(engine);

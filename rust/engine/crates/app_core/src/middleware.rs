@@ -91,6 +91,9 @@ impl Middleware for RecoveryMiddleware {
             outcome.snapshot.last_error = Some(EngineError::media_skipped(
                 "Skipped track due to network error",
             ));
+            outcome.event = EngineEvent::command_applied(Some(
+                "recovered_from_network_error: skipped_to_next_track".to_string(),
+            ));
         }
     }
 }
@@ -268,7 +271,10 @@ impl MiddlewarePipeline {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Engine, EngineCommand, EngineEvent, EngineEventType, EngineObserver, EngineSnapshot, EventBus};
+    use crate::{
+        Engine, EngineCommand, EngineEvent, EngineEventType, EngineObserver, EngineSnapshot,
+        EventBus,
+    };
     use std::sync::{Arc, Mutex};
 
     struct TestObserver {
@@ -294,29 +300,35 @@ mod tests {
     async fn test_telemetry_middleware_emits_event() {
         let bus = Arc::new(EventBus::default());
         let events = Arc::new(Mutex::new(Vec::new()));
-        bus.subscribe(Box::new(TestObserver { events: events.clone() }));
-        
+        bus.subscribe(Box::new(TestObserver {
+            events: events.clone(),
+        }));
+
         let middleware = TelemetryMiddleware::new(bus.clone());
-        
+
         let mut engine = Engine::new(100);
         let command = EngineCommand::play();
-        
+
         middleware.before_dispatch(&engine, &command);
         let mut outcome = Engine::dispatch(&mut engine, EngineCommand::play(), 200).await;
         middleware.after_dispatch(&mut engine, &mut outcome);
-        
+
         let captured = events.lock().unwrap();
         // TelemetryMiddleware forwards the outcome's own event to the bus. A Play
         // command results in a CommandApplied event (analytics events come from
         // AnalyticsMiddleware instead).
-        assert!(captured.iter().any(|e| matches!(e.event_type, EngineEventType::CommandApplied)));
+        assert!(
+            captured
+                .iter()
+                .any(|e| matches!(e.event_type, EngineEventType::CommandApplied))
+        );
     }
 
     #[test]
     fn test_throttling_middleware() {
         let middleware = ThrottlingMiddleware::new(500);
         let cmd = EngineCommand::play();
-        
+
         assert!(!middleware.should_throttle(&cmd, 1000));
         // Same command quickly
         assert!(middleware.should_throttle(&cmd, 1200));
@@ -330,6 +342,7 @@ mod tests {
     #[tokio::test]
     async fn test_validation_middleware_detects_busy() {
         use crate::data::repository::{MediaItem, MockMediaRepository};
+        use tokio::time::{Duration, sleep};
 
         let middleware = ValidationMiddleware;
         let mut engine = Engine::new(100);
@@ -342,6 +355,7 @@ mod tests {
             .withf(|query| query == "query")
             .times(1)
             .returning(|_| {
+                std::thread::sleep(std::time::Duration::from_millis(25));
                 Ok(vec![MediaItem {
                     id: "result-1".to_string(),
                     title: "Result One".to_string(),
@@ -349,6 +363,8 @@ mod tests {
                 }])
             });
         engine.set_repository(Box::new(repo));
+
+        sleep(Duration::from_millis(1)).await;
 
         engine
             .dispatch(EngineCommand::search("query".to_string()), 150)
@@ -393,16 +409,22 @@ mod tests {
     async fn test_analytics_middleware() {
         let bus = Arc::new(EventBus::default());
         let events = Arc::new(Mutex::new(Vec::new()));
-        bus.subscribe(Box::new(TestObserver { events: events.clone() }));
+        bus.subscribe(Box::new(TestObserver {
+            events: events.clone(),
+        }));
         let middleware = AnalyticsMiddleware::new(bus);
-        
+
         let mut engine = Engine::new(100);
         let mut outcome = Engine::dispatch(&mut engine, EngineCommand::play(), 200).await;
-        
+
         middleware.after_dispatch(&mut engine, &mut outcome);
-        
+
         let captured = events.lock().unwrap();
-        assert!(captured.iter().any(|e| matches!(e.event_type, EngineEventType::AnalyticsReported)));
+        assert!(
+            captured
+                .iter()
+                .any(|e| matches!(e.event_type, EngineEventType::AnalyticsReported))
+        );
     }
 
     #[test]
@@ -413,15 +435,15 @@ mod tests {
                 self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             }
         }
-        
+
         let counter = Arc::new(std::sync::atomic::AtomicU32::new(0));
         let mut pipeline = MiddlewarePipeline::new();
         pipeline.add(Box::new(MockMiddleware(counter.clone())));
-        
+
         let engine = Engine::new(100);
         let command = EngineCommand::play();
         pipeline.before_dispatch(&engine, &command);
-        
+
         assert_eq!(counter.load(std::sync::atomic::Ordering::SeqCst), 1);
     }
 }

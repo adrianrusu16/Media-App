@@ -305,7 +305,11 @@ impl Engine {
     ///
     /// This is the primary way to interact with the engine.
     #[instrument(skip(self), fields(command_type = ?command.command_type))]
-    pub async fn dispatch(&mut self, command: EngineCommand, now_epoch_millis: u64) -> EngineOutcome {
+    pub async fn dispatch(
+        &mut self,
+        command: EngineCommand,
+        now_epoch_millis: u64,
+    ) -> EngineOutcome {
         info!(
             "Dispatching command: {:?} at {}",
             command.command_type, now_epoch_millis
@@ -373,12 +377,16 @@ impl Engine {
             EngineCommandType::Search { query } => {
                 next_snapshot = next_snapshot.with_busy(true);
                 let results = self.repository.search(query).await;
-                next_snapshot = next_snapshot.with_search_results(results.unwrap_or_default()).with_busy(false);
+                next_snapshot = next_snapshot
+                    .with_search_results(results.unwrap_or_default())
+                    .with_busy(false);
             }
             EngineCommandType::Browse { parent_id } => {
                 next_snapshot = next_snapshot.with_busy(true);
                 let results = self.repository.browse(parent_id).await;
-                next_snapshot = next_snapshot.with_search_results(results.unwrap_or_default()).with_busy(false);
+                next_snapshot = next_snapshot
+                    .with_search_results(results.unwrap_or_default())
+                    .with_busy(false);
             }
             EngineCommandType::SetSpeed { speed } => {
                 next_snapshot = next_snapshot.with_speed(*speed);
@@ -565,7 +573,9 @@ impl Engine {
             && let Some(payload) = &event.payload
         {
             let command_type = EngineCommandType::from_wire(payload.clone());
-            return self.dispatch(EngineCommand::new(command_type, None), now_epoch_millis).await;
+            return self
+                .dispatch(EngineCommand::new(command_type, None), now_epoch_millis)
+                .await;
         }
 
         let prev_playback_state = self.snapshot.playback_state;
@@ -649,8 +659,12 @@ mod tests {
     #[tokio::test]
     async fn play_command_moves_idle_to_buffering() {
         let mut engine = Engine::new(100);
-        engine.dispatch(EngineCommand::start_session("user1".to_string()), 150).await;
-        let outcome = engine.dispatch(EngineCommand::new(EngineCommandType::Play, None), 200).await;
+        engine
+            .dispatch(EngineCommand::start_session("user1".to_string()), 150)
+            .await;
+        let outcome = engine
+            .dispatch(EngineCommand::new(EngineCommandType::Play, None), 200)
+            .await;
 
         assert_eq!(PlaybackState::Buffering, outcome.snapshot.playback_state);
         assert_eq!(200, outcome.snapshot.updated_at_epoch_millis);
@@ -660,11 +674,17 @@ mod tests {
     #[tokio::test]
     async fn unknown_command_preserves_playback_state() {
         let mut engine = Engine::new(100);
-        engine.dispatch(EngineCommand::start_session("user1".to_string()), 150).await;
+        engine
+            .dispatch(EngineCommand::start_session("user1".to_string()), 150)
+            .await;
         // Idle -> Buffering
-        engine.dispatch(EngineCommand::new(EngineCommandType::Play, None), 200).await;
+        engine
+            .dispatch(EngineCommand::new(EngineCommandType::Play, None), 200)
+            .await;
 
-        let outcome = engine.dispatch(EngineCommand::from_wire("future_command", None), 300).await;
+        let outcome = engine
+            .dispatch(EngineCommand::from_wire("future_command", None), 300)
+            .await;
 
         assert_eq!(PlaybackState::Buffering, outcome.snapshot.playback_state);
         assert_eq!(300, outcome.snapshot.updated_at_epoch_millis);
@@ -674,16 +694,22 @@ mod tests {
     #[tokio::test]
     async fn skip_command_from_playing_moves_to_buffering() {
         let mut engine = Engine::new(100);
-        engine.dispatch(EngineCommand::start_session("user1".to_string()), 150).await;
+        engine
+            .dispatch(EngineCommand::start_session("user1".to_string()), 150)
+            .await;
         // Idle -> Buffering
-        engine.dispatch(EngineCommand::new(EngineCommandType::Play, None), 200).await;
+        engine
+            .dispatch(EngineCommand::new(EngineCommandType::Play, None), 200)
+            .await;
         // Force Playing state for test (in real app, this would happen via system event)
         engine.snapshot = engine
             .snapshot
             .clone()
             .with_playback_state(PlaybackState::Playing, 250);
 
-        let outcome = engine.dispatch(EngineCommand::new(EngineCommandType::SkipNext, None), 300).await;
+        let outcome = engine
+            .dispatch(EngineCommand::new(EngineCommandType::SkipNext, None), 300)
+            .await;
 
         assert_eq!(PlaybackState::Buffering, outcome.snapshot.playback_state);
         assert_eq!(300, outcome.snapshot.updated_at_epoch_millis);
@@ -693,16 +719,22 @@ mod tests {
     #[tokio::test]
     async fn platform_event_can_drive_state_transitions() {
         let mut engine = Engine::new(100);
-        engine.dispatch(EngineCommand::start_session("user1".to_string()), 150).await;
+        engine
+            .dispatch(EngineCommand::start_session("user1".to_string()), 150)
+            .await;
         // Idle -> Buffering
-        engine.dispatch(EngineCommand::new(EngineCommandType::Play, None), 200).await;
+        engine
+            .dispatch(EngineCommand::new(EngineCommandType::Play, None), 200)
+            .await;
         assert_eq!(PlaybackState::Buffering, engine.snapshot().playback_state);
 
         // Buffering -> Playing via Platform Event
-        let outcome = engine.dispatch_platform_event(
-            EnginePlatformEvent::new(EnginePlatformEventType::MediaLoaded, None),
-            300,
-        ).await;
+        let outcome = engine
+            .dispatch_platform_event(
+                EnginePlatformEvent::new(EnginePlatformEventType::MediaLoaded, None),
+                300,
+            )
+            .await;
 
         assert_eq!(PlaybackState::Playing, outcome.snapshot.playback_state);
         assert_eq!(300, outcome.snapshot.updated_at_epoch_millis);
@@ -721,10 +753,12 @@ mod tests {
             .clone()
             .with_playback_state(PlaybackState::Playing, 150);
 
-        let outcome = engine.dispatch_platform_event(
-            EnginePlatformEvent::new(EnginePlatformEventType::MediaError, None),
-            200,
-        ).await;
+        let outcome = engine
+            .dispatch_platform_event(
+                EnginePlatformEvent::new(EnginePlatformEventType::MediaError, None),
+                200,
+            )
+            .await;
 
         assert_eq!(PlaybackState::Error, outcome.snapshot.playback_state);
     }
@@ -737,10 +771,12 @@ mod tests {
             .clone()
             .with_playback_state(PlaybackState::Playing, 150);
 
-        let outcome = engine.dispatch_platform_event(
-            EnginePlatformEvent::new(EnginePlatformEventType::AudioFocusChanged, None),
-            200,
-        ).await;
+        let outcome = engine
+            .dispatch_platform_event(
+                EnginePlatformEvent::new(EnginePlatformEventType::AudioFocusChanged, None),
+                200,
+            )
+            .await;
 
         assert_eq!(PlaybackState::Paused, outcome.snapshot.playback_state);
     }
@@ -748,7 +784,9 @@ mod tests {
     #[tokio::test]
     async fn skip_updates_metadata() {
         let mut engine = Engine::new(100);
-        engine.dispatch(EngineCommand::start_session("user1".to_string()), 120).await;
+        engine
+            .dispatch(EngineCommand::start_session("user1".to_string()), 120)
+            .await;
         let items = vec![
             MediaItem {
                 id: "1".to_string(),
@@ -803,7 +841,9 @@ mod tests {
         ];
         engine.set_repository(Box::new(InMemoryRepository::new(items)));
 
-        let outcome = engine.dispatch(EngineCommand::search("Rust".to_string()), 150).await;
+        let outcome = engine
+            .dispatch(EngineCommand::search("Rust".to_string()), 150)
+            .await;
         assert_eq!(outcome.snapshot.search_results.len(), 1);
         assert_eq!(outcome.snapshot.search_results[0].id, "1");
     }
@@ -820,7 +860,9 @@ mod tests {
         }];
         engine.set_repository(Box::new(InMemoryRepository::new(items)));
 
-        let outcome = engine.dispatch(EngineCommand::browse("root".to_string()), 150).await;
+        let outcome = engine
+            .dispatch(EngineCommand::browse("root".to_string()), 150)
+            .await;
         assert_eq!(outcome.snapshot.search_results.len(), 1);
         assert_eq!(outcome.snapshot.search_results[0].id, "1");
     }
@@ -828,7 +870,9 @@ mod tests {
     #[tokio::test]
     async fn play_command_emits_effects() {
         let mut engine = Engine::new(100);
-        engine.dispatch(EngineCommand::start_session("user1".to_string()), 120).await;
+        engine
+            .dispatch(EngineCommand::start_session("user1".to_string()), 120)
+            .await;
         let items = vec![MediaItem {
             id: "1".to_string(),
             title: "Song 1".to_string(),
@@ -885,7 +929,9 @@ mod tests {
     async fn recovery_middleware_skips_on_network_error() {
         use crate::middleware::{MiddlewarePipeline, RecoveryMiddleware};
         let mut engine = Engine::new(100);
-        engine.dispatch(EngineCommand::start_session("user".to_string()), 110).await;
+        engine
+            .dispatch(EngineCommand::start_session("user".to_string()), 110)
+            .await;
 
         let items = vec![
             MediaItem {
@@ -925,6 +971,10 @@ mod tests {
             outcome.snapshot.last_error.unwrap().error_type,
             crate::model::error::EngineErrorType::MediaSkipped
         );
+        assert_eq!(
+            outcome.event.message.as_deref(),
+            Some("recovered_from_network_error: skipped_to_next_track")
+        );
     }
 
     #[tokio::test]
@@ -934,7 +984,9 @@ mod tests {
         let player = Box::new(MockPlayer::new());
         engine.set_player(player);
 
-        engine.dispatch(EngineCommand::start_session("user".to_string()), 110).await;
+        engine
+            .dispatch(EngineCommand::start_session("user".to_string()), 110)
+            .await;
 
         let items = vec![MediaItem {
             id: "track_1".to_string(),
@@ -950,10 +1002,12 @@ mod tests {
         // Since we don't have direct access to the Boxed player easily, we can check outcomes
         // but the goal was to verify execute_effects works.
         // Let's verify that PlaybackState is Buffering and then the MediaLoaded event moves it to Playing
-        let outcome = engine.dispatch_platform_event(
-            EnginePlatformEvent::new(EnginePlatformEventType::MediaLoaded, None),
-            130,
-        ).await;
+        let outcome = engine
+            .dispatch_platform_event(
+                EnginePlatformEvent::new(EnginePlatformEventType::MediaLoaded, None),
+                130,
+            )
+            .await;
 
         assert_eq!(outcome.snapshot.playback_state, PlaybackState::Playing);
         assert!(outcome.effects.contains(&EngineEffect::Play));
@@ -983,12 +1037,16 @@ mod tests {
         assert!(snapshot.controls.skip_next.is_enabled);
 
         // Playing state
-        engine.dispatch(EngineCommand::start_session("user".to_string()), 110).await;
+        engine
+            .dispatch(EngineCommand::start_session("user".to_string()), 110)
+            .await;
         engine.dispatch(EngineCommand::play(), 120).await; // Moves to Buffering
-        engine.dispatch_platform_event(
-            EnginePlatformEvent::new(EnginePlatformEventType::MediaLoaded, None),
-            130,
-        ).await;
+        engine
+            .dispatch_platform_event(
+                EnginePlatformEvent::new(EnginePlatformEventType::MediaLoaded, None),
+                130,
+            )
+            .await;
 
         let snapshot = engine.snapshot();
         assert_eq!(snapshot.playback_state, PlaybackState::Playing);
@@ -1002,10 +1060,12 @@ mod tests {
         // Skip to end
         engine.dispatch(EngineCommand::skip_next(), 140).await;
         // Skip moves state to Buffering, we need to load it to Playing to enable controls
-        engine.dispatch_platform_event(
-            EnginePlatformEvent::new(EnginePlatformEventType::MediaLoaded, None),
-            145,
-        ).await;
+        engine
+            .dispatch_platform_event(
+                EnginePlatformEvent::new(EnginePlatformEventType::MediaLoaded, None),
+                145,
+            )
+            .await;
 
         let idx = engine.queue().current_index();
         assert_eq!(idx, Some(1));
@@ -1029,7 +1089,9 @@ mod tests {
             .with_vehicle_name("Model S".to_string())
             .with_hifi(true);
 
-        engine.dispatch(EngineCommand::update_config(new_config.clone()), 150).await;
+        engine
+            .dispatch(EngineCommand::update_config(new_config.clone()), 150)
+            .await;
 
         let config = engine.config();
         assert_eq!(config.vehicle_name, "Model S");
@@ -1049,7 +1111,9 @@ mod tests {
         engine.set_repository(Box::new(InMemoryRepository::new(items)));
 
         // "Song 1" matches ID "1" in InMemoryRepository
-        engine.dispatch(EngineCommand::voice_play("Song 1".to_string()), 150).await;
+        engine
+            .dispatch(EngineCommand::voice_play("Song 1".to_string()), 150)
+            .await;
 
         let snapshot = engine.snapshot();
         assert_eq!(snapshot.playback_state, PlaybackState::Buffering);
@@ -1061,7 +1125,9 @@ mod tests {
         let mut engine = Engine::new(100);
         engine.set_repository(Box::new(InMemoryRepository::new(vec![])));
 
-        let outcome = engine.dispatch(EngineCommand::voice_play("NonExistent".to_string()), 150).await;
+        let outcome = engine
+            .dispatch(EngineCommand::voice_play("NonExistent".to_string()), 150)
+            .await;
 
         assert!(outcome.effects.iter().any(|e| match e {
             EngineEffect::NotifyUser { message } => message.contains("No results found"),
@@ -1086,7 +1152,9 @@ mod tests {
         }])));
 
         // 1. Start interaction
-        let outcome = engine.dispatch(EngineCommand::start_voice_interaction(), 110).await;
+        let outcome = engine
+            .dispatch(EngineCommand::start_voice_interaction(), 110)
+            .await;
         // Busy state is cleared at the end of dispatch, so we check if it was set
         // Actually, StartVoiceInteraction does NOT set busy=true in its current implementation,
         // it only pushes effects. Let's verify what it does.
@@ -1094,10 +1162,14 @@ mod tests {
         assert!(outcome.effects.contains(&EngineEffect::StartAudioCapture));
 
         // 2. Process audio
-        engine.dispatch(EngineCommand::process_voice_audio(vec![0; 100]), 120).await;
+        engine
+            .dispatch(EngineCommand::process_voice_audio(vec![0; 100]), 120)
+            .await;
 
         // 3. Stop interaction (triggers finish -> VoicePlay("jazz"))
-        let outcome = engine.dispatch(EngineCommand::stop_voice_interaction(), 130).await;
+        let outcome = engine
+            .dispatch(EngineCommand::stop_voice_interaction(), 130)
+            .await;
         assert!(!outcome.snapshot.is_busy);
         assert!(outcome.effects.contains(&EngineEffect::StopAudioCapture));
         assert!(outcome.effects.contains(&EngineEffect::UnduckAudio));
@@ -1116,18 +1188,24 @@ mod tests {
         }];
         engine.set_repository(Box::new(InMemoryRepository::new(items.clone())));
         engine.queue().set_items(items); // Manually set queue
-        engine.dispatch(EngineCommand::start_session("user1".to_string()), 50).await;
+        engine
+            .dispatch(EngineCommand::start_session("user1".to_string()), 50)
+            .await;
 
         engine.dispatch(EngineCommand::play(), 100).await;
         // Buffering -> Loaded -> Playing
-        engine.dispatch_platform_event(
-            EnginePlatformEvent::new(EnginePlatformEventType::MediaLoaded, None),
-            110,
-        ).await;
+        engine
+            .dispatch_platform_event(
+                EnginePlatformEvent::new(EnginePlatformEventType::MediaLoaded, None),
+                110,
+            )
+            .await;
         assert_eq!(engine.snapshot().playback_state, PlaybackState::Playing);
 
         // Set sleep timer for 500ms
-        engine.dispatch(EngineCommand::set_sleep_timer(Some(500)), 150).await;
+        engine
+            .dispatch(EngineCommand::set_sleep_timer(Some(500)), 150)
+            .await;
 
         // Tick before it fires
         engine.tick(300).await;
@@ -1157,15 +1235,19 @@ mod tests {
         engine.queue().set_items(items);
         engine.set_persistence(Box::new(persistence.clone()));
 
-        engine.dispatch(EngineCommand::start_session("u1".to_string()), 150).await;
+        engine
+            .dispatch(EngineCommand::start_session("u1".to_string()), 150)
+            .await;
         engine.dispatch(EngineCommand::play(), 200).await;
-        engine.dispatch_platform_event(
-            crate::model::platform_event::EnginePlatformEvent::new(
-                crate::model::platform_event::EnginePlatformEventType::MediaLoaded,
-                None,
-            ),
-            250,
-        ).await;
+        engine
+            .dispatch_platform_event(
+                crate::model::platform_event::EnginePlatformEvent::new(
+                    crate::model::platform_event::EnginePlatformEventType::MediaLoaded,
+                    None,
+                ),
+                250,
+            )
+            .await;
 
         assert_eq!(engine.snapshot().playback_state, PlaybackState::Playing);
         engine.save().expect("Save failed");
@@ -1175,7 +1257,9 @@ mod tests {
         // Explicitly set config to match engine1
         let mut config2 = crate::model::config::EngineConfig::new();
         config2.auto_resume = false;
-        engine2.dispatch(EngineCommand::update_config(config2), 1010).await;
+        engine2
+            .dispatch(EngineCommand::update_config(config2), 1010)
+            .await;
 
         engine2.set_persistence(Box::new(persistence));
         let restored = engine2.restore().expect("Restore failed");
@@ -1199,22 +1283,28 @@ mod tests {
         // Enable auto_resume
         let mut config = crate::model::config::EngineConfig::new();
         config.auto_resume = true;
-        engine.dispatch(EngineCommand::update_config(config), 110).await;
+        engine
+            .dispatch(EngineCommand::update_config(config), 110)
+            .await;
 
         let items = vec![MediaItem {
             id: "1".to_string(),
             ..Default::default()
         }];
         engine.queue().set_items(items);
-        engine.dispatch(EngineCommand::start_session("u1".to_string()), 150).await;
+        engine
+            .dispatch(EngineCommand::start_session("u1".to_string()), 150)
+            .await;
         engine.dispatch(EngineCommand::play(), 200).await;
-        engine.dispatch_platform_event(
-            crate::model::platform_event::EnginePlatformEvent::new(
-                crate::model::platform_event::EnginePlatformEventType::MediaLoaded,
-                None,
-            ),
-            250,
-        ).await;
+        engine
+            .dispatch_platform_event(
+                crate::model::platform_event::EnginePlatformEvent::new(
+                    crate::model::platform_event::EnginePlatformEventType::MediaLoaded,
+                    None,
+                ),
+                250,
+            )
+            .await;
 
         engine.save().expect("Save failed");
 
@@ -1222,7 +1312,9 @@ mod tests {
         let mut engine2 = Engine::new(1000);
         let mut config2 = crate::model::config::EngineConfig::new();
         config2.auto_resume = true;
-        engine2.dispatch(EngineCommand::update_config(config2), 1010).await;
+        engine2
+            .dispatch(EngineCommand::update_config(config2), 1010)
+            .await;
         engine2.set_persistence(Box::new(persistence));
 
         let restored = engine2.restore().expect("Restore failed");
@@ -1240,11 +1332,17 @@ mod tests {
         ve.set_fail(true);
         engine.set_voice_engine(Box::new(ve));
 
-        engine.dispatch(EngineCommand::start_voice_interaction(), 110).await;
-        let _outcome = engine.dispatch(EngineCommand::process_voice_audio(vec![0; 100]), 120).await;
+        engine
+            .dispatch(EngineCommand::start_voice_interaction(), 110)
+            .await;
+        let _outcome = engine
+            .dispatch(EngineCommand::process_voice_audio(vec![0; 100]), 120)
+            .await;
 
         // Process audio itself might not fail yet, but stop_voice_interaction will call finish()
-        let outcome = engine.dispatch(EngineCommand::stop_voice_interaction(), 130).await;
+        let outcome = engine
+            .dispatch(EngineCommand::stop_voice_interaction(), 130)
+            .await;
 
         assert!(outcome.effects.iter().any(|e| match e {
             EngineEffect::NotifyUser { message } => message.contains("Failed to recognize speech"),
@@ -1264,21 +1362,26 @@ mod tests {
         engine.set_persistence(Box::new(persistence.clone()));
 
         // 1. Setup state
-        let items = vec![MediaItem { id: "1".to_string(), ..Default::default() }];
+        let items = vec![MediaItem {
+            id: "1".to_string(),
+            ..Default::default()
+        }];
         engine.queue().set_items(items);
-        engine.dispatch(EngineCommand::start_session("u1".to_string()), 150).await;
-        
+        engine
+            .dispatch(EngineCommand::start_session("u1".to_string()), 150)
+            .await;
+
         // 2. Save
         engine.save().expect("First save");
-        
+
         // 3. Verify persistence contains data
         let state = persistence.load().unwrap().expect("Should have data");
         assert_eq!(state.snapshot.media_id, None); // Haven't played yet
-        
+
         // 4. Play and save again
         engine.dispatch(EngineCommand::play(), 200).await;
         engine.save().expect("Second save");
-        
+
         let state2 = persistence.load().unwrap().expect("Should have data");
         assert_eq!(state2.snapshot.media_id, Some("1".to_string()));
     }

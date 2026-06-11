@@ -54,7 +54,6 @@ pub use crate::data::session::MediaSession;
 pub use crate::engine::concurrent::ConcurrentEngine;
 pub use crate::engine::core::{Engine, EngineOutcome};
 pub use crate::engine::observability::{EngineObserver, EventBus};
-pub use crate::networking::{BackendClient, RemoteRepository};
 pub use crate::middleware::{
     AnalyticsMiddleware, FocusMiddleware, LoggerMiddleware, Middleware, MiddlewarePipeline,
     RecoveryMiddleware, TelemetryMiddleware, ThrottlingMiddleware, ValidationMiddleware,
@@ -66,6 +65,7 @@ pub use crate::model::event::{EngineEvent, EngineEventType};
 pub use crate::model::platform_event::{EnginePlatformEvent, EnginePlatformEventType};
 pub use crate::model::playback::{ControlState, PlaybackState, PlayerControls, RestrictionState};
 pub use crate::model::snapshot::EngineSnapshot;
+pub use crate::networking::{BackendClient, RemoteRepository};
 pub use crate::services::player::{MediaPlayer, MockPlayer};
 pub use crate::services::service::{EngineService, ServiceManager};
 pub use crate::services::voice::{

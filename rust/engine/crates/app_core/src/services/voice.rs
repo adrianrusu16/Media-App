@@ -254,13 +254,14 @@ mod tests {
     fn test_fallback_vosk_engine() {
         let mut ve = VoskVoiceEngine::new("any_path").unwrap();
         assert_eq!(ve.get_partial_hypothesis(), "");
-        
+
         ve.process_audio_chunk(&[0; 100]).unwrap();
         assert_eq!(ve.get_partial_hypothesis(), "fallback hypothesis");
-        
+
         let result = ve.finish().unwrap();
         if let VoiceInteractionResult::Command(cmd) = result {
-            if let crate::model::command::EngineCommandType::VoicePlay { query } = cmd.command_type {
+            if let crate::model::command::EngineCommandType::VoicePlay { query } = cmd.command_type
+            {
                 assert_eq!(query, "jazz");
             } else {
                 panic!("Expected VoicePlay command");
@@ -268,7 +269,7 @@ mod tests {
         } else {
             panic!("Expected command");
         }
-        
+
         ve.reset();
         assert_eq!(ve.get_partial_hypothesis(), "");
     }
@@ -354,7 +355,10 @@ mod tests {
         // `set_vocabulary` and `set_context` have default no-op implementations
         // that should succeed without altering behavior.
         let mut ve = MockVoiceEngine::new();
-        assert!(ve.set_vocabulary(vec!["play".to_string(), "jazz".to_string()]).is_ok());
+        assert!(
+            ve.set_vocabulary(vec!["play".to_string(), "jazz".to_string()])
+                .is_ok()
+        );
         ve.set_context(Some(("Song A".to_string(), "Artist X".to_string())));
         ve.set_context(None);
     }

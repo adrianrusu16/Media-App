@@ -23,7 +23,10 @@ crates/app_core
 After installing Rust, run:
 
 ```powershell
-cargo test
+cargo test --workspace
+cargo clippy --workspace --tests
+cargo fmt --check
+cargo llvm-cov
 ```
 
 from this directory.
@@ -32,10 +35,12 @@ from this directory.
 
 - **Modular Reducer**: Decoupled state management with deterministic transitions.
 - **Middleware Pipeline**: Extensible chain for logging, telemetry, and validation.
+- **Async Repository Pipeline**: Engine dispatch supports async repository operations and explicit busy-state transitions during long-running search/browse work.
 - **Voice Interaction**: Pluggable ASR/NLU architecture with contextual metadata support.
 - **Thread Safety**: Concurrent access model optimized for Android's multi-threaded environment.
 - **Effect System**: Pure logic emits side-effects (Effects) for the platform to execute.
 - **Persistence**: Cross-session state recovery with AAOS-compliant resume logic.
+- **Networking Boundary**: `BackendClient` and `RemoteRepository` isolate transport concerns so core engine logic remains transport-agnostic.
 
 ## FFI Integration Guide (Android)
 

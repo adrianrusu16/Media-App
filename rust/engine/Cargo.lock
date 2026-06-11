@@ -220,6 +220,8 @@ name = "panda_engine_ffi"
 version = "0.1.0"
 dependencies = [
  "android_logger",
+ "anyhow",
+ "async-trait",
  "log",
  "media_app_core",
  "tokio",

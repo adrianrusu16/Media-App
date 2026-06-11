@@ -87,7 +87,8 @@ impl MediaRepository for InMemoryRepository {
     }
 
     async fn browse(&self, parent_id: &str) -> anyhow::Result<Vec<MediaItem>> {
-        Ok(self.items
+        Ok(self
+            .items
             .iter()
             .filter(|i| i.parent_id.as_deref() == Some(parent_id))
             .cloned()
@@ -96,7 +97,8 @@ impl MediaRepository for InMemoryRepository {
 
     async fn search(&self, query: &str) -> anyhow::Result<Vec<MediaItem>> {
         let query = query.to_lowercase();
-        Ok(self.items
+        Ok(self
+            .items
             .iter()
             .filter(|i| {
                 i.title.to_lowercase().contains(&query) || i.artist.to_lowercase().contains(&query)
@@ -210,29 +212,33 @@ mod tests {
         let repo = InMemoryRepository::new(mock_items());
         let album1_items = repo.browse("album1").await.unwrap();
         assert_eq!(album1_items.len(), 2);
-        assert!(album1_items.iter().all(|i| i.parent_id.as_deref() == Some("album1")));
-        
+        assert!(
+            album1_items
+                .iter()
+                .all(|i| i.parent_id.as_deref() == Some("album1"))
+        );
+
         assert!(repo.browse("nonexistent").await.unwrap().is_empty());
     }
 
     #[tokio::test]
     async fn test_search() {
         let repo = InMemoryRepository::new(mock_items());
-        
+
         // Search by title
         let results = repo.search("Song").await.unwrap();
         assert_eq!(results.len(), 2);
-        
+
         // Search by artist
         let results = repo.search("Artist X").await.unwrap();
         assert_eq!(results.len(), 2);
         assert!(results.iter().any(|i| i.id == "1"));
         assert!(results.iter().any(|i| i.id == "3"));
-        
+
         // Case-insensitive
         let results = repo.search("song").await.unwrap();
         assert_eq!(results.len(), 2);
-        
+
         assert!(repo.search("xyz").await.unwrap().is_empty());
     }
 

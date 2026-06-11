@@ -43,7 +43,9 @@ impl ConcurrentEngine {
         now_epoch_millis: u64,
     ) -> EngineOutcome {
         let mut engine = self.inner.lock().await;
-        engine.dispatch_platform_event(event, now_epoch_millis).await
+        engine
+            .dispatch_platform_event(event, now_epoch_millis)
+            .await
     }
 
     /// Advances the engine state in a thread-safe manner.

@@ -170,7 +170,10 @@ mod tests {
     fn test_playing_to_paused_on_pause() {
         assert_eq!(
             PlaybackState::Paused,
-            StateMachine::next_state_from_command(PlaybackState::Playing, &EngineCommandType::Pause)
+            StateMachine::next_state_from_command(
+                PlaybackState::Playing,
+                &EngineCommandType::Pause
+            )
         );
     }
 
