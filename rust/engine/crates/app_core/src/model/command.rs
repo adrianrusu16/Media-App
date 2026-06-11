@@ -255,3 +255,50 @@ impl EngineCommand {
         Self::new(EngineCommandType::SetSleepTimer { duration_millis }, None)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn from_wire_unknown_maps_to_unknown_variant() {
+        let command_type = EngineCommandType::from_wire("totally_unknown_command");
+        assert_eq!(
+            command_type,
+            EngineCommandType::Unknown("totally_unknown_command".to_string())
+        );
+        assert_eq!(command_type.as_wire(), "totally_unknown_command");
+    }
+
+    #[test]
+    fn from_wire_known_commands_use_safe_defaults() {
+        assert_eq!(
+            EngineCommandType::from_wire(EngineCommandType::START_SESSION_WIRE),
+            EngineCommandType::StartSession {
+                user_id: "unknown".to_string()
+            }
+        );
+        assert_eq!(
+            EngineCommandType::from_wire(EngineCommandType::SEARCH_WIRE),
+            EngineCommandType::Search {
+                query: "".to_string()
+            }
+        );
+        assert_eq!(
+            EngineCommandType::from_wire(EngineCommandType::BROWSE_WIRE),
+            EngineCommandType::Browse {
+                parent_id: "root".to_string()
+            }
+        );
+    }
+
+    #[test]
+    fn engine_command_from_wire_preserves_payload() {
+        let command = EngineCommand::from_wire("invalid_wire", Some("payload".to_string()));
+        assert_eq!(
+            command.command_type,
+            EngineCommandType::Unknown("invalid_wire".to_string())
+        );
+        assert_eq!(command.payload.as_deref(), Some("payload"));
+    }
+}

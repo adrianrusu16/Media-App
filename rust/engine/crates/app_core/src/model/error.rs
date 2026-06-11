@@ -48,3 +48,24 @@ impl EngineError {
         Self::new(EngineErrorType::MediaSkipped, message, false)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn player_error_is_fatal_and_typed() {
+        let error = EngineError::player_error("decoder crashed");
+        assert_eq!(error.error_type, EngineErrorType::PlayerError);
+        assert_eq!(error.message, "decoder crashed");
+        assert!(error.is_fatal);
+    }
+
+    #[test]
+    fn media_skipped_is_non_fatal_and_typed() {
+        let error = EngineError::media_skipped("network hiccup");
+        assert_eq!(error.error_type, EngineErrorType::MediaSkipped);
+        assert_eq!(error.message, "network hiccup");
+        assert!(!error.is_fatal);
+    }
+}

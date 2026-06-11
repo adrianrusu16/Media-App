@@ -66,3 +66,26 @@ impl EngineEvent {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn command_applied_sets_expected_type_and_optional_message() {
+        let no_message = EngineEvent::command_applied(None);
+        assert_eq!(no_message.event_type, EngineEventType::CommandApplied);
+        assert!(no_message.message.is_none());
+
+        let with_message = EngineEvent::command_applied(Some("ok".to_string()));
+        assert_eq!(with_message.event_type, EngineEventType::CommandApplied);
+        assert_eq!(with_message.message.as_deref(), Some("ok"));
+    }
+
+    #[test]
+    fn analytics_reported_always_sets_payload_message() {
+        let event = EngineEvent::analytics_reported("{\"metric\":1}".to_string());
+        assert_eq!(event.event_type, EngineEventType::AnalyticsReported);
+        assert_eq!(event.message.as_deref(), Some("{\"metric\":1}"));
+    }
+}

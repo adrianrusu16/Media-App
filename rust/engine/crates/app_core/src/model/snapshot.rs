@@ -136,3 +136,33 @@ impl EngineSnapshot {
         self
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::model::playback::PlaybackState;
+
+    #[test]
+    fn idle_snapshot_has_expected_defaults() {
+        let snapshot = EngineSnapshot::idle(123);
+        assert_eq!(snapshot.playback_state, PlaybackState::Idle);
+        assert_eq!(snapshot.updated_at_epoch_millis, 123);
+        assert_eq!(snapshot.playback_speed, 1.0);
+        assert!(!snapshot.is_busy);
+        assert!(snapshot.controls.show_play_icon);
+        assert!(snapshot.controls.play_pause.is_visible);
+        assert!(snapshot.controls.play_pause.is_enabled);
+    }
+
+    #[test]
+    fn can_dispatch_is_blocked_when_busy_or_buffering() {
+        let idle = EngineSnapshot::idle(1);
+        assert!(idle.can_dispatch());
+
+        let busy = idle.clone().with_busy(true);
+        assert!(!busy.can_dispatch());
+
+        let buffering = idle.with_playback_state(PlaybackState::Buffering, 2);
+        assert!(!buffering.can_dispatch());
+    }
+}
