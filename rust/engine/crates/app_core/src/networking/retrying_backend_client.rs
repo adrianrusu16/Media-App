@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use crate::data::repository::MediaItem;
 use crate::networking::backend_client::BackendClient;
+use anyhow::Context;
 
 pub struct RetryingBackendClient {
     inner: Arc<dyn BackendClient>,
@@ -32,7 +33,12 @@ impl BackendClient for RetryingBackendClient {
                     tokio::time::sleep(self.retry_delay).await;
                     let _ = error;
                 }
-                Err(error) => return Err(error),
+                Err(error) => {
+                    return Err(error).context(format!(
+                        "fetch_children failed after {} attempt(s)",
+                        attempts + 1
+                    ));
+                }
             }
         }
     }
@@ -47,7 +53,10 @@ impl BackendClient for RetryingBackendClient {
                     tokio::time::sleep(self.retry_delay).await;
                     let _ = error;
                 }
-                Err(error) => return Err(error),
+                Err(error) => {
+                    return Err(error)
+                        .context(format!("search failed after {} attempt(s)", attempts + 1));
+                }
             }
         }
     }
@@ -94,6 +103,53 @@ mod tests {
         let retrying = RetryingBackendClient::new(Arc::new(client), 2, Duration::from_millis(1));
         let error = retrying.fetch_children("root").await.unwrap_err();
 
-        assert_eq!(error.to_string(), "still failing");
+        assert!(
+            error
+                .to_string()
+                .contains("fetch_children failed after 3 attempt(s)")
+        );
+    }
+
+    #[tokio::test]
+    async fn fetch_children_retries_until_success() {
+        let mut client = MockBackendClient::new();
+        let mut calls = 0;
+
+        client.expect_fetch_children().times(2).returning(move |_| {
+            calls += 1;
+            if calls == 1 {
+                Err(anyhow::anyhow!("temporary network error"))
+            } else {
+                Ok(vec![MediaItem {
+                    id: "child-1".to_string(),
+                    title: "Recovered Child".to_string(),
+                    ..Default::default()
+                }])
+            }
+        });
+
+        let retrying = RetryingBackendClient::new(Arc::new(client), 1, Duration::from_millis(1));
+        let result = retrying.fetch_children("root").await.unwrap();
+
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].id, "child-1");
+    }
+
+    #[tokio::test]
+    async fn search_with_zero_retries_fails_immediately() {
+        let mut client = MockBackendClient::new();
+        client
+            .expect_search()
+            .times(1)
+            .returning(|_| Err(anyhow::anyhow!("no retry path")));
+
+        let retrying = RetryingBackendClient::new(Arc::new(client), 0, Duration::from_millis(1));
+        let error = retrying.search("query").await.unwrap_err();
+
+        assert!(
+            error
+                .to_string()
+                .contains("search failed after 1 attempt(s)")
+        );
     }
 }
