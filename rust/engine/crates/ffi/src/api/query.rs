@@ -7,6 +7,9 @@ use crate::mappings::effect_to_ffi;
 use crate::{FfiEngineConfig, FfiEngineSnapshot, PandaEngine};
 
 #[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
 pub unsafe extern "C" fn panda_engine_snapshot(engine: *const PandaEngine) -> FfiEngineSnapshot {
     let engine = unsafe { engine.as_ref() };
     match engine {
@@ -16,6 +19,11 @@ pub unsafe extern "C" fn panda_engine_snapshot(engine: *const PandaEngine) -> Ff
 }
 
 #[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - Returned string pointers inside `FfiEngineConfig` are heap-allocated and must be released with
+///   `panda_engine_free_string` when no longer needed.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
 pub unsafe extern "C" fn panda_engine_get_config(engine: *const PandaEngine) -> FfiEngineConfig {
     let engine = unsafe { engine.as_ref() };
     match engine {
@@ -44,6 +52,9 @@ pub unsafe extern "C" fn panda_engine_get_config(engine: *const PandaEngine) -> 
 }
 
 #[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
 pub unsafe extern "C" fn panda_engine_get_effects_count(engine: *const PandaEngine) -> usize {
     let engine = unsafe { engine.as_ref() };
     match engine {
@@ -53,6 +64,10 @@ pub unsafe extern "C" fn panda_engine_get_effects_count(engine: *const PandaEngi
 }
 
 #[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - `out_types` must point to writable memory for at least `panda_engine_get_effects_count(engine)` `i32` values.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
 pub unsafe extern "C" fn panda_engine_get_effects_types(
     engine: *const PandaEngine,
     out_types: *mut i32,
@@ -67,6 +82,10 @@ pub unsafe extern "C" fn panda_engine_get_effects_types(
 }
 
 #[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The returned string pointer must be released with `panda_engine_free_string`.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
 pub unsafe extern "C" fn panda_engine_get_effect_media_id(
     engine: *const PandaEngine,
     index: usize,
@@ -82,6 +101,10 @@ pub unsafe extern "C" fn panda_engine_get_effect_media_id(
 }
 
 #[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The returned string pointer must be released with `panda_engine_free_string`.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
 pub unsafe extern "C" fn panda_engine_get_effect_notify_message(
     engine: *const PandaEngine,
     index: usize,
@@ -97,6 +120,10 @@ pub unsafe extern "C" fn panda_engine_get_effect_notify_message(
 }
 
 #[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The returned string pointer must be released with `panda_engine_free_string`.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
 pub unsafe extern "C" fn panda_engine_get_voice_hypothesis(
     engine: *const PandaEngine,
 ) -> *mut c_char {
@@ -111,6 +138,10 @@ pub unsafe extern "C" fn panda_engine_get_voice_hypothesis(
 }
 
 #[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The returned string pointer must be released with `panda_engine_free_string`.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
 pub unsafe extern "C" fn panda_engine_get_search_result_id(
     engine: *const PandaEngine,
     index: usize,
@@ -126,6 +157,10 @@ pub unsafe extern "C" fn panda_engine_get_search_result_id(
 }
 
 #[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The returned string pointer must be released with `panda_engine_free_string`.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
 pub unsafe extern "C" fn panda_engine_get_search_result_title(
     engine: *const PandaEngine,
     index: usize,
@@ -141,6 +176,10 @@ pub unsafe extern "C" fn panda_engine_get_search_result_title(
 }
 
 #[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be null or a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The returned string pointer (when non-null) must be released with `panda_engine_free_string`.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
 pub unsafe extern "C" fn panda_engine_get_last_error_message(
     engine: *const PandaEngine,
 ) -> *const c_char {
@@ -157,6 +196,9 @@ pub unsafe extern "C" fn panda_engine_get_last_error_message(
 }
 
 #[unsafe(no_mangle)]
+/// # Safety
+/// - `s` must be null or a pointer previously returned by one of this crate's FFI string-returning functions.
+/// - `s` must not be freed more than once and must not be used after this call.
 pub unsafe extern "C" fn panda_engine_free_string(s: *mut c_char) {
     if s.is_null() {
         return;
@@ -167,6 +209,10 @@ pub unsafe extern "C" fn panda_engine_free_string(s: *mut c_char) {
 }
 
 #[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The returned string pointer (when non-null) must be released with `panda_engine_free_string`.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
 pub unsafe extern "C" fn panda_engine_get_last_event_message(
     engine: *const PandaEngine,
 ) -> *const c_char {

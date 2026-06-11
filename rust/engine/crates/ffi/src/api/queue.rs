@@ -5,6 +5,11 @@ use panda_engine_core::{MediaItem, RepeatMode};
 use crate::PandaEngine;
 
 #[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - `ids`, `titles`, and `artists` must each point to arrays of at least `count` valid C-string pointers.
+/// - Every non-null string pointer in those arrays must point to a valid NUL-terminated C string.
+/// - The caller must ensure no concurrent mutable access to the same engine instance.
 pub unsafe extern "C" fn panda_engine_queue_set_items(
     engine: *mut PandaEngine,
     ids: *const *const c_char,
@@ -37,6 +42,9 @@ pub unsafe extern "C" fn panda_engine_queue_set_items(
 }
 
 #[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The caller must ensure no concurrent mutable access to the same engine instance.
 pub unsafe extern "C" fn panda_engine_queue_set_repeat_mode(engine: *mut PandaEngine, mode: i32) {
     let engine = unsafe { engine.as_mut() };
     if let Some(engine) = engine {
@@ -52,6 +60,9 @@ pub unsafe extern "C" fn panda_engine_queue_set_repeat_mode(engine: *mut PandaEn
 }
 
 #[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The caller must ensure no concurrent mutable access to the same engine instance.
 pub unsafe extern "C" fn panda_engine_queue_set_shuffle(engine: *mut PandaEngine, enabled: bool) {
     let engine = unsafe { engine.as_mut() };
     if let Some(engine) = engine {

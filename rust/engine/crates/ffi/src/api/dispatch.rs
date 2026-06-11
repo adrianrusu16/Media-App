@@ -10,6 +10,10 @@ use crate::{
 };
 
 #[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - `payload` may be null; if non-null, it must point to a valid NUL-terminated C string.
+/// - The caller must ensure no concurrent mutable access to the same engine instance.
 pub unsafe extern "C" fn panda_engine_dispatch(
     engine: *mut PandaEngine,
     command_type: i32,
@@ -79,6 +83,10 @@ pub unsafe extern "C" fn panda_engine_dispatch(
 }
 
 #[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - `_payload` may be null; if non-null, it must point to a valid NUL-terminated C string.
+/// - The caller must ensure no concurrent mutable access to the same engine instance.
 pub unsafe extern "C" fn panda_engine_dispatch_platform_event(
     engine: *mut PandaEngine,
     event_type: i32,

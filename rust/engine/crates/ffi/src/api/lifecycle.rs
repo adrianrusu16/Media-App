@@ -42,6 +42,10 @@ pub extern "C" fn panda_engine_create(now_epoch_millis: u64) -> *mut PandaEngine
 }
 
 #[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - `on_state_changed` and `on_event_emitted` must be valid function pointers for the duration of observer usage.
+/// - The caller must ensure no concurrent mutable access to the same engine instance.
 pub unsafe extern "C" fn panda_engine_set_observer(
     engine: *mut PandaEngine,
     on_state_changed: unsafe extern "C" fn(FfiEngineSnapshot),
@@ -62,6 +66,9 @@ pub unsafe extern "C" fn panda_engine_set_observer(
 }
 
 #[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The caller must ensure no concurrent mutable access to the same engine instance.
 pub unsafe extern "C" fn panda_engine_tick(
     engine: *mut PandaEngine,
     now_epoch_millis: u64,
@@ -81,6 +88,9 @@ pub unsafe extern "C" fn panda_engine_tick(
 }
 
 #[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must either be null or a pointer previously returned by `panda_engine_create`.
+/// - If non-null, `engine` must not be used again after this call.
 pub unsafe extern "C" fn panda_engine_destroy(engine: *mut PandaEngine) {
     if !engine.is_null() {
         drop(unsafe { Box::from_raw(engine) });
@@ -88,6 +98,10 @@ pub unsafe extern "C" fn panda_engine_destroy(engine: *mut PandaEngine) {
 }
 
 #[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - `model_path` must be a valid, non-null NUL-terminated C string.
+/// - The caller must ensure no concurrent mutable access to the same engine instance.
 pub unsafe extern "C" fn panda_engine_enable_vosk(
     engine: *mut PandaEngine,
     model_path: *const c_char,
