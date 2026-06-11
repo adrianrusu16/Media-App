@@ -1352,6 +1352,42 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn stop_voice_interaction_without_engine_still_cleans_up_audio_effects() {
+        let mut engine = Engine::new(100);
+
+        let outcome = engine
+            .dispatch(EngineCommand::stop_voice_interaction(), 130)
+            .await;
+
+        assert!(outcome.effects.contains(&EngineEffect::StopAudioCapture));
+        assert!(outcome.effects.contains(&EngineEffect::UnduckAudio));
+        assert!(!outcome.snapshot.is_busy);
+        assert!(outcome.snapshot.voice_hypothesis.is_none());
+    }
+
+    #[tokio::test]
+    async fn stop_voice_interaction_no_match_notifies_user_and_cleans_up() {
+        use crate::services::voice::MockVoiceEngine;
+
+        let mut engine = Engine::new(100);
+        engine.set_voice_engine(Box::new(MockVoiceEngine::new()));
+
+        let outcome = engine
+            .dispatch(EngineCommand::stop_voice_interaction(), 130)
+            .await;
+
+        assert!(outcome.effects.iter().any(|e| match e {
+            EngineEffect::NotifyUser { message } => {
+                message == "I didn't catch that. Could you repeat?"
+            }
+            _ => false,
+        }));
+        assert!(outcome.effects.contains(&EngineEffect::StopAudioCapture));
+        assert!(outcome.effects.contains(&EngineEffect::UnduckAudio));
+        assert!(!outcome.snapshot.is_busy);
+    }
+
+    #[tokio::test]
     async fn persistence_integration_test() {
         use crate::data::repository::MediaItem;
         use crate::test_utils::MockPersistence;
