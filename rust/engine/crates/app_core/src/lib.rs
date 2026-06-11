@@ -66,7 +66,7 @@ pub use crate::model::platform_event::{EnginePlatformEvent, EnginePlatformEventT
 pub use crate::model::playback::{ControlState, PlaybackState, PlayerControls, RestrictionState};
 pub use crate::model::snapshot::EngineSnapshot;
 pub use crate::networking::{
-    AudioChunk, AudioSourceClient, BackendClient, JamendoAudioSourceClient, PlaybackSource,
+    AudioChunk, AudioSourceClient, BackendClient, CanopyAudioSourceClient, PlaybackSource,
     RemoteRepository, RetryingAudioSourceClient,
 };
 pub use crate::services::player::{MediaPlayer, MockPlayer};

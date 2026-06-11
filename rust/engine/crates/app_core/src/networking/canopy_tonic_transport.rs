@@ -10,14 +10,14 @@ use tonic::transport::{Channel, Endpoint};
 
 use crate::data::repository::MediaItem;
 use crate::networking::backend_client::{BackendClient, MediaItemStream};
-use crate::networking::jamendo_audio_source_client::JamendoGrpcApi;
-use crate::networking::jamendo_proto::generated::{
+use crate::networking::canopy_audio_source_client::CanopyGrpcApi;
+use crate::networking::canopy_proto::generated::{
     HealthRequest, ResolveTrackRequest, ResolveTrackResponse, SearchRequest, SearchResult,
-    jamendo_service_client::JamendoServiceClient,
+    canopy_service_client::CanopyServiceClient,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum JamendoHealth {
+pub enum CanopyHealth {
     Healthy,
     Reachable,
     Degraded,
@@ -55,8 +55,7 @@ impl Interceptor for StaticMetadataInterceptor {
     }
 }
 
-type JamendoGrpcClient =
-    JamendoServiceClient<InterceptedService<Channel, StaticMetadataInterceptor>>;
+type CanopyGrpcClient = CanopyServiceClient<InterceptedService<Channel, StaticMetadataInterceptor>>;
 
 struct SearchStreamLifecycle {
     query: String,
@@ -68,28 +67,28 @@ impl Drop for SearchStreamLifecycle {
         if !self.completed {
             tracing::debug!(
                 query = %self.query,
-                "jamendo search gRPC stream cancelled"
+                "canopy search gRPC stream cancelled"
             );
         }
     }
 }
 
-pub struct JamendoTonicTransport {
-    client: Arc<Mutex<JamendoGrpcClient>>,
+pub struct CanopyTonicTransport {
+    client: Arc<Mutex<CanopyGrpcClient>>,
 }
 
-impl JamendoTonicTransport {
+impl CanopyTonicTransport {
     pub async fn connect(
         endpoint: &str,
         client_name: &str,
         client_version: &str,
     ) -> anyhow::Result<Self> {
         let endpoint =
-            Endpoint::from_shared(endpoint.to_string()).context("invalid jamendo gRPC endpoint")?;
+            Endpoint::from_shared(endpoint.to_string()).context("invalid canopy gRPC endpoint")?;
         let channel = endpoint
             .connect()
             .await
-            .context("failed to connect jamendo gRPC channel")?;
+            .context("failed to connect canopy gRPC channel")?;
 
         Self::from_channel(channel, client_name, client_version)
     }
@@ -100,40 +99,40 @@ impl JamendoTonicTransport {
         client_version: &str,
     ) -> anyhow::Result<Self> {
         let interceptor = StaticMetadataInterceptor::new(client_name, client_version)?;
-        let client = JamendoServiceClient::with_interceptor(channel, interceptor);
+        let client = CanopyServiceClient::with_interceptor(channel, interceptor);
         Ok(Self {
             client: Arc::new(Mutex::new(client)),
         })
     }
 
-    fn map_health_state(value: i32) -> JamendoHealth {
-        use crate::networking::jamendo_proto::generated::health_response::State;
+    fn map_health_state(value: i32) -> CanopyHealth {
+        use crate::networking::canopy_proto::generated::health_response::State;
 
         match State::try_from(value).unwrap_or(State::Unspecified) {
-            State::Healthy => JamendoHealth::Healthy,
-            State::Reachable => JamendoHealth::Reachable,
-            State::Degraded | State::Unspecified => JamendoHealth::Degraded,
+            State::Healthy => CanopyHealth::Healthy,
+            State::Reachable => CanopyHealth::Reachable,
+            State::Degraded | State::Unspecified => CanopyHealth::Degraded,
         }
     }
 
-    pub async fn health(&self) -> anyhow::Result<JamendoHealth> {
+    pub async fn health(&self) -> anyhow::Result<CanopyHealth> {
         let mut client = self.client.lock().await;
         let response = client
             .health(tonic::Request::new(HealthRequest {}))
             .await
-            .context("jamendo health RPC failed")?;
+            .context("canopy health RPC failed")?;
         let health = Self::map_health_state(response.into_inner().state);
-        tracing::debug!(?health, "jamendo health probe completed");
+        tracing::debug!(?health, "canopy health probe completed");
         Ok(health)
     }
 
     fn map_search_result(item: SearchResult) -> anyhow::Result<MediaItem> {
         if item.id.trim().is_empty() {
-            anyhow::bail!("jamendo search result missing id")
+            anyhow::bail!("canopy search result missing id")
         }
 
         if item.title.trim().is_empty() {
-            anyhow::bail!("jamendo search result missing title")
+            anyhow::bail!("canopy search result missing title")
         }
 
         Ok(MediaItem {
@@ -146,10 +145,10 @@ impl JamendoTonicTransport {
 }
 
 #[async_trait::async_trait]
-impl BackendClient for JamendoTonicTransport {
+impl BackendClient for CanopyTonicTransport {
     async fn fetch_children(&self, parent_id: &str) -> anyhow::Result<Vec<MediaItem>> {
         Err(anyhow::anyhow!(
-            "jamendo does not support browse/fetch_children for parent_id={parent_id}"
+            "canopy does not support browse/fetch_children for parent_id={parent_id}"
         ))
     }
 
@@ -168,14 +167,14 @@ impl BackendClient for JamendoTonicTransport {
             anyhow::bail!("search query cannot be blank")
         }
 
-        tracing::debug!(query = %normalized_query, "jamendo search gRPC stream start");
+        tracing::debug!(query = %normalized_query, "canopy search gRPC stream start");
         let mut client = self.client.lock().await;
         let response = client
             .search(tonic::Request::new(SearchRequest {
                 query: normalized_query.clone(),
             }))
             .await
-            .with_context(|| format!("jamendo search RPC failed for query={normalized_query}"))?;
+            .with_context(|| format!("canopy search RPC failed for query={normalized_query}"))?;
         let mut upstream = response.into_inner();
         let stream = async_stream::stream! {
             let mut lifecycle = SearchStreamLifecycle {
@@ -191,12 +190,12 @@ impl BackendClient for JamendoTonicTransport {
                             Ok(media_item) => tracing::debug!(
                                 query = %normalized_query,
                                 id = %media_item.id,
-                                "jamendo search gRPC stream item_received"
+                                "canopy search gRPC stream item_received"
                             ),
                             Err(error) => tracing::warn!(
                                 query = %normalized_query,
                                 error = %error,
-                                "jamendo search gRPC stream mapping_failed"
+                                "canopy search gRPC stream mapping_failed"
                             ),
                         }
                         yield mapped;
@@ -205,10 +204,10 @@ impl BackendClient for JamendoTonicTransport {
                         tracing::warn!(
                             query = %normalized_query,
                             code = ?status.code(),
-                            "jamendo search gRPC stream failed"
+                            "canopy search gRPC stream failed"
                         );
                         yield Err(anyhow::Error::new(status).context(format!(
-                            "jamendo search stream failed for query={normalized_query}"
+                            "canopy search stream failed for query={normalized_query}"
                         )));
                         return;
                     }
@@ -216,31 +215,31 @@ impl BackendClient for JamendoTonicTransport {
             }
 
             lifecycle.completed = true;
-            tracing::debug!(query = %normalized_query, "jamendo search gRPC stream completed");
+            tracing::debug!(query = %normalized_query, "canopy search gRPC stream completed");
         };
         Ok(Box::pin(stream))
     }
 }
 
 #[async_trait::async_trait]
-impl JamendoGrpcApi for JamendoTonicTransport {
+impl CanopyGrpcApi for CanopyTonicTransport {
     async fn resolve_track(
         &self,
         request: tonic::Request<ResolveTrackRequest>,
     ) -> Result<tonic::Response<ResolveTrackResponse>, tonic::Status> {
         let track_id = request.get_ref().track_id.clone();
-        tracing::debug!(track_id = %track_id, "jamendo resolve_track gRPC call start");
+        tracing::debug!(track_id = %track_id, "canopy resolve_track gRPC call start");
 
         let mut client = self.client.lock().await;
         let response = client.resolve_track(request).await;
         match &response {
             Ok(_) => {
-                tracing::debug!(track_id = %track_id, "jamendo resolve_track gRPC call success")
+                tracing::debug!(track_id = %track_id, "canopy resolve_track gRPC call success")
             }
             Err(status) => tracing::warn!(
                 track_id = %track_id,
                 code = ?status.code(),
-                "jamendo resolve_track gRPC call failed"
+                "canopy resolve_track gRPC call failed"
             ),
         }
         response
@@ -250,11 +249,11 @@ impl JamendoGrpcApi for JamendoTonicTransport {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::networking::jamendo_proto::generated::health_response::State;
+    use crate::networking::canopy_proto::generated::health_response::State;
 
     #[test]
     fn map_search_result_maps_payload_to_media_item() {
-        let item = JamendoTonicTransport::map_search_result(SearchResult {
+        let item = CanopyTonicTransport::map_search_result(SearchResult {
             id: "track-1".to_string(),
             title: "A Song".to_string(),
             artist: Some("An Artist".to_string()),
@@ -271,7 +270,7 @@ mod tests {
     #[test]
     fn map_search_result_rejects_missing_required_fields() {
         assert!(
-            JamendoTonicTransport::map_search_result(SearchResult {
+            CanopyTonicTransport::map_search_result(SearchResult {
                 id: "".to_string(),
                 title: "Title".to_string(),
                 artist: None,
@@ -282,7 +281,7 @@ mod tests {
         );
 
         assert!(
-            JamendoTonicTransport::map_search_result(SearchResult {
+            CanopyTonicTransport::map_search_result(SearchResult {
                 id: "track-1".to_string(),
                 title: "".to_string(),
                 artist: None,
@@ -296,24 +295,24 @@ mod tests {
     #[test]
     fn maps_health_state_values() {
         assert_eq!(
-            JamendoTonicTransport::map_health_state(State::Healthy as i32),
-            JamendoHealth::Healthy
+            CanopyTonicTransport::map_health_state(State::Healthy as i32),
+            CanopyHealth::Healthy
         );
         assert_eq!(
-            JamendoTonicTransport::map_health_state(State::Reachable as i32),
-            JamendoHealth::Reachable
+            CanopyTonicTransport::map_health_state(State::Reachable as i32),
+            CanopyHealth::Reachable
         );
         assert_eq!(
-            JamendoTonicTransport::map_health_state(State::Degraded as i32),
-            JamendoHealth::Degraded
+            CanopyTonicTransport::map_health_state(State::Degraded as i32),
+            CanopyHealth::Degraded
         );
         assert_eq!(
-            JamendoTonicTransport::map_health_state(State::Unspecified as i32),
-            JamendoHealth::Degraded
+            CanopyTonicTransport::map_health_state(State::Unspecified as i32),
+            CanopyHealth::Degraded
         );
         assert_eq!(
-            JamendoTonicTransport::map_health_state(999),
-            JamendoHealth::Degraded
+            CanopyTonicTransport::map_health_state(999),
+            CanopyHealth::Degraded
         );
     }
 }

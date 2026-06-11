@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package pandaengine.networking.jamendo.v1;
+package pandaengine.networking.canopy.v1;
 
-service JamendoService {
+service CanopyService {
   rpc ResolveTrack(ResolveTrackRequest) returns (ResolveTrackResponse);
   rpc Search(SearchRequest) returns (stream SearchResult);
   rpc Health(HealthRequest) returns (HealthResponse);

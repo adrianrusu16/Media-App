@@ -4,26 +4,26 @@ use tonic::Status;
 use tonic::metadata::MetadataValue;
 
 use crate::networking::audio_source_client::{AudioChunk, AudioSourceClient, PlaybackSource};
-use crate::networking::jamendo_proto::generated::{ResolveTrackRequest, ResolveTrackResponse};
+use crate::networking::canopy_proto::generated::{ResolveTrackRequest, ResolveTrackResponse};
 
 #[cfg_attr(test, mockall::automock)]
 #[async_trait::async_trait]
 #[allow(clippy::result_large_err)]
-pub trait JamendoGrpcApi: Send + Sync {
+pub trait CanopyGrpcApi: Send + Sync {
     async fn resolve_track(
         &self,
         request: tonic::Request<ResolveTrackRequest>,
     ) -> Result<tonic::Response<ResolveTrackResponse>, Status>;
 }
 
-pub struct JamendoAudioSourceClient<C> {
+pub struct CanopyAudioSourceClient<C> {
     grpc: C,
     resolve_timeout: Duration,
     client_name: MetadataValue<tonic::metadata::Ascii>,
     client_version: MetadataValue<tonic::metadata::Ascii>,
 }
 
-impl<C> JamendoAudioSourceClient<C> {
+impl<C> CanopyAudioSourceClient<C> {
     pub fn new(grpc: C) -> Self {
         Self::new_with_config(
             grpc,
@@ -60,7 +60,7 @@ impl<C> JamendoAudioSourceClient<C> {
 
     fn map_track_response(body: ResolveTrackResponse) -> anyhow::Result<PlaybackSource> {
         if body.uri.is_empty() {
-            anyhow::bail!("jamendo track has no playable audio URI");
+            anyhow::bail!("canopy track has no playable audio URI");
         }
 
         Ok(PlaybackSource {
@@ -76,7 +76,7 @@ impl<C> JamendoAudioSourceClient<C> {
     fn normalize_track_id(track_id: &str) -> anyhow::Result<String> {
         let normalized = track_id.trim();
         if normalized.is_empty() {
-            anyhow::bail!("jamendo resolve_track requires a non-empty track id")
+            anyhow::bail!("canopy resolve_track requires a non-empty track id")
         }
 
         Ok(normalized.to_string())
@@ -113,26 +113,26 @@ pub fn is_retryable_grpc_error(error: &anyhow::Error) -> bool {
 }
 
 #[async_trait::async_trait]
-impl<C> AudioSourceClient for JamendoAudioSourceClient<C>
+impl<C> AudioSourceClient for CanopyAudioSourceClient<C>
 where
-    C: JamendoGrpcApi,
+    C: CanopyGrpcApi,
 {
     async fn resolve_track(&self, track_id: &str) -> anyhow::Result<PlaybackSource> {
         let normalized_track_id = Self::normalize_track_id(track_id)?;
         let request = self.build_request(normalized_track_id);
 
         let response = self.grpc.resolve_track(request).await.map_err(|status| {
-            anyhow::Error::new(status).context("jamendo grpc resolve_track failed")
+            anyhow::Error::new(status).context("canopy grpc resolve_track failed")
         })?;
 
         let body = response.into_inner();
 
-        Self::map_track_response(body).context("jamendo resolve_track returned invalid payload")
+        Self::map_track_response(body).context("canopy resolve_track returned invalid payload")
     }
 
     async fn prefetch_full(&self, source_id: &str) -> anyhow::Result<String> {
         anyhow::bail!(
-            "jamendo prefetch_full is not implemented for source {} (prototype)",
+            "canopy prefetch_full is not implemented for source {} (prototype)",
             source_id
         )
     }
@@ -143,7 +143,7 @@ where
         from_chunk_index: u64,
     ) -> anyhow::Result<AudioChunk> {
         anyhow::bail!(
-            "jamendo fetch_chunk is not implemented for source {} from chunk {} (prototype)",
+            "canopy fetch_chunk is not implemented for source {} from chunk {} (prototype)",
             source_id,
             from_chunk_index
         )
@@ -156,10 +156,10 @@ mod tests {
     use super::*;
     use tonic::Code;
 
-    struct SlowJamendoGrpcApi;
+    struct SlowCanopyGrpcApi;
 
     #[async_trait::async_trait]
-    impl JamendoGrpcApi for SlowJamendoGrpcApi {
+    impl CanopyGrpcApi for SlowCanopyGrpcApi {
         async fn resolve_track(
             &self,
             _request: tonic::Request<ResolveTrackRequest>,
@@ -183,7 +183,7 @@ mod tests {
         let response = response_with_uri();
 
         let source =
-            JamendoAudioSourceClient::<MockJamendoGrpcApi>::map_track_response(response).unwrap();
+            CanopyAudioSourceClient::<MockCanopyGrpcApi>::map_track_response(response).unwrap();
         assert_eq!(source.source_id, "123");
         assert_eq!(source.uri, "https://cdn.test/audio.mp3");
         assert_eq!(source.expected_duration_ms, Some(210_000));
@@ -198,21 +198,21 @@ mod tests {
             duration_seconds: Some(180),
         };
 
-        let error = JamendoAudioSourceClient::<MockJamendoGrpcApi>::map_track_response(response)
-            .unwrap_err();
+        let error =
+            CanopyAudioSourceClient::<MockCanopyGrpcApi>::map_track_response(response).unwrap_err();
         assert!(error.to_string().contains("no playable audio URI"));
     }
 
     #[tokio::test]
     async fn resolve_track_maps_grpc_response_to_playback_source() {
-        let mut grpc = MockJamendoGrpcApi::new();
+        let mut grpc = MockCanopyGrpcApi::new();
         grpc.expect_resolve_track().once().return_once(|request| {
             let req = request.into_inner();
             assert_eq!(req.track_id, "123");
             Ok(tonic::Response::new(response_with_uri()))
         });
 
-        let client = JamendoAudioSourceClient::new(grpc);
+        let client = CanopyAudioSourceClient::new(grpc);
         let source = client.resolve_track("123").await.unwrap();
 
         assert_eq!(source.source_id, "123");
@@ -221,14 +221,14 @@ mod tests {
 
     #[tokio::test]
     async fn resolve_track_trims_whitespace_from_track_id() {
-        let mut grpc = MockJamendoGrpcApi::new();
+        let mut grpc = MockCanopyGrpcApi::new();
         grpc.expect_resolve_track().once().return_once(|request| {
             let req = request.into_inner();
             assert_eq!(req.track_id, "123");
             Ok(tonic::Response::new(response_with_uri()))
         });
 
-        let client = JamendoAudioSourceClient::new(grpc);
+        let client = CanopyAudioSourceClient::new(grpc);
         let source = client.resolve_track(" 123 ").await.unwrap();
 
         assert_eq!(source.source_id, "123");
@@ -236,7 +236,7 @@ mod tests {
 
     #[tokio::test]
     async fn resolve_track_sets_client_metadata_and_timeout() {
-        let mut grpc = MockJamendoGrpcApi::new();
+        let mut grpc = MockCanopyGrpcApi::new();
         grpc.expect_resolve_track().once().return_once(|request| {
             let metadata = request.metadata();
             assert_eq!(metadata.get("x-client-name").unwrap(), "panda-engine");
@@ -249,14 +249,14 @@ mod tests {
         });
 
         let client =
-            JamendoAudioSourceClient::new_with_resolve_timeout(grpc, Duration::from_secs(5));
+            CanopyAudioSourceClient::new_with_resolve_timeout(grpc, Duration::from_secs(5));
         let _ = client.resolve_track("123").await.unwrap();
     }
 
     #[tokio::test]
     async fn resolve_track_fails_fast_for_blank_track_id() {
-        let grpc = MockJamendoGrpcApi::new();
-        let client = JamendoAudioSourceClient::new(grpc);
+        let grpc = MockCanopyGrpcApi::new();
+        let client = CanopyAudioSourceClient::new(grpc);
 
         let error = client.resolve_track("   ").await.unwrap_err();
 
@@ -265,12 +265,12 @@ mod tests {
 
     #[tokio::test]
     async fn resolve_track_surfaces_grpc_status_context() {
-        let mut grpc = MockJamendoGrpcApi::new();
+        let mut grpc = MockCanopyGrpcApi::new();
         grpc.expect_resolve_track()
             .once()
             .return_once(|_| Err(Status::new(Code::Unavailable, "upstream unavailable")));
 
-        let client = JamendoAudioSourceClient::new(grpc);
+        let client = CanopyAudioSourceClient::new(grpc);
         let error = client.resolve_track("123").await.unwrap_err();
 
         assert!(error.to_string().contains("grpc resolve_track failed"));
@@ -279,7 +279,7 @@ mod tests {
 
     #[tokio::test]
     async fn resolve_track_fails_when_payload_has_no_uri() {
-        let mut grpc = MockJamendoGrpcApi::new();
+        let mut grpc = MockCanopyGrpcApi::new();
         grpc.expect_resolve_track().once().return_once(|_| {
             Ok(tonic::Response::new(ResolveTrackResponse {
                 source_id: "123".to_string(),
@@ -289,7 +289,7 @@ mod tests {
             }))
         });
 
-        let client = JamendoAudioSourceClient::new(grpc);
+        let client = CanopyAudioSourceClient::new(grpc);
         let error = client.resolve_track("123").await.unwrap_err();
 
         assert!(error.to_string().contains("invalid payload"));
@@ -297,7 +297,7 @@ mod tests {
 
     #[tokio::test]
     async fn resolve_track_can_be_cancelled_without_hanging() {
-        let client = std::sync::Arc::new(JamendoAudioSourceClient::new(SlowJamendoGrpcApi));
+        let client = std::sync::Arc::new(CanopyAudioSourceClient::new(SlowCanopyGrpcApi));
         let handle = {
             let client = std::sync::Arc::clone(&client);
             tokio::spawn(async move { client.resolve_track("123").await })
@@ -313,7 +313,7 @@ mod tests {
     #[test]
     fn retryable_status_codes_are_classified_as_retryable() {
         let error = anyhow::Error::new(Status::new(Code::Unavailable, "temporary"))
-            .context("jamendo grpc resolve_track failed");
+            .context("canopy grpc resolve_track failed");
 
         assert!(is_retryable_grpc_error(&error));
     }
@@ -321,7 +321,7 @@ mod tests {
     #[test]
     fn non_retryable_status_codes_are_not_classified_as_retryable() {
         let error = anyhow::Error::new(Status::new(Code::InvalidArgument, "bad input"))
-            .context("jamendo grpc resolve_track failed");
+            .context("canopy grpc resolve_track failed");
 
         assert!(!is_retryable_grpc_error(&error));
     }

@@ -1,5 +1,5 @@
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let proto_file = "proto/jamendo.proto";
+    let proto_file = "proto/canopy.proto";
     println!("cargo:rerun-if-changed={proto_file}");
 
     let protoc = protoc_bin_vendored::protoc_bin_path()?;

@@ -266,7 +266,7 @@ where
 mod tests {
     use super::*;
     use crate::networking::audio_source_client::MockAudioSourceClient;
-    use crate::networking::jamendo_audio_source_client::is_retryable_grpc_error;
+    use crate::networking::canopy_audio_source_client::is_retryable_grpc_error;
     use tonic::{Code, Status};
 
     #[test]
