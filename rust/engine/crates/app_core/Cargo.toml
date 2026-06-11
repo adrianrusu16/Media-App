@@ -13,8 +13,14 @@ vosk = { version = "0.3", optional = true }
 async-trait = "0.1.89"
 anyhow = "1.0.102"
 tokio = { version = "1", features = ["full"] }
+tokio-stream = "0.1"
 mockall = "0.13"
 tonic = { version = "0.12", features = ["transport"] }
+prost = "0.13"
+
+[build-dependencies]
+tonic-build = "0.12"
+protoc-bin-vendored = "3"
 
 [features]
 default = []

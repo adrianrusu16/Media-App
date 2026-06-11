@@ -4,19 +4,7 @@ use tonic::Status;
 use tonic::metadata::MetadataValue;
 
 use crate::networking::audio_source_client::{AudioChunk, AudioSourceClient, PlaybackSource};
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct JamendoResolveTrackRequest {
-    pub track_id: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct JamendoResolveTrackResponse {
-    pub source_id: String,
-    pub uri: Option<String>,
-    pub mime_type: Option<String>,
-    pub duration_seconds: Option<u64>,
-}
+use crate::networking::jamendo_proto::generated::{ResolveTrackRequest, ResolveTrackResponse};
 
 #[cfg_attr(test, mockall::automock)]
 #[async_trait::async_trait]
@@ -24,8 +12,8 @@ pub struct JamendoResolveTrackResponse {
 pub trait JamendoGrpcApi: Send + Sync {
     async fn resolve_track(
         &self,
-        request: tonic::Request<JamendoResolveTrackRequest>,
-    ) -> Result<tonic::Response<JamendoResolveTrackResponse>, Status>;
+        request: tonic::Request<ResolveTrackRequest>,
+    ) -> Result<tonic::Response<ResolveTrackResponse>, Status>;
 }
 
 pub struct JamendoAudioSourceClient<C> {
@@ -70,14 +58,14 @@ impl<C> JamendoAudioSourceClient<C> {
         }
     }
 
-    fn map_track_response(body: JamendoResolveTrackResponse) -> anyhow::Result<PlaybackSource> {
-        let uri = body
-            .uri
-            .context("jamendo track has no playable audio URI")?;
+    fn map_track_response(body: ResolveTrackResponse) -> anyhow::Result<PlaybackSource> {
+        if body.uri.is_empty() {
+            anyhow::bail!("jamendo track has no playable audio URI");
+        }
 
         Ok(PlaybackSource {
             source_id: body.source_id,
-            uri,
+            uri: body.uri,
             mime_type: body.mime_type,
             expected_duration_ms: body
                 .duration_seconds
@@ -94,11 +82,8 @@ impl<C> JamendoAudioSourceClient<C> {
         Ok(normalized.to_string())
     }
 
-    fn build_request(
-        &self,
-        normalized_track_id: String,
-    ) -> tonic::Request<JamendoResolveTrackRequest> {
-        let mut request = tonic::Request::new(JamendoResolveTrackRequest {
+    fn build_request(&self, normalized_track_id: String) -> tonic::Request<ResolveTrackRequest> {
+        let mut request = tonic::Request::new(ResolveTrackRequest {
             track_id: normalized_track_id,
         });
         request.set_timeout(self.resolve_timeout);
@@ -171,10 +156,23 @@ mod tests {
     use super::*;
     use tonic::Code;
 
-    fn response_with_uri() -> JamendoResolveTrackResponse {
-        JamendoResolveTrackResponse {
+    struct SlowJamendoGrpcApi;
+
+    #[async_trait::async_trait]
+    impl JamendoGrpcApi for SlowJamendoGrpcApi {
+        async fn resolve_track(
+            &self,
+            _request: tonic::Request<ResolveTrackRequest>,
+        ) -> Result<tonic::Response<ResolveTrackResponse>, Status> {
+            tokio::time::sleep(Duration::from_secs(5)).await;
+            Ok(tonic::Response::new(response_with_uri()))
+        }
+    }
+
+    fn response_with_uri() -> ResolveTrackResponse {
+        ResolveTrackResponse {
             source_id: "123".to_string(),
-            uri: Some("https://cdn.test/audio.mp3".to_string()),
+            uri: "https://cdn.test/audio.mp3".to_string(),
             mime_type: Some("audio/mpeg".to_string()),
             duration_seconds: Some(210),
         }
@@ -193,9 +191,9 @@ mod tests {
 
     #[test]
     fn map_track_response_fails_when_no_audio_uri_present() {
-        let response = JamendoResolveTrackResponse {
+        let response = ResolveTrackResponse {
             source_id: "123".to_string(),
-            uri: None,
+            uri: String::new(),
             mime_type: Some("audio/mpeg".to_string()),
             duration_seconds: Some(180),
         };
@@ -283,9 +281,9 @@ mod tests {
     async fn resolve_track_fails_when_payload_has_no_uri() {
         let mut grpc = MockJamendoGrpcApi::new();
         grpc.expect_resolve_track().once().return_once(|_| {
-            Ok(tonic::Response::new(JamendoResolveTrackResponse {
+            Ok(tonic::Response::new(ResolveTrackResponse {
                 source_id: "123".to_string(),
-                uri: None,
+                uri: String::new(),
                 mime_type: Some("audio/mpeg".to_string()),
                 duration_seconds: Some(180),
             }))
@@ -295,6 +293,21 @@ mod tests {
         let error = client.resolve_track("123").await.unwrap_err();
 
         assert!(error.to_string().contains("invalid payload"));
+    }
+
+    #[tokio::test]
+    async fn resolve_track_can_be_cancelled_without_hanging() {
+        let client = std::sync::Arc::new(JamendoAudioSourceClient::new(SlowJamendoGrpcApi));
+        let handle = {
+            let client = std::sync::Arc::clone(&client);
+            tokio::spawn(async move { client.resolve_track("123").await })
+        };
+
+        tokio::time::sleep(Duration::from_millis(20)).await;
+        handle.abort();
+
+        let join_error = handle.await.unwrap_err();
+        assert!(join_error.is_cancelled());
     }
 
     #[test]

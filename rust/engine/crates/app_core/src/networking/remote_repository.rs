@@ -1,7 +1,8 @@
 use std::sync::Arc;
+use tokio_stream::StreamExt;
 
 use crate::data::repository::{MediaItem, MediaRepository};
-use crate::networking::backend_client::BackendClient;
+use crate::networking::backend_client::{BackendClient, MediaItemStream};
 
 /// A [`MediaRepository`] backed by a remote [`BackendClient`].
 ///
@@ -21,6 +22,19 @@ where
     /// Creates a new repository that delegates remote calls to `client`.
     pub fn new(client: Arc<C>) -> Self {
         Self { client }
+    }
+
+    pub async fn search_stream(&self, query: &str) -> anyhow::Result<MediaItemStream> {
+        self.client.search_stream(query).await
+    }
+
+    pub async fn search_collect_progressive(&self, query: &str) -> anyhow::Result<Vec<MediaItem>> {
+        let mut stream = self.client.search_stream(query).await?;
+        let mut items = Vec::new();
+        while let Some(item) = stream.next().await {
+            items.push(item?);
+        }
+        Ok(items)
     }
 }
 
@@ -104,6 +118,32 @@ mod tests {
 
         let repo = RemoteRepository::new(Arc::new(client));
         assert!(repo.search("anything").await.is_err());
+    }
+
+    #[tokio::test]
+    async fn search_stream_collects_progressive_results() {
+        let mut client = MockBackendClient::new();
+        client.expect_search_stream().times(1).returning(|_| {
+            Ok(Box::pin(tokio_stream::iter(vec![
+                Ok(MediaItem {
+                    id: "track-1".to_string(),
+                    title: "First".to_string(),
+                    ..Default::default()
+                }),
+                Ok(MediaItem {
+                    id: "track-2".to_string(),
+                    title: "Second".to_string(),
+                    ..Default::default()
+                }),
+            ])))
+        });
+
+        let repo = RemoteRepository::new(Arc::new(client));
+        let results = repo.search_collect_progressive("mix").await.unwrap();
+
+        assert_eq!(results.len(), 2);
+        assert_eq!(results[0].id, "track-1");
+        assert_eq!(results[1].id, "track-2");
     }
 
     #[tokio::test]

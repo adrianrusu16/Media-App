@@ -1,4 +1,8 @@
 use crate::data::repository::MediaItem;
+use std::pin::Pin;
+
+pub type MediaItemStream =
+    Pin<Box<dyn tokio_stream::Stream<Item = anyhow::Result<MediaItem>> + Send>>;
 
 /// Abstract, transport-agnostic client for talking to a remote media backend.
 ///
@@ -18,4 +22,13 @@ pub trait BackendClient: Send + Sync {
 
     /// Executes a search query against the remote backend.
     async fn search(&self, query: &str) -> anyhow::Result<Vec<MediaItem>>;
+
+    /// Executes a search query and returns progressive results.
+    ///
+    /// Default implementation adapts unary `search` into a stream so existing
+    /// backends stay compatible while gRPC streaming clients can override it.
+    async fn search_stream(&self, query: &str) -> anyhow::Result<MediaItemStream> {
+        let results = self.search(query).await?;
+        Ok(Box::pin(tokio_stream::iter(results.into_iter().map(Ok))))
+    }
 }

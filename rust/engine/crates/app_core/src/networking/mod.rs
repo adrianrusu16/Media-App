@@ -13,6 +13,8 @@
 pub mod audio_source_client;
 pub mod backend_client;
 pub mod jamendo_audio_source_client;
+pub mod jamendo_proto;
+pub mod jamendo_tonic_transport;
 pub mod remote_repository;
 pub mod retrying_audio_source_client;
 pub mod retrying_backend_client;
@@ -20,6 +22,8 @@ pub mod retrying_backend_client;
 pub use audio_source_client::{AudioChunk, AudioSourceClient, PlaybackSource};
 pub use backend_client::BackendClient;
 pub use jamendo_audio_source_client::JamendoAudioSourceClient;
+pub use jamendo_proto::generated as jamendo_generated;
+pub use jamendo_tonic_transport::JamendoTonicTransport;
 pub use remote_repository::RemoteRepository;
 pub use retrying_audio_source_client::RetryingAudioSourceClient;
 pub use retrying_backend_client::RetryingBackendClient;
