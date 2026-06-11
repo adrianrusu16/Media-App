@@ -1,6 +1,7 @@
 use crate::engine::core::{Engine, EngineOutcome};
 use crate::engine::observability::EventBus;
 use crate::model::command::{EngineCommand, EngineCommandType};
+use crate::model::error::EngineError;
 use crate::model::event::{EngineEvent, EngineEventType};
 use crate::model::playback::PlaybackState;
 use std::sync::Arc;
@@ -32,7 +33,7 @@ impl AnalyticsMiddleware {
 }
 
 impl Middleware for AnalyticsMiddleware {
-    fn before_dispatch(&self, _engine: &Engine, command: &EngineCommand) {
+    fn before_dispatch(&self, _engine: &Engine, command: &EngineCommand) -> Result<(), EngineError> {
         match command.command_type {
             EngineCommandType::Play => self.report("play_requested", None, "{}"),
             EngineCommandType::Pause => self.report("pause_requested", None, "{}"),
@@ -40,6 +41,8 @@ impl Middleware for AnalyticsMiddleware {
             EngineCommandType::SkipPrevious => self.report("skip_prev_requested", None, "{}"),
             _ => {}
         }
+
+        Ok(())
     }
 
     fn after_dispatch(&self, engine: &mut Engine, outcome: &mut EngineOutcome) {

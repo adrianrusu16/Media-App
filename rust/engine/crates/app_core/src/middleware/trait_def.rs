@@ -1,5 +1,6 @@
 use crate::engine::core::{Engine, EngineOutcome};
 use crate::model::command::EngineCommand;
+use crate::model::error::EngineError;
 
 /// Middleware trait for processing engine operations.
 ///
@@ -7,7 +8,9 @@ use crate::model::command::EngineCommand;
 /// such as logging, telemetry, or modifying the command/outcome.
 pub trait Middleware: Send + Sync {
     /// Called before the command is dispatched to the engine.
-    fn before_dispatch(&self, _engine: &Engine, _command: &EngineCommand) {}
+    fn before_dispatch(&self, _engine: &Engine, _command: &EngineCommand) -> Result<(), EngineError> {
+        Ok(())
+    }
 
     /// Called after the command has been dispatched and the outcome generated.
     fn after_dispatch(&self, _engine: &mut Engine, _outcome: &mut EngineOutcome) {}

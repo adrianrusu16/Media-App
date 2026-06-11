@@ -1,5 +1,6 @@
 use crate::engine::core::{Engine, EngineOutcome};
 use crate::model::command::EngineCommand;
+use crate::model::error::EngineError;
 
 use crate::middleware::Middleware;
 
@@ -18,10 +19,16 @@ impl MiddlewarePipeline {
         self.middlewares.push(middleware);
     }
 
-    pub fn before_dispatch(&self, engine: &Engine, command: &EngineCommand) {
+    pub fn before_dispatch(
+        &self,
+        engine: &Engine,
+        command: &EngineCommand,
+    ) -> Result<(), EngineError> {
         for mw in &self.middlewares {
-            mw.before_dispatch(engine, command);
+            mw.before_dispatch(engine, command)?;
         }
+
+        Ok(())
     }
 
     pub fn after_dispatch(&self, engine: &mut Engine, outcome: &mut EngineOutcome) {

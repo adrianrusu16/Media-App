@@ -11,8 +11,9 @@ use crate::middleware::Middleware;
 /// A simple middleware that logs engine actions.
 pub struct LoggerMiddleware;
 impl Middleware for LoggerMiddleware {
-    fn before_dispatch(&self, _engine: &Engine, command: &EngineCommand) {
+    fn before_dispatch(&self, _engine: &Engine, command: &EngineCommand) -> Result<(), EngineError> {
         info!("Dispatching command: {:?}", command.command_type);
+        Ok(())
     }
 }
 
@@ -28,8 +29,9 @@ impl TelemetryMiddleware {
 }
 
 impl Middleware for TelemetryMiddleware {
-    fn before_dispatch(&self, _engine: &Engine, command: &EngineCommand) {
+    fn before_dispatch(&self, _engine: &Engine, command: &EngineCommand) -> Result<(), EngineError> {
         info!("[Telemetry] Starting command: {:?}", command.command_type);
+        Ok(())
     }
 
     fn after_dispatch(&self, _engine: &mut Engine, outcome: &mut EngineOutcome) {
@@ -47,10 +49,11 @@ impl Middleware for TelemetryMiddleware {
 /// A middleware that handles AAOS-specific focus logic or logging.
 pub struct FocusMiddleware;
 impl Middleware for FocusMiddleware {
-    fn before_dispatch(&self, _engine: &Engine, command: &EngineCommand) {
+    fn before_dispatch(&self, _engine: &Engine, command: &EngineCommand) -> Result<(), EngineError> {
         if command.command_type == EngineCommandType::Play {
             info!("[FocusMiddleware] Requesting audio focus before Play...");
         }
+        Ok(())
     }
 }
 
@@ -84,14 +87,16 @@ impl Middleware for RecoveryMiddleware {
 /// A middleware that validates commands against business rules before they reach the reducer.
 pub struct ValidationMiddleware;
 impl Middleware for ValidationMiddleware {
-    fn before_dispatch(&self, engine: &Engine, command: &EngineCommand) {
+    fn before_dispatch(&self, engine: &Engine, command: &EngineCommand) -> Result<(), EngineError> {
         let snapshot = engine.snapshot();
 
         if !snapshot.can_dispatch() {
-            warn!(
+            let message = format!(
                 "[Validation] Rejecting command {:?} because the engine is currently busy (state: {:?}, is_busy: {})",
                 command.command_type, snapshot.playback_state, snapshot.is_busy
             );
+            warn!("{}", message);
+            return Err(EngineError::new(EngineErrorType::Unknown, message, false));
         }
 
         if command.command_type == EngineCommandType::Play && snapshot.session.is_none() {
@@ -99,6 +104,8 @@ impl Middleware for ValidationMiddleware {
                 "[Validation] Play command received without an active session. This may be ignored by the reducer."
             );
         }
+
+        Ok(())
     }
 }
 
@@ -131,13 +138,17 @@ impl ThrottlingMiddleware {
 }
 
 impl Middleware for ThrottlingMiddleware {
-    fn before_dispatch(&self, engine: &Engine, command: &EngineCommand) {
+    fn before_dispatch(&self, engine: &Engine, command: &EngineCommand) -> Result<(), EngineError> {
         let now = engine.snapshot().updated_at_epoch_millis;
         if self.should_throttle(command, now) {
-            warn!(
+            let message = format!(
                 "[Throttling] Throttling command {:?} (too rapid)",
                 command.command_type
             );
+            warn!("{}", message);
+            return Err(EngineError::new(EngineErrorType::Unknown, message, false));
         }
+
+        Ok(())
     }
 }

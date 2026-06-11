@@ -11,7 +11,23 @@ impl Engine {
             command.command_type, now_epoch_millis
         );
         let middleware = Arc::clone(&self.middleware);
-        middleware.before_dispatch(self, &command);
+        if let Err(error) = middleware.before_dispatch(self, &command) {
+            let command_wire = command.command_type.as_wire().to_owned();
+            self.snapshot = self
+                .snapshot
+                .clone()
+                .with_error(Some(error.clone()))
+                .with_busy(false);
+
+            return EngineOutcome {
+                snapshot: self.snapshot.clone(),
+                event: EngineEvent::command_applied(Some(format!(
+                    "{}:rejected_by_middleware",
+                    command_wire
+                ))),
+                effects: Vec::new(),
+            };
+        }
 
         let prev_playback_state = self.snapshot.playback_state;
 
