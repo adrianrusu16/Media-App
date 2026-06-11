@@ -9,6 +9,7 @@ pub struct RetryingBackendClient {
     inner: Arc<dyn BackendClient>,
     max_retries: usize,
     retry_delay: Duration,
+    retry_if: fn(&anyhow::Error) -> bool,
 }
 
 impl RetryingBackendClient {
@@ -17,6 +18,21 @@ impl RetryingBackendClient {
             inner,
             max_retries,
             retry_delay,
+            retry_if: |_| true,
+        }
+    }
+
+    pub fn new_with_policy(
+        inner: Arc<dyn BackendClient>,
+        max_retries: usize,
+        retry_delay: Duration,
+        retry_if: fn(&anyhow::Error) -> bool,
+    ) -> Self {
+        Self {
+            inner,
+            max_retries,
+            retry_delay,
+            retry_if,
         }
     }
 }
@@ -28,7 +44,7 @@ impl BackendClient for RetryingBackendClient {
         loop {
             match self.inner.fetch_children(parent_id).await {
                 Ok(items) => return Ok(items),
-                Err(error) if attempts < self.max_retries => {
+                Err(error) if attempts < self.max_retries && (self.retry_if)(&error) => {
                     attempts += 1;
                     tokio::time::sleep(self.retry_delay).await;
                     let _ = error;
@@ -48,7 +64,7 @@ impl BackendClient for RetryingBackendClient {
         loop {
             match self.inner.search(query).await {
                 Ok(items) => return Ok(items),
-                Err(error) if attempts < self.max_retries => {
+                Err(error) if attempts < self.max_retries && (self.retry_if)(&error) => {
                     attempts += 1;
                     tokio::time::sleep(self.retry_delay).await;
                     let _ = error;
@@ -144,6 +160,33 @@ mod tests {
             .returning(|_| Err(anyhow::anyhow!("no retry path")));
 
         let retrying = RetryingBackendClient::new(Arc::new(client), 0, Duration::from_millis(1));
+        let error = retrying.search("query").await.unwrap_err();
+
+        assert!(
+            error
+                .to_string()
+                .contains("search failed after 1 attempt(s)")
+        );
+    }
+
+    #[tokio::test]
+    async fn search_non_retryable_error_fails_immediately_even_when_retries_configured() {
+        let mut client = MockBackendClient::new();
+        client
+            .expect_search()
+            .times(1)
+            .returning(|_| Err(anyhow::anyhow!("fatal: invalid request")));
+
+        fn retry_only_transient(error: &anyhow::Error) -> bool {
+            error.to_string().contains("transient")
+        }
+
+        let retrying = RetryingBackendClient::new_with_policy(
+            Arc::new(client),
+            3,
+            Duration::from_millis(1),
+            retry_only_transient,
+        );
         let error = retrying.search("query").await.unwrap_err();
 
         assert!(
