@@ -1,4 +1,5 @@
 use std::ffi::c_char;
+use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::Arc;
 
 use panda_engine_core::VoskVoiceEngine;
@@ -75,9 +76,12 @@ pub unsafe extern "C" fn panda_engine_tick(
 ) -> usize {
     let engine = unsafe { engine.as_mut() };
     if let Some(engine) = engine {
-        let outcomes = engine
-            .runtime
-            .block_on(engine.engine.tick(now_epoch_millis));
+        let outcomes = match catch_unwind(AssertUnwindSafe(|| {
+            engine.runtime.block_on(engine.engine.tick(now_epoch_millis))
+        })) {
+            Ok(outcomes) => outcomes,
+            Err(_) => return 0,
+        };
         if let Some(last) = outcomes.last() {
             remember_outcome(engine, last);
         }

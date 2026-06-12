@@ -1,4 +1,5 @@
 use std::ffi::c_char;
+use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use panda_engine_core::{EngineCommand, EngineCommandType};
 
@@ -15,9 +16,14 @@ fn dispatch_voice_chunk(
     now_epoch_millis: u64,
 ) -> FfiEngineOutcome {
     let command = EngineCommand::process_voice_audio(chunk);
-    let outcome = engine
-        .runtime
-        .block_on(engine.engine.dispatch(command, now_epoch_millis));
+    let outcome = match catch_unwind(AssertUnwindSafe(|| {
+        engine
+            .runtime
+            .block_on(engine.engine.dispatch(command, now_epoch_millis))
+    })) {
+        Ok(outcome) => outcome,
+        Err(_) => return FfiEngineOutcome::invalid(),
+    };
     remember_outcome(engine, &outcome);
     FfiEngineOutcome::from((&outcome, FFI_COMMAND_PROCESS_VOICE))
 }
@@ -85,9 +91,14 @@ pub unsafe extern "C" fn panda_engine_dispatch(
                 _ => EngineCommand::new(command_from_ffi(command_type), payload_str),
             };
 
-            let outcome = engine
-                .runtime
-                .block_on(engine.engine.dispatch(command, now_epoch_millis));
+            let outcome = match catch_unwind(AssertUnwindSafe(|| {
+                engine
+                    .runtime
+                    .block_on(engine.engine.dispatch(command, now_epoch_millis))
+            })) {
+                Ok(outcome) => outcome,
+                Err(_) => return FfiEngineOutcome::invalid(),
+            };
             remember_outcome(engine, &outcome);
             FfiEngineOutcome::from((&outcome, command_type))
         }
@@ -138,15 +149,18 @@ pub unsafe extern "C" fn panda_engine_dispatch_platform_event(
     let engine = unsafe { engine.as_mut() };
     match engine {
         Some(engine) => {
-            let outcome = engine
-                .runtime
-                .block_on(engine.engine.dispatch_platform_event(
+            let outcome = match catch_unwind(AssertUnwindSafe(|| {
+                engine.runtime.block_on(engine.engine.dispatch_platform_event(
                     panda_engine_core::EnginePlatformEvent::new(
                         platform_event_from_ffi(event_type),
                         None,
                     ),
                     now_epoch_millis,
-                ));
+                ))
+            })) {
+                Ok(outcome) => outcome,
+                Err(_) => return FfiEngineOutcome::invalid(),
+            };
             remember_outcome(engine, &outcome);
             FfiEngineOutcome::from((&outcome, FFI_COMMAND_UNKNOWN))
         }

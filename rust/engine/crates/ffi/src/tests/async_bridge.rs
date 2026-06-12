@@ -1,7 +1,19 @@
 use super::super::*;
 use panda_engine_core::{MediaItem, MediaRepository};
 use std::ffi::{CString, c_char};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
+
+static REENTRANT_DISPATCH_RESULT: AtomicUsize = AtomicUsize::new(usize::MAX);
+static NESTED_ENGINE_PTR: AtomicUsize = AtomicUsize::new(0);
+
+unsafe extern "C" fn nested_dispatch_on_state_changed(_snapshot: FfiEngineSnapshot) {
+    let engine_ptr = NESTED_ENGINE_PTR.load(Ordering::SeqCst) as *mut PandaEngine;
+    let outcome = unsafe { panda_engine_dispatch(engine_ptr, FFI_COMMAND_PLAY, std::ptr::null(), 610) };
+    REENTRANT_DISPATCH_RESULT.store(outcome.event_type as usize, Ordering::SeqCst);
+}
+
+unsafe extern "C" fn noop_on_event_emitted(_event_type: i32) {}
 
 struct SlowSearchRepository;
 
@@ -65,5 +77,25 @@ fn ffi_block_on_bridge_handles_slow_async_dispatch_without_deadlock() {
 
     unsafe {
         panda_engine_destroy(engine);
+    }
+}
+
+#[test]
+fn ffi_nested_dispatch_from_observer_is_rejected_without_deadlock() {
+    let engine = panda_engine_create(1000);
+
+    unsafe {
+        NESTED_ENGINE_PTR.store(engine as usize, Ordering::SeqCst);
+        REENTRANT_DISPATCH_RESULT.store(usize::MAX, Ordering::SeqCst);
+        panda_engine_set_observer(engine, nested_dispatch_on_state_changed, noop_on_event_emitted);
+
+        let outcome = panda_engine_dispatch(engine, FFI_COMMAND_PLAY, std::ptr::null(), 600);
+        assert_eq!(outcome.event_type, FFI_EVENT_COMMAND_APPLIED);
+
+        let nested_event_type = REENTRANT_DISPATCH_RESULT.load(Ordering::SeqCst) as i32;
+        assert_eq!(nested_event_type, FFI_COMMAND_UNKNOWN);
+
+        panda_engine_destroy(engine);
+        NESTED_ENGINE_PTR.store(0, Ordering::SeqCst);
     }
 }
