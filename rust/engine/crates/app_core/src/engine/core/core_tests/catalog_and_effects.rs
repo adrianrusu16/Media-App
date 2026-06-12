@@ -219,6 +219,9 @@ async fn recovery_middleware_skips_on_network_error() {
         MediaItem {
             id: "2".to_string(),
             title: "Good Track".to_string(),
+            album: Some("Recovery Album".to_string()),
+            duration_millis: Some(222_000),
+            thumbnail_url: Some("https://example.com/recovery.jpg".to_string()),
             ..Default::default()
         },
     ];
@@ -244,6 +247,12 @@ async fn recovery_middleware_skips_on_network_error() {
 
     // RecoveryMiddleware should have triggered skip_next
     assert_eq!(outcome.snapshot.media_id, Some("2".to_string()));
+    assert_eq!(outcome.snapshot.album.as_deref(), Some("Recovery Album"));
+    assert_eq!(outcome.snapshot.duration_millis, Some(222_000));
+    assert_eq!(
+        outcome.snapshot.thumbnail_url.as_deref(),
+        Some("https://example.com/recovery.jpg")
+    );
     assert_eq!(
         outcome.snapshot.last_error.unwrap().error_type,
         crate::model::error::EngineErrorType::MediaSkipped

@@ -21,6 +21,12 @@ pub struct EngineSnapshot {
     pub title: Option<String>,
     /// Displayable artist name of the current media.
     pub artist: Option<String>,
+    /// Displayable album name of the current media.
+    pub album: Option<String>,
+    /// Duration of the current media item in milliseconds.
+    pub duration_millis: Option<u64>,
+    /// Thumbnail/artwork URL for the current media item.
+    pub thumbnail_url: Option<String>,
     /// The ID of the user currently interacting with the engine.
     pub user_id: Option<String>,
     /// Current restrictions applied to the media (e.g., UX restrictions).
@@ -116,6 +122,9 @@ impl EngineSnapshot {
         self.media_id = Some(media.id);
         self.title = Some(media.title);
         self.artist = Some(media.artist);
+        self.album = media.album;
+        self.duration_millis = media.duration_millis;
+        self.thumbnail_url = media.thumbnail_url;
         self
     }
 

@@ -7,7 +7,8 @@ use crate::engine_handle::remember_outcome;
 use crate::mappings::{command_from_ffi, platform_event_from_ffi};
 use crate::{
     FFI_COMMAND_BROWSE, FFI_COMMAND_PROCESS_VOICE, FFI_COMMAND_SEARCH, FFI_COMMAND_SEEK,
-    FFI_COMMAND_SET_SPEED, FFI_COMMAND_UNKNOWN, FfiEngineOutcome, PandaEngine,
+    FFI_COMMAND_SET_SPEED, FFI_COMMAND_START_SESSION, FFI_COMMAND_UNKNOWN, FfiEngineOutcome,
+    PandaEngine,
 };
 
 fn dispatch_voice_chunk(
@@ -80,6 +81,16 @@ pub unsafe extern "C" fn panda_engine_dispatch(
                         None,
                     )
                 }
+                FFI_COMMAND_START_SESSION => EngineCommand::new(
+                    EngineCommandType::StartSession {
+                        user_id: payload_str
+                            .as_deref()
+                            .filter(|value| !value.is_empty())
+                            .unwrap_or("unknown")
+                            .to_string(),
+                    },
+                    None,
+                ),
                 FFI_COMMAND_PROCESS_VOICE => {
                     let chunk = payload_str
                         .unwrap_or_default()

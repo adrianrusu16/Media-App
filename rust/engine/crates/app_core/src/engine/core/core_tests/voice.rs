@@ -8,6 +8,9 @@ async fn voice_play_starts_playback() {
         id: "1".to_string(),
         title: "Song 1".to_string(),
         artist: "Artist 1".to_string(),
+        album: Some("Album 1".to_string()),
+        duration_millis: Some(123_000),
+        thumbnail_url: Some("https://example.com/song1.jpg".to_string()),
         ..Default::default()
     }];
     engine.set_repository(Box::new(InMemoryRepository::new(items)));
@@ -20,6 +23,12 @@ async fn voice_play_starts_playback() {
     let snapshot = engine.snapshot();
     assert_eq!(snapshot.playback_state, PlaybackState::Buffering);
     assert_eq!(snapshot.media_id, Some("1".to_string()));
+    assert_eq!(snapshot.album.as_deref(), Some("Album 1"));
+    assert_eq!(snapshot.duration_millis, Some(123_000));
+    assert_eq!(
+        snapshot.thumbnail_url.as_deref(),
+        Some("https://example.com/song1.jpg")
+    );
 }
 
 #[tokio::test]

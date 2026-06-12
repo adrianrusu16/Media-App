@@ -139,6 +139,8 @@ impl CanopyTonicTransport {
             id: item.id,
             title: item.title,
             artist: item.artist.unwrap_or_default(),
+            album: item.album,
+            thumbnail_url: item.art_uri,
             ..Default::default()
         })
     }
@@ -265,6 +267,26 @@ mod tests {
         assert_eq!(item.id, "track-1");
         assert_eq!(item.title, "A Song");
         assert_eq!(item.artist, "An Artist");
+        assert_eq!(item.album, None);
+        assert_eq!(item.thumbnail_url, None);
+    }
+
+    #[test]
+    fn map_search_result_maps_optional_album_and_artwork() {
+        let item = CanopyTonicTransport::map_search_result(SearchResult {
+            id: "track-1".to_string(),
+            title: "A Song".to_string(),
+            artist: Some("An Artist".to_string()),
+            album: Some("An Album".to_string()),
+            art_uri: Some("https://cdn.example/art.jpg".to_string()),
+        })
+        .unwrap();
+
+        assert_eq!(item.album.as_deref(), Some("An Album"));
+        assert_eq!(
+            item.thumbnail_url.as_deref(),
+            Some("https://cdn.example/art.jpg")
+        );
     }
 
     #[test]

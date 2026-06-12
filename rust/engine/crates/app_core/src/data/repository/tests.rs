@@ -8,6 +8,7 @@ fn mock_items() -> Vec<MediaItem> {
             artist: "Artist X".to_string(),
             item_type: MediaItemType::Track,
             parent_id: Some("album1".to_string()),
+            ..Default::default()
         },
         MediaItem {
             id: "2".to_string(),
@@ -15,6 +16,7 @@ fn mock_items() -> Vec<MediaItem> {
             artist: "Artist Y".to_string(),
             item_type: MediaItemType::Track,
             parent_id: Some("album1".to_string()),
+            ..Default::default()
         },
         MediaItem {
             id: "3".to_string(),
@@ -22,6 +24,7 @@ fn mock_items() -> Vec<MediaItem> {
             artist: "Artist X".to_string(),
             item_type: MediaItemType::Track,
             parent_id: Some("album2".to_string()),
+            ..Default::default()
         },
     ]
 }
@@ -62,6 +65,7 @@ fn test_get_next_prev_single_item_wraps_to_self() {
         artist: "Artist".to_string(),
         item_type: MediaItemType::Track,
         parent_id: None,
+        ..Default::default()
     }]);
     assert_eq!(repo.get_next("only").unwrap().id, "only");
     assert_eq!(repo.get_previous("only").unwrap().id, "only");
@@ -124,10 +128,19 @@ fn test_with_media_snapshot() {
         id: "1".to_string(),
         title: "T".to_string(),
         artist: "A".to_string(),
+        album: Some("ALB".to_string()),
+        duration_millis: Some(180_000),
+        thumbnail_url: Some("https://example.com/art.jpg".to_string()),
         ..Default::default()
     };
     let updated = snapshot.with_media(item);
     assert_eq!(updated.media_id, Some("1".to_string()));
     assert_eq!(updated.title, Some("T".to_string()));
     assert_eq!(updated.artist, Some("A".to_string()));
+    assert_eq!(updated.album, Some("ALB".to_string()));
+    assert_eq!(updated.duration_millis, Some(180_000));
+    assert_eq!(
+        updated.thumbnail_url,
+        Some("https://example.com/art.jpg".to_string())
+    );
 }

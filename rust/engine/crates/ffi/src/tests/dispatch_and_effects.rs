@@ -20,6 +20,50 @@ fn dispatch_play_returns_buffering_snapshot() {
 }
 
 #[test]
+fn start_session_uses_payload_as_user_id() {
+    let engine = panda_engine_create(1000);
+    let user_id = CString::new("android-user-42").unwrap();
+
+    let outcome = unsafe {
+        panda_engine_dispatch(engine, FFI_COMMAND_START_SESSION, user_id.as_ptr(), 500)
+    };
+
+    let session_user_id = unsafe {
+        (*engine)
+            .engine
+            .with_engine(|e| e.snapshot().session.as_ref().map(|session| session.user_id.clone()))
+    };
+
+    assert_eq!(outcome.event_type, FFI_EVENT_COMMAND_APPLIED);
+    assert_eq!(session_user_id.as_deref(), Some("android-user-42"));
+
+    unsafe {
+        panda_engine_destroy(engine);
+    }
+}
+
+#[test]
+fn start_session_defaults_to_unknown_when_payload_is_missing() {
+    let engine = panda_engine_create(1000);
+
+    let outcome =
+        unsafe { panda_engine_dispatch(engine, FFI_COMMAND_START_SESSION, ptr::null(), 500) };
+
+    let session_user_id = unsafe {
+        (*engine)
+            .engine
+            .with_engine(|e| e.snapshot().session.as_ref().map(|session| session.user_id.clone()))
+    };
+
+    assert_eq!(outcome.event_type, FFI_EVENT_COMMAND_APPLIED);
+    assert_eq!(session_user_id.as_deref(), Some("unknown"));
+
+    unsafe {
+        panda_engine_destroy(engine);
+    }
+}
+
+#[test]
 fn null_snapshot_returns_invalid_marker() {
     let snapshot = unsafe { panda_engine_snapshot(ptr::null()) };
 
