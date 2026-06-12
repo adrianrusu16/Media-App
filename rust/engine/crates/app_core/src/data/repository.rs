@@ -1,5 +1,4 @@
 mod in_memory;
-mod snapshot_ext;
 mod trait_def;
 mod types;
 

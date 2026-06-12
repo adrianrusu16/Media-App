@@ -9,6 +9,19 @@ use crate::{
     FFI_COMMAND_SET_SPEED, FFI_COMMAND_UNKNOWN, FfiEngineOutcome, PandaEngine,
 };
 
+fn dispatch_voice_chunk(
+    engine: &mut PandaEngine,
+    chunk: Vec<i16>,
+    now_epoch_millis: u64,
+) -> FfiEngineOutcome {
+    let command = EngineCommand::process_voice_audio(chunk);
+    let outcome = engine
+        .runtime
+        .block_on(engine.engine.dispatch(command, now_epoch_millis));
+    remember_outcome(engine, &outcome);
+    FfiEngineOutcome::from((&outcome, FFI_COMMAND_PROCESS_VOICE))
+}
+
 #[unsafe(no_mangle)]
 /// # Safety
 /// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
@@ -67,7 +80,7 @@ pub unsafe extern "C" fn panda_engine_dispatch(
                         .split(',')
                         .filter_map(|s| s.trim().parse::<i16>().ok())
                         .collect();
-                    EngineCommand::process_voice_audio(chunk)
+                    return dispatch_voice_chunk(engine, chunk, now_epoch_millis);
                 }
                 _ => EngineCommand::new(command_from_ffi(command_type), payload_str),
             };
@@ -77,6 +90,35 @@ pub unsafe extern "C" fn panda_engine_dispatch(
                 .block_on(engine.engine.dispatch(command, now_epoch_millis));
             remember_outcome(engine, &outcome);
             FfiEngineOutcome::from((&outcome, command_type))
+        }
+        None => FfiEngineOutcome::invalid(),
+    }
+}
+
+#[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - `audio` must point to a readable buffer of `len` `i16` samples unless `len == 0`.
+/// - If `len > 0`, `audio` must be non-null and valid for reads for the duration of this call.
+/// - The caller must ensure no concurrent mutable access to the same engine instance.
+pub unsafe extern "C" fn panda_engine_process_audio_raw(
+    engine: *mut PandaEngine,
+    audio: *const i16,
+    len: usize,
+    now_epoch_millis: u64,
+) -> FfiEngineOutcome {
+    let engine = unsafe { engine.as_mut() };
+    match engine {
+        Some(engine) => {
+            if len > 0 && audio.is_null() {
+                return FfiEngineOutcome::invalid();
+            }
+            let chunk = if len == 0 {
+                Vec::new()
+            } else {
+                unsafe { std::slice::from_raw_parts(audio, len) }.to_vec()
+            };
+            dispatch_voice_chunk(engine, chunk, now_epoch_millis)
         }
         None => FfiEngineOutcome::invalid(),
     }

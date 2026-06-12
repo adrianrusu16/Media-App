@@ -7,7 +7,9 @@ mod persistence;
 mod query;
 mod queue;
 
-pub use dispatch::{panda_engine_dispatch, panda_engine_dispatch_platform_event};
+pub use dispatch::{
+    panda_engine_dispatch, panda_engine_dispatch_platform_event, panda_engine_process_audio_raw,
+};
 pub use lifecycle::{
     panda_engine_create, panda_engine_destroy, panda_engine_enable_vosk, panda_engine_init_logging,
     panda_engine_set_observer, panda_engine_tick,

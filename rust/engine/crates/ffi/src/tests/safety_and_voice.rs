@@ -48,3 +48,23 @@ fn ffi_voice_hypothesis_retrieval() {
         panda_engine_destroy(engine);
     }
 }
+
+#[test]
+fn ffi_process_audio_raw_supports_pcm_buffers() {
+    let engine = panda_engine_create(100);
+
+    unsafe {
+        let start = panda_engine_dispatch(engine, FFI_COMMAND_START_VOICE, ptr::null(), 150);
+        assert_eq!(start.event_type, FFI_EVENT_COMMAND_APPLIED);
+
+        let audio: [i16; 160] = [0; 160];
+        let outcome = panda_engine_process_audio_raw(engine, audio.as_ptr(), audio.len(), 200);
+        assert_eq!(outcome.event_type, FFI_EVENT_COMMAND_APPLIED);
+        assert_eq!(outcome.applied_command_type, FFI_COMMAND_PROCESS_VOICE);
+
+        let invalid = panda_engine_process_audio_raw(engine, ptr::null(), 4, 250);
+        assert_eq!(invalid, FfiEngineOutcome::invalid());
+
+        panda_engine_destroy(engine);
+    }
+}
