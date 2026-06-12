@@ -25,6 +25,12 @@ impl Engine {
             .clone()
             .with_playback_state(next_playback_state, now_epoch_millis);
 
+        if prev_playback_state != PlaybackState::Playing
+            && next_playback_state == PlaybackState::Playing
+        {
+            next_snapshot = next_snapshot.with_progress_tick(now_epoch_millis);
+        }
+
         if next_playback_state == PlaybackState::Error {
             if let Some(payload) = &event.payload {
                 let error = serde_json::from_str::<EngineError>(payload)

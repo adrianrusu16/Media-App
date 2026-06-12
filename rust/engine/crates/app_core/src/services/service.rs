@@ -32,7 +32,7 @@ impl EngineService for ProgressService {
 
         // Only update progress if we are playing
         if snapshot.playback_state == PlaybackState::Playing {
-            let elapsed = now_epoch_millis.saturating_sub(snapshot.updated_at_epoch_millis);
+            let elapsed = now_epoch_millis.saturating_sub(snapshot.last_progress_tick_epoch_millis);
             if elapsed >= 1000 {
                 // Tick every second
                 let new_position =

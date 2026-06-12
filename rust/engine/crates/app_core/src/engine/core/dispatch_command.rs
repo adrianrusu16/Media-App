@@ -41,6 +41,12 @@ impl Engine {
             .with_error(None)
             .with_busy(false);
 
+        if prev_playback_state != PlaybackState::Playing
+            && next_playback_state == PlaybackState::Playing
+        {
+            next_snapshot = next_snapshot.with_progress_tick(now_epoch_millis);
+        }
+
         let mut effects = Vec::new();
 
         match &command.command_type {
@@ -101,7 +107,9 @@ impl Engine {
                 effects.push(EngineEffect::Play);
             }
             EngineCommandType::Seek { position_millis } => {
-                next_snapshot = next_snapshot.with_position(*position_millis);
+                next_snapshot = next_snapshot
+                    .with_position(*position_millis)
+                    .with_progress_tick(now_epoch_millis);
                 effects.push(EngineEffect::Play);
             }
             EngineCommandType::UpdateConfig { config } => {

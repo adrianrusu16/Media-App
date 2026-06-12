@@ -27,6 +27,12 @@ pub struct EngineSnapshot {
     pub restriction_state: RestrictionState,
     /// Unix timestamp in milliseconds when this snapshot was created/updated.
     pub updated_at_epoch_millis: u64,
+    /// Unix timestamp in milliseconds for the last playback-progress baseline.
+    ///
+    /// Unlike `updated_at_epoch_millis`, this value is dedicated to progress tracking
+    /// and should only move when playback timing is intentionally advanced/rebased.
+    #[serde(default)]
+    pub last_progress_tick_epoch_millis: u64,
     /// The active media session, if any.
     pub session: Option<MediaSession>,
     /// The results of the last search operation.
@@ -51,6 +57,7 @@ impl EngineSnapshot {
         let mut snapshot = Self {
             playback_state: PlaybackState::Idle,
             updated_at_epoch_millis: now_epoch_millis,
+            last_progress_tick_epoch_millis: now_epoch_millis,
             playback_speed: 1.0,
             position_millis: 0,
             is_busy: false,
@@ -133,6 +140,13 @@ impl EngineSnapshot {
         self
     }
 
+    /// Functional update for the progress timing baseline, returning a new snapshot.
+    #[must_use]
+    pub fn with_progress_tick(mut self, epoch_millis: u64) -> Self {
+        self.last_progress_tick_epoch_millis = epoch_millis;
+        self
+    }
+
     /// Functional update for the busy state, returning a new snapshot.
     #[must_use]
     pub fn with_busy(mut self, is_busy: bool) -> Self {
@@ -165,6 +179,7 @@ mod tests {
         let snapshot = EngineSnapshot::idle(123);
         assert_eq!(snapshot.playback_state, PlaybackState::Idle);
         assert_eq!(snapshot.updated_at_epoch_millis, 123);
+        assert_eq!(snapshot.last_progress_tick_epoch_millis, 123);
         assert_eq!(snapshot.playback_speed, 1.0);
         assert!(!snapshot.is_busy);
         assert!(snapshot.controls.show_play_icon);

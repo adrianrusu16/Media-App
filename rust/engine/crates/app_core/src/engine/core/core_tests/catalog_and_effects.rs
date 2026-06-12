@@ -181,6 +181,28 @@ async fn tick_updates_progress() {
 }
 
 #[tokio::test]
+async fn tick_progress_is_not_reset_by_unrelated_command() {
+    let mut engine = Engine::new(100);
+    engine.snapshot = engine
+        .snapshot
+        .clone()
+        .with_playback_state(PlaybackState::Playing, 100)
+        .with_progress_tick(100)
+        .with_position(5000)
+        .with_speed(1.0);
+
+    // Unrelated command updates snapshot timestamp, but should not rebase playback progress clock.
+    let _ = engine
+        .dispatch(EngineCommand::start_session("user-1".to_string()), 900)
+        .await;
+
+    let outcomes = engine.tick(1100).await;
+
+    assert_eq!(outcomes.len(), 1);
+    assert_eq!(outcomes[0].snapshot.position_millis, 6000);
+}
+
+#[tokio::test]
 async fn recovery_middleware_skips_on_network_error() {
     use crate::middleware::{MiddlewarePipeline, RecoveryMiddleware};
     let mut engine = Engine::new(100);

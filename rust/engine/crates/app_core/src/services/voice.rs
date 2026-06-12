@@ -232,9 +232,7 @@ impl VoiceEngine for VoskVoiceEngine {
     }
 
     fn finish(&mut self) -> Result<VoiceInteractionResult, String> {
-        Ok(VoiceInteractionResult::Command(EngineCommand::voice_play(
-            "jazz".to_string(),
-        )))
+        Ok(VoiceInteractionResult::NoMatch)
     }
 
     fn get_partial_hypothesis(&self) -> String {
@@ -259,16 +257,7 @@ mod tests {
         assert_eq!(ve.get_partial_hypothesis(), "fallback hypothesis");
 
         let result = ve.finish().unwrap();
-        if let VoiceInteractionResult::Command(cmd) = result {
-            if let crate::model::command::EngineCommandType::VoicePlay { query } = cmd.command_type
-            {
-                assert_eq!(query, "jazz");
-            } else {
-                panic!("Expected VoicePlay command");
-            }
-        } else {
-            panic!("Expected command");
-        }
+        assert!(matches!(result, VoiceInteractionResult::NoMatch));
 
         ve.reset();
         assert_eq!(ve.get_partial_hypothesis(), "");
