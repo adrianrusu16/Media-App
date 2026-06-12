@@ -139,7 +139,7 @@ where
     }
 }
 
-fn apply_jitter(base_delay: Duration, attempt_number: usize, jitter_percent: u8) -> Duration {
+fn apply_jitter(base_delay: Duration, _attempt_number: usize, jitter_percent: u8) -> Duration {
     let jitter_percent = jitter_percent.min(100) as u128;
     if jitter_percent == 0 {
         return base_delay;
@@ -153,10 +153,7 @@ fn apply_jitter(base_delay: Duration, attempt_number: usize, jitter_percent: u8)
     let min_ms = base_ms.saturating_mul(100u128.saturating_sub(jitter_percent)) / 100;
     let max_ms = base_ms.saturating_mul(100u128.saturating_add(jitter_percent)) / 100;
     let spread = max_ms.saturating_sub(min_ms);
-    let seed = (attempt_number as u128)
-        .wrapping_mul(1_103_515_245)
-        .wrapping_add(12_345);
-    let jittered_ms = min_ms + if spread == 0 { 0 } else { seed % (spread + 1) };
+    let jittered_ms = min_ms + if spread == 0 { 0 } else { fastrand::u128(..=spread) };
 
     Duration::from_millis(jittered_ms.min(u64::MAX as u128) as u64)
 }
