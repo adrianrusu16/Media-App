@@ -108,7 +108,11 @@ impl Middleware for ValidationMiddleware {
                 command.command_type, snapshot.playback_state, snapshot.is_busy
             );
             warn!("{}", message);
-            return Err(EngineError::new(EngineErrorType::Unknown, message, false));
+            return Err(EngineError::new(
+                EngineErrorType::CommandRejected,
+                message,
+                false,
+            ));
         }
 
         if command.command_type == EngineCommandType::Play && snapshot.session.is_none() {
@@ -136,7 +140,7 @@ impl ThrottlingMiddleware {
     }
 
     pub(crate) fn should_throttle(&self, command: &EngineCommand, now: u64) -> bool {
-        let key = format!("{:?}", command.command_type);
+        let key = command.command_type.as_wire().to_string();
         let mut last_map = self.last_command_at.lock().unwrap();
         let last = last_map.get(&key).cloned().unwrap_or(0);
 
@@ -158,7 +162,11 @@ impl Middleware for ThrottlingMiddleware {
                 command.command_type
             );
             warn!("{}", message);
-            return Err(EngineError::new(EngineErrorType::Unknown, message, false));
+            return Err(EngineError::new(
+                EngineErrorType::CommandRejected,
+                message,
+                false,
+            ));
         }
 
         Ok(())

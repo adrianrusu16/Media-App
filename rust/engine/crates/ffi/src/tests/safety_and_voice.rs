@@ -1,5 +1,5 @@
 use super::super::*;
-use std::ffi::{CStr, c_char};
+use std::ffi::c_char;
 use std::ptr;
 
 #[test]
@@ -26,7 +26,7 @@ fn ffi_null_pointer_safety() {
 }
 
 #[test]
-fn ffi_voice_hypothesis_retrieval() {
+fn ffi_voice_dispatch_path_is_rejected() {
     let engine = panda_engine_create(100);
 
     unsafe {
@@ -35,13 +35,7 @@ fn ffi_voice_hypothesis_retrieval() {
 
         let audio: [c_char; 160] = [0; 160];
         let outcome = panda_engine_dispatch(engine, FFI_COMMAND_PROCESS_VOICE, audio.as_ptr(), 0);
-        assert_eq!(outcome.event_type, FFI_EVENT_COMMAND_APPLIED);
-
-        let buf = [0u8; 256];
-        assert_eq!(panda_engine_get_voice_hypothesis(engine), ptr::null_mut());
-
-        let hypothesis = CStr::from_ptr(buf.as_ptr() as *const i8).to_string_lossy();
-        assert_eq!(hypothesis.len(), 0);
+        assert_eq!(outcome, FfiEngineOutcome::invalid());
     }
 
     unsafe {

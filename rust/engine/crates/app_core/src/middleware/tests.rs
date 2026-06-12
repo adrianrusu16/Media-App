@@ -60,6 +60,17 @@ fn test_throttling_middleware() {
     assert!(!middleware.should_throttle(&cmd, 1600));
 }
 
+#[test]
+fn test_throttling_middleware_keys_on_wire_command_type() {
+    let middleware = ThrottlingMiddleware::new(500);
+    let first_search = EngineCommand::search("rust".to_string());
+    let second_search = EngineCommand::search("jazz".to_string());
+
+    assert!(!middleware.should_throttle(&first_search, 1000));
+    assert!(middleware.should_throttle(&second_search, 1200));
+    assert!(!middleware.should_throttle(&second_search, 1600));
+}
+
 #[tokio::test]
 async fn test_validation_middleware_detects_busy() {
     let middleware = ValidationMiddleware;
@@ -170,7 +181,7 @@ async fn test_engine_rejects_command_when_validation_fails() {
         .last_error
         .as_ref()
         .expect("expected middleware rejection error");
-    assert_eq!(err.error_type, EngineErrorType::Unknown);
+    assert_eq!(err.error_type, EngineErrorType::CommandRejected);
     assert!(err.message.contains("Rejecting command"));
 }
 
@@ -188,7 +199,7 @@ async fn test_engine_rejects_command_when_throttled() {
         .last_error
         .as_ref()
         .expect("expected throttling rejection error");
-    assert_eq!(err.error_type, EngineErrorType::Unknown);
+    assert_eq!(err.error_type, EngineErrorType::CommandRejected);
     assert!(err.message.contains("Throttling"));
     assert!(rejected_outcome.effects.is_empty());
 }

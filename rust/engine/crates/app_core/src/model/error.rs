@@ -13,6 +13,8 @@ pub enum EngineErrorType {
     AuthenticationError,
     /// The media was skipped due to a non-fatal error.
     MediaSkipped,
+    /// A command was rejected by middleware or policy checks before execution.
+    CommandRejected,
     /// An unknown or unexpected error.
     Unknown,
 }

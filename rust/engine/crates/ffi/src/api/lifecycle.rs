@@ -2,12 +2,27 @@ use std::ffi::c_char;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::Arc;
 
+use futures_util::FutureExt;
 use panda_engine_core::VoskVoiceEngine;
 use tracing::info;
 use tracing_subscriber::prelude::*;
 
 use crate::engine_handle::{FfiObserver, build_engine, remember_outcome};
 use crate::{FfiEngineSnapshot, PandaEngine};
+
+fn run_future_safely<T>(
+    runtime: &tokio::runtime::Runtime,
+    future: impl std::future::Future<Output = T>,
+) -> Option<T> {
+    let future_result = catch_unwind(AssertUnwindSafe(|| {
+        runtime.block_on(AssertUnwindSafe(future).catch_unwind())
+    }));
+
+    match future_result {
+        Ok(Ok(value)) => Some(value),
+        Ok(Err(_)) | Err(_) => None,
+    }
+}
 
 #[unsafe(no_mangle)]
 pub extern "C" fn panda_engine_init_logging(max_level: i32) {
@@ -76,11 +91,9 @@ pub unsafe extern "C" fn panda_engine_tick(
 ) -> usize {
     let engine = unsafe { engine.as_mut() };
     if let Some(engine) = engine {
-        let outcomes = match catch_unwind(AssertUnwindSafe(|| {
-            engine.runtime.block_on(engine.engine.tick(now_epoch_millis))
-        })) {
-            Ok(outcomes) => outcomes,
-            Err(_) => return 0,
+        let outcomes = match run_future_safely(&engine.runtime, engine.engine.tick(now_epoch_millis)) {
+            Some(outcomes) => outcomes,
+            None => return 0,
         };
         if let Some(last) = outcomes.last() {
             remember_outcome(engine, last);

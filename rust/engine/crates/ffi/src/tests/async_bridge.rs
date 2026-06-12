@@ -9,13 +9,16 @@ static NESTED_ENGINE_PTR: AtomicUsize = AtomicUsize::new(0);
 
 unsafe extern "C" fn nested_dispatch_on_state_changed(_snapshot: FfiEngineSnapshot) {
     let engine_ptr = NESTED_ENGINE_PTR.load(Ordering::SeqCst) as *mut PandaEngine;
-    let outcome = unsafe { panda_engine_dispatch(engine_ptr, FFI_COMMAND_PLAY, std::ptr::null(), 610) };
+    let outcome =
+        unsafe { panda_engine_dispatch(engine_ptr, FFI_COMMAND_PLAY, std::ptr::null(), 610) };
     REENTRANT_DISPATCH_RESULT.store(outcome.event_type as usize, Ordering::SeqCst);
 }
 
 unsafe extern "C" fn noop_on_event_emitted(_event_type: i32) {}
 
 struct SlowSearchRepository;
+
+struct PanicSearchRepository;
 
 #[async_trait::async_trait]
 impl MediaRepository for SlowSearchRepository {
@@ -42,6 +45,29 @@ impl MediaRepository for SlowSearchRepository {
             title: "Slow Result".to_string(),
             ..Default::default()
         }])
+    }
+}
+
+#[async_trait::async_trait]
+impl MediaRepository for PanicSearchRepository {
+    fn get_by_id(&self, _id: &str) -> Option<MediaItem> {
+        None
+    }
+
+    fn get_next(&self, _current_id: &str) -> Option<MediaItem> {
+        None
+    }
+
+    fn get_previous(&self, _current_id: &str) -> Option<MediaItem> {
+        None
+    }
+
+    async fn browse(&self, _parent_id: &str) -> anyhow::Result<Vec<MediaItem>> {
+        Ok(vec![])
+    }
+
+    async fn search(&self, _query: &str) -> anyhow::Result<Vec<MediaItem>> {
+        panic!("panic from async repository search")
     }
 }
 
@@ -87,7 +113,11 @@ fn ffi_nested_dispatch_from_observer_is_rejected_without_deadlock() {
     unsafe {
         NESTED_ENGINE_PTR.store(engine as usize, Ordering::SeqCst);
         REENTRANT_DISPATCH_RESULT.store(usize::MAX, Ordering::SeqCst);
-        panda_engine_set_observer(engine, nested_dispatch_on_state_changed, noop_on_event_emitted);
+        panda_engine_set_observer(
+            engine,
+            nested_dispatch_on_state_changed,
+            noop_on_event_emitted,
+        );
 
         let outcome = panda_engine_dispatch(engine, FFI_COMMAND_PLAY, std::ptr::null(), 600);
         assert_eq!(outcome.event_type, FFI_EVENT_COMMAND_APPLIED);
@@ -97,5 +127,24 @@ fn ffi_nested_dispatch_from_observer_is_rejected_without_deadlock() {
 
         panda_engine_destroy(engine);
         NESTED_ENGINE_PTR.store(0, Ordering::SeqCst);
+    }
+}
+
+#[test]
+fn ffi_dispatch_handles_async_future_panic_and_returns_invalid_outcome() {
+    let engine = panda_engine_create(1000);
+    unsafe {
+        (*engine)
+            .engine
+            .with_engine(|e| e.set_repository(Box::new(PanicSearchRepository)));
+    }
+
+    let query = CString::new("panic").unwrap();
+    let outcome = unsafe { panda_engine_dispatch(engine, FFI_COMMAND_SEARCH, query.as_ptr(), 700) };
+
+    assert_eq!(outcome, FfiEngineOutcome::invalid());
+
+    unsafe {
+        panda_engine_destroy(engine);
     }
 }

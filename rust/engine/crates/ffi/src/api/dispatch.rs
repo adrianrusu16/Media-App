@@ -1,6 +1,7 @@
 use std::ffi::c_char;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
+use futures_util::FutureExt;
 use panda_engine_core::{EngineCommand, EngineCommandType};
 
 use crate::engine_handle::remember_outcome;
@@ -11,19 +12,32 @@ use crate::{
     PandaEngine,
 };
 
+fn run_future_safely<T>(
+    runtime: &tokio::runtime::Runtime,
+    future: impl std::future::Future<Output = T>,
+) -> Option<T> {
+    let future_result = catch_unwind(AssertUnwindSafe(|| {
+        runtime.block_on(AssertUnwindSafe(future).catch_unwind())
+    }));
+
+    match future_result {
+        Ok(Ok(value)) => Some(value),
+        Ok(Err(_)) | Err(_) => None,
+    }
+}
+
 fn dispatch_voice_chunk(
     engine: &mut PandaEngine,
     chunk: Vec<i16>,
     now_epoch_millis: u64,
 ) -> FfiEngineOutcome {
     let command = EngineCommand::process_voice_audio(chunk);
-    let outcome = match catch_unwind(AssertUnwindSafe(|| {
-        engine
-            .runtime
-            .block_on(engine.engine.dispatch(command, now_epoch_millis))
-    })) {
-        Ok(outcome) => outcome,
-        Err(_) => return FfiEngineOutcome::invalid(),
+    let outcome = match run_future_safely(
+        &engine.runtime,
+        engine.engine.dispatch(command, now_epoch_millis),
+    ) {
+        Some(outcome) => outcome,
+        None => return FfiEngineOutcome::invalid(),
     };
     remember_outcome(engine, &outcome);
     FfiEngineOutcome::from((&outcome, FFI_COMMAND_PROCESS_VOICE))
@@ -91,24 +105,16 @@ pub unsafe extern "C" fn panda_engine_dispatch(
                     },
                     None,
                 ),
-                FFI_COMMAND_PROCESS_VOICE => {
-                    let chunk = payload_str
-                        .unwrap_or_default()
-                        .split(',')
-                        .filter_map(|s| s.trim().parse::<i16>().ok())
-                        .collect();
-                    return dispatch_voice_chunk(engine, chunk, now_epoch_millis);
-                }
+                FFI_COMMAND_PROCESS_VOICE => return FfiEngineOutcome::invalid(),
                 _ => EngineCommand::new(command_from_ffi(command_type), payload_str),
             };
 
-            let outcome = match catch_unwind(AssertUnwindSafe(|| {
-                engine
-                    .runtime
-                    .block_on(engine.engine.dispatch(command, now_epoch_millis))
-            })) {
-                Ok(outcome) => outcome,
-                Err(_) => return FfiEngineOutcome::invalid(),
+            let outcome = match run_future_safely(
+                &engine.runtime,
+                engine.engine.dispatch(command, now_epoch_millis),
+            ) {
+                Some(outcome) => outcome,
+                None => return FfiEngineOutcome::invalid(),
             };
             remember_outcome(engine, &outcome);
             FfiEngineOutcome::from((&outcome, command_type))
@@ -160,17 +166,18 @@ pub unsafe extern "C" fn panda_engine_dispatch_platform_event(
     let engine = unsafe { engine.as_mut() };
     match engine {
         Some(engine) => {
-            let outcome = match catch_unwind(AssertUnwindSafe(|| {
-                engine.runtime.block_on(engine.engine.dispatch_platform_event(
+            let outcome = match run_future_safely(
+                &engine.runtime,
+                engine.engine.dispatch_platform_event(
                     panda_engine_core::EnginePlatformEvent::new(
                         platform_event_from_ffi(event_type),
                         None,
                     ),
                     now_epoch_millis,
-                ))
-            })) {
-                Ok(outcome) => outcome,
-                Err(_) => return FfiEngineOutcome::invalid(),
+                ),
+            ) {
+                Some(outcome) => outcome,
+                None => return FfiEngineOutcome::invalid(),
             };
             remember_outcome(engine, &outcome);
             FfiEngineOutcome::from((&outcome, FFI_COMMAND_UNKNOWN))

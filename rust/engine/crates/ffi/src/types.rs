@@ -134,6 +134,7 @@ impl From<&EngineSnapshot> for FfiEngineSnapshot {
                         FFI_ERROR_AUTHENTICATION
                     }
                     panda_engine_core::EngineErrorType::MediaSkipped => FFI_ERROR_MEDIA_SKIPPED,
+                    panda_engine_core::EngineErrorType::CommandRejected => FFI_ERROR_UNKNOWN,
                     panda_engine_core::EngineErrorType::Unknown => FFI_ERROR_UNKNOWN,
                 })
                 .unwrap_or(FFI_ERROR_NONE),
