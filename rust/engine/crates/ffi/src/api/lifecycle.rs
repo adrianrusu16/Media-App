@@ -91,10 +91,11 @@ pub unsafe extern "C" fn panda_engine_tick(
 ) -> usize {
     let engine = unsafe { engine.as_mut() };
     if let Some(engine) = engine {
-        let outcomes = match run_future_safely(&engine.runtime, engine.engine.tick(now_epoch_millis)) {
-            Some(outcomes) => outcomes,
-            None => return 0,
-        };
+        let outcomes =
+            match run_future_safely(&engine.runtime, engine.engine.tick(now_epoch_millis)) {
+                Some(outcomes) => outcomes,
+                None => return 0,
+            };
         if let Some(last) = outcomes.last() {
             remember_outcome(engine, last);
         }
