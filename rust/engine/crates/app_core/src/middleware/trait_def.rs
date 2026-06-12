@@ -8,7 +8,11 @@ use crate::model::error::EngineError;
 /// such as logging, telemetry, or modifying the command/outcome.
 pub trait Middleware: Send + Sync {
     /// Called before the command is dispatched to the engine.
-    fn before_dispatch(&self, _engine: &Engine, _command: &EngineCommand) -> Result<(), EngineError> {
+    fn before_dispatch(
+        &self,
+        _engine: &Engine,
+        _command: &EngineCommand,
+    ) -> Result<(), EngineError> {
         Ok(())
     }
 

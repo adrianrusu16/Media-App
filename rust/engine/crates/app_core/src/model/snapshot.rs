@@ -29,8 +29,10 @@ pub struct EngineSnapshot {
     pub updated_at_epoch_millis: u64,
     /// The active media session, if any.
     pub session: Option<MediaSession>,
-    /// The results of the last search or browse operation.
+    /// The results of the last search operation.
     pub search_results: Vec<MediaItem>,
+    /// The results of the last browse operation.
+    pub browse_results: Vec<MediaItem>,
     /// The current playback speed (1.0 is normal).
     pub playback_speed: f32,
     /// The current playback position in milliseconds.
@@ -98,6 +100,13 @@ impl EngineSnapshot {
     #[must_use]
     pub fn with_search_results(mut self, results: Vec<MediaItem>) -> Self {
         self.search_results = results;
+        self
+    }
+
+    /// Functional update for browse results, returning a new snapshot.
+    #[must_use]
+    pub fn with_browse_results(mut self, results: Vec<MediaItem>) -> Self {
+        self.browse_results = results;
         self
     }
 

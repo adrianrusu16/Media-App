@@ -33,7 +33,11 @@ impl AnalyticsMiddleware {
 }
 
 impl Middleware for AnalyticsMiddleware {
-    fn before_dispatch(&self, _engine: &Engine, command: &EngineCommand) -> Result<(), EngineError> {
+    fn before_dispatch(
+        &self,
+        _engine: &Engine,
+        command: &EngineCommand,
+    ) -> Result<(), EngineError> {
         match command.command_type {
             EngineCommandType::Play => self.report("play_requested", None, "{}"),
             EngineCommandType::Pause => self.report("pause_requested", None, "{}"),

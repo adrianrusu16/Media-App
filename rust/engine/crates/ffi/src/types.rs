@@ -55,6 +55,7 @@ pub struct FfiEngineSnapshot {
     pub can_dispatch: bool,
     pub controls: FfiPlayerControls,
     pub has_voice_hypothesis: bool,
+    pub browse_results_count: usize,
 }
 
 /// C-compatible representation of the engine outcome.
@@ -99,6 +100,7 @@ impl FfiEngineSnapshot {
                 show_play_icon: true,
             },
             has_voice_hypothesis: false,
+            browse_results_count: 0,
         }
     }
 }
@@ -159,6 +161,7 @@ impl From<&EngineSnapshot> for FfiEngineSnapshot {
                 show_play_icon: snapshot.controls.show_play_icon,
             },
             has_voice_hypothesis: snapshot.voice_hypothesis.is_some(),
+            browse_results_count: snapshot.browse_results.len(),
         }
     }
 }

@@ -35,7 +35,7 @@ impl MediaRepository for SlowSearchRepository {
 
 #[test]
 fn ffi_block_on_bridge_handles_slow_async_dispatch_without_deadlock() {
-    let engine = panda_engine_create(100);
+    let engine = panda_engine_create(1000);
     unsafe {
         (*engine)
             .engine
@@ -52,7 +52,7 @@ fn ffi_block_on_bridge_handles_slow_async_dispatch_without_deadlock() {
                 engine_addr as *mut PandaEngine,
                 FFI_COMMAND_SEARCH,
                 query_addr as *const c_char,
-                200,
+                500,
             )
         };
         let _ = tx.send(outcome);

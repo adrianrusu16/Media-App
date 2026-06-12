@@ -11,7 +11,11 @@ use crate::middleware::Middleware;
 /// A simple middleware that logs engine actions.
 pub struct LoggerMiddleware;
 impl Middleware for LoggerMiddleware {
-    fn before_dispatch(&self, _engine: &Engine, command: &EngineCommand) -> Result<(), EngineError> {
+    fn before_dispatch(
+        &self,
+        _engine: &Engine,
+        command: &EngineCommand,
+    ) -> Result<(), EngineError> {
         info!("Dispatching command: {:?}", command.command_type);
         Ok(())
     }
@@ -29,7 +33,11 @@ impl TelemetryMiddleware {
 }
 
 impl Middleware for TelemetryMiddleware {
-    fn before_dispatch(&self, _engine: &Engine, command: &EngineCommand) -> Result<(), EngineError> {
+    fn before_dispatch(
+        &self,
+        _engine: &Engine,
+        command: &EngineCommand,
+    ) -> Result<(), EngineError> {
         info!("[Telemetry] Starting command: {:?}", command.command_type);
         Ok(())
     }
@@ -49,7 +57,11 @@ impl Middleware for TelemetryMiddleware {
 /// A middleware that handles AAOS-specific focus logic or logging.
 pub struct FocusMiddleware;
 impl Middleware for FocusMiddleware {
-    fn before_dispatch(&self, _engine: &Engine, command: &EngineCommand) -> Result<(), EngineError> {
+    fn before_dispatch(
+        &self,
+        _engine: &Engine,
+        command: &EngineCommand,
+    ) -> Result<(), EngineError> {
         if command.command_type == EngineCommandType::Play {
             info!("[FocusMiddleware] Requesting audio focus before Play...");
         }

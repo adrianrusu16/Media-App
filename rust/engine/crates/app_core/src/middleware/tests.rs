@@ -1,8 +1,7 @@
 use super::*;
 use crate::{
-    data::repository::MediaItem,
     Engine, EngineCommand, EngineErrorType, EngineEvent, EngineEventType, EngineObserver,
-    EngineSnapshot, EventBus,
+    EngineSnapshot, EventBus, data::repository::MediaItem,
 };
 use std::sync::{Arc, Mutex};
 

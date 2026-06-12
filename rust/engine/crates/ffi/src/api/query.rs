@@ -177,6 +177,44 @@ pub unsafe extern "C" fn panda_engine_get_search_result_title(
 
 #[unsafe(no_mangle)]
 /// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The returned string pointer must be released with `panda_engine_free_string`.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
+pub unsafe extern "C" fn panda_engine_get_browse_result_id(
+    engine: *const PandaEngine,
+    index: usize,
+) -> *const c_char {
+    let engine = unsafe { engine.as_ref() };
+    if let Some(engine) = engine {
+        let snapshot = engine.engine.snapshot();
+        if let Some(item) = snapshot.browse_results.get(index) {
+            return CString::new(item.id.clone()).unwrap().into_raw();
+        }
+    }
+    ptr::null()
+}
+
+#[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The returned string pointer must be released with `panda_engine_free_string`.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
+pub unsafe extern "C" fn panda_engine_get_browse_result_title(
+    engine: *const PandaEngine,
+    index: usize,
+) -> *const c_char {
+    let engine = unsafe { engine.as_ref() };
+    if let Some(engine) = engine {
+        let snapshot = engine.engine.snapshot();
+        if let Some(item) = snapshot.browse_results.get(index) {
+            return CString::new(item.title.clone()).unwrap().into_raw();
+        }
+    }
+    ptr::null()
+}
+
+#[unsafe(no_mangle)]
+/// # Safety
 /// - `engine` must be null or a valid pointer created by `panda_engine_create` and not yet destroyed.
 /// - The returned string pointer (when non-null) must be released with `panda_engine_free_string`.
 /// - The caller must ensure no concurrent mutable access while this function reads engine state.

@@ -82,8 +82,44 @@ async fn browse_returns_items() {
     let outcome = engine
         .dispatch(EngineCommand::browse("root".to_string()), 150)
         .await;
-    assert_eq!(outcome.snapshot.search_results.len(), 1);
-    assert_eq!(outcome.snapshot.search_results[0].id, "1");
+    assert_eq!(outcome.snapshot.browse_results.len(), 1);
+    assert_eq!(outcome.snapshot.browse_results[0].id, "1");
+    assert!(outcome.snapshot.search_results.is_empty());
+}
+
+#[tokio::test]
+async fn browse_does_not_overwrite_previous_search_results() {
+    let mut engine = Engine::new(100);
+    let items = vec![
+        MediaItem {
+            id: "search-1".to_string(),
+            title: "Rust Song".to_string(),
+            artist: "Artist A".to_string(),
+            ..Default::default()
+        },
+        MediaItem {
+            id: "browse-1".to_string(),
+            title: "Playlist Item".to_string(),
+            artist: "Artist B".to_string(),
+            parent_id: Some("root".to_string()),
+            ..Default::default()
+        },
+    ];
+    engine.set_repository(Box::new(InMemoryRepository::new(items)));
+
+    let search_outcome = engine
+        .dispatch(EngineCommand::search("Rust".to_string()), 150)
+        .await;
+    assert_eq!(search_outcome.snapshot.search_results.len(), 1);
+    assert_eq!(search_outcome.snapshot.search_results[0].id, "search-1");
+
+    let browse_outcome = engine
+        .dispatch(EngineCommand::browse("root".to_string()), 200)
+        .await;
+    assert_eq!(browse_outcome.snapshot.search_results.len(), 1);
+    assert_eq!(browse_outcome.snapshot.search_results[0].id, "search-1");
+    assert_eq!(browse_outcome.snapshot.browse_results.len(), 1);
+    assert_eq!(browse_outcome.snapshot.browse_results[0].id, "browse-1");
 }
 
 #[tokio::test]

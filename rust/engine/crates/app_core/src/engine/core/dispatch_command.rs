@@ -93,7 +93,7 @@ impl Engine {
                 next_snapshot = next_snapshot.with_busy(true);
                 let results = self.repository.browse(parent_id).await;
                 next_snapshot = next_snapshot
-                    .with_search_results(results.unwrap_or_default())
+                    .with_browse_results(results.unwrap_or_default())
                     .with_busy(false);
             }
             EngineCommandType::SetSpeed { speed } => {
