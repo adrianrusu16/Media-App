@@ -41,6 +41,11 @@ flowchart TD
     Player --> Media3
 ```
 
+The native engine host plan is tracked in
+[native-engine-host.md](native-engine-host.md). That document is the source of
+truth for the Android service, AIDL, JNI, Rust FFI, and PandaEngine hosting
+boundary.
+
 ## Planned Modules
 
 | Area | Modules | Responsibility |
@@ -58,11 +63,18 @@ flowchart TD
 ## Naming
 
 - PandaWave is the product and user-facing brand.
+- PandaEngine is the Rust source-of-truth engine and middleware runtime.
+- Canopy is the gRPC backend that PandaEngine talks to.
+- BambooUI is the UI and design-system family.
+- JadeStore, JadeCache, and JadeSync belong to the Canopy backend ecosystem.
+- PandaOS is the future AAOS/AOSP image that can surface PandaWave through
+  Android media APIs.
 - `RustEngine` remains the Kotlin interface for the Android-to-Rust boundary.
 - PandaEngine is the concrete source-of-truth engine implementation, including
   the native binding wrapper and Rust FFI surface.
-- Bamboo names Android playback/player-facing surfaces, such as the in-app
-  mini-player and Media3 library service.
+- Bamboo names user-facing UI surfaces, such as the in-app mini-player,
+  controls, and theme/design-system elements. Domain and adapter internals
+  should use Panda or neutral media names instead.
 
 ## Milestones
 
@@ -112,6 +124,7 @@ Example service shape:
 interface IMediaEngineService {
     EngineSnapshot getSnapshot();
     void dispatch(in EngineCommand command);
+    void dispatchPlatformEvent(in EnginePlatformEvent event);
     void registerListener(IEngineListener listener);
     void unregisterListener(IEngineListener listener);
 }

@@ -23,5 +23,8 @@ Android surface and the engine.
 See [docs/architecture-roadmap.md](docs/architecture-roadmap.md) for the current
 architecture direction, milestone plan, and security posture.
 
+See [docs/native-engine-host.md](docs/native-engine-host.md) for the Android
+service, AIDL, JNI, Rust FFI, and PandaEngine hosting model.
+
 See [docs/assets-and-branding.md](docs/assets-and-branding.md) for third-party
 asset source recommendations and intake rules.

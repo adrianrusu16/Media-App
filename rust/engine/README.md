@@ -3,8 +3,10 @@
 This workspace contains **PandaEngine**, the Rust source-of-truth engine for PandaWave.
 
 Android modules communicate with the engine through the AIDL service boundary in
-`:core:rust-bridge`, while Rust owns deterministic domain behavior (commands,
-events, snapshots, middleware, recovery, and effect emission).
+`:core:rust-bridge`. The Android native host will call this workspace through a
+thin handwritten JNI shim over the `panda_engine_ffi` C ABI. Rust owns
+deterministic domain behavior: commands, events, snapshots, middleware,
+recovery, and effect emission.
 
 ## Quick Start
 
@@ -69,6 +71,11 @@ flowchart LR
     ENGINE --> SERVICES
     TYPES -. ABI/domain translation .- API
 ```
+
+The full Android hosting plan lives in
+[`../../docs/native-engine-host.md`](../../docs/native-engine-host.md). The key
+rule is that `app_core` stays Android-free, `panda_engine_ffi` owns the stable C
+ABI, and the Android JNI shim owns JVM/native conversion only.
 
 ## Crates
 
@@ -290,14 +297,24 @@ sequenceDiagram
 
 ## FFI Integration Guide (Android)
 
-1. **Initialize Logging**: `panda_engine_init_logging(level)`
-2. **Create Engine**: `panda_engine_create(now_millis)`
-3. **Enable Vosk (Optional)**: `panda_engine_enable_vosk(engine, model_path)`.
-4. **Set Observer**: `panda_engine_set_observer(...)` for state/event callbacks.
-5. **Dispatch Commands**: `panda_engine_dispatch(engine, type, payload, now_millis)`.
-6. **Process Audio**: Stream PCM 16-bit 16kHz mono via `EngineCommandType::ProcessVoiceAudio`.
-7. **Handle Effects**: Query `panda_engine_get_effects_count/types` and execute platform effects.
-8. **Persist/Restore**: Use `panda_engine_save` and `panda_engine_restore` on lifecycle transitions.
+1. **Package Native Library**: build `libpanda_engine_ffi.so` for supported
+   Android ABIs.
+2. **Load Library**: Android calls `System.loadLibrary("panda_engine_ffi")`.
+3. **JNI Shim**: Kotlin calls JNI methods that delegate to the C ABI functions
+   below.
+4. **Initialize Logging**: `panda_engine_init_logging(level)`.
+5. **Create Engine**: `panda_engine_create(now_millis)`.
+6. **Enable Vosk (Optional)**: `panda_engine_enable_vosk(engine, model_path)`.
+7. **Set Observer**: `panda_engine_set_observer(...)` for state/event callbacks.
+8. **Dispatch Commands**: `panda_engine_dispatch(engine, type, payload, now_millis)`.
+9. **Dispatch Platform Events**:
+   `panda_engine_dispatch_platform_event(engine, type, payload, now_millis)`.
+10. **Process Audio**: stream PCM 16-bit 16kHz mono through
+    `panda_engine_process_audio_raw`.
+11. **Handle Effects**: query `panda_engine_get_effects_count/types` and execute
+    platform effects.
+12. **Persist/Restore**: use `panda_engine_save` and `panda_engine_restore` on
+    lifecycle transitions.
 
 ## Troubleshooting
 

@@ -6,8 +6,9 @@ and secure platform services.
 
 ## Current Milestone
 
-The repository now contains a Rust workspace at `rust/engine` with a
-dependency-free `media_app_core` crate. It models the first engine primitives:
+The repository now contains a Rust workspace at `rust/engine` with
+`media_app_core` and `panda_engine_ffi`. PandaEngine owns the source-of-truth
+runtime model:
 
 - `EngineCommand`
 - `EngineEvent`
@@ -15,11 +16,13 @@ dependency-free `media_app_core` crate. It models the first engine primitives:
 - `EnginePlatformEvent`
 - `PlaybackState`
 - `RestrictionState`
-- `Engine` reducer
+- `Engine` state machine
+- middleware and effects
+- repository, queue, session, persistence, and networking boundaries
 
-The Kotlin AIDL service in `:core:rust-bridge` still uses a fake reducer. It
-shares the same wire values as the Rust reducer so the later binding swap is
-mechanical rather than architectural.
+The Kotlin AIDL service in `:core:rust-bridge` still uses a fake reducer. The
+next milestone is to package the Rust native library, add the JNI shim, and
+select the native PandaEngine host behind the existing `RustEngine` interface.
 
 The next binding layer is also scaffolded:
 
@@ -32,6 +35,9 @@ The next binding layer is also scaffolded:
 `PandaEngine` should not be selected until the native library is packaged
 into the Android app.
 
+See [native-engine-host.md](native-engine-host.md) for the by-the-books Android
+service, AIDL, JNI, Rust FFI, and PandaEngine hosting model.
+
 ## Intended Flow
 
 ```text
@@ -42,6 +48,10 @@ Kotlin platform adapter
 AIDL service boundary
         |
 Kotlin PandaEngine native binding adapter
+        |
+JNI shim
+        |
+Rust FFI facade
         |
 Rust app_core / engine crates
         |
