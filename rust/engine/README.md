@@ -27,7 +27,7 @@ If you are changing architecture/module boundaries, also run `cargo test --works
 ## Current State (Middleware / Engine)
 
 - Async-first engine dispatch with explicit `is_busy` lifecycle for long-running work.
-- Middleware chain with validation, recovery, and side-effect orchestration.
+- Middleware chain with validation, recovery, and side effect orchestration.
 - Recoverable-path behavior surfaces explicit recovery events (not silent empty outcomes).
 - Voice workflow coverage includes negative/error paths and cleanup guarantees.
 - FFI bridge has async slow-dispatch coverage to protect against deadlock regressions.
@@ -140,7 +140,7 @@ cargo check -p media_app_core -p panda_engine_ffi
 
 ## Architecture Highlights
 
-- **Deterministic Core**: Reducer/state machine drives predictable command->event->snapshot transitions.
+- **Deterministic Core**: Reducer/state machine drives predictable command→event→snapshot transitions.
 - **Middleware Pipeline**: Validation + recovery + telemetry-friendly extension points.
 - **Async Repository Contracts**: Async repository operations and busy-state transitions are explicitly tested.
 - **Transport Isolation**: Core depends on traits (`BackendClient`, `AudioSourceClient`) rather than transport SDKs.
@@ -160,6 +160,69 @@ CanopyTonicTransport
 CanopyAudioSourceClient<C>
   -> RetryingAudioSourceClient<C>
   -> Engine playback/source flow
+```
+
+## Networking Composition (Full gRPC Stack)
+
+```mermaid
+flowchart TB
+    subgraph FFI[crates/ffi]
+        HANDLE[engine_handle]
+        API_CFG[panda_engine_configure_backend]
+    end
+
+    subgraph Core[crates/app_core]
+        ENGINE[engine::core + middleware]
+
+        subgraph DataLayer[data layer]
+            REPO_TRAIT[MediaRepository trait]
+            REMOTE[RemoteRepository&lt;C&gt;]
+            CACHE[local item cache\nget_by_id]
+        end
+
+        subgraph NetLayer[networking layer]
+            RBC[RetryingBackendClient&lt;C&gt;\nexp backoff · jitter · budget · policy]
+            RASC[RetryingAudioSourceClient&lt;C&gt;\nsame retry strategy]
+            CASC[CanopyAudioSourceClient&lt;C&gt;\nresolve_track · prefetch]
+            TRANSPORT[CanopyTonicTransport\nArc&lt;Channel&gt; · interceptors]
+        end
+    end
+
+    subgraph Canopy[Canopy gRPC Server]
+        SEARCH[Search\nserver-streaming]
+        BROWSE[Browse\nunary]
+        RESOLVE[ResolveTrack\nunary]
+        HEALTH[Health\nunary]
+    end
+
+    API_CFG -->|injects endpoint| HANDLE
+    HANDLE --> ENGINE
+    ENGINE --> REPO_TRAIT
+    REPO_TRAIT --> REMOTE
+    REMOTE --> CACHE
+    REMOTE --> RBC
+    RBC --> TRANSPORT
+    CASC --> RASC
+    RASC --> TRANSPORT
+    ENGINE -.->|playback source flow| CASC
+
+    TRANSPORT -->|Search| SEARCH
+    TRANSPORT -->|Browse| BROWSE
+    TRANSPORT -->|ResolveTrack| RESOLVE
+    TRANSPORT -->|Health| HEALTH
+
+    HANDLE -.->|lazy channel connect| TRANSPORT
+```
+
+### Interceptor chain (per request)
+
+```mermaid
+flowchart LR
+    REQ[outgoing request]
+    --> AUTH[auth interceptor\nBearer token from Arc&lt;TokenStore&gt;]
+    --> RID[request-id interceptor\nx-request-id: uuid]
+    --> META[metadata interceptor\nx-client-name · x-client-version]
+    --> WIRE[wire]
 ```
 
 ## Sequence Diagram: Engine Command Dispatch
