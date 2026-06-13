@@ -5,8 +5,8 @@ import org.junit.Test
 
 class PandaEngineFactoryTest {
     @Test
-    fun createFallsBackWhenNativeLibraryIsUnavailable() {
-        val engine = PandaEngineFactory.create()
+    fun createFakeReturnsTestEngine() {
+        val engine = PandaEngineFactory.createFake()
 
         assertNotNull(engine.snapshot())
     }

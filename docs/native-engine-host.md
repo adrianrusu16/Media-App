@@ -61,7 +61,7 @@ flowchart TD
 | PandaEngine core | Domain state, state machine, middleware, queue, catalog, session, effects | Android lifecycle, JNI, AIDL, UI naming |
 | Rust FFI facade | ABI-safe handles, constants, structs, memory rules, panic containment | Domain decisions |
 | JNI shim | JVM/native conversion and Android-specific native entrypoints | Business logic |
-| Kotlin engine host | Native handle lifecycle, fallback policy, thread dispatch, DTO mapping | Rust state transitions |
+| Kotlin engine host | Native handle lifecycle, thread dispatch, DTO mapping, hard native-load failures | Rust state transitions |
 | AIDL service | Process boundary, listener registration, snapshots, command/event delivery | UI policy |
 | Android adapters | Media3, widgets, notifications, audio focus, AAOS restrictions, RROs | Canonical playback/catalog state |
 
@@ -105,8 +105,8 @@ sequenceDiagram
    primitives or DTOs.
 
 3. **Native Engine Selection**
-   Use a native-first factory with explicit fake fallback for tests/local
-   failure modes.
+   Use a native-only production factory. Fake engines are explicit test/local
+   fixtures and must not be selected silently by production service code.
 
 4. **Contract Expansion**
    Expand AIDL/Kotlin commands, snapshots, events, and effects to match the

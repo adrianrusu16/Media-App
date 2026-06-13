@@ -21,9 +21,9 @@ runtime model:
 - repository, queue, session, persistence, and networking boundaries
 
 The Kotlin AIDL service in `:core:rust-bridge` selects the native PandaEngine
-host through `PandaEngineFactory` and falls back to the fake engine when the
-native library is unavailable. The next milestone is to package the Rust native
-library for Android ABIs so the native path is available on device.
+host through `PandaEngineFactory`. Native-load failures are hard integration
+errors, not production fallback paths. The next milestone is to package the
+Rust native library for Android ABIs so the native path is available on device.
 
 The next binding layer is also scaffolded:
 
@@ -31,10 +31,9 @@ The next binding layer is also scaffolded:
 - `PandaEngine` defines the Kotlin wrapper shape for the future JNI/native
   library.
 - `MediaEngineService` depends on the `RustEngine` interface and uses the
-  native-first factory.
+  native-only factory.
 
-The fake engine remains a fallback for local JVM tests and native-load failure
-paths.
+The fake engine remains an explicit test/local fixture only.
 
 See [native-engine-host.md](native-engine-host.md) for the by-the-books Android
 service, AIDL, JNI, Rust FFI, and PandaEngine hosting model.
