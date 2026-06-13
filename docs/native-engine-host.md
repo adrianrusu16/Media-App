@@ -97,7 +97,7 @@ sequenceDiagram
 
 1. **Native Library Packaging**
    Build `panda_engine_ffi` for Android ABIs and package
-   `libpanda_engine_ffi.so` into the app or `:core:rust-bridge`.
+   `libpanda_engine_ffi.so` through `:core:rust-bridge` generated `jniLibs`.
 
 2. **JNI Shim**
    Add Android-native JNI entrypoints that match `PandaEngine.kt`. The shim
@@ -129,3 +129,35 @@ Use **Bamboo** for user-facing UI and design-system components, such as
 Use **Panda** or neutral media/domain names for implementation and source of
 truth types, such as engine hosts, media catalog nodes, snapshots, repositories,
 and adapters that are not visible to the user.
+
+## Native Packaging Lane
+
+`:core:rust-bridge` owns native library packaging because it owns the Kotlin
+native binding and `System.loadLibrary("panda_engine_ffi")`.
+
+The Gradle native lane builds and syncs `panda_engine_ffi` into generated
+`jniLibs`:
+
+```powershell
+.\gradlew.bat --no-configuration-cache :core:rust-bridge:syncPandaEngineAndroidJniLibs --console=plain
+```
+
+To include the generated native libraries during a normal Android build, enable
+the native build property:
+
+```powershell
+.\gradlew.bat --no-configuration-cache -PpandaEngine.buildNative=true :app:assembleDebug --console=plain
+```
+
+Required local toolchain:
+
+- Android NDK installed in the configured Android SDK, `ANDROID_NDK_HOME`, or
+  `ANDROID_NDK_ROOT`.
+- Rust Android targets:
+  `aarch64-linux-android`, `armv7-linux-androideabi`, `i686-linux-android`,
+  and `x86_64-linux-android`.
+- Cargo available on `PATH`, or `CARGO` pointing at the cargo executable.
+
+The regular Android build does not silently synthesize native libraries. When
+the native lane is enabled and the toolchain is incomplete, Gradle fails with a
+hard prerequisite error.

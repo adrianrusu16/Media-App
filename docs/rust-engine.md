@@ -22,8 +22,8 @@ runtime model:
 
 The Kotlin AIDL service in `:core:rust-bridge` selects the native PandaEngine
 host through `PandaEngineFactory`. Native-load failures are hard integration
-errors, not production fallback paths. The next milestone is to package the
-Rust native library for Android ABIs so the native path is available on device.
+errors, not production fallback paths. `:core:rust-bridge` also declares the
+generated `jniLibs` lane used to package Rust Android builds.
 
 The next binding layer is also scaffolded:
 
@@ -94,6 +94,19 @@ Run Android verification from the project root:
 
 ```powershell
 .\gradlew.bat --no-configuration-cache :app:assembleDebug
+```
+
+Build and sync Android native libraries after installing the Android NDK and
+Rust Android targets:
+
+```powershell
+.\gradlew.bat --no-configuration-cache :core:rust-bridge:syncPandaEngineAndroidJniLibs --console=plain
+```
+
+Enable native packaging during app assembly with:
+
+```powershell
+.\gradlew.bat --no-configuration-cache -PpandaEngine.buildNative=true :app:assembleDebug --console=plain
 ```
 
 Run Rust verification from `rust/engine` after Rust is installed:

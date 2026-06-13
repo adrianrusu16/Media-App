@@ -298,7 +298,7 @@ sequenceDiagram
 ## FFI Integration Guide (Android)
 
 1. **Package Native Library**: build `libpanda_engine_ffi.so` for supported
-   Android ABIs.
+   Android ABIs through `:core:rust-bridge`.
 2. **Load Library**: Android calls `System.loadLibrary("panda_engine_ffi")`.
 3. **JNI Shim**: Kotlin calls JNI methods that delegate to the C ABI functions
    below.
@@ -315,6 +315,26 @@ sequenceDiagram
     platform effects.
 12. **Persist/Restore**: use `panda_engine_save` and `panda_engine_restore` on
     lifecycle transitions.
+
+### Android native packaging command
+
+Install the Android NDK and Rust Android targets first:
+
+```powershell
+rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+```
+
+Then run from the repository root:
+
+```powershell
+.\gradlew.bat --no-configuration-cache :core:rust-bridge:syncPandaEngineAndroidJniLibs --console=plain
+```
+
+To make app assembly build and package the native library:
+
+```powershell
+.\gradlew.bat --no-configuration-cache -PpandaEngine.buildNative=true :app:assembleDebug --console=plain
+```
 
 ## Troubleshooting
 
