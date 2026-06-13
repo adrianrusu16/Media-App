@@ -13,7 +13,7 @@ import com.adrianrusu.mediaapp.core.rust.bridge.aidl.IMediaEngineService
 
 class MediaEngineService : Service() {
     private val listeners = RemoteCallbackList<IEngineListener>()
-    private val engine: RustEngine = PandaEngineFactory.createFake()
+    private val engine: RustEngine = PandaEngineFactory.create()
 
     private val binder = object : IMediaEngineService.Stub() {
         override fun getSnapshot(): EngineSnapshot = engine.snapshot()
@@ -52,6 +52,7 @@ class MediaEngineService : Service() {
 
     override fun onDestroy() {
         listeners.kill()
+        (engine as? AutoCloseable)?.close()
         super.onDestroy()
     }
 

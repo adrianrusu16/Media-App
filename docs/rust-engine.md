@@ -20,20 +20,21 @@ runtime model:
 - middleware and effects
 - repository, queue, session, persistence, and networking boundaries
 
-The Kotlin AIDL service in `:core:rust-bridge` still uses a fake reducer. The
-next milestone is to package the Rust native library, add the JNI shim, and
-select the native PandaEngine host behind the existing `RustEngine` interface.
+The Kotlin AIDL service in `:core:rust-bridge` selects the native PandaEngine
+host through `PandaEngineFactory` and falls back to the fake engine when the
+native library is unavailable. The next milestone is to package the Rust native
+library for Android ABIs so the native path is available on device.
 
 The next binding layer is also scaffolded:
 
 - `panda_engine_ffi` exposes a small C ABI over `media_app_core`.
 - `PandaEngine` defines the Kotlin wrapper shape for the future JNI/native
   library.
-- `MediaEngineService` depends on the `RustEngine` interface and currently uses
-  `FakePandaEngine`.
+- `MediaEngineService` depends on the `RustEngine` interface and uses the
+  native-first factory.
 
-`PandaEngine` should not be selected until the native library is packaged
-into the Android app.
+The fake engine remains a fallback for local JVM tests and native-load failure
+paths.
 
 See [native-engine-host.md](native-engine-host.md) for the by-the-books Android
 service, AIDL, JNI, Rust FFI, and PandaEngine hosting model.

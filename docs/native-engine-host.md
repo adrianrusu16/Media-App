@@ -105,8 +105,8 @@ sequenceDiagram
    primitives or DTOs.
 
 3. **Native Engine Selection**
-   Replace fake-only construction with a native-first factory and explicit fake
-   fallback for tests/local failure modes.
+   Use a native-first factory with explicit fake fallback for tests/local
+   failure modes.
 
 4. **Contract Expansion**
    Expand AIDL/Kotlin commands, snapshots, events, and effects to match the
