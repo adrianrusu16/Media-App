@@ -146,7 +146,7 @@ To include the generated native libraries during a normal Android build, enable
 the native build property:
 
 ```powershell
-.\gradlew.bat --no-configuration-cache -PpandaEngine.buildNative=true :app:assembleDebug --console=plain
+.\gradlew.bat --no-configuration-cache "-PpandaEngine.buildNative=true" :app:assembleDebug --console=plain
 ```
 
 Required local toolchain:

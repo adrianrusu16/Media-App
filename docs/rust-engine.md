@@ -106,7 +106,7 @@ Rust Android targets:
 Enable native packaging during app assembly with:
 
 ```powershell
-.\gradlew.bat --no-configuration-cache -PpandaEngine.buildNative=true :app:assembleDebug --console=plain
+.\gradlew.bat --no-configuration-cache "-PpandaEngine.buildNative=true" :app:assembleDebug --console=plain
 ```
 
 Run Rust verification from `rust/engine` after Rust is installed:

@@ -333,7 +333,7 @@ Then run from the repository root:
 To make app assembly build and package the native library:
 
 ```powershell
-.\gradlew.bat --no-configuration-cache -PpandaEngine.buildNative=true :app:assembleDebug --console=plain
+.\gradlew.bat --no-configuration-cache "-PpandaEngine.buildNative=true" :app:assembleDebug --console=plain
 ```
 
 ## Troubleshooting
