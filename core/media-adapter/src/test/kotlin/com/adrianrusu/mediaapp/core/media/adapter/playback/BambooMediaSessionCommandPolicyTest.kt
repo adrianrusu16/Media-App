@@ -1,13 +1,13 @@
 package com.adrianrusu.mediaapp.core.media.adapter.playback
 
 import androidx.media3.common.Player
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class BambooMediaSessionCommandPolicyTest {
     @Test
-    fun disabledControlsKeepMetadataCommandsOnly() {
+    fun `disabled controls keep metadata commands only`() {
         val commands = BambooMediaSessionCommandPolicy.availableCommandTypes(
             supportedCommandTypes = allSupportedCommandTypes(),
             controlsEnabled = false
@@ -21,7 +21,7 @@ class BambooMediaSessionCommandPolicyTest {
     }
 
     @Test
-    fun enabledControlsExposePlaybackCommands() {
+    fun `enabled controls expose playback commands`() {
         val commands = BambooMediaSessionCommandPolicy.availableCommandTypes(
             supportedCommandTypes = allSupportedCommandTypes(),
             controlsEnabled = true
@@ -35,7 +35,7 @@ class BambooMediaSessionCommandPolicyTest {
     }
 
     @Test
-    fun enabledControlsCannotExposeUnsupportedPlayerCommands() {
+    fun `enabled controls cannot expose unsupported player commands`() {
         val commands = BambooMediaSessionCommandPolicy.availableCommandTypes(
             supportedCommandTypes = setOf(
                 Player.COMMAND_GET_CURRENT_MEDIA_ITEM,

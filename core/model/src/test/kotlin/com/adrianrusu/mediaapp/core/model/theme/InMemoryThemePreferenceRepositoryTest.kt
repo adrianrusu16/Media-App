@@ -1,18 +1,18 @@
 package com.adrianrusu.mediaapp.core.model.theme
 
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
 
 class InMemoryThemePreferenceRepositoryTest {
     @Test
-    fun defaultsToSystemThemePreference() {
+    fun `defaults to system theme preference`() {
         val repository = InMemoryThemePreferenceRepository()
 
         assertEquals(PandaWaveThemePreference.SystemDefault, repository.preference.value)
     }
 
     @Test
-    fun useCasesObserveAndSetThemePreference() {
+    fun `use cases observe and set theme preference`() {
         val repository = InMemoryThemePreferenceRepository()
         val observe = ObserveThemePreferenceUseCase(repository)
         val set = SetThemePreferenceUseCase(repository)

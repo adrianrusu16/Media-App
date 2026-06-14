@@ -6,14 +6,14 @@ import com.adrianrusu.mediaapp.core.playback.BambooPlaybackState
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackStatus
 import com.adrianrusu.mediaapp.core.telemetry.TelemetryLogger
 import com.adrianrusu.mediaapp.core.telemetry.TelemetrySink
+import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import org.junit.Assert.assertEquals
-import org.junit.Test
 
 class BambooMediaSessionStateProjectorTest {
     @Test
-    fun startProjectsCurrentPlaybackState() {
+    fun `start projects current playback state`() {
         val repository = ProjectorRecordingPlaybackRepository(
             BambooPlaybackState(
                 mediaId = "track-1",
@@ -38,7 +38,7 @@ class BambooMediaSessionStateProjectorTest {
     }
 
     @Test
-    fun duplicateStateIsNotProjectedAgain() {
+    fun `duplicate state is not projected again`() {
         val state = BambooPlaybackState(
             mediaId = "track-1",
             title = "Bamboo Drive",
@@ -60,7 +60,7 @@ class BambooMediaSessionStateProjectorTest {
     }
 
     @Test
-    fun closeStopsProjectionUpdates() {
+    fun `close stops projection updates`() {
         val repository = ProjectorRecordingPlaybackRepository(BambooPlaybackState())
         val sink = RecordingMediaSessionStateSink()
         val projector = BambooMediaSessionStateProjector(

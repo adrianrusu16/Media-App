@@ -26,5 +26,8 @@ architecture direction, milestone plan, and security posture.
 See [docs/native-engine-host.md](docs/native-engine-host.md) for the Android
 service, AIDL, JNI, Rust FFI, and PandaEngine hosting model.
 
+See [docs/testing.md](docs/testing.md) for the Kotlin/JUnit testing conventions
+and the split between local JVM and Android instrumentation test lanes.
+
 See [docs/assets-and-branding.md](docs/assets-and-branding.md) for third-party
 asset source recommendations and intake rules.

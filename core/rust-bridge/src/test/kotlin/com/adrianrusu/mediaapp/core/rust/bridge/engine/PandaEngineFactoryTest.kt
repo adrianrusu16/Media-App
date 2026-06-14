@@ -1,11 +1,11 @@
 package com.adrianrusu.mediaapp.core.rust.bridge.engine
 
-import org.junit.Assert.assertNotNull
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertNotNull
 
 class PandaEngineFactoryTest {
     @Test
-    fun createFakeReturnsTestEngine() {
+    fun `create fake returns test engine`() {
         val engine = PandaEngineFactory.createFake()
 
         assertNotNull(engine.snapshot())

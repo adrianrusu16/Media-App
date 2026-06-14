@@ -21,6 +21,13 @@ class AndroidConfiguration {
             targetCompatibility = JavaVersion.VERSION_11
         }
 
+        android.testOptions {
+            unitTests.all { test ->
+                test.useJUnitPlatform()
+                test.systemProperty("junit.jupiter.testinstance.lifecycle.default", "per_class")
+            }
+        }
+
         android.buildFeatures {
             aidl = true
         }

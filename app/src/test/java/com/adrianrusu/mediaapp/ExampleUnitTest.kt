@@ -1,7 +1,7 @@
 package com.adrianrusu.mediaapp
 
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
 
 /**
  * Example local unit test, which will execute on the development machine (host).
@@ -10,7 +10,7 @@ import org.junit.Test
  */
 class ExampleUnitTest {
     @Test
-    fun addition_isCorrect() {
+    fun `addition is correct`() {
         assertEquals(4, 2 + 2)
     }
 }

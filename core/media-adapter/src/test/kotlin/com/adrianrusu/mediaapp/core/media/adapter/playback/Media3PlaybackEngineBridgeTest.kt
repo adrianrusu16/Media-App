@@ -7,14 +7,14 @@ import com.adrianrusu.mediaapp.core.playback.BambooPlaybackState
 import com.adrianrusu.mediaapp.core.telemetry.TelemetryEvent
 import com.adrianrusu.mediaapp.core.telemetry.TelemetryLogger
 import com.adrianrusu.mediaapp.core.telemetry.TelemetrySink
+import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import org.junit.Assert.assertEquals
-import org.junit.Test
 
 class Media3PlaybackEngineBridgeTest {
     @Test
-    fun bootstrapStartsPlaybackRepository() {
+    fun `bootstrap starts playback repository`() {
         val repository = RecordingPlaybackRepository()
         val bridge = Media3PlaybackEngineBridge(repository, testTelemetryLogger())
 
@@ -24,7 +24,7 @@ class Media3PlaybackEngineBridgeTest {
     }
 
     @Test
-    fun closeStopsPlaybackRepository() {
+    fun `close stops playback repository`() {
         val repository = RecordingPlaybackRepository()
         val bridge = Media3PlaybackEngineBridge(repository, testTelemetryLogger())
 
@@ -34,7 +34,7 @@ class Media3PlaybackEngineBridgeTest {
     }
 
     @Test
-    fun playWhenReadyChangeDispatchesPlaybackIntents() {
+    fun `play when ready change dispatches playback intents`() {
         val repository = RecordingPlaybackRepository()
         val bridge = Media3PlaybackEngineBridge(repository, testTelemetryLogger())
 
@@ -48,7 +48,7 @@ class Media3PlaybackEngineBridgeTest {
     }
 
     @Test
-    fun projectedPlatformPlaybackStateDoesNotDispatchPlaybackIntent() {
+    fun `projected platform playback state does not dispatch playback intent`() {
         val repository = RecordingPlaybackRepository()
         val bridge = Media3PlaybackEngineBridge(repository, testTelemetryLogger())
 
@@ -60,7 +60,7 @@ class Media3PlaybackEngineBridgeTest {
     }
 
     @Test
-    fun playerSkipCommandsDispatchThroughPlaybackRepository() {
+    fun `player skip commands dispatch through playback repository`() {
         val repository = RecordingPlaybackRepository()
         val bridge = Media3PlaybackEngineBridge(repository, testTelemetryLogger())
 
@@ -77,7 +77,7 @@ class Media3PlaybackEngineBridgeTest {
     }
 
     @Test
-    fun unrelatedPlayerCommandIsIgnoredByPlaybackRepository() {
+    fun `unrelated player command is ignored by playback repository`() {
         val repository = RecordingPlaybackRepository()
         val bridge = Media3PlaybackEngineBridge(repository, testTelemetryLogger())
 
@@ -87,7 +87,7 @@ class Media3PlaybackEngineBridgeTest {
     }
 
     @Test
-    fun telemetryRecordsDispatchedIgnoredAndProjectedMedia3Commands() {
+    fun `telemetry records dispatched ignored and projected media3 commands`() {
         val telemetrySink = RecordingTelemetrySink()
         val repository = RecordingPlaybackRepository()
         val bridge = Media3PlaybackEngineBridge(repository, testTelemetryLogger(telemetrySink))

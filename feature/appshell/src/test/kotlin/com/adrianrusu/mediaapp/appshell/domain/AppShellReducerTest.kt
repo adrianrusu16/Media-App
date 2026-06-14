@@ -1,11 +1,11 @@
 package com.adrianrusu.mediaapp.appshell.domain
 
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
 
 class AppShellReducerTest {
     @Test
-    fun selectDestinationUpdatesCurrentDestination() {
+    fun `select destination updates current destination`() {
         val state = AppShellReducer.reduce(
             state = AppShellState(),
             intent = AppShellIntent.SelectDestination(AppDestination.Settings)
@@ -15,7 +15,7 @@ class AppShellReducerTest {
     }
 
     @Test
-    fun togglePlaybackDoesNotMutatePlaybackStateDirectly() {
+    fun `toggle playback does not mutate playback state directly`() {
         val state = AppShellReducer.reduce(
             state = AppShellState(),
             intent = AppShellIntent.TogglePlayback

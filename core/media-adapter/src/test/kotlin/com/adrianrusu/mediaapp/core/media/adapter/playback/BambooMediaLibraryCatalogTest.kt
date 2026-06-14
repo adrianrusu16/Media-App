@@ -1,14 +1,14 @@
 package com.adrianrusu.mediaapp.core.media.adapter.playback
 
 import com.adrianrusu.mediaapp.core.model.catalog.BambooCatalogNode
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class BambooMediaLibraryCatalogTest {
     @Test
-    fun rootReturnsBrowsablePandaWaveItem() {
+    fun `root returns browsable panda wave item`() {
         val catalog = BambooMediaLibraryCatalog(source = EmptyCatalogSource)
 
         val root = catalog.root()
@@ -20,7 +20,7 @@ class BambooMediaLibraryCatalogTest {
     }
 
     @Test
-    fun rootChildrenAreProjectedFromCatalogSource() {
+    fun `root children are projected from catalog source`() {
         val catalog = BambooMediaLibraryCatalog(
             source = FixedCatalogSource(
                 parentId = LibraryItems.ROOT_MEDIA_ID,
@@ -59,7 +59,7 @@ class BambooMediaLibraryCatalogTest {
     }
 
     @Test
-    fun childrenArePaged() {
+    fun `children are paged`() {
         val catalog = BambooMediaLibraryCatalog(
             source = FixedCatalogSource(
                 parentId = LibraryItems.ROOT_MEDIA_ID,
@@ -81,7 +81,7 @@ class BambooMediaLibraryCatalogTest {
     }
 
     @Test
-    fun invalidPageOrUnknownParentReturnsNoChildren() {
+    fun `invalid page or unknown parent returns no children`() {
         val catalog = BambooMediaLibraryCatalog(
             source = FixedCatalogSource(
                 parentId = LibraryItems.ROOT_MEDIA_ID,
@@ -95,7 +95,7 @@ class BambooMediaLibraryCatalogTest {
     }
 
     @Test
-    fun placeholderSourceExposesStableRootCategories() {
+    fun `placeholder source exposes stable root categories`() {
         val catalog = BambooMediaLibraryCatalog(source = PlaceholderBambooCatalogSource)
 
         val children = catalog.children(
@@ -117,7 +117,7 @@ class BambooMediaLibraryCatalogTest {
     }
 
     @Test
-    fun searchDelegatesToSource() {
+    fun `search delegates to source`() {
         val catalog = BambooMediaLibraryCatalog(
             source = object : BambooCatalogSource {
                 override fun children(parentId: String): List<BambooCatalogNode> = emptyList()

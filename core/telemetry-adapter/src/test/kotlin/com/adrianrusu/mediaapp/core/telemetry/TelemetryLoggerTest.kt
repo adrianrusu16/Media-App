@@ -1,12 +1,12 @@
 package com.adrianrusu.mediaapp.core.telemetry
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertSame
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertSame
 
 class TelemetryLoggerTest {
     @Test
-    fun loggerRecordsRedactedEventWithTimestamp() {
+    fun `logger records redacted event with timestamp`() {
         val sink = RecordingTelemetrySink()
         val throwable = IllegalStateException("boom")
         val logger = TelemetryLogger(

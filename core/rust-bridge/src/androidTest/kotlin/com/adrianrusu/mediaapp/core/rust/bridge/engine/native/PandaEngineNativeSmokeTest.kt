@@ -14,9 +14,7 @@ class PandaEngineNativeSmokeTest {
     @Test
     fun nativeEngineLoadsSnapshotsDispatchesAndDestroys() {
         var nowEpochMillis = 1_000L
-        val engine = PandaEngine.create(clock = { nowEpochMillis })
-
-        try {
+        PandaEngine.create(clock = { nowEpochMillis }).use { engine ->
             val initialSnapshot = engine.snapshot()
             assertEquals(EngineSnapshot.PLAYBACK_IDLE, initialSnapshot.playbackState)
             assertEquals(EngineSnapshot.RESTRICTION_UNKNOWN, initialSnapshot.restrictionState)
@@ -45,8 +43,6 @@ class PandaEngineNativeSmokeTest {
             assertEquals(EngineEvent.TYPE_PLATFORM_EVENT_APPLIED, platformResult.event.type)
             assertEquals(EnginePlatformEvent.TYPE_APP_FOREGROUNDED, platformResult.event.message)
             assertEquals(3_000L, platformResult.snapshot.updatedAtEpochMillis)
-        } finally {
-            engine.close()
         }
     }
 }

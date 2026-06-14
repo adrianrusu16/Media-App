@@ -1,14 +1,14 @@
 package com.adrianrusu.mediaapp.core.designsystem.theme
 
 import com.adrianrusu.mediaapp.core.model.theme.PandaWaveThemePreference
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class PandaWaveThemePreferenceTest {
     @Test
-    fun systemDefaultUsesLightProfileWhenSystemIsLight() {
+    fun `system default uses light profile when system is light`() {
         val profile = PandaWaveThemePreference.SystemDefault.toThemeProfile(systemDark = false)
 
         assertEquals(PandaWaveThemeId.BambooGroveLight, profile.id)
@@ -16,7 +16,7 @@ class PandaWaveThemePreferenceTest {
     }
 
     @Test
-    fun systemDefaultUsesDarkProfileWhenSystemIsDark() {
+    fun `system default uses dark profile when system is dark`() {
         val profile = PandaWaveThemePreference.SystemDefault.toThemeProfile(systemDark = true)
 
         assertEquals(PandaWaveThemeId.MoonlitBambooDark, profile.id)
@@ -24,7 +24,7 @@ class PandaWaveThemePreferenceTest {
     }
 
     @Test
-    fun explicitPreferenceOverridesSystemMode() {
+    fun `explicit preference overrides system mode`() {
         val lightProfile = PandaWaveThemePreference.BambooGroveLight.toThemeProfile(systemDark = true)
         val darkProfile = PandaWaveThemePreference.MoonlitBambooDark.toThemeProfile(systemDark = false)
 

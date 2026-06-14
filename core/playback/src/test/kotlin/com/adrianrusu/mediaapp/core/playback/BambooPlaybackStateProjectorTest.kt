@@ -4,12 +4,12 @@ import com.adrianrusu.mediaapp.core.automotive.ux.AutomotiveUxRestrictions
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.mediaapp.core.ui.playback.BambooPlaybackText
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
 
 class BambooPlaybackStateProjectorTest {
     @Test
-    fun engineSnapshotProjectsNowPlayingMetadata() {
+    fun `engine snapshot projects now playing metadata`() {
         val snapshot = EngineSnapshot(
             playbackState = EngineSnapshot.PLAYBACK_PLAYING,
             mediaId = "track-1",
@@ -33,7 +33,7 @@ class BambooPlaybackStateProjectorTest {
     }
 
     @Test
-    fun engineSnapshotUsesPlaybackFallbacksWhenMetadataIsMissing() {
+    fun `engine snapshot uses playback fallbacks when metadata is missing`() {
         val snapshot = EngineSnapshot.idle(nowMillis = 1L).copy(
             playbackState = EngineSnapshot.PLAYBACK_PAUSED
         )
@@ -49,7 +49,7 @@ class BambooPlaybackStateProjectorTest {
     }
 
     @Test
-    fun engineEventsProjectConnectionReadiness() {
+    fun `engine events project connection readiness`() {
         val queuedState = BambooPlaybackStateProjector.fromEngineEvent(
             current = BambooPlaybackState(engineConnection = BambooEngineConnectionUiState.Ready),
             event = EngineEvent(
@@ -70,7 +70,7 @@ class BambooPlaybackStateProjectorTest {
     }
 
     @Test
-    fun uxRestrictionsProjectDriverSafeState() {
+    fun `ux restrictions project driver safe state`() {
         val state = BambooPlaybackStateProjector.fromUxRestrictions(
             current = BambooPlaybackState(),
             restrictions = AutomotiveUxRestrictions(

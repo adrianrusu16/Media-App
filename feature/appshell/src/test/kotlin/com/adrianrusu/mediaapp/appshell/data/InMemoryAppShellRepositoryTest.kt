@@ -8,14 +8,14 @@ import com.adrianrusu.mediaapp.core.playback.BambooPlaybackRepository
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackRestrictionState
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackState
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackStatus
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class InMemoryAppShellRepositoryTest {
     @Test
-    fun startProjectsSharedPlaybackStateIntoMiniPlayer() {
+    fun `start projects shared playback state into mini player`() {
         val playback = RecordingPlaybackRepository(
             initialState = BambooPlaybackState(
                 mediaId = "track-1",
@@ -43,7 +43,7 @@ class InMemoryAppShellRepositoryTest {
     }
 
     @Test
-    fun playbackIntentsForwardToSharedPlaybackRepository() {
+    fun `playback intents forward to shared playback repository`() {
         val playback = RecordingPlaybackRepository()
         val repository = InMemoryAppShellRepository(playbackRepository = playback)
 
@@ -63,7 +63,7 @@ class InMemoryAppShellRepositoryTest {
     }
 
     @Test
-    fun nowPlayingDestinationHidesMiniPlayer() {
+    fun `now playing destination hides mini player`() {
         val repository = InMemoryAppShellRepository(playbackRepository = RecordingPlaybackRepository())
 
         repository.start()

@@ -5,14 +5,14 @@ import com.adrianrusu.mediaapp.core.automotive.ux.AutomotiveUxRestrictions
 import com.adrianrusu.mediaapp.core.model.theme.InMemoryThemePreferenceRepository
 import com.adrianrusu.mediaapp.core.model.theme.PandaWaveThemePreference
 import com.adrianrusu.mediaapp.feature.settings.domain.SettingsIntent
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class InMemorySettingsRepositoryTest {
     @Test
-    fun appliesUxRestrictionsToSettingsState() {
+    fun `applies ux restrictions to settings state`() {
         val observer = RecordingUxRestrictionObserver()
         val repository = InMemorySettingsRepository(
             uxRestrictionObserver = observer,
@@ -36,7 +36,7 @@ class InMemorySettingsRepositoryTest {
     }
 
     @Test
-    fun dispatchesSettingIntentsWhenUnrestricted() {
+    fun `dispatches setting intents when unrestricted`() {
         val repository = InMemorySettingsRepository(
             uxRestrictionObserver = RecordingUxRestrictionObserver(),
             themePreferenceRepository = InMemoryThemePreferenceRepository()
@@ -48,7 +48,7 @@ class InMemorySettingsRepositoryTest {
     }
 
     @Test
-    fun dispatchesThemePreferenceToSharedRepository() {
+    fun `dispatches theme preference to shared repository`() {
         val themePreferenceRepository = InMemoryThemePreferenceRepository()
         val repository = InMemorySettingsRepository(
             uxRestrictionObserver = RecordingUxRestrictionObserver(),

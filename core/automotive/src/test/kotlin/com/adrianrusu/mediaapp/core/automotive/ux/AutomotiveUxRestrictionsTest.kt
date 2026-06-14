@@ -1,12 +1,12 @@
 package com.adrianrusu.mediaapp.core.automotive.ux
 
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class AutomotiveUxRestrictionsTest {
     @Test
-    fun unrestrictedStateIsNotRestricted() {
+    fun `unrestricted state is not restricted`() {
         val restrictions = AutomotiveUxRestrictions.unrestricted(
             AutomotiveUxRestrictions.Source.NotAutomotive
         )
@@ -16,7 +16,7 @@ class AutomotiveUxRestrictionsTest {
     }
 
     @Test
-    fun activeRestrictionFlagIsDetected() {
+    fun `active restriction flag is detected`() {
         val restrictions = AutomotiveUxRestrictions(
             source = AutomotiveUxRestrictions.Source.AutomotivePlatform,
             requiresDistractionOptimization = true,

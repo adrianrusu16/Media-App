@@ -4,14 +4,14 @@ import com.adrianrusu.mediaapp.core.playback.BambooEngineConnectionUiState
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackIntent
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackRepository
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackState
+import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import org.junit.Assert.assertEquals
-import org.junit.Test
 
 class BambooMediaSessionCommandAvailabilityProjectorTest {
     @Test
-    fun startProjectsCurrentEngineReadiness() {
+    fun `start projects current engine readiness`() {
         val repository = CommandAvailabilityRecordingPlaybackRepository(
             BambooPlaybackState(engineConnection = BambooEngineConnectionUiState.Ready)
         )
@@ -27,7 +27,7 @@ class BambooMediaSessionCommandAvailabilityProjectorTest {
     }
 
     @Test
-    fun duplicateReadinessIsNotProjectedAgain() {
+    fun `duplicate readiness is not projected again`() {
         val repository = CommandAvailabilityRecordingPlaybackRepository(BambooPlaybackState())
         val sink = RecordingCommandAvailabilitySink()
         val projector = BambooMediaSessionCommandAvailabilityProjector(
@@ -42,7 +42,7 @@ class BambooMediaSessionCommandAvailabilityProjectorTest {
     }
 
     @Test
-    fun readinessChangeUpdatesCommandAvailability() {
+    fun `readiness change updates command availability`() {
         val repository = CommandAvailabilityRecordingPlaybackRepository(BambooPlaybackState())
         val sink = RecordingCommandAvailabilitySink()
         val projector = BambooMediaSessionCommandAvailabilityProjector(
@@ -57,7 +57,7 @@ class BambooMediaSessionCommandAvailabilityProjectorTest {
     }
 
     @Test
-    fun closeStopsCommandAvailabilityUpdates() {
+    fun `close stops command availability updates`() {
         val repository = CommandAvailabilityRecordingPlaybackRepository(BambooPlaybackState())
         val sink = RecordingCommandAvailabilitySink()
         val projector = BambooMediaSessionCommandAvailabilityProjector(

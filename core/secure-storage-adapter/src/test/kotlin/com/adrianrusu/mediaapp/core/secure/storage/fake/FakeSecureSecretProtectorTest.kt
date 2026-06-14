@@ -1,16 +1,16 @@
 package com.adrianrusu.mediaapp.core.secure.storage.fake
 
 import com.adrianrusu.mediaapp.core.secure.storage.SecureSecretPurpose
-import org.junit.Assert.assertArrayEquals
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotEquals
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertContentEquals
+import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 
 class FakeSecureSecretProtectorTest {
     private val protector = FakeSecureSecretProtector()
 
     @Test
-    fun decryptReturnsOriginalPlaintext() {
+    fun `decrypt returns original plaintext`() {
         val plaintext = byteArrayOf(10, 20, 30, 40)
 
         val encrypted = protector.encrypt(
@@ -18,11 +18,11 @@ class FakeSecureSecretProtectorTest {
             plaintext = plaintext
         )
 
-        assertArrayEquals(plaintext, protector.decrypt(encrypted))
+        assertContentEquals(plaintext, protector.decrypt(encrypted))
     }
 
     @Test
-    fun encryptionCarriesPurpose() {
+    fun `encryption carries purpose`() {
         val encrypted = protector.encrypt(
             purpose = SecureSecretPurpose.SessionSecret,
             plaintext = byteArrayOf(1)
@@ -32,7 +32,7 @@ class FakeSecureSecretProtectorTest {
     }
 
     @Test
-    fun ciphertextDoesNotExposePlaintextInFake() {
+    fun `ciphertext does not expose plaintext in fake`() {
         val plaintext = byteArrayOf(1, 2, 3)
 
         val encrypted = protector.encrypt(

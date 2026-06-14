@@ -36,7 +36,10 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.material)
     ksp(libs.hilt.compiler)
-    testImplementation(libs.junit)
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.kotlin.test.junit5)
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
 }

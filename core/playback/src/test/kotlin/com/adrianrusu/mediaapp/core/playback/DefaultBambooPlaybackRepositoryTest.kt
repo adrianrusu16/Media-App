@@ -11,14 +11,14 @@ import com.adrianrusu.mediaapp.core.rust.bridge.gateway.EngineGateway
 import com.adrianrusu.mediaapp.core.telemetry.TelemetryEvent
 import com.adrianrusu.mediaapp.core.telemetry.TelemetryLogger
 import com.adrianrusu.mediaapp.core.telemetry.TelemetrySink
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class DefaultBambooPlaybackRepositoryTest {
     @Test
-    fun startBootstrapsEngineSnapshotAndRestrictionState() {
+    fun `start bootstraps engine snapshot and restriction state`() {
         val repository = DefaultBambooPlaybackRepository(
             engine = RecordingEngineGateway(
                 initialSnapshot = EngineSnapshot(
@@ -49,7 +49,7 @@ class DefaultBambooPlaybackRepositoryTest {
     }
 
     @Test
-    fun queuedBootstrapKeepsEngineCommandsDisabled() {
+    fun `queued bootstrap keeps engine commands disabled`() {
         val engine = RecordingEngineGateway(
             initialSnapshot = EngineSnapshot.idle(nowMillis = 1L),
             dispatchEventType = EngineEvent.TYPE_COMMAND_QUEUED
@@ -75,7 +75,7 @@ class DefaultBambooPlaybackRepositoryTest {
     }
 
     @Test
-    fun readyEngineAllowsPlaybackAndSkipCommands() {
+    fun `ready engine allows playback and skip commands`() {
         val engine = RecordingEngineGateway(initialSnapshot = EngineSnapshot.idle(nowMillis = 1L))
         val repository = DefaultBambooPlaybackRepository(
             engine = engine,
@@ -104,7 +104,7 @@ class DefaultBambooPlaybackRepositoryTest {
     }
 
     @Test
-    fun readyEngineAllowsExplicitPlayPauseCommands() {
+    fun `ready engine allows explicit play pause commands`() {
         val engine = RecordingEngineGateway(initialSnapshot = EngineSnapshot.idle(nowMillis = 1L))
         val repository = DefaultBambooPlaybackRepository(
             engine = engine,
@@ -132,7 +132,7 @@ class DefaultBambooPlaybackRepositoryTest {
     }
 
     @Test
-    fun engineEventsUpdateConnectionStateAndGateCommands() {
+    fun `engine events update connection state and gate commands`() {
         val engine = RecordingEngineGateway(initialSnapshot = EngineSnapshot.idle(nowMillis = 1L))
         val repository = DefaultBambooPlaybackRepository(
             engine = engine,
@@ -168,7 +168,7 @@ class DefaultBambooPlaybackRepositoryTest {
     }
 
     @Test
-    fun startAndCloseAreReferenceCounted() {
+    fun `start and close are reference counted`() {
         val engine = RecordingEngineGateway(initialSnapshot = EngineSnapshot.idle(nowMillis = 1L))
         val observer = FakeUxRestrictionObserver(
             restrictions = AutomotiveUxRestrictions.unrestricted(
@@ -217,7 +217,7 @@ class DefaultBambooPlaybackRepositoryTest {
     }
 
     @Test
-    fun telemetryRecordsReceivedBlockedAndDispatchedPlaybackIntents() {
+    fun `telemetry records received blocked and dispatched playback intents`() {
         val telemetrySink = RecordingTelemetrySink()
         val engine = RecordingEngineGateway(
             initialSnapshot = EngineSnapshot.idle(nowMillis = 1L),

@@ -8,13 +8,13 @@ import com.adrianrusu.mediaapp.core.playback.BambooPlaybackState
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackStatus
 import com.adrianrusu.mediaapp.feature.nowplaying.domain.NowPlayingIntent
 import com.adrianrusu.mediaapp.feature.nowplaying.domain.NowPlayingPlaybackState
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class InMemoryNowPlayingRepositoryTest {
     @Test
-    fun startProjectsSharedPlaybackStateIntoNowPlayingState() {
+    fun `start projects shared playback state into now playing state`() {
         val playback = RecordingPlaybackRepository(
             initialState = BambooPlaybackState(
                 mediaId = "track-1",
@@ -43,7 +43,7 @@ class InMemoryNowPlayingRepositoryTest {
     }
 
     @Test
-    fun nowPlayingIntentsForwardToSharedPlaybackRepository() {
+    fun `now playing intents forward to shared playback repository`() {
         val playback = RecordingPlaybackRepository()
         val repository = InMemoryNowPlayingRepository(playbackRepository = playback)
 

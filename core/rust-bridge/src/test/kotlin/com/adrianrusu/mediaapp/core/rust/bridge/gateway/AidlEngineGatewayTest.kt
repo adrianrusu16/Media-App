@@ -7,13 +7,13 @@ import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.mediaapp.core.telemetry.TelemetryEvent
 import com.adrianrusu.mediaapp.core.telemetry.TelemetryLogger
 import com.adrianrusu.mediaapp.core.telemetry.TelemetrySink
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 
 class AidlEngineGatewayTest {
     @Test
-    fun snapshotReturnsServiceSnapshotWhenConnected() {
+    fun `snapshot returns service snapshot when connected`() {
         val service = RecordingEngineService(
             initialSnapshot = EngineSnapshot.idle(nowMillis = 10L)
         )
@@ -26,7 +26,7 @@ class AidlEngineGatewayTest {
     }
 
     @Test
-    fun dispatchSendsCommandAndRefreshesSnapshotWhenConnected() {
+    fun `dispatch sends command and refreshes snapshot when connected`() {
         val service = RecordingEngineService(
             initialSnapshot = EngineSnapshot.idle(nowMillis = 10L)
         )
@@ -48,7 +48,7 @@ class AidlEngineGatewayTest {
     }
 
     @Test
-    fun dispatchPlatformEventSendsEventAndRefreshesSnapshotWhenConnected() {
+    fun `dispatch platform event sends event and refreshes snapshot when connected`() {
         val service = RecordingEngineService(
             initialSnapshot = EngineSnapshot.idle(nowMillis = 10L)
         )
@@ -71,7 +71,7 @@ class AidlEngineGatewayTest {
     }
 
     @Test
-    fun dispatchTelemetryIncludesStatusAndNoPayload() {
+    fun `dispatch telemetry includes status and no payload`() {
         val sink = RecordingTelemetrySink()
         val gateway = AidlEngineGateway(
             connection = FakeEngineServiceConnection(
@@ -101,7 +101,7 @@ class AidlEngineGatewayTest {
     }
 
     @Test
-    fun dispatchPlatformEventTelemetryIncludesStatusAndNoPayload() {
+    fun `dispatch platform event telemetry includes status and no payload`() {
         val sink = RecordingTelemetrySink()
         val gateway = AidlEngineGateway(
             connection = FakeEngineServiceConnection(
@@ -131,7 +131,7 @@ class AidlEngineGatewayTest {
     }
 
     @Test
-    fun dispatchQueuesCommandWhileDisconnected() {
+    fun `dispatch queues command while disconnected`() {
         val gateway = AidlEngineGateway(
             connection = FakeEngineServiceConnection(service = null),
             clock = { 25L }
@@ -150,7 +150,7 @@ class AidlEngineGatewayTest {
     }
 
     @Test
-    fun dispatchQueuesPlatformEventWhileDisconnected() {
+    fun `dispatch queues platform event while disconnected`() {
         val gateway = AidlEngineGateway(
             connection = FakeEngineServiceConnection(service = null),
             clock = { 25L }
@@ -169,7 +169,7 @@ class AidlEngineGatewayTest {
     }
 
     @Test
-    fun queuedCommandsReplayWhenServiceConnects() {
+    fun `queued commands replay when service connects`() {
         val connection = FakeEngineServiceConnection(service = null)
         val sink = RecordingTelemetrySink()
         val gateway = AidlEngineGateway(
@@ -213,7 +213,7 @@ class AidlEngineGatewayTest {
     }
 
     @Test
-    fun queuedPlatformEventsReplayWhenServiceConnects() {
+    fun `queued platform events replay when service connects`() {
         val connection = FakeEngineServiceConnection(service = null)
         val sink = RecordingTelemetrySink()
         val gateway = AidlEngineGateway(
@@ -257,7 +257,7 @@ class AidlEngineGatewayTest {
     }
 
     @Test
-    fun dispatchReturnsUnavailableEventAfterGatewayIsClosed() {
+    fun `dispatch returns unavailable event after gateway is closed`() {
         val sink = RecordingTelemetrySink()
         val gateway = AidlEngineGateway(
             connection = FakeEngineServiceConnection(service = null),
@@ -282,7 +282,7 @@ class AidlEngineGatewayTest {
     }
 
     @Test
-    fun dispatchPlatformEventReturnsUnavailableEventAfterGatewayIsClosed() {
+    fun `dispatch platform event returns unavailable event after gateway is closed`() {
         val sink = RecordingTelemetrySink()
         val gateway = AidlEngineGateway(
             connection = FakeEngineServiceConnection(service = null),
@@ -307,7 +307,7 @@ class AidlEngineGatewayTest {
     }
 
     @Test
-    fun listenerSnapshotIsUsedWhileServiceIsUnavailable() {
+    fun `listener snapshot is used while service is unavailable`() {
         val connection = FakeEngineServiceConnection(service = null)
         val gateway = AidlEngineGateway(
             connection = connection,
@@ -329,7 +329,7 @@ class AidlEngineGatewayTest {
     }
 
     @Test
-    fun observersReceiveListenerSnapshots() {
+    fun `observers receive listener snapshots`() {
         val connection = FakeEngineServiceConnection(service = null)
         val gateway = AidlEngineGateway(
             connection = connection,
@@ -361,7 +361,7 @@ class AidlEngineGatewayTest {
     }
 
     @Test
-    fun observersReceiveEngineEvents() {
+    fun `observers receive engine events`() {
         val connection = FakeEngineServiceConnection(service = null)
         val gateway = AidlEngineGateway(
             connection = connection,
@@ -382,7 +382,7 @@ class AidlEngineGatewayTest {
     }
 
     @Test
-    fun engineEventTelemetryIncludesTypeAndNoMessage() {
+    fun `engine event telemetry includes type and no message`() {
         val connection = FakeEngineServiceConnection(service = null)
         val sink = RecordingTelemetrySink()
         val gateway = AidlEngineGateway(

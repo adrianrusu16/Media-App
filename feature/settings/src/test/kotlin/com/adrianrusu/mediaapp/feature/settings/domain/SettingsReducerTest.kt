@@ -1,14 +1,14 @@
 package com.adrianrusu.mediaapp.feature.settings.domain
 
 import com.adrianrusu.mediaapp.core.model.theme.PandaWaveThemePreference
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class SettingsReducerTest {
     @Test
-    fun togglesDiagnosticsWhenControlsAreEnabled() {
+    fun `toggles diagnostics when controls are enabled`() {
         val result = SettingsReducer.reduce(
             state = SettingsState(diagnosticsEnabled = true),
             intent = SettingsIntent.ToggleDiagnostics
@@ -18,7 +18,7 @@ class SettingsReducerTest {
     }
 
     @Test
-    fun blocksSettingChangesWhenRestricted() {
+    fun `blocks setting changes when restricted`() {
         val restricted = SettingsState(
             personalizationEnabled = false,
             restriction = SettingsRestrictionState(
@@ -36,7 +36,7 @@ class SettingsReducerTest {
     }
 
     @Test
-    fun allowsPrivacyAcknowledgementWhenRestricted() {
+    fun `allows privacy acknowledgement when restricted`() {
         val restricted = SettingsState(
             privacyNoticeAcknowledged = false,
             restriction = SettingsRestrictionState(
@@ -54,7 +54,7 @@ class SettingsReducerTest {
     }
 
     @Test
-    fun selectsThemePreferenceWhenControlsAreEnabled() {
+    fun `selects theme preference when controls are enabled`() {
         val result = SettingsReducer.reduce(
             state = SettingsState(),
             intent = SettingsIntent.SelectThemePreference(PandaWaveThemePreference.MoonlitBambooDark)

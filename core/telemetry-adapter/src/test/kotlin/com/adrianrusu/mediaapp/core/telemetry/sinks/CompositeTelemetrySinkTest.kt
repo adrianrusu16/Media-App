@@ -3,12 +3,12 @@ package com.adrianrusu.mediaapp.core.telemetry.sinks
 import com.adrianrusu.mediaapp.core.telemetry.TelemetryEvent
 import com.adrianrusu.mediaapp.core.telemetry.TelemetrySeverity
 import com.adrianrusu.mediaapp.core.telemetry.TelemetrySink
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
 
 class CompositeTelemetrySinkTest {
     @Test
-    fun eventIsForwardedToEverySink() {
+    fun `event is forwarded to every sink`() {
         val first = RecordingTelemetrySink()
         val second = RecordingTelemetrySink()
         val event = TelemetryEvent(
