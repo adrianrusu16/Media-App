@@ -149,6 +149,18 @@ the native build property:
 .\gradlew.bat --no-configuration-cache "-PpandaEngine.buildNative=true" :app:assembleDebug --console=plain
 ```
 
+Compile the native Android smoke test with:
+
+```powershell
+.\gradlew.bat --no-configuration-cache "-PpandaEngine.buildNative=true" :core:rust-bridge:assembleDebugAndroidTest --console=plain
+```
+
+Run it on a connected device or emulator with:
+
+```powershell
+.\gradlew.bat --no-configuration-cache "-PpandaEngine.buildNative=true" :core:rust-bridge:connectedDebugAndroidTest --console=plain
+```
+
 Required local toolchain:
 
 - Android NDK installed in the configured Android SDK, `ANDROID_NDK_HOME`, or

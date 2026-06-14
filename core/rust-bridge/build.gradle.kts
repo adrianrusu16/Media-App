@@ -61,7 +61,8 @@ fun findAndroidNdkDirectory(): File? {
         System.getenv("ANDROID_NDK_HOME"),
         System.getenv("ANDROID_NDK_ROOT")
     ).map(::File)
-        .firstOrNull(File::isDirectory)
+        .mapNotNull(::resolveAndroidNdkDirectory)
+        .firstOrNull()
         ?.let { return it }
 
     val localPropertiesFile = rootProject.file("local.properties")
@@ -75,8 +76,18 @@ fun findAndroidNdkDirectory(): File? {
     val legacyNdkDirectory = sdkDirectory.resolve("ndk-bundle")
     if (legacyNdkDirectory.isDirectory) return legacyNdkDirectory
 
-    return sdkDirectory.resolve("ndk")
+    return resolveAndroidNdkDirectory(sdkDirectory.resolve("ndk"))
+}
+
+fun resolveAndroidNdkDirectory(candidate: File): File? {
+    if (!candidate.isDirectory) return null
+
+    val toolchainDirectory = candidate.resolve("toolchains/llvm/prebuilt")
+    if (toolchainDirectory.isDirectory) return candidate
+
+    return candidate
         .listFiles(File::isDirectory)
+        ?.filter { it.resolve("toolchains/llvm/prebuilt").isDirectory }
         ?.maxByOrNull(File::getName)
 }
 
@@ -215,4 +226,5 @@ dependencies {
     implementation(project(":core:telemetry-adapter"))
 
     testImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.junit)
 }

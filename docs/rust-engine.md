@@ -109,6 +109,18 @@ Enable native packaging during app assembly with:
 .\gradlew.bat --no-configuration-cache "-PpandaEngine.buildNative=true" :app:assembleDebug --console=plain
 ```
 
+Compile the Android native smoke test with:
+
+```powershell
+.\gradlew.bat --no-configuration-cache "-PpandaEngine.buildNative=true" :core:rust-bridge:assembleDebugAndroidTest --console=plain
+```
+
+Run the smoke test on a connected device or emulator with:
+
+```powershell
+.\gradlew.bat --no-configuration-cache "-PpandaEngine.buildNative=true" :core:rust-bridge:connectedDebugAndroidTest --console=plain
+```
+
 Run Rust verification from `rust/engine` after Rust is installed:
 
 ```powershell
