@@ -1,7 +1,9 @@
 package com.adrianrusu.mediaapp.core.playback
 
 import com.adrianrusu.mediaapp.core.automotive.ux.AutomotiveUxRestrictions
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineControlState
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlayerControls
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.mediaapp.core.ui.playback.BambooPlaybackText
 
@@ -11,7 +13,17 @@ internal object BambooPlaybackStateProjector {
         title = snapshot.title ?: titleFor(snapshot.playbackState),
         artist = snapshot.artist ?: artistFor(snapshot.playbackState),
         playbackStatus = snapshot.playbackState.toPlaybackStatus(),
-        updatedAtEpochMillis = snapshot.updatedAtEpochMillis
+        updatedAtEpochMillis = snapshot.updatedAtEpochMillis,
+        positionMillis = snapshot.positionMillis,
+        playbackSpeed = snapshot.playbackSpeed,
+        hasActiveSession = snapshot.hasActiveSession,
+        hasError = snapshot.hasError,
+        errorType = snapshot.errorType,
+        searchResultsCount = snapshot.searchResultsCount,
+        browseResultsCount = snapshot.browseResultsCount,
+        isBusy = snapshot.isBusy,
+        canDispatch = snapshot.canDispatch,
+        controls = snapshot.controls.toPlaybackControls()
     )
 
     fun fromEngineEvent(current: BambooPlaybackState, event: EngineEvent): BambooPlaybackState = current.copy(
@@ -77,4 +89,17 @@ internal object BambooPlaybackStateProjector {
             isRestricted = isRestricted
         )
     }
+
+    private fun EnginePlayerControls.toPlaybackControls(): BambooPlaybackControls = BambooPlaybackControls(
+        playPause = playPause.toPlaybackControlState(),
+        skipNext = skipNext.toPlaybackControlState(),
+        skipPrevious = skipPrevious.toPlaybackControlState(),
+        showPlayIcon = showPlayIcon
+    )
+
+    private fun EngineControlState.toPlaybackControlState(): BambooControlState = BambooControlState(
+        isVisible = isVisible,
+        isEnabled = isEnabled,
+        isActive = isActive
+    )
 }

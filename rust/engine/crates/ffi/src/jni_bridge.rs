@@ -116,25 +116,80 @@ fn snapshot_to_jlong_array(env: &mut JNIEnv, snapshot: FfiEngineSnapshot) -> jlo
     array.into_raw()
 }
 
-fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 3] {
+fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 23] {
     [
         snapshot.playback_state as jlong,
         snapshot.restriction_state as jlong,
         snapshot.updated_at_epoch_millis as jlong,
+        bool_to_jlong(snapshot.has_active_session),
+        bool_to_jlong(snapshot.has_error),
+        snapshot.error_type as jlong,
+        snapshot.search_results_count as jlong,
+        snapshot.playback_speed.to_bits() as jlong,
+        snapshot.position_millis as jlong,
+        bool_to_jlong(snapshot.is_busy),
+        bool_to_jlong(snapshot.can_dispatch),
+        bool_to_jlong(snapshot.controls.play_pause.is_visible),
+        bool_to_jlong(snapshot.controls.play_pause.is_enabled),
+        bool_to_jlong(snapshot.controls.play_pause.is_active),
+        bool_to_jlong(snapshot.controls.skip_next.is_visible),
+        bool_to_jlong(snapshot.controls.skip_next.is_enabled),
+        bool_to_jlong(snapshot.controls.skip_next.is_active),
+        bool_to_jlong(snapshot.controls.skip_prev.is_visible),
+        bool_to_jlong(snapshot.controls.skip_prev.is_enabled),
+        bool_to_jlong(snapshot.controls.skip_prev.is_active),
+        bool_to_jlong(snapshot.controls.show_play_icon),
+        bool_to_jlong(snapshot.has_voice_hypothesis),
+        snapshot.browse_results_count as jlong,
     ]
+}
+
+fn bool_to_jlong(value: bool) -> jlong {
+    if value { 1 } else { 0 }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{FFI_PLAYBACK_PLAYING, FFI_RESTRICTION_UNKNOWN};
+    use crate::{
+        FFI_ERROR_NETWORK, FFI_PLAYBACK_PLAYING, FFI_RESTRICTION_UNKNOWN, FfiControlState,
+        FfiPlayerControls,
+    };
 
     #[test]
-    fn snapshot_values_match_current_kotlin_compact_layout() {
+    fn snapshot_values_match_kotlin_compact_layout() {
         let snapshot = FfiEngineSnapshot {
             playback_state: FFI_PLAYBACK_PLAYING,
             restriction_state: FFI_RESTRICTION_UNKNOWN,
             updated_at_epoch_millis: 42,
+            has_active_session: true,
+            has_error: true,
+            error_type: FFI_ERROR_NETWORK,
+            search_results_count: 3,
+            playback_speed: 1.25,
+            position_millis: 9_000,
+            is_busy: true,
+            can_dispatch: false,
+            controls: FfiPlayerControls {
+                play_pause: FfiControlState {
+                    is_visible: true,
+                    is_enabled: true,
+                    is_active: true,
+                },
+                skip_next: FfiControlState {
+                    is_visible: true,
+                    is_enabled: false,
+                    is_active: false,
+                },
+                skip_prev: FfiControlState {
+                    is_visible: false,
+                    is_enabled: true,
+                    is_active: false,
+                },
+                show_play_icon: false,
+            },
+            has_voice_hypothesis: true,
+            browse_results_count: 5,
             ..FfiEngineSnapshot::invalid()
         };
 
@@ -142,7 +197,27 @@ mod tests {
             [
                 FFI_PLAYBACK_PLAYING as jlong,
                 FFI_RESTRICTION_UNKNOWN as jlong,
-                42
+                42,
+                1,
+                1,
+                FFI_ERROR_NETWORK as jlong,
+                3,
+                1.25_f32.to_bits() as jlong,
+                9_000,
+                1,
+                0,
+                1,
+                1,
+                1,
+                1,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                1,
+                5,
             ],
             snapshot_to_jlong_values(snapshot)
         );

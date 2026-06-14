@@ -113,6 +113,13 @@ sequenceDiagram
    Rust engine contract intentionally. Do not expose every Rust field by habit;
    expose fields that Android surfaces need.
 
+   Current snapshot projection includes playback state, restriction state,
+   update time, active-session/error flags, result counts, playback speed,
+   position, busy/dispatch state, voice-hypothesis presence, browse-result
+   count, and player-control visibility/enabled/active state. String-heavy
+   media metadata and result item details should move through dedicated query
+   APIs rather than expanding the compact JNI snapshot indefinitely.
+
 5. **Effect Execution**
    Route engine effects to Android executors, then report platform events back
    into PandaEngine.

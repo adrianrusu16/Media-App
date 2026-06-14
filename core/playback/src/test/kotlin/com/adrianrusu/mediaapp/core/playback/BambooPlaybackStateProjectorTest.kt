@@ -1,7 +1,9 @@
 package com.adrianrusu.mediaapp.core.playback
 
 import com.adrianrusu.mediaapp.core.automotive.ux.AutomotiveUxRestrictions
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineControlState
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlayerControls
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.mediaapp.core.ui.playback.BambooPlaybackText
 import kotlin.test.Test
@@ -17,11 +19,36 @@ class BambooPlaybackStateProjectorTest {
             artist = "PandaWave",
             userId = null,
             restrictionState = EngineSnapshot.RESTRICTION_UNKNOWN,
-            updatedAtEpochMillis = 100L
+            updatedAtEpochMillis = 100L,
+            hasActiveSession = true,
+            searchResultsCount = 2,
+            playbackSpeed = 1.25F,
+            positionMillis = 9_000L,
+            isBusy = true,
+            canDispatch = false,
+            controls = EnginePlayerControls(
+                playPause = EngineControlState(
+                    isVisible = true,
+                    isEnabled = true,
+                    isActive = true
+                ),
+                skipNext = EngineControlState(
+                    isVisible = true,
+                    isEnabled = false,
+                    isActive = false
+                ),
+                skipPrevious = EngineControlState(
+                    isVisible = false,
+                    isEnabled = false,
+                    isActive = false
+                ),
+                showPlayIcon = false
+            ),
+            browseResultsCount = 3
         )
 
         val state = BambooPlaybackStateProjector.fromEngineSnapshot(
-            current = BambooPlaybackState(),
+            current = BambooPlaybackState(engineConnection = BambooEngineConnectionUiState.Ready),
             snapshot = snapshot
         )
 
@@ -30,6 +57,21 @@ class BambooPlaybackStateProjectorTest {
         assertEquals("PandaWave", state.artist)
         assertEquals(BambooPlaybackStatus.Playing, state.playbackStatus)
         assertEquals(100L, state.updatedAtEpochMillis)
+        assertEquals(true, state.hasActiveSession)
+        assertEquals(2, state.searchResultsCount)
+        assertEquals(1.25F, state.playbackSpeed)
+        assertEquals(9_000L, state.positionMillis)
+        assertEquals(true, state.isBusy)
+        assertEquals(false, state.canDispatch)
+        assertEquals(false, state.canDispatchEngineCommands)
+        assertEquals(true, state.controls.playPause.isVisible)
+        assertEquals(true, state.controls.playPause.isEnabled)
+        assertEquals(true, state.controls.playPause.isActive)
+        assertEquals(true, state.controls.skipNext.isVisible)
+        assertEquals(false, state.controls.skipNext.isEnabled)
+        assertEquals(false, state.controls.skipPrevious.isVisible)
+        assertEquals(false, state.controls.showPlayIcon)
+        assertEquals(3, state.browseResultsCount)
     }
 
     @Test

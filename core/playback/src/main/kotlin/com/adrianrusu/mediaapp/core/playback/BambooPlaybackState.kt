@@ -10,13 +10,23 @@ data class BambooPlaybackState(
     val playbackStatus: BambooPlaybackStatus = BambooPlaybackStatus.Idle,
     val engineConnection: BambooEngineConnectionUiState = BambooEngineConnectionUiState.Connecting,
     val restriction: BambooPlaybackRestrictionState = BambooPlaybackRestrictionState.Unavailable,
-    val updatedAtEpochMillis: Long = 0L
+    val updatedAtEpochMillis: Long = 0L,
+    val positionMillis: Long = 0L,
+    val playbackSpeed: Float = 1F,
+    val hasActiveSession: Boolean = false,
+    val hasError: Boolean = false,
+    val errorType: String = "none",
+    val searchResultsCount: Int = 0,
+    val browseResultsCount: Int = 0,
+    val isBusy: Boolean = false,
+    val canDispatch: Boolean = true,
+    val controls: BambooPlaybackControls = BambooPlaybackControls.default()
 ) {
     val isPlaying: Boolean
         get() = playbackStatus == BambooPlaybackStatus.Playing
 
     val canDispatchEngineCommands: Boolean
-        get() = engineConnection.status == BambooEngineConnectionStatus.Ready
+        get() = engineConnection.status == BambooEngineConnectionStatus.Ready && canDispatch
 }
 
 enum class BambooPlaybackStatus {
@@ -58,6 +68,38 @@ data class BambooPlaybackRestrictionState(val label: String, val isRestricted: B
         val Unavailable = BambooPlaybackRestrictionState(
             label = "Safety status unavailable",
             isRestricted = false
+        )
+    }
+}
+
+data class BambooControlState(val isVisible: Boolean, val isEnabled: Boolean, val isActive: Boolean) {
+    companion object {
+        fun hidden(): BambooControlState = BambooControlState(
+            isVisible = false,
+            isEnabled = false,
+            isActive = false
+        )
+
+        fun enabled(): BambooControlState = BambooControlState(
+            isVisible = true,
+            isEnabled = true,
+            isActive = false
+        )
+    }
+}
+
+data class BambooPlaybackControls(
+    val playPause: BambooControlState,
+    val skipNext: BambooControlState,
+    val skipPrevious: BambooControlState,
+    val showPlayIcon: Boolean
+) {
+    companion object {
+        fun default(): BambooPlaybackControls = BambooPlaybackControls(
+            playPause = BambooControlState.hidden(),
+            skipNext = BambooControlState.hidden(),
+            skipPrevious = BambooControlState.hidden(),
+            showPlayIcon = true
         )
     }
 }

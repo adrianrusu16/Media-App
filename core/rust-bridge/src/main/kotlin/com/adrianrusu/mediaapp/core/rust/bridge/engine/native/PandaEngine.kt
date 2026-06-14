@@ -1,8 +1,10 @@
 package com.adrianrusu.mediaapp.core.rust.bridge.engine.native
 
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineControlState
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlatformEvent
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlayerControls
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.mediaapp.core.rust.bridge.engine.EngineDispatchResult
 import com.adrianrusu.mediaapp.core.rust.bridge.engine.RustEngine
@@ -14,7 +16,9 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         check(nativeHandle != 0L) { "PandaEngine native handle must not be zero." }
     }
 
-    override fun snapshot(): EngineSnapshot = nativeSnapshot(nativeHandle).toEngineSnapshot()
+    override fun snapshot(): EngineSnapshot = PandaEngineNativeSnapshotMapper.toEngineSnapshot(
+        nativeValues = nativeSnapshot(nativeHandle)
+    )
 
     override fun dispatch(command: EngineCommand): EngineDispatchResult {
         val nativeValues = nativeDispatch(
@@ -24,7 +28,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         )
 
         return EngineDispatchResult(
-            snapshot = nativeValues.toEngineSnapshot(),
+            snapshot = PandaEngineNativeSnapshotMapper.toEngineSnapshot(nativeValues),
             event = EngineEvent(
                 type = EngineEvent.TYPE_COMMAND_APPLIED,
                 message = command.type
@@ -41,7 +45,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         )
 
         return EngineDispatchResult(
-            snapshot = nativeValues.toEngineSnapshot(),
+            snapshot = PandaEngineNativeSnapshotMapper.toEngineSnapshot(nativeValues),
             event = EngineEvent(
                 type = EngineEvent.TYPE_PLATFORM_EVENT_APPLIED,
                 message = event.type
@@ -65,24 +69,6 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     ): LongArray
 
     private external fun nativeDestroy(handle: Long)
-
-    private fun LongArray.toEngineSnapshot(): EngineSnapshot {
-        require(size >= SNAPSHOT_VALUE_COUNT) {
-            "Native snapshot must contain at least $SNAPSHOT_VALUE_COUNT values."
-        }
-
-        return EngineSnapshot(
-            playbackState = playbackStateFromNative(this[SNAPSHOT_PLAYBACK_INDEX].toInt()),
-            mediaId = null,
-            title = null,
-            artist = null,
-            userId = null,
-            restrictionState = restrictionStateFromNative(
-                this[SNAPSHOT_RESTRICTION_INDEX].toInt()
-            ),
-            updatedAtEpochMillis = this[SNAPSHOT_UPDATED_AT_INDEX]
-        )
-    }
 
     companion object {
         fun create(clock: () -> Long = System::currentTimeMillis): PandaEngine {
@@ -113,19 +99,6 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         private const val PLATFORM_EVENT_MEDIA_ERROR = 7
         private const val PLATFORM_EVENT_UNKNOWN = -1
 
-        private const val PLAYBACK_IDLE = 0
-        private const val PLAYBACK_PLAYING = 1
-        private const val PLAYBACK_PAUSED = 2
-        private const val PLAYBACK_BUFFERING = 3
-        private const val PLAYBACK_ERROR = 4
-
-        private const val RESTRICTION_UNKNOWN = 0
-
-        private const val SNAPSHOT_VALUE_COUNT = 3
-        private const val SNAPSHOT_PLAYBACK_INDEX = 0
-        private const val SNAPSHOT_RESTRICTION_INDEX = 1
-        private const val SNAPSHOT_UPDATED_AT_INDEX = 2
-
         private fun EngineCommand.toNativeCommandType(): Int = when (type) {
             EngineCommand.TYPE_BOOTSTRAP -> COMMAND_BOOTSTRAP
             EngineCommand.TYPE_PLAY -> COMMAND_PLAY
@@ -146,19 +119,119 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             EnginePlatformEvent.TYPE_MEDIA_ERROR -> PLATFORM_EVENT_MEDIA_ERROR
             else -> PLATFORM_EVENT_UNKNOWN
         }
-
-        private fun playbackStateFromNative(value: Int): String = when (value) {
-            PLAYBACK_IDLE -> EngineSnapshot.PLAYBACK_IDLE
-            PLAYBACK_PLAYING -> EngineSnapshot.PLAYBACK_PLAYING
-            PLAYBACK_PAUSED -> EngineSnapshot.PLAYBACK_PAUSED
-            PLAYBACK_BUFFERING -> EngineSnapshot.PLAYBACK_BUFFERING
-            PLAYBACK_ERROR -> EngineSnapshot.PLAYBACK_ERROR
-            else -> EngineSnapshot.PLAYBACK_IDLE
-        }
-
-        private fun restrictionStateFromNative(value: Int): String = when (value) {
-            RESTRICTION_UNKNOWN -> EngineSnapshot.RESTRICTION_UNKNOWN
-            else -> EngineSnapshot.RESTRICTION_UNKNOWN
-        }
     }
+}
+
+internal object PandaEngineNativeSnapshotMapper {
+    fun toEngineSnapshot(nativeValues: LongArray): EngineSnapshot {
+        require(nativeValues.size >= SNAPSHOT_VALUE_COUNT) {
+            "Native snapshot must contain at least $SNAPSHOT_VALUE_COUNT values."
+        }
+
+        return EngineSnapshot(
+            playbackState = playbackStateFromNative(nativeValues[SNAPSHOT_PLAYBACK_INDEX].toInt()),
+            mediaId = null,
+            title = null,
+            artist = null,
+            userId = null,
+            restrictionState = restrictionStateFromNative(
+                nativeValues[SNAPSHOT_RESTRICTION_INDEX].toInt()
+            ),
+            updatedAtEpochMillis = nativeValues[SNAPSHOT_UPDATED_AT_INDEX],
+            hasActiveSession = nativeValues[SNAPSHOT_HAS_ACTIVE_SESSION_INDEX].toBoolean(),
+            hasError = nativeValues[SNAPSHOT_HAS_ERROR_INDEX].toBoolean(),
+            errorType = errorTypeFromNative(nativeValues[SNAPSHOT_ERROR_TYPE_INDEX].toInt()),
+            searchResultsCount = nativeValues[SNAPSHOT_SEARCH_RESULTS_COUNT_INDEX].toInt(),
+            playbackSpeed = Float.fromBits(nativeValues[SNAPSHOT_PLAYBACK_SPEED_BITS_INDEX].toInt()),
+            positionMillis = nativeValues[SNAPSHOT_POSITION_MILLIS_INDEX],
+            isBusy = nativeValues[SNAPSHOT_IS_BUSY_INDEX].toBoolean(),
+            canDispatch = nativeValues[SNAPSHOT_CAN_DISPATCH_INDEX].toBoolean(),
+            controls = EnginePlayerControls(
+                playPause = EngineControlState(
+                    isVisible = nativeValues[SNAPSHOT_PLAY_PAUSE_VISIBLE_INDEX].toBoolean(),
+                    isEnabled = nativeValues[SNAPSHOT_PLAY_PAUSE_ENABLED_INDEX].toBoolean(),
+                    isActive = nativeValues[SNAPSHOT_PLAY_PAUSE_ACTIVE_INDEX].toBoolean()
+                ),
+                skipNext = EngineControlState(
+                    isVisible = nativeValues[SNAPSHOT_SKIP_NEXT_VISIBLE_INDEX].toBoolean(),
+                    isEnabled = nativeValues[SNAPSHOT_SKIP_NEXT_ENABLED_INDEX].toBoolean(),
+                    isActive = nativeValues[SNAPSHOT_SKIP_NEXT_ACTIVE_INDEX].toBoolean()
+                ),
+                skipPrevious = EngineControlState(
+                    isVisible = nativeValues[SNAPSHOT_SKIP_PREVIOUS_VISIBLE_INDEX].toBoolean(),
+                    isEnabled = nativeValues[SNAPSHOT_SKIP_PREVIOUS_ENABLED_INDEX].toBoolean(),
+                    isActive = nativeValues[SNAPSHOT_SKIP_PREVIOUS_ACTIVE_INDEX].toBoolean()
+                ),
+                showPlayIcon = nativeValues[SNAPSHOT_SHOW_PLAY_ICON_INDEX].toBoolean()
+            ),
+            hasVoiceHypothesis = nativeValues[SNAPSHOT_HAS_VOICE_HYPOTHESIS_INDEX].toBoolean(),
+            browseResultsCount = nativeValues[SNAPSHOT_BROWSE_RESULTS_COUNT_INDEX].toInt()
+        )
+    }
+
+    private fun playbackStateFromNative(value: Int): String = when (value) {
+        PLAYBACK_IDLE -> EngineSnapshot.PLAYBACK_IDLE
+        PLAYBACK_PLAYING -> EngineSnapshot.PLAYBACK_PLAYING
+        PLAYBACK_PAUSED -> EngineSnapshot.PLAYBACK_PAUSED
+        PLAYBACK_BUFFERING -> EngineSnapshot.PLAYBACK_BUFFERING
+        PLAYBACK_ERROR -> EngineSnapshot.PLAYBACK_ERROR
+        else -> EngineSnapshot.PLAYBACK_IDLE
+    }
+
+    private fun restrictionStateFromNative(value: Int): String = when (value) {
+        RESTRICTION_UNKNOWN -> EngineSnapshot.RESTRICTION_UNKNOWN
+        else -> EngineSnapshot.RESTRICTION_UNKNOWN
+    }
+
+    private fun errorTypeFromNative(value: Int): String = when (value) {
+        ERROR_NONE -> EngineSnapshot.ERROR_NONE
+        ERROR_NOT_FOUND -> EngineSnapshot.ERROR_NOT_FOUND
+        ERROR_NETWORK -> EngineSnapshot.ERROR_NETWORK
+        ERROR_PLAYER -> EngineSnapshot.ERROR_PLAYER
+        ERROR_AUTHENTICATION -> EngineSnapshot.ERROR_AUTHENTICATION
+        ERROR_MEDIA_SKIPPED -> EngineSnapshot.ERROR_MEDIA_SKIPPED
+        else -> EngineSnapshot.ERROR_UNKNOWN
+    }
+
+    private fun Long.toBoolean(): Boolean = this != 0L
+
+    private const val PLAYBACK_IDLE = 0
+    private const val PLAYBACK_PLAYING = 1
+    private const val PLAYBACK_PAUSED = 2
+    private const val PLAYBACK_BUFFERING = 3
+    private const val PLAYBACK_ERROR = 4
+
+    private const val RESTRICTION_UNKNOWN = 0
+
+    private const val ERROR_NONE = 0
+    private const val ERROR_NOT_FOUND = 1
+    private const val ERROR_NETWORK = 2
+    private const val ERROR_PLAYER = 3
+    private const val ERROR_AUTHENTICATION = 4
+    private const val ERROR_MEDIA_SKIPPED = 5
+
+    private const val SNAPSHOT_VALUE_COUNT = 23
+    private const val SNAPSHOT_PLAYBACK_INDEX = 0
+    private const val SNAPSHOT_RESTRICTION_INDEX = 1
+    private const val SNAPSHOT_UPDATED_AT_INDEX = 2
+    private const val SNAPSHOT_HAS_ACTIVE_SESSION_INDEX = 3
+    private const val SNAPSHOT_HAS_ERROR_INDEX = 4
+    private const val SNAPSHOT_ERROR_TYPE_INDEX = 5
+    private const val SNAPSHOT_SEARCH_RESULTS_COUNT_INDEX = 6
+    private const val SNAPSHOT_PLAYBACK_SPEED_BITS_INDEX = 7
+    private const val SNAPSHOT_POSITION_MILLIS_INDEX = 8
+    private const val SNAPSHOT_IS_BUSY_INDEX = 9
+    private const val SNAPSHOT_CAN_DISPATCH_INDEX = 10
+    private const val SNAPSHOT_PLAY_PAUSE_VISIBLE_INDEX = 11
+    private const val SNAPSHOT_PLAY_PAUSE_ENABLED_INDEX = 12
+    private const val SNAPSHOT_PLAY_PAUSE_ACTIVE_INDEX = 13
+    private const val SNAPSHOT_SKIP_NEXT_VISIBLE_INDEX = 14
+    private const val SNAPSHOT_SKIP_NEXT_ENABLED_INDEX = 15
+    private const val SNAPSHOT_SKIP_NEXT_ACTIVE_INDEX = 16
+    private const val SNAPSHOT_SKIP_PREVIOUS_VISIBLE_INDEX = 17
+    private const val SNAPSHOT_SKIP_PREVIOUS_ENABLED_INDEX = 18
+    private const val SNAPSHOT_SKIP_PREVIOUS_ACTIVE_INDEX = 19
+    private const val SNAPSHOT_SHOW_PLAY_ICON_INDEX = 20
+    private const val SNAPSHOT_HAS_VOICE_HYPOTHESIS_INDEX = 21
+    private const val SNAPSHOT_BROWSE_RESULTS_COUNT_INDEX = 22
 }
