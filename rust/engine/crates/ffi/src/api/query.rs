@@ -1,7 +1,7 @@
 use std::ffi::{CString, c_char};
 use std::ptr;
 
-use panda_engine_core::EngineEffect;
+use panda_engine_core::{EngineEffect, EngineSnapshot};
 
 use crate::mappings::effect_to_ffi;
 use crate::{FfiEngineConfig, FfiEngineSnapshot, PandaEngine};
@@ -49,6 +49,57 @@ pub unsafe extern "C" fn panda_engine_get_config(engine: *const PandaEngine) -> 
             preferred_language: ptr::null(),
         },
     }
+}
+
+#[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The returned string pointer must be released with `panda_engine_free_string`.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
+pub unsafe extern "C" fn panda_engine_get_current_media_id(
+    engine: *const PandaEngine,
+) -> *const c_char {
+    current_snapshot_string(engine, |snapshot| snapshot.media_id.as_ref())
+}
+
+#[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The returned string pointer must be released with `panda_engine_free_string`.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
+pub unsafe extern "C" fn panda_engine_get_current_title(
+    engine: *const PandaEngine,
+) -> *const c_char {
+    current_snapshot_string(engine, |snapshot| snapshot.title.as_ref())
+}
+
+#[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The returned string pointer must be released with `panda_engine_free_string`.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
+pub unsafe extern "C" fn panda_engine_get_current_artist(
+    engine: *const PandaEngine,
+) -> *const c_char {
+    current_snapshot_string(engine, |snapshot| snapshot.artist.as_ref())
+}
+
+#[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The returned string pointer must be released with `panda_engine_free_string`.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
+pub unsafe extern "C" fn panda_engine_get_current_user_id(
+    engine: *const PandaEngine,
+) -> *const c_char {
+    let engine = unsafe { engine.as_ref() };
+    if let Some(engine) = engine {
+        let snapshot = engine.engine.snapshot();
+        if let Some(session) = &snapshot.session {
+            return CString::new(session.user_id.as_str()).unwrap().into_raw();
+        }
+    }
+    ptr::null()
 }
 
 #[unsafe(no_mangle)]
@@ -261,6 +312,20 @@ pub unsafe extern "C" fn panda_engine_get_last_event_message(
             && let Some(msg) = &event.message
         {
             return CString::new(msg.as_str()).unwrap().into_raw();
+        }
+    }
+    ptr::null()
+}
+
+fn current_snapshot_string(
+    engine: *const PandaEngine,
+    value: fn(&EngineSnapshot) -> Option<&String>,
+) -> *const c_char {
+    let engine = unsafe { engine.as_ref() };
+    if let Some(engine) = engine {
+        let snapshot = engine.engine.snapshot();
+        if let Some(value) = value(&snapshot) {
+            return CString::new(value.as_str()).unwrap().into_raw();
         }
     }
     ptr::null()

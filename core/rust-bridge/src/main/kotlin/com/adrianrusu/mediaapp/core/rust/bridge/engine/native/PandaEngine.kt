@@ -16,9 +16,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         check(nativeHandle != 0L) { "PandaEngine native handle must not be zero." }
     }
 
-    override fun snapshot(): EngineSnapshot = PandaEngineNativeSnapshotMapper.toEngineSnapshot(
-        nativeValues = nativeSnapshot(nativeHandle)
-    )
+    override fun snapshot(): EngineSnapshot = nativeSnapshot(nativeHandle).toEngineSnapshot()
 
     override fun dispatch(command: EngineCommand): EngineDispatchResult {
         val nativeValues = nativeDispatch(
@@ -28,7 +26,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         )
 
         return EngineDispatchResult(
-            snapshot = PandaEngineNativeSnapshotMapper.toEngineSnapshot(nativeValues),
+            snapshot = nativeValues.toEngineSnapshot(),
             event = EngineEvent(
                 type = EngineEvent.TYPE_COMMAND_APPLIED,
                 message = command.type
@@ -45,7 +43,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         )
 
         return EngineDispatchResult(
-            snapshot = PandaEngineNativeSnapshotMapper.toEngineSnapshot(nativeValues),
+            snapshot = nativeValues.toEngineSnapshot(),
             event = EngineEvent(
                 type = EngineEvent.TYPE_PLATFORM_EVENT_APPLIED,
                 message = event.type
@@ -59,6 +57,14 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
 
     private external fun nativeSnapshot(handle: Long): LongArray
 
+    private external fun nativeCurrentMediaId(handle: Long): String?
+
+    private external fun nativeCurrentTitle(handle: Long): String?
+
+    private external fun nativeCurrentArtist(handle: Long): String?
+
+    private external fun nativeCurrentUserId(handle: Long): String?
+
     private external fun nativeDispatch(handle: Long, commandType: Int, nowEpochMillis: Long): LongArray
 
     private external fun nativeDispatchPlatformEvent(
@@ -69,6 +75,14 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     ): LongArray
 
     private external fun nativeDestroy(handle: Long)
+
+    private fun LongArray.toEngineSnapshot(): EngineSnapshot = PandaEngineNativeSnapshotMapper.toEngineSnapshot(this)
+        .copy(
+            mediaId = nativeCurrentMediaId(nativeHandle),
+            title = nativeCurrentTitle(nativeHandle),
+            artist = nativeCurrentArtist(nativeHandle),
+            userId = nativeCurrentUserId(nativeHandle)
+        )
 
     companion object {
         fun create(clock: () -> Long = System::currentTimeMillis): PandaEngine {

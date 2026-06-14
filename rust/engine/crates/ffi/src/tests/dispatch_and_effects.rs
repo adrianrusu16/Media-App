@@ -107,6 +107,38 @@ fn dispatch_play_emits_effects_in_ffi() {
 }
 
 #[test]
+fn current_media_queries_follow_snapshot_metadata() {
+    let engine = panda_engine_create(1000);
+    let user_id = CString::new("driver-7").unwrap();
+    unsafe { panda_engine_dispatch(engine, FFI_COMMAND_START_SESSION, user_id.as_ptr(), 500) };
+    unsafe {
+        let items = vec![MediaItem {
+            id: "track-7".to_string(),
+            title: "Bamboo Road".to_string(),
+            artist: "PandaWave".to_string(),
+            ..Default::default()
+        }];
+        (*engine).engine.with_engine(|e| e.queue().set_items(items));
+    }
+
+    unsafe { panda_engine_dispatch(engine, FFI_COMMAND_PLAY, ptr::null(), 900) };
+
+    let media_id = unsafe { take_string(panda_engine_get_current_media_id(engine)) };
+    let title = unsafe { take_string(panda_engine_get_current_title(engine)) };
+    let artist = unsafe { take_string(panda_engine_get_current_artist(engine)) };
+    let current_user_id = unsafe { take_string(panda_engine_get_current_user_id(engine)) };
+
+    assert_eq!(Some("track-7".to_string()), media_id);
+    assert_eq!(Some("Bamboo Road".to_string()), title);
+    assert_eq!(Some("PandaWave".to_string()), artist);
+    assert_eq!(Some("driver-7".to_string()), current_user_id);
+
+    unsafe {
+        panda_engine_destroy(engine);
+    }
+}
+
+#[test]
 fn search_updates_snapshot_results() {
     let engine = panda_engine_create(1000);
     unsafe {
@@ -135,6 +167,18 @@ fn search_updates_snapshot_results() {
     unsafe {
         panda_engine_destroy(engine);
     }
+}
+
+unsafe fn take_string(value: *const c_char) -> Option<String> {
+    if value.is_null() {
+        return None;
+    }
+
+    Some(
+        unsafe { CString::from_raw(value as *mut c_char) }
+            .to_string_lossy()
+            .into_owned(),
+    )
 }
 
 #[test]

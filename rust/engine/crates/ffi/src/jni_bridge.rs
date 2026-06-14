@@ -1,13 +1,15 @@
-use std::ffi::CString;
+use std::ffi::{CStr, CString, c_char};
 use std::ptr;
 
 use jni::JNIEnv;
 use jni::objects::{JClass, JObject, JString};
-use jni::sys::{jint, jlong, jlongArray};
+use jni::sys::{jint, jlong, jlongArray, jstring};
 
 use crate::{
     FfiEngineSnapshot, PandaEngine, panda_engine_create, panda_engine_destroy,
-    panda_engine_dispatch, panda_engine_dispatch_platform_event, panda_engine_snapshot,
+    panda_engine_dispatch, panda_engine_dispatch_platform_event, panda_engine_free_string,
+    panda_engine_get_current_artist, panda_engine_get_current_media_id,
+    panda_engine_get_current_title, panda_engine_get_current_user_id, panda_engine_snapshot,
 };
 
 #[unsafe(no_mangle)]
@@ -92,6 +94,46 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
     unsafe { panda_engine_destroy(handle as *mut PandaEngine) };
 }
 
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeCurrentMediaId(
+    mut env: JNIEnv,
+    _this: JObject,
+    handle: jlong,
+) -> jstring {
+    let value = unsafe { panda_engine_get_current_media_id(handle as *const PandaEngine) };
+    owned_c_string_to_jstring(&mut env, value)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeCurrentTitle(
+    mut env: JNIEnv,
+    _this: JObject,
+    handle: jlong,
+) -> jstring {
+    let value = unsafe { panda_engine_get_current_title(handle as *const PandaEngine) };
+    owned_c_string_to_jstring(&mut env, value)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeCurrentArtist(
+    mut env: JNIEnv,
+    _this: JObject,
+    handle: jlong,
+) -> jstring {
+    let value = unsafe { panda_engine_get_current_artist(handle as *const PandaEngine) };
+    owned_c_string_to_jstring(&mut env, value)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeCurrentUserId(
+    mut env: JNIEnv,
+    _this: JObject,
+    handle: jlong,
+) -> jstring {
+    let value = unsafe { panda_engine_get_current_user_id(handle as *const PandaEngine) };
+    owned_c_string_to_jstring(&mut env, value)
+}
+
 fn jni_string_to_c_string(env: &mut JNIEnv, value: JObject) -> Option<CString> {
     if value.is_null() {
         return None;
@@ -100,6 +142,23 @@ fn jni_string_to_c_string(env: &mut JNIEnv, value: JObject) -> Option<CString> {
     let string = JString::from(value);
     let value = env.get_string(&string).ok()?;
     CString::new(value.to_string_lossy().as_bytes()).ok()
+}
+
+fn owned_c_string_to_jstring(env: &mut JNIEnv, value: *const c_char) -> jstring {
+    if value.is_null() {
+        return ptr::null_mut();
+    }
+
+    let raw_value = value;
+    let value = unsafe { CStr::from_ptr(raw_value) }
+        .to_string_lossy()
+        .into_owned();
+    unsafe { panda_engine_free_string(raw_value as *mut c_char) };
+
+    match env.new_string(value) {
+        Ok(value) => value.into_raw(),
+        Err(_) => ptr::null_mut(),
+    }
 }
 
 fn snapshot_to_jlong_array(env: &mut JNIEnv, snapshot: FfiEngineSnapshot) -> jlongArray {
