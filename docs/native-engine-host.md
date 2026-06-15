@@ -124,6 +124,12 @@ sequenceDiagram
    re-cross JNI for unchanged metadata. Result item details should follow the same
    query pattern rather than expanding the compact JNI snapshot indefinitely.
 
+   Playback progress is projected from the latest engine anchor snapshot. The
+   engine remains the source of truth for position, duration, playback speed, and
+   state transitions; Android surfaces may derive a display position from that
+   anchor and the local clock between snapshots. This keeps progress bars smooth
+   without making metadata, artwork, or catalog strings dirty on every frame.
+
 5. **Effect Execution**
    Route engine effects to Android executors, then report platform events back
    into PandaEngine.
