@@ -1,5 +1,6 @@
 package com.adrianrusu.mediaapp.core.playback
 
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEffect
 import kotlinx.coroutines.flow.StateFlow
 
 interface BambooPlaybackRepository : AutoCloseable {
@@ -10,4 +11,6 @@ interface BambooPlaybackRepository : AutoCloseable {
     fun dispatch(intent: BambooPlaybackIntent)
 
     fun observe(listener: (BambooPlaybackState) -> Unit): AutoCloseable
+
+    fun observeEffects(listener: (List<EngineEffect>) -> Unit): AutoCloseable
 }

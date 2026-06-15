@@ -15,38 +15,43 @@ internal class BambooMediaSessionPlayer(
         controlsEnabled = controlsEnabled()
     )
 
+    override fun play() {
+        playbackEngineBridge.dispatchPlayWhenReady(playWhenReady = true)
+    }
+
+    override fun pause() {
+        playbackEngineBridge.dispatchPlayWhenReady(playWhenReady = false)
+    }
+
+    override fun setPlayWhenReady(playWhenReady: Boolean) {
+        playbackEngineBridge.dispatchPlayWhenReady(playWhenReady)
+    }
+
     override fun seekToPreviousMediaItem() {
         playbackEngineBridge.dispatchPlayerCommand(COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
-        super.seekToPreviousMediaItem()
     }
 
     override fun seekToPrevious() {
         playbackEngineBridge.dispatchPlayerCommand(COMMAND_SEEK_TO_PREVIOUS)
-        super.seekToPrevious()
     }
 
     override fun seekToNextMediaItem() {
         playbackEngineBridge.dispatchPlayerCommand(COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
-        super.seekToNextMediaItem()
     }
 
     override fun seekToNext() {
         playbackEngineBridge.dispatchPlayerCommand(COMMAND_SEEK_TO_NEXT)
-        super.seekToNext()
     }
 
     override fun seekTo(positionMs: Long) {
         playbackEngineBridge.dispatchSeek(positionMs)
-        super.seekTo(positionMs)
     }
 
     override fun seekTo(mediaItemIndex: Int, positionMs: Long) {
         playbackEngineBridge.dispatchSeek(positionMs)
-        super.seekTo(mediaItemIndex, positionMs)
     }
 
     override fun setPlaybackSpeed(speed: Float) {
         playbackEngineBridge.dispatchPlaybackSpeed(speed)
-        super.setPlaybackSpeed(speed)
     }
 }

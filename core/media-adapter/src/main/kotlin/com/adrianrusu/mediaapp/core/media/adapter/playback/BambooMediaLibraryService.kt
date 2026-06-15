@@ -39,9 +39,24 @@ class BambooMediaLibraryService : MediaLibraryService() {
         super.onCreate()
 
         val exoPlayer = ExoPlayer.Builder(this).build()
-        val playbackEngineBridge = Media3PlaybackEngineBridge(
-            playbackRepository = playbackRepository,
+        lateinit var playbackEngineBridge: Media3PlaybackEngineBridge
+        val focusHandler = BambooAudioFocusHandler(
+            context = this,
+            onFocusChange = {
+                playbackEngineBridge.dispatchPlatformEvent(
+                    com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlatformEvent.TYPE_AUDIO_FOCUS_CHANGED
+                )
+            }
+        )
+        val effectExecutor = Media3EngineEffectExecutor(
+            player = PlayerMedia3EffectPlayer(exoPlayer),
+            audioFocusController = focusHandler,
             telemetryLogger = telemetryLogger
+        )
+        playbackEngineBridge = Media3PlaybackEngineBridge(
+            playbackRepository = playbackRepository,
+            telemetryLogger = telemetryLogger,
+            effectExecutor = effectExecutor
         )
         val sessionPlayer = BambooMediaSessionPlayer(
             delegate = exoPlayer,
@@ -75,15 +90,6 @@ class BambooMediaLibraryService : MediaLibraryService() {
             )
         )
 
-        val focusHandler = BambooAudioFocusHandler(
-            context = this,
-            onFocusChange = {
-                playbackEngineBridge.dispatchPlatformEvent(
-                    com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlatformEvent.TYPE_AUDIO_FOCUS_CHANGED
-                )
-            }
-        )
-
         player = exoPlayer
         engineBridge = playbackEngineBridge
         session = mediaLibrarySession
@@ -94,7 +100,6 @@ class BambooMediaLibraryService : MediaLibraryService() {
         playbackEngineBridge.bootstrap()
         playbackStateProjector.start()
         mediaCommandAvailabilityProjector.start()
-        focusHandler.start()
         exoPlayer.addListener(playbackEngineBridge)
     }
 

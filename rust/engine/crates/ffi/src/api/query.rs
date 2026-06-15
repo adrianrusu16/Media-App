@@ -196,6 +196,42 @@ pub unsafe extern "C" fn panda_engine_get_effect_media_id(
 #[unsafe(no_mangle)]
 /// # Safety
 /// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
+pub unsafe extern "C" fn panda_engine_get_effect_position_millis(
+    engine: *const PandaEngine,
+    index: usize,
+) -> i64 {
+    let engine = unsafe { engine.as_ref() };
+    if let Some(engine) = engine {
+        let effects = engine.last_effects.lock().unwrap();
+        if let Some(EngineEffect::Seek(position_millis)) = effects.get(index) {
+            return (*position_millis).try_into().unwrap_or(i64::MAX);
+        }
+    }
+    -1
+}
+
+#[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
+pub unsafe extern "C" fn panda_engine_get_effect_speed(
+    engine: *const PandaEngine,
+    index: usize,
+) -> f32 {
+    let engine = unsafe { engine.as_ref() };
+    if let Some(engine) = engine {
+        let effects = engine.last_effects.lock().unwrap();
+        if let Some(EngineEffect::SetSpeed(speed)) = effects.get(index) {
+            return *speed;
+        }
+    }
+    f32::NAN
+}
+
+#[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
 /// - The returned string pointer must be released with `panda_engine_free_string`.
 /// - The caller must ensure no concurrent mutable access while this function reads engine state.
 pub unsafe extern "C" fn panda_engine_get_effect_notify_message(

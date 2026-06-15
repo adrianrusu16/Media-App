@@ -10,7 +10,8 @@ import android.os.Build
  * Handles Android Audio Focus requests and changes for the media app.
  */
 class BambooAudioFocusHandler(private val context: Context, private val onFocusChange: (Int) -> Unit) :
-    AudioManager.OnAudioFocusChangeListener {
+    AudioManager.OnAudioFocusChangeListener,
+    BambooAudioFocusController {
 
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private var focusRequest: AudioFocusRequest? = null
@@ -27,7 +28,7 @@ class BambooAudioFocusHandler(private val context: Context, private val onFocusC
         onFocusChange(focusChange)
     }
 
-    private fun requestAudioFocus() {
+    override fun requestAudioFocus() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
                 .setAudioAttributes(
@@ -51,7 +52,7 @@ class BambooAudioFocusHandler(private val context: Context, private val onFocusC
         }
     }
 
-    private fun abandonAudioFocus() {
+    override fun abandonAudioFocus() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             focusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
         } else {
@@ -59,4 +60,10 @@ class BambooAudioFocusHandler(private val context: Context, private val onFocusC
             audioManager.abandonAudioFocus(this)
         }
     }
+}
+
+interface BambooAudioFocusController {
+    fun requestAudioFocus()
+
+    fun abandonAudioFocus()
 }

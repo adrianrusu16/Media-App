@@ -45,7 +45,9 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     override fun effect(index: Int): EngineEffect? = effectItem(
         type = nativeEffectType(nativeHandle, index),
         mediaId = nativeEffectMediaId(nativeHandle, index),
-        message = nativeEffectNotifyMessage(nativeHandle, index)
+        message = nativeEffectNotifyMessage(nativeHandle, index),
+        positionMillis = nativeEffectPositionMillis(nativeHandle, index),
+        speed = nativeEffectSpeed(nativeHandle, index)
     )
 
     override fun dispatch(command: EngineCommand): EngineDispatchResult {
@@ -109,6 +111,10 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     private external fun nativeEffectMediaId(handle: Long, index: Int): String?
 
     private external fun nativeEffectNotifyMessage(handle: Long, index: Int): String?
+
+    private external fun nativeEffectPositionMillis(handle: Long, index: Int): Long
+
+    private external fun nativeEffectSpeed(handle: Long, index: Int): Float
 
     private external fun nativeSearchResultId(handle: Long, index: Int): String?
 
@@ -187,7 +193,13 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         init = ::effect
     ).filterNotNull()
 
-    private fun effectItem(type: Int, mediaId: String?, message: String?): EngineEffect? {
+    private fun effectItem(
+        type: Int,
+        mediaId: String?,
+        message: String?,
+        positionMillis: Long,
+        speed: Float
+    ): EngineEffect? {
         val effectType = type.toEngineEffectType()
         return when (effectType) {
             EngineEffect.TYPE_UNKNOWN -> null
@@ -195,7 +207,9 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             else -> EngineEffect(
                 type = effectType,
                 mediaId = mediaId.takeUnless { value -> value.isNullOrBlank() },
-                message = message.takeUnless { value -> value.isNullOrBlank() }
+                message = message.takeUnless { value -> value.isNullOrBlank() },
+                positionMillis = positionMillis.takeUnless { value -> value < 0L },
+                speed = speed.takeUnless { value -> value.isNaN() }
             )
         }
     }

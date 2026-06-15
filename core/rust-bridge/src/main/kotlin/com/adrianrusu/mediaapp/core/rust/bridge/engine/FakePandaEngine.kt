@@ -93,9 +93,19 @@ internal class FakePandaEngine(private val clock: () -> Long = System::currentTi
 
         EngineCommand.TYPE_PAUSE -> listOf(EngineEffect(type = EngineEffect.TYPE_PAUSE))
 
-        EngineCommand.TYPE_SEEK -> listOf(EngineEffect(type = EngineEffect.TYPE_SEEK))
+        EngineCommand.TYPE_SEEK -> listOf(
+            EngineEffect(
+                type = EngineEffect.TYPE_SEEK,
+                positionMillis = EngineCommandPayloads.parseSeekPositionMillis(command.payload)
+            )
+        )
 
-        EngineCommand.TYPE_SET_SPEED -> listOf(EngineEffect(type = EngineEffect.TYPE_SET_SPEED))
+        EngineCommand.TYPE_SET_SPEED -> listOf(
+            EngineEffect(
+                type = EngineEffect.TYPE_SET_SPEED,
+                speed = EngineCommandPayloads.parsePlaybackSpeed(command.payload)
+            )
+        )
 
         EngineCommand.TYPE_PLAY_MEDIA_BY_ID -> playMediaEffects(command.payload)
 

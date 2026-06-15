@@ -6,6 +6,7 @@ import com.adrianrusu.mediaapp.core.playback.BambooPlaybackIntentNames
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackRepository
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackState
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackTelemetryAttributes
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.mediaapp.core.telemetry.TelemetryEvent
 import com.adrianrusu.mediaapp.core.telemetry.TelemetryLogger
 import com.adrianrusu.mediaapp.core.telemetry.TelemetrySink
@@ -23,6 +24,23 @@ class Media3PlaybackEngineBridgeTest {
         bridge.bootstrap()
 
         assertEquals(1, repository.startCount)
+    }
+
+    @Test
+    fun `bootstrap subscribes executor to repository effects`() {
+        val repository = RecordingPlaybackRepository()
+        val executor = RecordingEffectExecutor()
+        val bridge = Media3PlaybackEngineBridge(
+            playbackRepository = repository,
+            telemetryLogger = testTelemetryLogger(),
+            effectExecutor = executor
+        )
+        val effects = listOf(EngineEffect(type = EngineEffect.TYPE_PLAY))
+
+        bridge.bootstrap()
+        repository.emitEffects(effects)
+
+        assertEquals(listOf(effects), executor.effects)
     }
 
     @Test
@@ -173,6 +191,7 @@ class Media3PlaybackEngineBridgeTest {
 
 private class RecordingPlaybackRepository : BambooPlaybackRepository {
     private val mutableState = MutableStateFlow(BambooPlaybackState())
+    private val effectListeners = mutableSetOf<(List<EngineEffect>) -> Unit>()
 
     var startCount = 0
     var closeCount = 0
@@ -193,8 +212,30 @@ private class RecordingPlaybackRepository : BambooPlaybackRepository {
         return AutoCloseable { }
     }
 
+    override fun observeEffects(listener: (List<EngineEffect>) -> Unit): AutoCloseable {
+        effectListeners += listener
+
+        return AutoCloseable {
+            effectListeners -= listener
+        }
+    }
+
+    fun emitEffects(effects: List<EngineEffect>) {
+        effectListeners.toList().forEach { listener ->
+            listener(effects)
+        }
+    }
+
     override fun close() {
         closeCount += 1
+    }
+}
+
+private class RecordingEffectExecutor : BambooPlaybackEffectExecutor {
+    val effects = mutableListOf<List<EngineEffect>>()
+
+    override fun execute(effects: List<EngineEffect>) {
+        this.effects += effects
     }
 }
 

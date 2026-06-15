@@ -104,13 +104,13 @@ impl Engine {
             }
             EngineCommandType::SetSpeed { speed } => {
                 next_snapshot = next_snapshot.with_speed(*speed);
-                effects.push(EngineEffect::Play);
+                effects.push(EngineEffect::SetSpeed(*speed));
             }
             EngineCommandType::Seek { position_millis } => {
                 next_snapshot = next_snapshot
                     .with_position(*position_millis)
                     .with_progress_tick(now_epoch_millis);
-                effects.push(EngineEffect::Play);
+                effects.push(EngineEffect::Seek(*position_millis));
             }
             EngineCommandType::UpdateConfig { config } => {
                 self.config = config.clone();

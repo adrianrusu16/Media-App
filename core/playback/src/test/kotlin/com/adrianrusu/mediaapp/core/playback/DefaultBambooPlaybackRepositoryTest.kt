@@ -5,6 +5,7 @@ import com.adrianrusu.mediaapp.core.automotive.ux.AutomotiveUxRestrictions
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommandPayloads
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
@@ -131,6 +132,35 @@ class DefaultBambooPlaybackRepositoryTest {
             engine.commands.map { it.type }
         )
         assertEquals(BambooPlaybackStatus.Paused, repository.state.value.playbackStatus)
+    }
+
+    @Test
+    fun `applied commands publish engine effects`() {
+        val engine = RecordingEngineGateway(initialSnapshot = EngineSnapshot.idle(nowMillis = 1L))
+        val repository = DefaultBambooPlaybackRepository(
+            engine = engine,
+            uxRestrictionObserver = FakeUxRestrictionObserver(
+                restrictions = AutomotiveUxRestrictions.unrestricted(
+                    AutomotiveUxRestrictions.Source.NotAutomotive
+                )
+            ),
+            telemetryLogger = testTelemetryLogger()
+        )
+        val effects = mutableListOf<List<EngineEffect>>()
+
+        repository.observeEffects { emittedEffects -> effects += emittedEffects }
+        repository.start()
+        repository.dispatch(BambooPlaybackIntent.Play)
+
+        assertEquals(
+            listOf(
+                listOf(
+                    EngineEffect(type = EngineEffect.TYPE_REQUEST_AUDIO_FOCUS),
+                    EngineEffect(type = EngineEffect.TYPE_PLAY)
+                )
+            ),
+            effects
+        )
     }
 
     @Test
@@ -409,7 +439,8 @@ private class RecordingEngineGateway(
             event = EngineEvent(
                 type = dispatchEventType,
                 message = command.type
-            )
+            ),
+            effects = effectsFor(command)
         )
     }
 
@@ -436,6 +467,24 @@ private class RecordingEngineGateway(
         return AutoCloseable {
             eventListeners -= listener
         }
+    }
+
+    private fun effectsFor(command: EngineCommand): List<EngineEffect> = when (command.type) {
+        EngineCommand.TYPE_PLAY -> listOf(
+            EngineEffect(type = EngineEffect.TYPE_REQUEST_AUDIO_FOCUS),
+            EngineEffect(type = EngineEffect.TYPE_PLAY)
+        )
+
+        EngineCommand.TYPE_PAUSE -> listOf(EngineEffect(type = EngineEffect.TYPE_PAUSE))
+
+        EngineCommand.TYPE_SEEK -> listOf(
+            EngineEffect(
+                type = EngineEffect.TYPE_SEEK,
+                positionMillis = EngineCommandPayloads.parseSeekPositionMillis(command.payload)
+            )
+        )
+
+        else -> emptyList()
     }
 
     fun pushSnapshot(snapshot: EngineSnapshot) {

@@ -13,13 +13,29 @@ import com.adrianrusu.mediaapp.core.telemetry.TelemetryLogger
  */
 class Media3PlaybackEngineBridge(
     private val playbackRepository: BambooPlaybackRepository,
-    private val telemetryLogger: TelemetryLogger
+    private val telemetryLogger: TelemetryLogger,
+    private val effectExecutor: BambooPlaybackEffectExecutor = NoOpBambooPlaybackEffectExecutor
 ) : Player.Listener,
     AutoCloseable {
     private var platformProjectionDepth = 0
+    private var effectSubscription: AutoCloseable? = null
 
     fun bootstrap() {
+        if (effectSubscription == null) {
+            effectSubscription = playbackRepository.observeEffects { effects ->
+                projectPlatformPlaybackState {
+                    effectExecutor.execute(effects)
+                }
+            }
+        }
+
         playbackRepository.start()
+    }
+
+    fun dispatchPlayWhenReady(playWhenReady: Boolean) {
+        playbackRepository.dispatch(
+            PlaybackEngineCommandMapper.fromPlayWhenReady(playWhenReady)
+        )
     }
 
     fun dispatchPlatformEvent(type: String, payload: String? = null) {
@@ -57,9 +73,7 @@ class Media3PlaybackEngineBridge(
                 Media3PlaybackTelemetryAttributes.REASON to reason.toString()
             )
         )
-        playbackRepository.dispatch(
-            PlaybackEngineCommandMapper.fromPlayWhenReady(playWhenReady)
-        )
+        dispatchPlayWhenReady(playWhenReady)
     }
 
     override fun onPlaybackStateChanged(playbackState: Int) {
@@ -170,6 +184,8 @@ class Media3PlaybackEngineBridge(
     }
 
     override fun close() {
+        effectSubscription?.close()
+        effectSubscription = null
         playbackRepository.close()
     }
 }

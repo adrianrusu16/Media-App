@@ -110,6 +110,39 @@ fn dispatch_play_emits_effects_in_ffi() {
 }
 
 #[test]
+fn effect_payload_queries_return_typed_values() {
+    let engine = panda_engine_create(1000);
+    let position_millis = CString::new("12345").unwrap();
+    let speed = CString::new("1.25").unwrap();
+    unsafe { panda_engine_dispatch(engine, FFI_COMMAND_SET_SPEED, speed.as_ptr(), 950) };
+
+    let speed_effect_index = effect_index(engine, FFI_EFFECT_SET_SPEED).unwrap();
+    assert_eq!(1.25, unsafe {
+        panda_engine_get_effect_speed(engine, speed_effect_index)
+    });
+    assert_eq!(-1, unsafe {
+        panda_engine_get_effect_position_millis(engine, speed_effect_index)
+    });
+
+    unsafe { panda_engine_dispatch(engine, FFI_COMMAND_SEEK, position_millis.as_ptr(), 1_000) };
+
+    let seek_effect_index = effect_index(engine, FFI_EFFECT_SEEK).unwrap();
+    assert_eq!(12_345, unsafe {
+        panda_engine_get_effect_position_millis(engine, seek_effect_index)
+    });
+    assert!(unsafe { panda_engine_get_effect_speed(engine, seek_effect_index) }.is_nan());
+
+    unsafe {
+        panda_engine_destroy(engine);
+    }
+}
+
+fn effect_index(engine: *mut PandaEngine, effect_type: i32) -> Option<usize> {
+    let count = unsafe { panda_engine_get_effects_count(engine) };
+    (0..count).find(|index| unsafe { panda_engine_get_effect_type(engine, *index) } == effect_type)
+}
+
+#[test]
 fn current_media_queries_follow_snapshot_metadata() {
     let engine = panda_engine_create(1000);
     let user_id = CString::new("driver-7").unwrap();

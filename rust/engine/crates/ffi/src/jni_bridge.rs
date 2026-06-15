@@ -3,7 +3,7 @@ use std::ptr;
 
 use jni::JNIEnv;
 use jni::objects::{JClass, JObject, JString};
-use jni::sys::{jint, jlong, jlongArray, jstring};
+use jni::sys::{jfloat, jint, jlong, jlongArray, jstring};
 
 use crate::{
     FfiEngineSnapshot, PandaEngine, panda_engine_create, panda_engine_destroy,
@@ -15,6 +15,7 @@ use crate::{
     panda_engine_get_current_media_id, panda_engine_get_current_thumbnail_url,
     panda_engine_get_current_title, panda_engine_get_current_user_id,
     panda_engine_get_effect_media_id, panda_engine_get_effect_notify_message,
+    panda_engine_get_effect_position_millis, panda_engine_get_effect_speed,
     panda_engine_get_effect_type, panda_engine_get_effects_count,
     panda_engine_get_search_result_album, panda_engine_get_search_result_artist,
     panda_engine_get_search_result_id, panda_engine_get_search_result_item_type,
@@ -209,6 +210,26 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
         panda_engine_get_effect_notify_message(handle as *const PandaEngine, index as usize)
     };
     owned_c_string_to_jstring(&mut env, value)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeEffectPositionMillis(
+    _env: JNIEnv,
+    _this: JObject,
+    handle: jlong,
+    index: jint,
+) -> jlong {
+    unsafe { panda_engine_get_effect_position_millis(handle as *const PandaEngine, index as usize) }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeEffectSpeed(
+    _env: JNIEnv,
+    _this: JObject,
+    handle: jlong,
+    index: jint,
+) -> jfloat {
+    unsafe { panda_engine_get_effect_speed(handle as *const PandaEngine, index as usize) }
 }
 
 #[unsafe(no_mangle)]

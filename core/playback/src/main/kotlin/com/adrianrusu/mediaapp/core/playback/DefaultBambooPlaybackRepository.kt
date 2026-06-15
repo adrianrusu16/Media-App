@@ -3,6 +3,7 @@ package com.adrianrusu.mediaapp.core.playback
 import com.adrianrusu.mediaapp.core.automotive.ux.AutomotiveUxRestrictionObserver
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommandPayloads
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.mediaapp.core.rust.bridge.engine.EngineDispatchResult
 import com.adrianrusu.mediaapp.core.rust.bridge.gateway.EngineGateway
 import com.adrianrusu.mediaapp.core.telemetry.TelemetryLogger
@@ -18,6 +19,7 @@ class DefaultBambooPlaybackRepository(
 ) : BambooPlaybackRepository {
     private val mutableState = MutableStateFlow(BambooPlaybackState())
     private val listeners = mutableSetOf<(BambooPlaybackState) -> Unit>()
+    private val effectListeners = mutableSetOf<(List<EngineEffect>) -> Unit>()
     private var engineSnapshotSubscription: AutoCloseable? = null
     private var engineEventSubscription: AutoCloseable? = null
     private var startCount = 0
@@ -137,6 +139,14 @@ class DefaultBambooPlaybackRepository(
         }
     }
 
+    override fun observeEffects(listener: (List<EngineEffect>) -> Unit): AutoCloseable {
+        effectListeners += listener
+
+        return AutoCloseable {
+            effectListeners -= listener
+        }
+    }
+
     override fun close() {
         if (startCount == 0) {
             return
@@ -152,6 +162,7 @@ class DefaultBambooPlaybackRepository(
         engineSnapshotSubscription = null
         engineEventSubscription?.close()
         engineEventSubscription = null
+        effectListeners.clear()
         uxRestrictionObserver.close()
     }
 
@@ -166,6 +177,7 @@ class DefaultBambooPlaybackRepository(
         updateState { current ->
             current.fromEngineResult(result)
         }
+        notifyEffects(result.effects)
     }
 
     private fun refreshFromEngine() {
@@ -226,6 +238,7 @@ class DefaultBambooPlaybackRepository(
         updateState { current ->
             current.fromEngineResult(result)
         }
+        notifyEffects(result.effects)
     }
 
     private fun dispatchPlatformEvent(intent: BambooPlaybackIntent.PlatformEvent) {
@@ -252,6 +265,7 @@ class DefaultBambooPlaybackRepository(
         updateState { current ->
             current.fromEngineResult(result)
         }
+        notifyEffects(result.effects)
     }
 
     private fun updateState(reducer: (BambooPlaybackState) -> BambooPlaybackState) {
@@ -263,6 +277,16 @@ class DefaultBambooPlaybackRepository(
         val current = state.value
         listeners.toList().forEach { listener ->
             listener(current)
+        }
+    }
+
+    private fun notifyEffects(effects: List<EngineEffect>) {
+        if (effects.isEmpty()) {
+            return
+        }
+
+        effectListeners.toList().forEach { listener ->
+            listener(effects)
         }
     }
 

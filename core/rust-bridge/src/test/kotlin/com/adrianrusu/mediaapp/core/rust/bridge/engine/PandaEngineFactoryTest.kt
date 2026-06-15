@@ -36,8 +36,24 @@ class PandaEngineFactoryTest {
 
         assertEquals(12_345L, seekResult.snapshot.positionMillis)
         assertEquals(1.25F, speedResult.snapshot.playbackSpeed)
-        assertEquals(listOf(EngineEffect(type = EngineEffect.TYPE_SEEK)), seekResult.effects)
-        assertEquals(listOf(EngineEffect(type = EngineEffect.TYPE_SET_SPEED)), speedResult.effects)
+        assertEquals(
+            listOf(
+                EngineEffect(
+                    type = EngineEffect.TYPE_SEEK,
+                    positionMillis = 12_345L
+                )
+            ),
+            seekResult.effects
+        )
+        assertEquals(
+            listOf(
+                EngineEffect(
+                    type = EngineEffect.TYPE_SET_SPEED,
+                    speed = 1.25F
+                )
+            ),
+            speedResult.effects
+        )
     }
 
     @Test

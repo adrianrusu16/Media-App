@@ -4,6 +4,7 @@ import com.adrianrusu.mediaapp.core.playback.BambooEngineConnectionUiState
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackIntent
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackRepository
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackState
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEffect
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -99,6 +100,8 @@ private class CommandAvailabilityRecordingPlaybackRepository(initialState: Bambo
             listeners -= listener
         }
     }
+
+    override fun observeEffects(listener: (List<EngineEffect>) -> Unit): AutoCloseable = AutoCloseable { }
 
     override fun close() = Unit
 
