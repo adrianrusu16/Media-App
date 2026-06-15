@@ -18,7 +18,8 @@ class BambooMediaSessionStateProjectionTest {
             album = "Canopy Sessions",
             durationMillis = 222_000L,
             artworkUri = "content://pandawave/art/track-1",
-            playbackStatus = BambooPlaybackStatus.Playing
+            playbackStatus = BambooPlaybackStatus.Playing,
+            positionMillis = 9_000L
         ).toMediaSessionStateProjection(
             artworkUriParser = BambooArtworkUriParser { value ->
                 parsedArtworkUri = value
@@ -35,6 +36,7 @@ class BambooMediaSessionStateProjectionTest {
         assertEquals(false, projection.mediaItem.mediaMetadata.isBrowsable)
         assertEquals(true, projection.mediaItem.mediaMetadata.isPlayable)
         assertTrue(projection.playWhenReady)
+        assertEquals(9_000L, projection.positionMillis)
     }
 
     @Test
@@ -46,5 +48,14 @@ class BambooMediaSessionStateProjectionTest {
 
         assertEquals("pandawave.playback.current", projection.mediaItem.mediaId)
         assertFalse(projection.playWhenReady)
+    }
+
+    @Test
+    fun `negative playback position is clamped for media3`() {
+        val projection = BambooPlaybackState(
+            positionMillis = -1L
+        ).toMediaSessionStateProjection()
+
+        assertEquals(0L, projection.positionMillis)
     }
 }

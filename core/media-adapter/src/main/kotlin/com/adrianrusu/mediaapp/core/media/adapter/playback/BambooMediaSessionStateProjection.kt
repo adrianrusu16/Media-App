@@ -6,7 +6,11 @@ import androidx.media3.common.MediaMetadata
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackState
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackStatus
 
-internal data class BambooMediaSessionStateProjection(val mediaItem: MediaItem, val playWhenReady: Boolean)
+internal data class BambooMediaSessionStateProjection(
+    val mediaItem: MediaItem,
+    val playWhenReady: Boolean,
+    val positionMillis: Long
+)
 
 internal fun interface BambooArtworkUriParser {
     fun parse(value: String): Uri?
@@ -31,7 +35,8 @@ internal fun BambooPlaybackState.toMediaSessionStateProjection(
                 .build()
         )
         .build(),
-    playWhenReady = playbackStatus == BambooPlaybackStatus.Playing
+    playWhenReady = playbackStatus == BambooPlaybackStatus.Playing,
+    positionMillis = positionMillis.coerceAtLeast(0L)
 )
 
 private const val FALLBACK_MEDIA_ID = "pandawave.playback.current"

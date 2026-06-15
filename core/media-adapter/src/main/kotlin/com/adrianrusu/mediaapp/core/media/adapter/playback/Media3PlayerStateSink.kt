@@ -2,11 +2,14 @@ package com.adrianrusu.mediaapp.core.media.adapter.playback
 
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import kotlin.math.abs
 
 internal class Media3PlayerStateSink(private val player: Player) : BambooMediaSessionStateSink {
     override fun project(projection: BambooMediaSessionStateProjection) {
         if (!player.currentMediaItem.hasSameMediaState(projection.mediaItem)) {
-            player.setMediaItem(projection.mediaItem)
+            player.setMediaItem(projection.mediaItem, projection.positionMillis)
+        } else if (abs(player.currentPosition - projection.positionMillis) > MEDIA3_POSITION_DRIFT_THRESHOLD_MILLIS) {
+            player.seekTo(projection.positionMillis)
         }
 
         if (player.playbackState == Player.STATE_IDLE) {
@@ -27,3 +30,5 @@ private fun MediaItem?.hasSameMediaState(mediaItem: MediaItem): Boolean = this?.
         current.mediaMetadata.durationMs == mediaItem.mediaMetadata.durationMs &&
         current.mediaMetadata.artworkUri == mediaItem.mediaMetadata.artworkUri
 } == true
+
+private const val MEDIA3_POSITION_DRIFT_THRESHOLD_MILLIS = 1_000L
