@@ -197,6 +197,32 @@ class DefaultBambooPlaybackRepositoryTest {
     }
 
     @Test
+    fun `ready engine allows play media command with typed payload`() {
+        val engine = RecordingEngineGateway(initialSnapshot = EngineSnapshot.idle(nowMillis = 1L))
+        val repository = DefaultBambooPlaybackRepository(
+            engine = engine,
+            uxRestrictionObserver = FakeUxRestrictionObserver(
+                restrictions = AutomotiveUxRestrictions.unrestricted(
+                    AutomotiveUxRestrictions.Source.NotAutomotive
+                )
+            ),
+            telemetryLogger = testTelemetryLogger()
+        )
+
+        repository.start()
+        repository.dispatch(BambooPlaybackIntent.PlayMedia(mediaId = " track-1 "))
+
+        assertEquals(
+            listOf(
+                EngineCommand.TYPE_BOOTSTRAP,
+                EngineCommand.TYPE_PLAY_MEDIA_BY_ID
+            ),
+            engine.commands.map { it.type }
+        )
+        assertEquals(EngineCommandPayloads.mediaId(" track-1 "), engine.commands[1].payload)
+    }
+
+    @Test
     fun `engine events update connection state and gate commands`() {
         val engine = RecordingEngineGateway(initialSnapshot = EngineSnapshot.idle(nowMillis = 1L))
         val repository = DefaultBambooPlaybackRepository(

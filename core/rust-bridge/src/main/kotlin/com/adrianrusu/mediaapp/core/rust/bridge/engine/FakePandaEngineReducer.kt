@@ -46,6 +46,16 @@ internal object FakePandaEngineReducer {
             updatedAtEpochMillis = nowMillis
         )
 
+        EngineCommand.TYPE_PLAY_MEDIA_BY_ID -> {
+            val mediaId = EngineCommandPayloads.parseMediaId(command.payload)
+            current.copy(
+                playbackState = EngineSnapshot.PLAYBACK_BUFFERING,
+                mediaId = mediaId.ifBlank { current.mediaId },
+                title = mediaId.ifBlank { current.title },
+                updatedAtEpochMillis = nowMillis
+            )
+        }
+
         else -> current.copy(updatedAtEpochMillis = nowMillis)
     }
 

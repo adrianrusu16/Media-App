@@ -19,6 +19,8 @@ object EngineCommandPayloads {
 
     fun browseParentId(parentId: String): String = parentId.ifBlank { DEFAULT_BROWSE_PARENT_ID }
 
+    fun mediaId(mediaId: String): String = mediaId.trim()
+
     fun parseSeekPositionMillis(payload: String?): Long = payload
         ?.toLongOrNull()
         ?.coerceAtLeast(MIN_POSITION_MILLIS)
@@ -34,4 +36,6 @@ object EngineCommandPayloads {
     fun parseBrowseParentId(payload: String?): String = payload
         ?.takeIf { parentId -> parentId.isNotBlank() }
         ?: DEFAULT_BROWSE_PARENT_ID
+
+    fun parseMediaId(payload: String?): String = payload.orEmpty().trim()
 }

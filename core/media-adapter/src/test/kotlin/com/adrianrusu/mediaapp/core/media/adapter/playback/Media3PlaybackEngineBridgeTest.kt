@@ -121,11 +121,13 @@ class Media3PlaybackEngineBridgeTest {
 
         bridge.dispatchCatalogBrowse(LibraryItems.ENGINE_ROOT_PARENT_ID)
         bridge.dispatchCatalogSearch("Rust")
+        bridge.dispatchCatalogPlay("track-1")
 
         assertEquals(
             listOf<BambooPlaybackIntent>(
                 BambooPlaybackIntent.BrowseCatalog(parentId = LibraryItems.ENGINE_ROOT_PARENT_ID),
-                BambooPlaybackIntent.SearchCatalog(query = "Rust")
+                BambooPlaybackIntent.SearchCatalog(query = "Rust"),
+                BambooPlaybackIntent.PlayMedia(mediaId = "track-1")
             ),
             repository.intents
         )

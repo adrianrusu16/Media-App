@@ -106,6 +106,12 @@ class DefaultBambooPlaybackRepository(
                 sourceIntent = intent
             )
 
+            is BambooPlaybackIntent.PlayMedia -> dispatchEngineCommand(
+                commandType = EngineCommand.TYPE_PLAY_MEDIA_BY_ID,
+                payload = EngineCommandPayloads.mediaId(intent.mediaId),
+                sourceIntent = intent
+            )
+
             is BambooPlaybackIntent.SearchCatalog -> dispatchEngineCommand(
                 commandType = EngineCommand.TYPE_SEARCH,
                 payload = EngineCommandPayloads.searchQuery(intent.query),

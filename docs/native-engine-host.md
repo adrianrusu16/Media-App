@@ -130,10 +130,10 @@ sequenceDiagram
    anchor and the local clock between snapshots. This keeps progress bars smooth
    without making metadata, artwork, or catalog strings dirty on every frame.
 
-   Playback control commands include play/pause/skip plus typed seek and playback
-   speed intents. Android maps those typed intents into stable AIDL/JNI command
-   names and numeric string payloads; Rust parses the payloads into domain command
-   types at the FFI boundary.
+   Playback control commands include play/pause/skip plus typed seek, playback
+   speed, and play-by-media-id intents. Android maps those typed intents into
+   stable AIDL/JNI command names and numeric/string payloads; Rust parses the
+   payloads into domain command types at the FFI boundary.
 
 5. **Effect Execution**
    Route engine effects to Android executors, then report platform events back
@@ -148,7 +148,9 @@ sequenceDiagram
    commands. Result IDs, titles, artist/album labels, artwork URIs, and item
    types are fetched through dedicated engine query APIs and projected into
    Media3 items. Root browsing falls back to stable Android placeholder
-   categories only when the engine has no root results yet.
+   categories only when the engine has no root results yet. Media3 item
+   selection routes the selected media ID back to PandaEngine through
+   `play_media_by_id`.
 
 ## Naming Rule
 

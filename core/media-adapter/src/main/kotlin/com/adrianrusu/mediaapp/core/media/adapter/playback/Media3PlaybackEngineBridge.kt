@@ -151,6 +151,24 @@ class Media3PlaybackEngineBridge(
         playbackRepository.dispatch(intent)
     }
 
+    fun dispatchCatalogPlay(mediaId: String): Boolean {
+        val normalizedMediaId = mediaId.trim()
+        if (normalizedMediaId.isBlank()) {
+            return false
+        }
+
+        val intent = BambooPlaybackIntent.PlayMedia(mediaId = normalizedMediaId)
+        telemetryLogger.debug(
+            name = Media3PlaybackTelemetryEvents.CATALOG_COMMAND_DISPATCHED,
+            attributes = mapOf(
+                BambooPlaybackTelemetryAttributes.INTENT to intent.telemetryName,
+                Media3PlaybackTelemetryAttributes.MEDIA_ID to normalizedMediaId
+            )
+        )
+        playbackRepository.dispatch(intent)
+        return true
+    }
+
     override fun close() {
         playbackRepository.close()
     }
@@ -167,6 +185,7 @@ internal object Media3PlaybackTelemetryEvents {
 internal object Media3PlaybackTelemetryAttributes {
     const val CATALOG_PARENT_ID = "catalog_parent_id"
     const val CATALOG_QUERY = "catalog_query"
+    const val MEDIA_ID = "media_id"
     const val PLAY_WHEN_READY = "play_when_ready"
     const val PLAYER_COMMAND = "player_command"
     const val POSITION_MILLIS = "position_millis"

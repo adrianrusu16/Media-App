@@ -184,6 +184,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         private const val COMMAND_BROWSE = 8
         private const val COMMAND_SET_SPEED = 9
         private const val COMMAND_SEEK = 10
+        private const val COMMAND_PLAY_MEDIA_BY_ID = 14
         private const val COMMAND_UNKNOWN = -1
 
         private const val PLATFORM_EVENT_APP_FOREGROUNDED = 0
@@ -206,6 +207,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             EngineCommand.TYPE_BROWSE -> COMMAND_BROWSE
             EngineCommand.TYPE_SET_SPEED -> COMMAND_SET_SPEED
             EngineCommand.TYPE_SEEK -> COMMAND_SEEK
+            EngineCommand.TYPE_PLAY_MEDIA_BY_ID -> COMMAND_PLAY_MEDIA_BY_ID
             else -> COMMAND_UNKNOWN
         }
 

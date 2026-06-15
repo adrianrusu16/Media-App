@@ -3,6 +3,7 @@ package com.adrianrusu.mediaapp.core.rust.bridge.engine
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommandPayloads
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -64,5 +65,21 @@ class PandaEngineFactoryTest {
         assertEquals(EngineCatalogItem.TYPE_TRACK, engine.searchResult(0)?.itemType)
         assertEquals(null, engine.browseResult(1))
         assertEquals(null, engine.searchResult(1))
+    }
+
+    @Test
+    fun `fake engine applies play media payload`() {
+        val engine = PandaEngineFactory.createFake(clock = { 42L })
+
+        val result = engine.dispatch(
+            EngineCommand(
+                type = EngineCommand.TYPE_PLAY_MEDIA_BY_ID,
+                payload = EngineCommandPayloads.mediaId("track-42")
+            )
+        )
+
+        assertEquals(EngineSnapshot.PLAYBACK_BUFFERING, result.snapshot.playbackState)
+        assertEquals("track-42", result.snapshot.mediaId)
+        assertEquals("track-42", result.snapshot.title)
     }
 }

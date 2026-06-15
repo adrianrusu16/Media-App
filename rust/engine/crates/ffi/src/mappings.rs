@@ -38,6 +38,9 @@ pub(crate) fn command_from_ffi(command_type: i32) -> EngineCommandType {
         FFI_COMMAND_END_SESSION => EngineCommandType::EndSession,
         FFI_COMMAND_START_VOICE => EngineCommandType::StartVoiceInteraction,
         FFI_COMMAND_STOP_VOICE => EngineCommandType::StopVoiceInteraction,
+        FFI_COMMAND_PLAY_MEDIA_BY_ID => EngineCommandType::PlayMediaById {
+            media_id: String::new(),
+        },
         _ => EngineCommandType::Unknown(command_type.to_string()),
     }
 }

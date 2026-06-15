@@ -7,9 +7,9 @@ use panda_engine_core::{EngineCommand, EngineCommandType};
 use crate::engine_handle::remember_outcome;
 use crate::mappings::{command_from_ffi, platform_event_from_ffi};
 use crate::{
-    FFI_COMMAND_BROWSE, FFI_COMMAND_PROCESS_VOICE, FFI_COMMAND_SEARCH, FFI_COMMAND_SEEK,
-    FFI_COMMAND_SET_SPEED, FFI_COMMAND_START_SESSION, FFI_COMMAND_UNKNOWN, FfiEngineOutcome,
-    PandaEngine,
+    FFI_COMMAND_BROWSE, FFI_COMMAND_PLAY_MEDIA_BY_ID, FFI_COMMAND_PROCESS_VOICE,
+    FFI_COMMAND_SEARCH, FFI_COMMAND_SEEK, FFI_COMMAND_SET_SPEED, FFI_COMMAND_START_SESSION,
+    FFI_COMMAND_UNKNOWN, FfiEngineOutcome, PandaEngine,
 };
 
 fn run_future_safely<T>(
@@ -102,6 +102,12 @@ pub unsafe extern "C" fn panda_engine_dispatch(
                             .filter(|value| !value.is_empty())
                             .unwrap_or("unknown")
                             .to_string(),
+                    },
+                    None,
+                ),
+                FFI_COMMAND_PLAY_MEDIA_BY_ID => EngineCommand::new(
+                    EngineCommandType::PlayMediaById {
+                        media_id: payload_str.clone().unwrap_or_default(),
                     },
                     None,
                 ),

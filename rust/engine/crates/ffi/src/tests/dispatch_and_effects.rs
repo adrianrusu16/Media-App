@@ -153,6 +153,45 @@ fn current_media_queries_follow_snapshot_metadata() {
 }
 
 #[test]
+fn play_media_by_id_updates_snapshot_metadata() {
+    let engine = panda_engine_create(1000);
+    unsafe {
+        let items = vec![MediaItem {
+            id: "track-42".to_string(),
+            title: "Selected Track".to_string(),
+            artist: "PandaWave".to_string(),
+            album: Some("Canopy Sessions".to_string()),
+            duration_millis: Some(123_000),
+            thumbnail_url: Some("content://pandawave/art/track-42".to_string()),
+            ..Default::default()
+        }];
+        (*engine).engine.with_engine(|e| {
+            e.set_repository(Box::new(panda_engine_core::InMemoryRepository::new(items)))
+        });
+    }
+
+    let media_id = CString::new("track-42").unwrap();
+    let outcome = unsafe {
+        panda_engine_dispatch(engine, FFI_COMMAND_PLAY_MEDIA_BY_ID, media_id.as_ptr(), 700)
+    };
+
+    let current_media_id = unsafe { take_string(panda_engine_get_current_media_id(engine)) };
+    let title = unsafe { take_string(panda_engine_get_current_title(engine)) };
+    let artist = unsafe { take_string(panda_engine_get_current_artist(engine)) };
+
+    assert_eq!(FFI_PLAYBACK_BUFFERING, outcome.snapshot.playback_state);
+    assert_eq!(FFI_COMMAND_PLAY_MEDIA_BY_ID, outcome.applied_command_type);
+    assert_eq!(Some("track-42".to_string()), current_media_id);
+    assert_eq!(Some("Selected Track".to_string()), title);
+    assert_eq!(Some("PandaWave".to_string()), artist);
+    assert_eq!(123_000, outcome.snapshot.duration_millis);
+
+    unsafe {
+        panda_engine_destroy(engine);
+    }
+}
+
+#[test]
 fn search_updates_snapshot_results() {
     let engine = panda_engine_create(1000);
     unsafe {

@@ -12,6 +12,7 @@ pub const FFI_COMMAND_SEEK: i32 = 10;
 pub const FFI_COMMAND_START_VOICE: i32 = 11;
 pub const FFI_COMMAND_STOP_VOICE: i32 = 12;
 pub const FFI_COMMAND_PROCESS_VOICE: i32 = 13;
+pub const FFI_COMMAND_PLAY_MEDIA_BY_ID: i32 = 14;
 pub const FFI_COMMAND_UNKNOWN: i32 = -1;
 
 pub const FFI_PLAYBACK_IDLE: i32 = 0;
