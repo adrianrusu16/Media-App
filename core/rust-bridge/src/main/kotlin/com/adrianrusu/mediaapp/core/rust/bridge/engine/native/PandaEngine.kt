@@ -12,6 +12,8 @@ import com.adrianrusu.mediaapp.core.rust.bridge.engine.RustEngine
 class PandaEngine private constructor(private val nativeHandle: Long, private val clock: () -> Long) :
     RustEngine,
     AutoCloseable {
+    private val metadataCache = NativeEngineMetadataCache(::queryNativeMetadata)
+
     init {
         check(nativeHandle != 0L) { "PandaEngine native handle must not be zero." }
     }
@@ -76,13 +78,15 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
 
     private external fun nativeDestroy(handle: Long)
 
-    private fun LongArray.toEngineSnapshot(): EngineSnapshot = PandaEngineNativeSnapshotMapper.toEngineSnapshot(this)
-        .copy(
-            mediaId = nativeCurrentMediaId(nativeHandle),
-            title = nativeCurrentTitle(nativeHandle),
-            artist = nativeCurrentArtist(nativeHandle),
-            userId = nativeCurrentUserId(nativeHandle)
-        )
+    private fun LongArray.toEngineSnapshot(): EngineSnapshot =
+        metadataCache.enrich(PandaEngineNativeSnapshotMapper.toEngineSnapshot(this))
+
+    private fun queryNativeMetadata(): NativeEngineMetadata = NativeEngineMetadata(
+        mediaId = nativeCurrentMediaId(nativeHandle),
+        title = nativeCurrentTitle(nativeHandle),
+        artist = nativeCurrentArtist(nativeHandle),
+        userId = nativeCurrentUserId(nativeHandle)
+    )
 
     companion object {
         fun create(clock: () -> Long = System::currentTimeMillis): PandaEngine {
