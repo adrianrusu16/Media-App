@@ -22,5 +22,8 @@ internal class Media3PlayerStateSink(private val player: Player) : BambooMediaSe
 private fun MediaItem?.hasSameMediaState(mediaItem: MediaItem): Boolean = this?.let { current ->
     current.mediaId == mediaItem.mediaId &&
         current.mediaMetadata.title == mediaItem.mediaMetadata.title &&
-        current.mediaMetadata.artist == mediaItem.mediaMetadata.artist
+        current.mediaMetadata.artist == mediaItem.mediaMetadata.artist &&
+        current.mediaMetadata.albumTitle == mediaItem.mediaMetadata.albumTitle &&
+        current.mediaMetadata.durationMs == mediaItem.mediaMetadata.durationMs &&
+        current.mediaMetadata.artworkUri == mediaItem.mediaMetadata.artworkUri
 } == true

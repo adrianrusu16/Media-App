@@ -65,6 +65,12 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
 
     private external fun nativeCurrentArtist(handle: Long): String?
 
+    private external fun nativeCurrentAlbum(handle: Long): String?
+
+    private external fun nativeCurrentDurationMillis(handle: Long): Long
+
+    private external fun nativeCurrentArtworkUri(handle: Long): String?
+
     private external fun nativeCurrentUserId(handle: Long): String?
 
     private external fun nativeDispatch(handle: Long, commandType: Int, nowEpochMillis: Long): LongArray
@@ -85,6 +91,11 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         mediaId = nativeCurrentMediaId(nativeHandle),
         title = nativeCurrentTitle(nativeHandle),
         artist = nativeCurrentArtist(nativeHandle),
+        album = nativeCurrentAlbum(nativeHandle),
+        durationMillis = nativeCurrentDurationMillis(nativeHandle).takeIf { durationMillis ->
+            durationMillis >= 0L
+        },
+        artworkUri = nativeCurrentArtworkUri(nativeHandle),
         userId = nativeCurrentUserId(nativeHandle)
     )
 
@@ -152,6 +163,9 @@ internal object PandaEngineNativeSnapshotMapper {
                 mediaId = null,
                 title = null,
                 artist = null,
+                album = null,
+                durationMillis = null,
+                artworkUri = null,
                 userId = null,
                 restrictionState = restrictionStateFromNative(
                     nativeValues[SNAPSHOT_RESTRICTION_INDEX].toInt()

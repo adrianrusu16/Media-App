@@ -117,12 +117,12 @@ sequenceDiagram
    update time, active-session/error flags, result counts, playback speed,
    position, busy/dispatch state, voice-hypothesis presence, browse-result
    count, and player-control visibility/enabled/active state. String-heavy
-   current media metadata is fetched through dedicated JNI query APIs after the
-   compact snapshot is decoded. The Kotlin host caches those queried strings per
-   native metadata revision so repeated observations, progress ticks, or other
-   numeric state changes do not re-cross JNI for unchanged metadata. Result item
-   details should follow the same query pattern rather than expanding the compact
-   JNI snapshot indefinitely.
+   current media metadata, including album, duration, and artwork URI, is fetched
+   through dedicated JNI query APIs after the compact snapshot is decoded. The
+   Kotlin host caches those queried values per native metadata revision so
+   repeated observations, progress ticks, or other numeric state changes do not
+   re-cross JNI for unchanged metadata. Result item details should follow the same
+   query pattern rather than expanding the compact JNI snapshot indefinitely.
 
 5. **Effect Execution**
    Route engine effects to Android executors, then report platform events back

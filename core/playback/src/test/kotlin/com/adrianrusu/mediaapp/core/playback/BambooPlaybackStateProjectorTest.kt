@@ -17,6 +17,9 @@ class BambooPlaybackStateProjectorTest {
             mediaId = "track-1",
             title = "Quiet Cabin",
             artist = "PandaWave",
+            album = "Canopy Sessions",
+            durationMillis = 222_000L,
+            artworkUri = "content://pandawave/art/track-1",
             userId = null,
             restrictionState = EngineSnapshot.RESTRICTION_UNKNOWN,
             updatedAtEpochMillis = 100L,
@@ -55,6 +58,9 @@ class BambooPlaybackStateProjectorTest {
         assertEquals("track-1", state.mediaId)
         assertEquals("Quiet Cabin", state.title)
         assertEquals("PandaWave", state.artist)
+        assertEquals("Canopy Sessions", state.album)
+        assertEquals(222_000L, state.durationMillis)
+        assertEquals("content://pandawave/art/track-1", state.artworkUri)
         assertEquals(BambooPlaybackStatus.Playing, state.playbackStatus)
         assertEquals(100L, state.updatedAtEpochMillis)
         assertEquals(true, state.hasActiveSession)

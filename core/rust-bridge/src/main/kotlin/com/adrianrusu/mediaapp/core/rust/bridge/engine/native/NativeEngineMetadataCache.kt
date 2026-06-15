@@ -29,6 +29,9 @@ internal data class NativeEngineMetadata(
     val mediaId: String?,
     val title: String?,
     val artist: String?,
+    val album: String?,
+    val durationMillis: Long?,
+    val artworkUri: String?,
     val userId: String?
 ) {
     companion object {
@@ -36,6 +39,9 @@ internal data class NativeEngineMetadata(
             mediaId = null,
             title = null,
             artist = null,
+            album = null,
+            durationMillis = null,
+            artworkUri = null,
             userId = null
         )
     }
@@ -57,5 +63,8 @@ private fun EngineSnapshot.withMetadata(metadata: NativeEngineMetadata): EngineS
     mediaId = metadata.mediaId,
     title = metadata.title,
     artist = metadata.artist,
+    album = metadata.album,
+    durationMillis = metadata.durationMillis,
+    artworkUri = metadata.artworkUri,
     userId = metadata.userId
 )

@@ -8,6 +8,9 @@ data class EngineSnapshot(
     val mediaId: String?,
     val title: String?,
     val artist: String?,
+    val album: String? = null,
+    val durationMillis: Long? = null,
+    val artworkUri: String? = null,
     val userId: String?,
     val restrictionState: String,
     val updatedAtEpochMillis: Long,
@@ -28,6 +31,9 @@ data class EngineSnapshot(
         mediaId = parcel.readString(),
         title = parcel.readString(),
         artist = parcel.readString(),
+        album = parcel.readString(),
+        durationMillis = parcel.readNullableLong(),
+        artworkUri = parcel.readString(),
         userId = parcel.readString(),
         restrictionState = parcel.readString().orEmpty(),
         updatedAtEpochMillis = parcel.readLong(),
@@ -54,6 +60,9 @@ data class EngineSnapshot(
         parcel.writeString(mediaId)
         parcel.writeString(title)
         parcel.writeString(artist)
+        parcel.writeString(album)
+        parcel.writeNullableLong(durationMillis)
+        parcel.writeString(artworkUri)
         parcel.writeString(userId)
         parcel.writeString(restrictionState)
         parcel.writeLong(updatedAtEpochMillis)
@@ -95,6 +104,9 @@ data class EngineSnapshot(
             mediaId = null,
             title = null,
             artist = null,
+            album = null,
+            durationMillis = null,
+            artworkUri = null,
             userId = null,
             restrictionState = RESTRICTION_UNKNOWN,
             updatedAtEpochMillis = nowMillis,
@@ -154,6 +166,19 @@ private fun Parcel.readBooleanValue(): Boolean = readInt() != 0
 
 private fun Parcel.writeBooleanValue(value: Boolean) {
     writeInt(if (value) 1 else 0)
+}
+
+private fun Parcel.readNullableLong(): Long? = if (readBooleanValue()) {
+    readLong()
+} else {
+    null
+}
+
+private fun Parcel.writeNullableLong(value: Long?) {
+    writeBooleanValue(value != null)
+    if (value != null) {
+        writeLong(value)
+    }
 }
 
 private fun Parcel.readControlState(): EngineControlState = EngineControlState(

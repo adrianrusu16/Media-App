@@ -118,6 +118,9 @@ fn current_media_queries_follow_snapshot_metadata() {
             id: "track-7".to_string(),
             title: "Bamboo Road".to_string(),
             artist: "PandaWave".to_string(),
+            album: Some("Canopy Sessions".to_string()),
+            duration_millis: Some(222_000),
+            thumbnail_url: Some("content://pandawave/art/track-7".to_string()),
             ..Default::default()
         }];
         (*engine).engine.with_engine(|e| e.queue().set_items(items));
@@ -128,11 +131,20 @@ fn current_media_queries_follow_snapshot_metadata() {
     let media_id = unsafe { take_string(panda_engine_get_current_media_id(engine)) };
     let title = unsafe { take_string(panda_engine_get_current_title(engine)) };
     let artist = unsafe { take_string(panda_engine_get_current_artist(engine)) };
+    let album = unsafe { take_string(panda_engine_get_current_album(engine)) };
+    let duration_millis = unsafe { panda_engine_get_current_duration_millis(engine) };
+    let thumbnail_url = unsafe { take_string(panda_engine_get_current_thumbnail_url(engine)) };
     let current_user_id = unsafe { take_string(panda_engine_get_current_user_id(engine)) };
 
     assert_eq!(Some("track-7".to_string()), media_id);
     assert_eq!(Some("Bamboo Road".to_string()), title);
     assert_eq!(Some("PandaWave".to_string()), artist);
+    assert_eq!(Some("Canopy Sessions".to_string()), album);
+    assert_eq!(222_000, duration_millis);
+    assert_eq!(
+        Some("content://pandawave/art/track-7".to_string()),
+        thumbnail_url
+    );
     assert_eq!(Some("driver-7".to_string()), current_user_id);
     assert_eq!(2, outcome.snapshot.metadata_revision);
 
