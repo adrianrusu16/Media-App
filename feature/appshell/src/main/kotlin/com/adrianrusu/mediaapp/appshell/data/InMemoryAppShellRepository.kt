@@ -8,6 +8,7 @@ import com.adrianrusu.mediaapp.appshell.domain.RestrictionUiState
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackIntent
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackRepository
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackState
+import com.adrianrusu.mediaapp.core.ui.miniplayer.MiniPlayerProgressAnchor
 import com.adrianrusu.mediaapp.core.ui.miniplayer.MiniPlayerState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -64,7 +65,14 @@ private fun BambooPlaybackState.toMiniPlayerState(): MiniPlayerState = MiniPlaye
     title = title,
     subtitle = artist,
     isPlaying = isPlaying,
-    isRestricted = restriction.isRestricted
+    isRestricted = restriction.isRestricted,
+    progressAnchor = MiniPlayerProgressAnchor(
+        positionMillis = positionMillis,
+        durationMillis = durationMillis,
+        updatedAtEpochMillis = updatedAtEpochMillis,
+        playbackSpeed = playbackSpeed,
+        isPlaying = isPlaying
+    )
 )
 
 private fun com.adrianrusu.mediaapp.core.playback.BambooPlaybackRestrictionState.toRestrictionUiState():

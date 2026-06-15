@@ -27,7 +27,10 @@ class InMemoryAppShellRepositoryTest {
                     label = "Driver-safe mode",
                     isRestricted = true
                 ),
-                updatedAtEpochMillis = 100L
+                updatedAtEpochMillis = 100L,
+                positionMillis = 10_000L,
+                durationMillis = 40_000L,
+                playbackSpeed = 1.5F
             )
         )
         val repository = InMemoryAppShellRepository(playbackRepository = playback)
@@ -38,6 +41,7 @@ class InMemoryAppShellRepositoryTest {
         assertEquals("PandaWave", repository.state.value.miniPlayer.subtitle)
         assertTrue(repository.state.value.miniPlayer.isPlaying)
         assertTrue(repository.state.value.miniPlayer.isRestricted)
+        assertEquals(0.325F, repository.state.value.miniPlayer.progressAt(nowMillis = 2_100L).fraction)
         assertEquals(BambooEngineConnectionUiState.Ready, repository.state.value.engineConnection)
         assertEquals("Driver-safe mode", repository.state.value.restriction.label)
     }

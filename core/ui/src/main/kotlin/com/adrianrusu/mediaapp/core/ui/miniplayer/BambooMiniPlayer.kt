@@ -13,10 +13,16 @@ import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -27,6 +33,7 @@ import com.adrianrusu.mediaapp.core.designsystem.tokens.md
 import com.adrianrusu.mediaapp.core.designsystem.tokens.miniPlayerHeight
 import com.adrianrusu.mediaapp.core.designsystem.tokens.xs
 import com.adrianrusu.mediaapp.core.ui.playback.BambooPlaybackText
+import kotlinx.coroutines.delay
 
 @Composable
 fun BambooMiniPlayer(
@@ -38,6 +45,19 @@ fun BambooMiniPlayer(
     modifier: Modifier = Modifier
 ) {
     val tokens = LocalPandaWaveDesignTokens.current
+    var nowMillis by remember(state.progressAnchor) {
+        mutableLongStateOf(System.currentTimeMillis())
+    }
+    val progress = state.progressAt(nowMillis)
+
+    LaunchedEffect(state.progressAnchor) {
+        nowMillis = System.currentTimeMillis()
+
+        while (state.progressAnchor.isPlaying) {
+            delay(MINI_PLAYER_PROGRESS_TICK_MILLIS)
+            nowMillis = System.currentTimeMillis()
+        }
+    }
 
     Surface(
         modifier = modifier
@@ -79,6 +99,10 @@ fun BambooMiniPlayer(
                         style = MaterialTheme.typography.labelMedium
                     )
                 }
+                LinearProgressIndicator(
+                    progress = { progress.fraction },
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(tokens.spacing.xs)) {
@@ -117,3 +141,5 @@ fun BambooMiniPlayer(
         }
     }
 }
+
+private const val MINI_PLAYER_PROGRESS_TICK_MILLIS = 1_000L
