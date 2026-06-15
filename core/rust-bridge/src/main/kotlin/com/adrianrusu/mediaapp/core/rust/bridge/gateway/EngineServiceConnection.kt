@@ -1,5 +1,6 @@
 package com.adrianrusu.mediaapp.core.rust.bridge.gateway
 
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlatformEvent
@@ -19,6 +20,10 @@ interface EngineServiceConnection : AutoCloseable {
  */
 interface EngineService {
     fun snapshot(): EngineSnapshot
+
+    fun browseResult(index: Int): EngineCatalogItem?
+
+    fun searchResult(index: Int): EngineCatalogItem?
 
     fun dispatch(command: EngineCommand)
 

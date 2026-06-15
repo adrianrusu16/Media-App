@@ -2,6 +2,7 @@ package com.adrianrusu.mediaapp.core.playback
 
 import com.adrianrusu.mediaapp.core.automotive.ux.AutomotiveUxRestrictionObserver
 import com.adrianrusu.mediaapp.core.automotive.ux.AutomotiveUxRestrictions
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommandPayloads
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
@@ -356,6 +357,10 @@ private class RecordingEngineGateway(
     val commands = mutableListOf<EngineCommand>()
 
     override fun snapshot(): EngineSnapshot = currentSnapshot
+
+    override fun browseResult(index: Int): EngineCatalogItem? = null
+
+    override fun searchResult(index: Int): EngineCatalogItem? = null
 
     override fun dispatch(command: EngineCommand): EngineDispatchResult {
         commands += command

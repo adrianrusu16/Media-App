@@ -1,5 +1,6 @@
 package com.adrianrusu.mediaapp.core.rust.bridge.gateway
 
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlatformEvent
@@ -15,6 +16,10 @@ class InProcessEngineGateway(private val engine: RustEngine) : EngineGateway {
     private val eventListeners = mutableSetOf<(EngineEvent) -> Unit>()
 
     override fun snapshot(): EngineSnapshot = engine.snapshot()
+
+    override fun browseResult(index: Int): EngineCatalogItem? = engine.browseResult(index)
+
+    override fun searchResult(index: Int): EngineCatalogItem? = engine.searchResult(index)
 
     override fun dispatch(command: EngineCommand): EngineDispatchResult {
         val result = engine.dispatch(command)

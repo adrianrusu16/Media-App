@@ -54,5 +54,11 @@ class PandaEngineFactoryTest {
 
         assertEquals(1, browseResult.snapshot.browseResultsCount)
         assertEquals(1, searchResult.snapshot.searchResultsCount)
+        assertEquals("browse-0", engine.browseResult(0)?.mediaId)
+        assertEquals("Browse result 0", engine.browseResult(0)?.title)
+        assertEquals("search-0", engine.searchResult(0)?.mediaId)
+        assertEquals("Search result 0", engine.searchResult(0)?.title)
+        assertEquals(null, engine.browseResult(1))
+        assertEquals(null, engine.searchResult(1))
     }
 }

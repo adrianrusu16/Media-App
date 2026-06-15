@@ -1,5 +1,6 @@
 package com.adrianrusu.mediaapp.core.rust.bridge.engine.native
 
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineControlState
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
@@ -19,6 +20,16 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     }
 
     override fun snapshot(): EngineSnapshot = nativeSnapshot(nativeHandle).toEngineSnapshot()
+
+    override fun browseResult(index: Int): EngineCatalogItem? = resultItem(
+        id = nativeBrowseResultId(nativeHandle, index),
+        title = nativeBrowseResultTitle(nativeHandle, index)
+    )
+
+    override fun searchResult(index: Int): EngineCatalogItem? = resultItem(
+        id = nativeSearchResultId(nativeHandle, index),
+        title = nativeSearchResultTitle(nativeHandle, index)
+    )
 
     override fun dispatch(command: EngineCommand): EngineDispatchResult {
         val nativeValues = nativeDispatch(
@@ -72,6 +83,14 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
 
     private external fun nativeCurrentUserId(handle: Long): String?
 
+    private external fun nativeSearchResultId(handle: Long, index: Int): String?
+
+    private external fun nativeSearchResultTitle(handle: Long, index: Int): String?
+
+    private external fun nativeBrowseResultId(handle: Long, index: Int): String?
+
+    private external fun nativeBrowseResultTitle(handle: Long, index: Int): String?
+
     private external fun nativeDispatch(
         handle: Long,
         commandType: Int,
@@ -99,6 +118,11 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         artworkUri = nativeCurrentArtworkUri(nativeHandle),
         userId = nativeCurrentUserId(nativeHandle)
     )
+
+    private fun resultItem(id: String?, title: String?): EngineCatalogItem? = when {
+        id.isNullOrBlank() || title.isNullOrBlank() -> null
+        else -> EngineCatalogItem(mediaId = id, title = title)
+    }
 
     companion object {
         fun create(clock: () -> Long = System::currentTimeMillis): PandaEngine {

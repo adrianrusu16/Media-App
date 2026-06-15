@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.ServiceConnection
 import android.os.IBinder
 import android.os.RemoteException
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlatformEvent
@@ -128,6 +129,10 @@ class AndroidEngineServiceConnection(
 
     private class AidlEngineService(private val remote: IMediaEngineService) : EngineService {
         override fun snapshot(): EngineSnapshot = remote.snapshot
+
+        override fun browseResult(index: Int): EngineCatalogItem? = remote.getBrowseResult(index)
+
+        override fun searchResult(index: Int): EngineCatalogItem? = remote.getSearchResult(index)
 
         override fun dispatch(command: EngineCommand) {
             remote.dispatch(command)

@@ -1,5 +1,6 @@
 package com.adrianrusu.mediaapp.core.rust.bridge.engine
 
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlatformEvent
@@ -11,6 +12,24 @@ internal class FakePandaEngine(private val clock: () -> Long = System::currentTi
         EngineSnapshot.idle(clock())
 
     override fun snapshot(): EngineSnapshot = currentSnapshot
+
+    override fun browseResult(index: Int): EngineCatalogItem? = when {
+        index in 0 until currentSnapshot.browseResultsCount -> EngineCatalogItem(
+            mediaId = "browse-$index",
+            title = "Browse result $index"
+        )
+
+        else -> null
+    }
+
+    override fun searchResult(index: Int): EngineCatalogItem? = when {
+        index in 0 until currentSnapshot.searchResultsCount -> EngineCatalogItem(
+            mediaId = "search-$index",
+            title = "Search result $index"
+        )
+
+        else -> null
+    }
 
     override fun dispatch(command: EngineCommand): EngineDispatchResult {
         val nextSnapshot = FakePandaEngineReducer.reduce(

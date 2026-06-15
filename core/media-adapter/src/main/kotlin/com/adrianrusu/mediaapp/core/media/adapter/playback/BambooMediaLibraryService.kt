@@ -5,6 +5,7 @@ import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
 import com.adrianrusu.mediaapp.core.media.adapter.playback.focus.BambooAudioFocusHandler
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackRepository
+import com.adrianrusu.mediaapp.core.rust.bridge.gateway.EngineGateway
 import com.adrianrusu.mediaapp.core.telemetry.TelemetryLogger
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -20,6 +21,9 @@ import javax.inject.Inject
 class BambooMediaLibraryService : MediaLibraryService() {
     @Inject
     lateinit var playbackRepository: BambooPlaybackRepository
+
+    @Inject
+    lateinit var engineGateway: EngineGateway
 
     @Inject
     lateinit var telemetryLogger: TelemetryLogger
@@ -44,7 +48,10 @@ class BambooMediaLibraryService : MediaLibraryService() {
             playbackEngineBridge = playbackEngineBridge,
             controlsEnabled = { playbackRepository.state.value.canDispatchEngineCommands }
         )
-        val catalogSource = EngineBambooCatalogSource(playbackEngineBridge)
+        val catalogSource = EngineBambooCatalogSource(
+            playbackBridge = playbackEngineBridge,
+            engineGateway = engineGateway
+        )
         val mediaLibrarySession = MediaLibrarySession.Builder(
             this,
             sessionPlayer,

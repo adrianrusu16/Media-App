@@ -3,26 +3,30 @@ package com.adrianrusu.mediaapp.core.media.adapter.playback
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import com.adrianrusu.mediaapp.core.model.catalog.BambooCatalogNode
-import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCatalogItem
+import com.adrianrusu.mediaapp.core.rust.bridge.gateway.EngineGateway
 
 internal interface BambooCatalogSource {
     fun children(parentId: String): List<BambooCatalogNode>
     fun search(query: String): List<BambooCatalogNode>
 }
 
-internal class EngineBambooCatalogSource(private val playbackBridge: Media3PlaybackEngineBridge) : BambooCatalogSource {
+internal class EngineBambooCatalogSource(
+    private val playbackBridge: Media3PlaybackEngineBridge,
+    private val engineGateway: EngineGateway
+) : BambooCatalogSource {
     override fun children(parentId: String): List<BambooCatalogNode> {
         playbackBridge.dispatchCatalogBrowse(parentId.toEngineParentId())
-        return if (parentId == LibraryItems.ROOT_MEDIA_ID) {
-            rootChildren
-        } else {
-            emptyList()
+        val engineResults = engineGateway.browseResults()
+        return when {
+            parentId == LibraryItems.ROOT_MEDIA_ID && engineResults.isEmpty() -> rootChildren
+            else -> engineResults
         }
     }
 
     override fun search(query: String): List<BambooCatalogNode> {
         playbackBridge.dispatchCatalogSearch(query)
-        return emptyList()
+        return engineGateway.searchResults()
     }
 
     private val rootChildren = listOf(
@@ -49,6 +53,23 @@ internal class EngineBambooCatalogSource(private val playbackBridge: Media3Playb
         )
     )
 }
+
+private fun EngineGateway.searchResults(): List<BambooCatalogNode> = List(
+    size = snapshot().searchResultsCount,
+    init = ::searchResult
+).filterNotNull().map { item -> item.toCatalogNode() }
+
+private fun EngineGateway.browseResults(): List<BambooCatalogNode> = List(
+    size = snapshot().browseResultsCount,
+    init = ::browseResult
+).filterNotNull().map { item -> item.toCatalogNode() }
+
+private fun EngineCatalogItem.toCatalogNode(): BambooCatalogNode = BambooCatalogNode(
+    mediaId = mediaId,
+    title = title,
+    isBrowsable = false,
+    isPlayable = true
+)
 
 internal class BambooMediaLibraryCatalog(private val source: BambooCatalogSource) {
     fun root(): MediaItem = LibraryItems.Root

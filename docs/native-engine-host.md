@@ -145,8 +145,9 @@ sequenceDiagram
 
    Media3 browse/search requests now dispatch typed catalog intents through the
    shared playback repository and into `TYPE_BROWSE` / `TYPE_SEARCH` engine
-   commands. Root browsing still returns stable Android placeholder categories
-   until result item query APIs are projected back into Media3 items.
+   commands. Result IDs/titles are fetched through dedicated engine query APIs
+   and projected into Media3 items; root browsing falls back to stable Android
+   placeholder categories only when the engine has no root results yet.
 
 ## Naming Rule
 

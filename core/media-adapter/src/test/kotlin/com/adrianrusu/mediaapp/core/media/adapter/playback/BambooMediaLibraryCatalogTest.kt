@@ -4,6 +4,13 @@ import com.adrianrusu.mediaapp.core.model.catalog.BambooCatalogNode
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackIntent
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackRepository
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackState
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCatalogItem
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlatformEvent
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
+import com.adrianrusu.mediaapp.core.rust.bridge.engine.EngineDispatchResult
+import com.adrianrusu.mediaapp.core.rust.bridge.gateway.EngineGateway
 import com.adrianrusu.mediaapp.core.telemetry.TelemetryLogger
 import com.adrianrusu.mediaapp.core.telemetry.TelemetrySink
 import kotlin.test.Test
@@ -145,15 +152,29 @@ class BambooMediaLibraryCatalogTest {
     @Test
     fun `engine source dispatches browse and search commands`() {
         val repository = CatalogRecordingPlaybackRepository()
+        val engineGateway = CatalogRecordingEngineGateway()
         val bridge = Media3PlaybackEngineBridge(
             playbackRepository = repository,
             telemetryLogger = testTelemetryLogger()
         )
-        val catalog = BambooMediaLibraryCatalog(source = EngineBambooCatalogSource(bridge))
+        val catalog = BambooMediaLibraryCatalog(
+            source = EngineBambooCatalogSource(
+                playbackBridge = bridge,
+                engineGateway = engineGateway
+            )
+        )
 
-        catalog.children(LibraryItems.ROOT_MEDIA_ID, page = 0, pageSize = 10)
+        val rootChildren = catalog.children(LibraryItems.ROOT_MEDIA_ID, page = 0, pageSize = 10)
         catalog.search("Rust", page = 0, pageSize = 10)
 
+        assertEquals(
+            listOf(
+                "pandawave.library.saved",
+                "pandawave.library.downloads",
+                "pandawave.library.recent"
+            ),
+            rootChildren.map { item -> item.mediaId }
+        )
         assertEquals(
             listOf<BambooPlaybackIntent>(
                 BambooPlaybackIntent.BrowseCatalog(parentId = LibraryItems.ENGINE_ROOT_PARENT_ID),
@@ -161,6 +182,39 @@ class BambooMediaLibraryCatalogTest {
             ),
             repository.intents
         )
+    }
+
+    @Test
+    fun `engine source projects non root browse and search results from gateway`() {
+        val repository = CatalogRecordingPlaybackRepository()
+        val engineGateway = CatalogRecordingEngineGateway(
+            snapshot = EngineSnapshot.idle(nowMillis = 1L).copy(
+                browseResultsCount = 1,
+                searchResultsCount = 1
+            ),
+            browseResults = listOf(EngineCatalogItem(mediaId = "album-1", title = "Forest Drive")),
+            searchResults = listOf(EngineCatalogItem(mediaId = "track-1", title = "Bamboo Radio"))
+        )
+        val bridge = Media3PlaybackEngineBridge(
+            playbackRepository = repository,
+            telemetryLogger = testTelemetryLogger()
+        )
+        val catalog = BambooMediaLibraryCatalog(
+            source = EngineBambooCatalogSource(
+                playbackBridge = bridge,
+                engineGateway = engineGateway
+            )
+        )
+
+        val browseChildren = catalog.children("engine.parent", page = 0, pageSize = 10)
+        val searchResults = catalog.search("Bamboo", page = 0, pageSize = 10)
+
+        assertEquals(listOf("album-1"), browseChildren.map { item -> item.mediaId })
+        assertEquals("Forest Drive", browseChildren.single().mediaMetadata.title.toString())
+        assertTrue(browseChildren.single().mediaMetadata.isPlayable == true)
+        assertFalse(browseChildren.single().mediaMetadata.isBrowsable == true)
+        assertEquals(listOf("track-1"), searchResults.map { item -> item.mediaId })
+        assertEquals("Bamboo Radio", searchResults.single().mediaMetadata.title.toString())
     }
 }
 
@@ -225,3 +279,32 @@ private fun testTelemetryLogger(): TelemetryLogger = TelemetryLogger(
     sink = TelemetrySink { },
     clock = { 42L }
 )
+
+private class CatalogRecordingEngineGateway(
+    private val snapshot: EngineSnapshot = EngineSnapshot.idle(nowMillis = 1L),
+    private val browseResults: List<EngineCatalogItem> = emptyList(),
+    private val searchResults: List<EngineCatalogItem> = emptyList()
+) : EngineGateway {
+    override fun snapshot(): EngineSnapshot = snapshot
+
+    override fun browseResult(index: Int): EngineCatalogItem? = browseResults.getOrNull(index)
+
+    override fun searchResult(index: Int): EngineCatalogItem? = searchResults.getOrNull(index)
+
+    override fun dispatch(command: EngineCommand): EngineDispatchResult = EngineDispatchResult(
+        snapshot = snapshot,
+        event = EngineEvent(type = EngineEvent.TYPE_COMMAND_APPLIED, message = command.type)
+    )
+
+    override fun dispatchPlatformEvent(event: EnginePlatformEvent): EngineDispatchResult = EngineDispatchResult(
+        snapshot = snapshot,
+        event = EngineEvent(type = EngineEvent.TYPE_PLATFORM_EVENT_APPLIED, message = event.type)
+    )
+
+    override fun observeSnapshots(listener: (EngineSnapshot) -> Unit): AutoCloseable {
+        listener(snapshot)
+        return AutoCloseable { }
+    }
+
+    override fun observeEngineEvents(listener: (EngineEvent) -> Unit): AutoCloseable = AutoCloseable { }
+}

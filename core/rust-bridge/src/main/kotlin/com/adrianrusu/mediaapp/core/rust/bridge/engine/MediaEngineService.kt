@@ -4,6 +4,7 @@ import android.app.Service
 import android.content.Intent
 import android.os.IBinder
 import android.os.RemoteCallbackList
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlatformEvent
@@ -17,6 +18,10 @@ class MediaEngineService : Service() {
 
     private val binder = object : IMediaEngineService.Stub() {
         override fun getSnapshot(): EngineSnapshot = engine.snapshot()
+
+        override fun getBrowseResult(index: Int): EngineCatalogItem? = engine.browseResult(index)
+
+        override fun getSearchResult(index: Int): EngineCatalogItem? = engine.searchResult(index)
 
         override fun dispatch(command: EngineCommand) {
             val result = engine.dispatch(command)

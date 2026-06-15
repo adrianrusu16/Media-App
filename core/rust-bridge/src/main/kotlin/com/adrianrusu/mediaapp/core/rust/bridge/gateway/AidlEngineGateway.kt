@@ -1,5 +1,6 @@
 package com.adrianrusu.mediaapp.core.rust.bridge.gateway
 
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlatformEvent
@@ -53,6 +54,10 @@ class AidlEngineGateway(
             }
         }
     }
+
+    override fun browseResult(index: Int): EngineCatalogItem? = connection.service?.browseResult(index)
+
+    override fun searchResult(index: Int): EngineCatalogItem? = connection.service?.searchResult(index)
 
     override fun dispatch(command: EngineCommand): EngineDispatchResult {
         val service = connection.service

@@ -1,5 +1,6 @@
 package com.adrianrusu.mediaapp.core.rust.bridge.gateway
 
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlatformEvent
@@ -448,6 +449,10 @@ private class RecordingEngineService(initialSnapshot: EngineSnapshot) : EngineSe
         get() = platformEvents.map { it.type }
 
     override fun snapshot(): EngineSnapshot = currentSnapshot
+
+    override fun browseResult(index: Int): EngineCatalogItem? = null
+
+    override fun searchResult(index: Int): EngineCatalogItem? = null
 
     override fun dispatch(command: EngineCommand) {
         commands += command
