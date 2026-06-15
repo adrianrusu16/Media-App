@@ -127,6 +127,30 @@ class Media3PlaybackEngineBridge(
         return true
     }
 
+    fun dispatchCatalogBrowse(parentId: String) {
+        val intent = BambooPlaybackIntent.BrowseCatalog(parentId = parentId)
+        telemetryLogger.debug(
+            name = Media3PlaybackTelemetryEvents.CATALOG_COMMAND_DISPATCHED,
+            attributes = mapOf(
+                BambooPlaybackTelemetryAttributes.INTENT to intent.telemetryName,
+                Media3PlaybackTelemetryAttributes.CATALOG_PARENT_ID to parentId
+            )
+        )
+        playbackRepository.dispatch(intent)
+    }
+
+    fun dispatchCatalogSearch(query: String) {
+        val intent = BambooPlaybackIntent.SearchCatalog(query = query)
+        telemetryLogger.debug(
+            name = Media3PlaybackTelemetryEvents.CATALOG_COMMAND_DISPATCHED,
+            attributes = mapOf(
+                BambooPlaybackTelemetryAttributes.INTENT to intent.telemetryName,
+                Media3PlaybackTelemetryAttributes.CATALOG_QUERY to query
+            )
+        )
+        playbackRepository.dispatch(intent)
+    }
+
     override fun close() {
         playbackRepository.close()
     }
@@ -137,9 +161,12 @@ internal object Media3PlaybackTelemetryEvents {
     const val PLAY_WHEN_READY_IGNORED = "media3.play_when_ready.ignored"
     const val PLAYER_COMMAND_DISPATCHED = "media3.player_command.dispatched"
     const val PLAYER_COMMAND_IGNORED = "media3.player_command.ignored"
+    const val CATALOG_COMMAND_DISPATCHED = "media3.catalog.command.dispatched"
 }
 
 internal object Media3PlaybackTelemetryAttributes {
+    const val CATALOG_PARENT_ID = "catalog_parent_id"
+    const val CATALOG_QUERY = "catalog_query"
     const val PLAY_WHEN_READY = "play_when_ready"
     const val PLAYER_COMMAND = "player_command"
     const val POSITION_MILLIS = "position_millis"

@@ -115,6 +115,23 @@ class Media3PlaybackEngineBridgeTest {
     }
 
     @Test
+    fun `catalog browse and search dispatch through playback repository`() {
+        val repository = RecordingPlaybackRepository()
+        val bridge = Media3PlaybackEngineBridge(repository, testTelemetryLogger())
+
+        bridge.dispatchCatalogBrowse(LibraryItems.ENGINE_ROOT_PARENT_ID)
+        bridge.dispatchCatalogSearch("Rust")
+
+        assertEquals(
+            listOf<BambooPlaybackIntent>(
+                BambooPlaybackIntent.BrowseCatalog(parentId = LibraryItems.ENGINE_ROOT_PARENT_ID),
+                BambooPlaybackIntent.SearchCatalog(query = "Rust")
+            ),
+            repository.intents
+        )
+    }
+
+    @Test
     fun `telemetry records dispatched ignored and projected media3 commands`() {
         val telemetrySink = RecordingTelemetrySink()
         val repository = RecordingPlaybackRepository()

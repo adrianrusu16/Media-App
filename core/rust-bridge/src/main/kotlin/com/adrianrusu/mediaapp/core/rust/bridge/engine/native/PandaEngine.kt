@@ -117,6 +117,8 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         private const val COMMAND_PAUSE = 2
         private const val COMMAND_SKIP_PREVIOUS = 3
         private const val COMMAND_SKIP_NEXT = 4
+        private const val COMMAND_SEARCH = 7
+        private const val COMMAND_BROWSE = 8
         private const val COMMAND_SET_SPEED = 9
         private const val COMMAND_SEEK = 10
         private const val COMMAND_UNKNOWN = -1
@@ -137,6 +139,8 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             EngineCommand.TYPE_PAUSE -> COMMAND_PAUSE
             EngineCommand.TYPE_SKIP_PREVIOUS -> COMMAND_SKIP_PREVIOUS
             EngineCommand.TYPE_SKIP_NEXT -> COMMAND_SKIP_NEXT
+            EngineCommand.TYPE_SEARCH -> COMMAND_SEARCH
+            EngineCommand.TYPE_BROWSE -> COMMAND_BROWSE
             EngineCommand.TYPE_SET_SPEED -> COMMAND_SET_SPEED
             EngineCommand.TYPE_SEEK -> COMMAND_SEEK
             else -> COMMAND_UNKNOWN

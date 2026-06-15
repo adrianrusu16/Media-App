@@ -1,10 +1,17 @@
 package com.adrianrusu.mediaapp.core.media.adapter.playback
 
 import com.adrianrusu.mediaapp.core.model.catalog.BambooCatalogNode
+import com.adrianrusu.mediaapp.core.playback.BambooPlaybackIntent
+import com.adrianrusu.mediaapp.core.playback.BambooPlaybackRepository
+import com.adrianrusu.mediaapp.core.playback.BambooPlaybackState
+import com.adrianrusu.mediaapp.core.telemetry.TelemetryLogger
+import com.adrianrusu.mediaapp.core.telemetry.TelemetrySink
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 
 class BambooMediaLibraryCatalogTest {
     @Test
@@ -134,6 +141,27 @@ class BambooMediaLibraryCatalogTest {
         assertEquals(1, results.size)
         assertEquals("result", results[0].mediaId)
     }
+
+    @Test
+    fun `engine source dispatches browse and search commands`() {
+        val repository = CatalogRecordingPlaybackRepository()
+        val bridge = Media3PlaybackEngineBridge(
+            playbackRepository = repository,
+            telemetryLogger = testTelemetryLogger()
+        )
+        val catalog = BambooMediaLibraryCatalog(source = EngineBambooCatalogSource(bridge))
+
+        catalog.children(LibraryItems.ROOT_MEDIA_ID, page = 0, pageSize = 10)
+        catalog.search("Rust", page = 0, pageSize = 10)
+
+        assertEquals(
+            listOf<BambooPlaybackIntent>(
+                BambooPlaybackIntent.BrowseCatalog(parentId = LibraryItems.ENGINE_ROOT_PARENT_ID),
+                BambooPlaybackIntent.SearchCatalog(query = "Rust")
+            ),
+            repository.intents
+        )
+    }
 }
 
 private object EmptyCatalogSource : BambooCatalogSource {
@@ -170,4 +198,30 @@ private fun node(id: String): BambooCatalogNode = BambooCatalogNode(
     title = id,
     isBrowsable = true,
     isPlayable = false
+)
+
+private class CatalogRecordingPlaybackRepository : BambooPlaybackRepository {
+    private val mutableState = MutableStateFlow(BambooPlaybackState())
+
+    val intents = mutableListOf<BambooPlaybackIntent>()
+
+    override val state: StateFlow<BambooPlaybackState> = mutableState
+
+    override fun start() = Unit
+
+    override fun dispatch(intent: BambooPlaybackIntent) {
+        intents += intent
+    }
+
+    override fun observe(listener: (BambooPlaybackState) -> Unit): AutoCloseable {
+        listener(state.value)
+        return AutoCloseable { }
+    }
+
+    override fun close() = Unit
+}
+
+private fun testTelemetryLogger(): TelemetryLogger = TelemetryLogger(
+    sink = TelemetrySink { },
+    clock = { 42L }
 )

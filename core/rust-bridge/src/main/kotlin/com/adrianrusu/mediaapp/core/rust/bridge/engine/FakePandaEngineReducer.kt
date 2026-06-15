@@ -36,6 +36,16 @@ internal object FakePandaEngineReducer {
             updatedAtEpochMillis = nowMillis
         )
 
+        EngineCommand.TYPE_SEARCH -> current.copy(
+            searchResultsCount = searchResultsCountFor(EngineCommandPayloads.parseSearchQuery(command.payload)),
+            updatedAtEpochMillis = nowMillis
+        )
+
+        EngineCommand.TYPE_BROWSE -> current.copy(
+            browseResultsCount = browseResultsCountFor(EngineCommandPayloads.parseBrowseParentId(command.payload)),
+            updatedAtEpochMillis = nowMillis
+        )
+
         else -> current.copy(updatedAtEpochMillis = nowMillis)
     }
 
@@ -49,4 +59,18 @@ internal object FakePandaEngineReducer {
 
             else -> current.copy(updatedAtEpochMillis = nowMillis)
         }
+
+    private fun searchResultsCountFor(query: String): Int = if (query.isBlank()) {
+        0
+    } else {
+        1
+    }
+
+    private fun browseResultsCountFor(parentId: String): Int = if (parentId ==
+        EngineCommandPayloads.DEFAULT_BROWSE_PARENT_ID
+    ) {
+        1
+    } else {
+        0
+    }
 }

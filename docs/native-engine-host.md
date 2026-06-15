@@ -143,6 +143,11 @@ sequenceDiagram
    Replace placeholder Media3 browsing/search with engine browse/search
    commands and snapshot/result projection.
 
+   Media3 browse/search requests now dispatch typed catalog intents through the
+   shared playback repository and into `TYPE_BROWSE` / `TYPE_SEARCH` engine
+   commands. Root browsing still returns stable Android placeholder categories
+   until result item query APIs are projected back into Media3 items.
+
 ## Naming Rule
 
 Use **Bamboo** for user-facing UI and design-system components, such as

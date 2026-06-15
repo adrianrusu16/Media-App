@@ -34,4 +34,25 @@ class PandaEngineFactoryTest {
         assertEquals(12_345L, seekResult.snapshot.positionMillis)
         assertEquals(1.25F, speedResult.snapshot.playbackSpeed)
     }
+
+    @Test
+    fun `fake engine applies browse and search payloads`() {
+        val engine = PandaEngineFactory.createFake(clock = { 42L })
+
+        val browseResult = engine.dispatch(
+            EngineCommand(
+                type = EngineCommand.TYPE_BROWSE,
+                payload = EngineCommandPayloads.browseParentId("root")
+            )
+        )
+        val searchResult = engine.dispatch(
+            EngineCommand(
+                type = EngineCommand.TYPE_SEARCH,
+                payload = EngineCommandPayloads.searchQuery("Rust")
+            )
+        )
+
+        assertEquals(1, browseResult.snapshot.browseResultsCount)
+        assertEquals(1, searchResult.snapshot.searchResultsCount)
+    }
 }

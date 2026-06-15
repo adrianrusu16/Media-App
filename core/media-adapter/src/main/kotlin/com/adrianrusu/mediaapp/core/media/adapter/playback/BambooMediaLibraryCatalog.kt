@@ -12,9 +12,7 @@ internal interface BambooCatalogSource {
 
 internal class EngineBambooCatalogSource(private val playbackBridge: Media3PlaybackEngineBridge) : BambooCatalogSource {
     override fun children(parentId: String): List<BambooCatalogNode> {
-        // Here we would normally call the bridge to get children from Rust.
-        // For now, we return placeholder root nodes, or empty for others.
-        // Real implementation would use dispatchPlatformEvent and observe state.
+        playbackBridge.dispatchCatalogBrowse(parentId.toEngineParentId())
         return if (parentId == LibraryItems.ROOT_MEDIA_ID) {
             rootChildren
         } else {
@@ -23,9 +21,8 @@ internal class EngineBambooCatalogSource(private val playbackBridge: Media3Playb
     }
 
     override fun search(query: String): List<BambooCatalogNode> {
-        // Dispatch search event to Rust
-        playbackBridge.dispatchPlatformEvent("search", query)
-        return emptyList() // Search results would come back via state updates
+        playbackBridge.dispatchCatalogSearch(query)
+        return emptyList()
     }
 
     private val rootChildren = listOf(
@@ -67,6 +64,7 @@ internal class BambooMediaLibraryCatalog(private val source: BambooCatalogSource
 
 internal object LibraryItems {
     const val ROOT_MEDIA_ID = "pandawave.library.root"
+    const val ENGINE_ROOT_PARENT_ID = "root"
 
     val Root: MediaItem = MediaItem.Builder()
         .setMediaId(ROOT_MEDIA_ID)
@@ -78,6 +76,11 @@ internal object LibraryItems {
                 .build()
         )
         .build()
+}
+
+private fun String.toEngineParentId(): String = when (this) {
+    LibraryItems.ROOT_MEDIA_ID -> LibraryItems.ENGINE_ROOT_PARENT_ID
+    else -> this
 }
 
 private fun BambooCatalogNode.toMediaItem(): MediaItem = MediaItem.Builder()

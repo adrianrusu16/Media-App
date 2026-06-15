@@ -162,6 +162,40 @@ class DefaultBambooPlaybackRepositoryTest {
     }
 
     @Test
+    fun `ready engine allows catalog browse and search commands with typed payloads`() {
+        val engine = RecordingEngineGateway(initialSnapshot = EngineSnapshot.idle(nowMillis = 1L))
+        val repository = DefaultBambooPlaybackRepository(
+            engine = engine,
+            uxRestrictionObserver = FakeUxRestrictionObserver(
+                restrictions = AutomotiveUxRestrictions.unrestricted(
+                    AutomotiveUxRestrictions.Source.NotAutomotive
+                )
+            ),
+            telemetryLogger = testTelemetryLogger()
+        )
+
+        repository.start()
+        repository.dispatch(
+            BambooPlaybackIntent.BrowseCatalog(parentId = EngineCommandPayloads.DEFAULT_BROWSE_PARENT_ID)
+        )
+        repository.dispatch(BambooPlaybackIntent.SearchCatalog(query = "Rust"))
+
+        assertEquals(
+            listOf(
+                EngineCommand.TYPE_BOOTSTRAP,
+                EngineCommand.TYPE_BROWSE,
+                EngineCommand.TYPE_SEARCH
+            ),
+            engine.commands.map { it.type }
+        )
+        assertEquals(
+            EngineCommandPayloads.browseParentId(EngineCommandPayloads.DEFAULT_BROWSE_PARENT_ID),
+            engine.commands[1].payload
+        )
+        assertEquals(EngineCommandPayloads.searchQuery("Rust"), engine.commands[2].payload)
+    }
+
+    @Test
     fun `engine events update connection state and gate commands`() {
         val engine = RecordingEngineGateway(initialSnapshot = EngineSnapshot.idle(nowMillis = 1L))
         val repository = DefaultBambooPlaybackRepository(

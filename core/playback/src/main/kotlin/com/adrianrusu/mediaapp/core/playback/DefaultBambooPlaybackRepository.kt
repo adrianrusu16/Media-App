@@ -106,6 +106,18 @@ class DefaultBambooPlaybackRepository(
                 sourceIntent = intent
             )
 
+            is BambooPlaybackIntent.SearchCatalog -> dispatchEngineCommand(
+                commandType = EngineCommand.TYPE_SEARCH,
+                payload = EngineCommandPayloads.searchQuery(intent.query),
+                sourceIntent = intent
+            )
+
+            is BambooPlaybackIntent.BrowseCatalog -> dispatchEngineCommand(
+                commandType = EngineCommand.TYPE_BROWSE,
+                payload = EngineCommandPayloads.browseParentId(intent.parentId),
+                sourceIntent = intent
+            )
+
             is BambooPlaybackIntent.PlatformEvent -> dispatchPlatformEvent(intent)
         }
     }

@@ -66,7 +66,8 @@ internal class BambooMediaLibrarySessionCallback(
         query: String,
         params: MediaLibraryService.LibraryParams?
     ): ListenableFuture<LibraryResult<Void>> {
-        session.notifySearchResultChanged(browser, query, Int.MAX_VALUE, params)
+        val resultCount = catalog.search(query, page = 0, pageSize = Int.MAX_VALUE).size
+        session.notifySearchResultChanged(browser, query, resultCount, params)
         return Futures.immediateFuture(LibraryResult.ofVoid())
     }
 }
