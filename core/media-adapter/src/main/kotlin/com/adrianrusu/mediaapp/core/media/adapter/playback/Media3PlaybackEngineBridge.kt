@@ -3,6 +3,8 @@ package com.adrianrusu.mediaapp.core.media.adapter.playback
 import androidx.media3.common.Player
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackIntent
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackRepository
+import com.adrianrusu.mediaapp.core.playback.BambooPlaybackTelemetryAttributes
+import com.adrianrusu.mediaapp.core.playback.telemetryName
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.mediaapp.core.telemetry.TelemetryLogger
 
@@ -40,9 +42,9 @@ class Media3PlaybackEngineBridge(
             telemetryLogger.debug(
                 name = Media3PlaybackTelemetryEvents.PLAY_WHEN_READY_IGNORED,
                 attributes = mapOf(
-                    "play_when_ready" to playWhenReady.toString(),
-                    "reason" to reason.toString(),
-                    "source" to "platform_projection"
+                    Media3PlaybackTelemetryAttributes.PLAY_WHEN_READY to playWhenReady.toString(),
+                    Media3PlaybackTelemetryAttributes.REASON to reason.toString(),
+                    Media3PlaybackTelemetryAttributes.SOURCE to Media3PlaybackTelemetryValues.PLATFORM_PROJECTION
                 )
             )
             return
@@ -51,8 +53,8 @@ class Media3PlaybackEngineBridge(
         telemetryLogger.debug(
             name = Media3PlaybackTelemetryEvents.PLAY_WHEN_READY_RECEIVED,
             attributes = mapOf(
-                "play_when_ready" to playWhenReady.toString(),
-                "reason" to reason.toString()
+                Media3PlaybackTelemetryAttributes.PLAY_WHEN_READY to playWhenReady.toString(),
+                Media3PlaybackTelemetryAttributes.REASON to reason.toString()
             )
         )
         playbackRepository.dispatch(
@@ -81,7 +83,7 @@ class Media3PlaybackEngineBridge(
         if (intent == null) {
             telemetryLogger.debug(
                 name = Media3PlaybackTelemetryEvents.PLAYER_COMMAND_IGNORED,
-                attributes = mapOf("player_command" to playerCommand.toString())
+                attributes = mapOf(Media3PlaybackTelemetryAttributes.PLAYER_COMMAND to playerCommand.toString())
             )
             return false
         }
@@ -89,8 +91,8 @@ class Media3PlaybackEngineBridge(
         telemetryLogger.debug(
             name = Media3PlaybackTelemetryEvents.PLAYER_COMMAND_DISPATCHED,
             attributes = mapOf(
-                "player_command" to playerCommand.toString(),
-                "intent" to intent.telemetryName
+                Media3PlaybackTelemetryAttributes.PLAYER_COMMAND to playerCommand.toString(),
+                BambooPlaybackTelemetryAttributes.INTENT to intent.telemetryName
             )
         )
         playbackRepository.dispatch(intent)
@@ -102,9 +104,9 @@ class Media3PlaybackEngineBridge(
         telemetryLogger.debug(
             name = Media3PlaybackTelemetryEvents.PLAYER_COMMAND_DISPATCHED,
             attributes = mapOf(
-                "player_command" to "seek_to",
-                "intent" to intent.telemetryName,
-                "position_millis" to intent.positionMillis.toString()
+                Media3PlaybackTelemetryAttributes.PLAYER_COMMAND to intent.telemetryName,
+                BambooPlaybackTelemetryAttributes.INTENT to intent.telemetryName,
+                Media3PlaybackTelemetryAttributes.POSITION_MILLIS to intent.positionMillis.toString()
             )
         )
         playbackRepository.dispatch(intent)
@@ -116,9 +118,9 @@ class Media3PlaybackEngineBridge(
         telemetryLogger.debug(
             name = Media3PlaybackTelemetryEvents.PLAYER_COMMAND_DISPATCHED,
             attributes = mapOf(
-                "player_command" to "set_speed",
-                "intent" to intent.telemetryName,
-                "speed" to intent.speed.toString()
+                Media3PlaybackTelemetryAttributes.PLAYER_COMMAND to intent.telemetryName,
+                BambooPlaybackTelemetryAttributes.INTENT to intent.telemetryName,
+                Media3PlaybackTelemetryAttributes.SPEED to intent.speed.toString()
             )
         )
         playbackRepository.dispatch(intent)
@@ -137,15 +139,15 @@ internal object Media3PlaybackTelemetryEvents {
     const val PLAYER_COMMAND_IGNORED = "media3.player_command.ignored"
 }
 
-private val BambooPlaybackIntent.telemetryName: String
-    get() = when (this) {
-        BambooPlaybackIntent.Refresh -> "refresh"
-        BambooPlaybackIntent.Play -> "play"
-        BambooPlaybackIntent.Pause -> "pause"
-        BambooPlaybackIntent.TogglePlayback -> "toggle_playback"
-        BambooPlaybackIntent.SkipPrevious -> "skip_previous"
-        BambooPlaybackIntent.SkipNext -> "skip_next"
-        is BambooPlaybackIntent.SeekTo -> "seek_to"
-        is BambooPlaybackIntent.SetSpeed -> "set_speed"
-        is BambooPlaybackIntent.PlatformEvent -> "platform_event_$type"
-    }
+internal object Media3PlaybackTelemetryAttributes {
+    const val PLAY_WHEN_READY = "play_when_ready"
+    const val PLAYER_COMMAND = "player_command"
+    const val POSITION_MILLIS = "position_millis"
+    const val REASON = "reason"
+    const val SOURCE = "source"
+    const val SPEED = "speed"
+}
+
+internal object Media3PlaybackTelemetryValues {
+    const val PLATFORM_PROJECTION = "platform_projection"
+}

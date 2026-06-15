@@ -2,6 +2,7 @@ package com.adrianrusu.mediaapp.core.rust.bridge.engine.native
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommandPayloads
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
@@ -36,7 +37,7 @@ class PandaEngineNativeSmokeTest {
             val seekResult = engine.dispatch(
                 EngineCommand(
                     type = EngineCommand.TYPE_SEEK,
-                    payload = "12345"
+                    payload = EngineCommandPayloads.seekPositionMillis(12_345L)
                 )
             )
             assertEquals(12_345L, seekResult.snapshot.positionMillis)
@@ -44,7 +45,7 @@ class PandaEngineNativeSmokeTest {
             val speedResult = engine.dispatch(
                 EngineCommand(
                     type = EngineCommand.TYPE_SET_SPEED,
-                    payload = "1.25"
+                    payload = EngineCommandPayloads.playbackSpeed(1.25F)
                 )
             )
             assertEquals(1.25F, speedResult.snapshot.playbackSpeed)

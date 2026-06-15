@@ -1,6 +1,7 @@
 package com.adrianrusu.mediaapp.core.rust.bridge.engine
 
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommandPayloads
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -20,13 +21,13 @@ class PandaEngineFactoryTest {
         val seekResult = engine.dispatch(
             EngineCommand(
                 type = EngineCommand.TYPE_SEEK,
-                payload = "12345"
+                payload = EngineCommandPayloads.seekPositionMillis(12_345L)
             )
         )
         val speedResult = engine.dispatch(
             EngineCommand(
                 type = EngineCommand.TYPE_SET_SPEED,
-                payload = "1.25"
+                payload = EngineCommandPayloads.playbackSpeed(1.25F)
             )
         )
 

@@ -1,6 +1,7 @@
 package com.adrianrusu.mediaapp.core.rust.bridge.engine
 
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommandPayloads
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
 
@@ -26,12 +27,12 @@ internal object FakePandaEngineReducer {
         )
 
         EngineCommand.TYPE_SEEK -> current.copy(
-            positionMillis = command.payload?.toLongOrNull()?.coerceAtLeast(0L) ?: 0L,
+            positionMillis = EngineCommandPayloads.parseSeekPositionMillis(command.payload),
             updatedAtEpochMillis = nowMillis
         )
 
         EngineCommand.TYPE_SET_SPEED -> current.copy(
-            playbackSpeed = command.payload?.toFloatOrNull()?.coerceAtLeast(0F) ?: 1F,
+            playbackSpeed = EngineCommandPayloads.parsePlaybackSpeed(command.payload),
             updatedAtEpochMillis = nowMillis
         )
 

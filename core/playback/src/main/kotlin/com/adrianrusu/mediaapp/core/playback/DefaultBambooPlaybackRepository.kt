@@ -2,6 +2,7 @@ package com.adrianrusu.mediaapp.core.playback
 
 import com.adrianrusu.mediaapp.core.automotive.ux.AutomotiveUxRestrictionObserver
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommandPayloads
 import com.adrianrusu.mediaapp.core.rust.bridge.engine.EngineDispatchResult
 import com.adrianrusu.mediaapp.core.rust.bridge.gateway.EngineGateway
 import com.adrianrusu.mediaapp.core.telemetry.TelemetryLogger
@@ -63,8 +64,8 @@ class DefaultBambooPlaybackRepository(
         telemetryLogger.debug(
             name = PlaybackTelemetryEvents.INTENT_RECEIVED,
             attributes = mapOf(
-                "intent" to intent.telemetryName,
-                "engine_status" to state.value.engineConnection.status.name
+                BambooPlaybackTelemetryAttributes.INTENT to intent.telemetryName,
+                BambooPlaybackTelemetryAttributes.ENGINE_STATUS to state.value.engineConnection.status.name
             )
         )
 
@@ -95,13 +96,13 @@ class DefaultBambooPlaybackRepository(
 
             is BambooPlaybackIntent.SeekTo -> dispatchEngineCommand(
                 commandType = EngineCommand.TYPE_SEEK,
-                payload = intent.positionMillis.coerceAtLeast(0L).toString(),
+                payload = EngineCommandPayloads.seekPositionMillis(intent.positionMillis),
                 sourceIntent = intent
             )
 
             is BambooPlaybackIntent.SetSpeed -> dispatchEngineCommand(
                 commandType = EngineCommand.TYPE_SET_SPEED,
-                payload = intent.speed.coerceAtLeast(0F).toString(),
+                payload = EngineCommandPayloads.playbackSpeed(intent.speed),
                 sourceIntent = intent
             )
 
@@ -157,7 +158,7 @@ class DefaultBambooPlaybackRepository(
 
         telemetryLogger.debug(
             name = PlaybackTelemetryEvents.ENGINE_SNAPSHOT_REQUESTED,
-            attributes = mapOf("intent" to BambooPlaybackIntent.Refresh.telemetryName)
+            attributes = mapOf(BambooPlaybackTelemetryAttributes.INTENT to BambooPlaybackIntent.Refresh.telemetryName)
         )
         updateState { current ->
             BambooPlaybackStateProjector.fromEngineSnapshot(
@@ -192,8 +193,8 @@ class DefaultBambooPlaybackRepository(
         telemetryLogger.info(
             name = PlaybackTelemetryEvents.ENGINE_COMMAND_DISPATCHED,
             attributes = mapOf(
-                "intent" to sourceIntent.telemetryName,
-                "command_type" to commandType
+                BambooPlaybackTelemetryAttributes.INTENT to sourceIntent.telemetryName,
+                BambooPlaybackTelemetryAttributes.COMMAND_TYPE to commandType
             )
         )
 
@@ -218,8 +219,8 @@ class DefaultBambooPlaybackRepository(
         telemetryLogger.info(
             name = PlaybackTelemetryEvents.PLATFORM_EVENT_DISPATCHED,
             attributes = mapOf(
-                "intent" to intent.telemetryName,
-                "event_type" to intent.type
+                BambooPlaybackTelemetryAttributes.INTENT to intent.telemetryName,
+                BambooPlaybackTelemetryAttributes.EVENT_TYPE to intent.type
             )
         )
 
@@ -251,8 +252,8 @@ class DefaultBambooPlaybackRepository(
         telemetryLogger.info(
             name = PlaybackTelemetryEvents.INTENT_BLOCKED,
             attributes = mapOf(
-                "intent" to intent.telemetryName,
-                "engine_status" to state.value.engineConnection.status.name
+                BambooPlaybackTelemetryAttributes.INTENT to intent.telemetryName,
+                BambooPlaybackTelemetryAttributes.ENGINE_STATUS to state.value.engineConnection.status.name
             )
         )
     }
@@ -265,19 +266,6 @@ internal object PlaybackTelemetryEvents {
     const val PLATFORM_EVENT_DISPATCHED = "playback.platform_event.dispatched"
     const val ENGINE_SNAPSHOT_REQUESTED = "playback.engine.snapshot.requested"
 }
-
-private val BambooPlaybackIntent.telemetryName: String
-    get() = when (this) {
-        BambooPlaybackIntent.Refresh -> "refresh"
-        BambooPlaybackIntent.Play -> "play"
-        BambooPlaybackIntent.Pause -> "pause"
-        BambooPlaybackIntent.TogglePlayback -> "toggle_playback"
-        BambooPlaybackIntent.SkipPrevious -> "skip_previous"
-        BambooPlaybackIntent.SkipNext -> "skip_next"
-        is BambooPlaybackIntent.SeekTo -> "seek_to"
-        is BambooPlaybackIntent.SetSpeed -> "set_speed"
-        is BambooPlaybackIntent.PlatformEvent -> "platform_event"
-    }
 
 private fun BambooPlaybackState.fromEngineResult(result: EngineDispatchResult): BambooPlaybackState =
     BambooPlaybackStateProjector.fromEngineEvent(

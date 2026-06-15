@@ -2,8 +2,10 @@ package com.adrianrusu.mediaapp.core.media.adapter.playback
 
 import androidx.media3.common.Player
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackIntent
+import com.adrianrusu.mediaapp.core.playback.BambooPlaybackIntentNames
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackRepository
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackState
+import com.adrianrusu.mediaapp.core.playback.BambooPlaybackTelemetryAttributes
 import com.adrianrusu.mediaapp.core.telemetry.TelemetryEvent
 import com.adrianrusu.mediaapp.core.telemetry.TelemetryLogger
 import com.adrianrusu.mediaapp.core.telemetry.TelemetrySink
@@ -134,10 +136,19 @@ class Media3PlaybackEngineBridgeTest {
             ),
             telemetrySink.events.map { it.name }
         )
-        assertEquals("true", telemetrySink.events[0].attributes["play_when_ready"])
-        assertEquals("platform_projection", telemetrySink.events[1].attributes["source"])
-        assertEquals("skip_next", telemetrySink.events[2].attributes["intent"])
-        assertEquals(Player.COMMAND_SEEK_FORWARD.toString(), telemetrySink.events[3].attributes["player_command"])
+        assertEquals("true", telemetrySink.events[0].attributes[Media3PlaybackTelemetryAttributes.PLAY_WHEN_READY])
+        assertEquals(
+            Media3PlaybackTelemetryValues.PLATFORM_PROJECTION,
+            telemetrySink.events[1].attributes[Media3PlaybackTelemetryAttributes.SOURCE]
+        )
+        assertEquals(
+            BambooPlaybackIntentNames.SKIP_NEXT,
+            telemetrySink.events[2].attributes[BambooPlaybackTelemetryAttributes.INTENT]
+        )
+        assertEquals(
+            Player.COMMAND_SEEK_FORWARD.toString(),
+            telemetrySink.events[3].attributes[Media3PlaybackTelemetryAttributes.PLAYER_COMMAND]
+        )
     }
 }
 

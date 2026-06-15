@@ -3,6 +3,7 @@ package com.adrianrusu.mediaapp.core.playback
 import com.adrianrusu.mediaapp.core.automotive.ux.AutomotiveUxRestrictionObserver
 import com.adrianrusu.mediaapp.core.automotive.ux.AutomotiveUxRestrictions
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommandPayloads
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
@@ -156,8 +157,8 @@ class DefaultBambooPlaybackRepositoryTest {
             ),
             engine.commands.map { it.type }
         )
-        assertEquals("12345", engine.commands[1].payload)
-        assertEquals("1.25", engine.commands[2].payload)
+        assertEquals(EngineCommandPayloads.seekPositionMillis(12_345L), engine.commands[1].payload)
+        assertEquals(EngineCommandPayloads.playbackSpeed(1.25F), engine.commands[2].payload)
     }
 
     @Test
@@ -276,10 +277,22 @@ class DefaultBambooPlaybackRepositoryTest {
             ),
             telemetrySink.events.map { it.name }
         )
-        assertEquals("play", telemetrySink.events[0].attributes["intent"])
-        assertEquals("Connecting", telemetrySink.events[1].attributes["engine_status"])
-        assertEquals("skip_next", telemetrySink.events[3].attributes["intent"])
-        assertEquals(EngineCommand.TYPE_SKIP_NEXT, telemetrySink.events[3].attributes["command_type"])
+        assertEquals(
+            BambooPlaybackIntentNames.PLAY,
+            telemetrySink.events[0].attributes[BambooPlaybackTelemetryAttributes.INTENT]
+        )
+        assertEquals(
+            BambooEngineConnectionStatus.Connecting.name,
+            telemetrySink.events[1].attributes[BambooPlaybackTelemetryAttributes.ENGINE_STATUS]
+        )
+        assertEquals(
+            BambooPlaybackIntentNames.SKIP_NEXT,
+            telemetrySink.events[3].attributes[BambooPlaybackTelemetryAttributes.INTENT]
+        )
+        assertEquals(
+            EngineCommand.TYPE_SKIP_NEXT,
+            telemetrySink.events[3].attributes[BambooPlaybackTelemetryAttributes.COMMAND_TYPE]
+        )
     }
 }
 
