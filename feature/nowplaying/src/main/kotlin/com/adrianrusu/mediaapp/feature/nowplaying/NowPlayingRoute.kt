@@ -16,11 +16,16 @@ import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -34,10 +39,12 @@ import com.adrianrusu.mediaapp.core.designsystem.tokens.sm
 import com.adrianrusu.mediaapp.core.designsystem.tokens.touchTargetLg
 import com.adrianrusu.mediaapp.core.designsystem.tokens.touchTargetMd
 import com.adrianrusu.mediaapp.core.designsystem.tokens.xs
+import com.adrianrusu.mediaapp.core.playback.BambooPlaybackProgress
 import com.adrianrusu.mediaapp.core.ui.playback.BambooPlaybackText
 import com.adrianrusu.mediaapp.feature.nowplaying.domain.NowPlayingIntent
 import com.adrianrusu.mediaapp.feature.nowplaying.domain.NowPlayingState
 import com.adrianrusu.mediaapp.feature.nowplaying.presentation.NowPlayingViewModel
+import kotlinx.coroutines.delay
 
 @Composable
 fun NowPlayingRoute(modifier: Modifier = Modifier) {
@@ -58,12 +65,28 @@ private fun NowPlayingScreen(
     modifier: Modifier = Modifier
 ) {
     val tokens = LocalPandaWaveDesignTokens.current
+    var nowMillis by remember(state.progressAnchor) {
+        mutableLongStateOf(System.currentTimeMillis())
+    }
+    val progress = state.progressAt(nowMillis)
+
+    LaunchedEffect(state.progressAnchor) {
+        nowMillis = System.currentTimeMillis()
+
+        while (state.isPlaying) {
+            delay(NOW_PLAYING_PROGRESS_TICK_MILLIS)
+            nowMillis = System.currentTimeMillis()
+        }
+    }
 
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(tokens.spacing.md)
     ) {
-        NowPlayingStatusCard(state = state)
+        NowPlayingStatusCard(
+            state = state,
+            progress = progress
+        )
         PlaybackControls(
             state = state,
             onIntent = onIntent
@@ -73,7 +96,7 @@ private fun NowPlayingScreen(
 }
 
 @Composable
-private fun NowPlayingStatusCard(state: NowPlayingState) {
+private fun NowPlayingStatusCard(state: NowPlayingState, progress: BambooPlaybackProgress) {
     val tokens = LocalPandaWaveDesignTokens.current
 
     Surface(
@@ -106,6 +129,25 @@ private fun NowPlayingStatusCard(state: NowPlayingState) {
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+            LinearProgressIndicator(
+                progress = { progress.fraction },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = progress.positionMillis.toPlaybackTimeLabel(),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text(
+                    text = progress.durationMillis?.toPlaybackTimeLabel() ?: UNKNOWN_PLAYBACK_TIME_LABEL,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
         }
     }
 }
@@ -203,6 +245,19 @@ private fun PlaybackControls(state: NowPlayingState, onIntent: (NowPlayingIntent
         }
     }
 }
+
+private fun Long.toPlaybackTimeLabel(): String {
+    val totalSeconds = (this / MILLIS_PER_SECOND).coerceAtLeast(0L)
+    val minutes = totalSeconds / SECONDS_PER_MINUTE
+    val seconds = totalSeconds % SECONDS_PER_MINUTE
+
+    return "$minutes:${seconds.toString().padStart(2, '0')}"
+}
+
+private const val NOW_PLAYING_PROGRESS_TICK_MILLIS = 1_000L
+private const val MILLIS_PER_SECOND = 1_000L
+private const val SECONDS_PER_MINUTE = 60L
+private const val UNKNOWN_PLAYBACK_TIME_LABEL = "--:--"
 
 @Composable
 private fun EngineStateCard(state: NowPlayingState) {

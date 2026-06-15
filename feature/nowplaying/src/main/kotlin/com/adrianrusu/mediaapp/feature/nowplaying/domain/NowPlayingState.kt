@@ -2,6 +2,9 @@ package com.adrianrusu.mediaapp.feature.nowplaying.domain
 
 import com.adrianrusu.mediaapp.core.playback.BambooEngineConnectionStatus
 import com.adrianrusu.mediaapp.core.playback.BambooEngineConnectionUiState
+import com.adrianrusu.mediaapp.core.playback.BambooPlaybackProgress
+import com.adrianrusu.mediaapp.core.playback.BambooPlaybackProgressAnchor
+import com.adrianrusu.mediaapp.core.playback.BambooPlaybackProgressProjector
 import com.adrianrusu.mediaapp.core.ui.playback.BambooPlaybackText
 
 data class NowPlayingState(
@@ -11,7 +14,8 @@ data class NowPlayingState(
     val playbackState: NowPlayingPlaybackState = NowPlayingPlaybackState.Idle,
     val engineConnection: BambooEngineConnectionUiState = BambooEngineConnectionUiState.Connecting,
     val restriction: NowPlayingRestrictionState = NowPlayingRestrictionState.Unavailable,
-    val updatedAtEpochMillis: Long = 0L
+    val updatedAtEpochMillis: Long = 0L,
+    val progressAnchor: BambooPlaybackProgressAnchor = BambooPlaybackProgressAnchor()
 ) {
     val isPlaying: Boolean
         get() = playbackState == NowPlayingPlaybackState.Playing
@@ -24,4 +28,9 @@ data class NowPlayingState(
 
     val detailLabel: String
         get() = artist
+
+    fun progressAt(nowMillis: Long): BambooPlaybackProgress = BambooPlaybackProgressProjector.fromAnchor(
+        anchor = progressAnchor,
+        nowMillis = nowMillis
+    )
 }

@@ -7,6 +7,23 @@ import kotlin.test.assertTrue
 
 class BambooPlaybackProgressProjectorTest {
     @Test
+    fun `anchor progress advances without a full playback state`() {
+        val progress = BambooPlaybackProgressProjector.fromAnchor(
+            anchor = BambooPlaybackProgressAnchor(
+                playbackSpeed = 2F,
+                positionMillis = 4_000L,
+                durationMillis = 10_000L,
+                updatedAtEpochMillis = 1_000L,
+                isPlaying = true
+            ),
+            nowMillis = 2_000L
+        )
+
+        assertEquals(6_000L, progress.positionMillis)
+        assertEquals(0.6F, progress.fraction)
+    }
+
+    @Test
     fun `playing progress advances from engine anchor using playback speed`() {
         val progress = BambooPlaybackProgressProjector.fromPlaybackState(
             state = BambooPlaybackState(

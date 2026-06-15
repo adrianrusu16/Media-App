@@ -1,6 +1,7 @@
 package com.adrianrusu.mediaapp.feature.nowplaying.data
 
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackIntent
+import com.adrianrusu.mediaapp.core.playback.BambooPlaybackProgressAnchor
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackRepository
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackRestrictionState
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackState
@@ -55,7 +56,8 @@ internal fun NowPlayingState.withPlaybackState(playback: BambooPlaybackState): N
     playbackState = playback.playbackStatus.toNowPlayingPlaybackState(),
     engineConnection = playback.engineConnection,
     restriction = playback.restriction.toNowPlayingRestrictionState(),
-    updatedAtEpochMillis = playback.updatedAtEpochMillis
+    updatedAtEpochMillis = playback.updatedAtEpochMillis,
+    progressAnchor = BambooPlaybackProgressAnchor.fromPlaybackState(playback)
 )
 
 private fun BambooPlaybackStatus.toNowPlayingPlaybackState(): NowPlayingPlaybackState = when (this) {

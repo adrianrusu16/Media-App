@@ -26,7 +26,10 @@ class InMemoryNowPlayingRepositoryTest {
                     label = "Driver-safe mode",
                     isRestricted = true
                 ),
-                updatedAtEpochMillis = 100L
+                updatedAtEpochMillis = 100L,
+                positionMillis = 10_000L,
+                durationMillis = 40_000L,
+                playbackSpeed = 1.5F
             )
         )
         val repository = InMemoryNowPlayingRepository(playbackRepository = playback)
@@ -40,6 +43,8 @@ class InMemoryNowPlayingRepositoryTest {
         assertEquals(BambooEngineConnectionUiState.Ready, repository.state.value.engineConnection)
         assertEquals("Driver-safe mode", repository.state.value.restriction.label)
         assertTrue(repository.state.value.restriction.isRestricted)
+        assertEquals(13_000L, repository.state.value.progressAt(nowMillis = 2_100L).positionMillis)
+        assertEquals(0.325F, repository.state.value.progressAt(nowMillis = 2_100L).fraction)
     }
 
     @Test
