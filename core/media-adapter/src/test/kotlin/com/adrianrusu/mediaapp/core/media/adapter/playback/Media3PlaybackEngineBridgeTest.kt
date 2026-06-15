@@ -87,6 +87,32 @@ class Media3PlaybackEngineBridgeTest {
     }
 
     @Test
+    fun `seek dispatches through playback repository`() {
+        val repository = RecordingPlaybackRepository()
+        val bridge = Media3PlaybackEngineBridge(repository, testTelemetryLogger())
+
+        bridge.dispatchSeek(12_345L)
+
+        assertEquals(
+            listOf<BambooPlaybackIntent>(BambooPlaybackIntent.SeekTo(positionMillis = 12_345L)),
+            repository.intents
+        )
+    }
+
+    @Test
+    fun `playback speed dispatches through playback repository`() {
+        val repository = RecordingPlaybackRepository()
+        val bridge = Media3PlaybackEngineBridge(repository, testTelemetryLogger())
+
+        bridge.dispatchPlaybackSpeed(1.25F)
+
+        assertEquals(
+            listOf<BambooPlaybackIntent>(BambooPlaybackIntent.SetSpeed(speed = 1.25F)),
+            repository.intents
+        )
+    }
+
+    @Test
     fun `telemetry records dispatched ignored and projected media3 commands`() {
         val telemetrySink = RecordingTelemetrySink()
         val repository = RecordingPlaybackRepository()

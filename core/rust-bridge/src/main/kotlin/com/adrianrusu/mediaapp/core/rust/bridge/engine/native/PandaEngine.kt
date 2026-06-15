@@ -24,6 +24,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         val nativeValues = nativeDispatch(
             handle = nativeHandle,
             commandType = command.toNativeCommandType(),
+            payload = command.payload,
             nowEpochMillis = clock()
         )
 
@@ -71,7 +72,12 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
 
     private external fun nativeCurrentUserId(handle: Long): String?
 
-    private external fun nativeDispatch(handle: Long, commandType: Int, nowEpochMillis: Long): LongArray
+    private external fun nativeDispatch(
+        handle: Long,
+        commandType: Int,
+        payload: String?,
+        nowEpochMillis: Long
+    ): LongArray
 
     private external fun nativeDispatchPlatformEvent(
         handle: Long,
@@ -111,6 +117,8 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         private const val COMMAND_PAUSE = 2
         private const val COMMAND_SKIP_PREVIOUS = 3
         private const val COMMAND_SKIP_NEXT = 4
+        private const val COMMAND_SET_SPEED = 9
+        private const val COMMAND_SEEK = 10
         private const val COMMAND_UNKNOWN = -1
 
         private const val PLATFORM_EVENT_APP_FOREGROUNDED = 0
@@ -129,6 +137,8 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             EngineCommand.TYPE_PAUSE -> COMMAND_PAUSE
             EngineCommand.TYPE_SKIP_PREVIOUS -> COMMAND_SKIP_PREVIOUS
             EngineCommand.TYPE_SKIP_NEXT -> COMMAND_SKIP_NEXT
+            EngineCommand.TYPE_SET_SPEED -> COMMAND_SET_SPEED
+            EngineCommand.TYPE_SEEK -> COMMAND_SEEK
             else -> COMMAND_UNKNOWN
         }
 

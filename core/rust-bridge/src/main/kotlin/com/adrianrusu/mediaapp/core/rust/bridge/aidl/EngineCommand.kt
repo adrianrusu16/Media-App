@@ -22,6 +22,8 @@ data class EngineCommand(val type: String, val payload: String?) : Parcelable {
         const val TYPE_PAUSE = "pause"
         const val TYPE_SKIP_PREVIOUS = "skip_previous"
         const val TYPE_SKIP_NEXT = "skip_next"
+        const val TYPE_SET_SPEED = "set_speed"
+        const val TYPE_SEEK = "seek"
 
         @JvmField
         val CREATOR: Parcelable.Creator<EngineCommand> =

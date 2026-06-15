@@ -5,5 +5,5 @@ import com.adrianrusu.mediaapp.core.rust.bridge.engine.native.PandaEngine
 object PandaEngineFactory {
     fun create(): RustEngine = PandaEngine.create()
 
-    internal fun createFake(): RustEngine = FakePandaEngine()
+    internal fun createFake(clock: () -> Long = System::currentTimeMillis): RustEngine = FakePandaEngine(clock = clock)
 }

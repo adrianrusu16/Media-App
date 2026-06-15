@@ -51,13 +51,16 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
     _this: JObject,
     handle: jlong,
     command_type: jint,
+    payload: JObject,
     now_epoch_millis: jlong,
 ) -> jlongArray {
+    let payload = jni_string_to_c_string(&mut env, payload);
+    let payload_ptr = payload.as_ref().map_or(ptr::null(), |value| value.as_ptr());
     let outcome = unsafe {
         panda_engine_dispatch(
             handle as *mut PandaEngine,
             command_type,
-            ptr::null(),
+            payload_ptr,
             now_epoch_millis as u64,
         )
     };

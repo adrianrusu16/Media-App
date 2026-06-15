@@ -130,6 +130,11 @@ sequenceDiagram
    anchor and the local clock between snapshots. This keeps progress bars smooth
    without making metadata, artwork, or catalog strings dirty on every frame.
 
+   Playback control commands include play/pause/skip plus typed seek and playback
+   speed intents. Android maps those typed intents into stable AIDL/JNI command
+   names and numeric string payloads; Rust parses the payloads into domain command
+   types at the FFI boundary.
+
 5. **Effect Execution**
    Route engine effects to Android executors, then report platform events back
    into PandaEngine.

@@ -25,6 +25,16 @@ internal object FakePandaEngineReducer {
             updatedAtEpochMillis = nowMillis
         )
 
+        EngineCommand.TYPE_SEEK -> current.copy(
+            positionMillis = command.payload?.toLongOrNull()?.coerceAtLeast(0L) ?: 0L,
+            updatedAtEpochMillis = nowMillis
+        )
+
+        EngineCommand.TYPE_SET_SPEED -> current.copy(
+            playbackSpeed = command.payload?.toFloatOrNull()?.coerceAtLeast(0F) ?: 1F,
+            updatedAtEpochMillis = nowMillis
+        )
+
         else -> current.copy(updatedAtEpochMillis = nowMillis)
     }
 

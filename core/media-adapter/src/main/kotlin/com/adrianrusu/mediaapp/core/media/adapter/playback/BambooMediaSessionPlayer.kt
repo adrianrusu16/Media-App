@@ -34,4 +34,19 @@ internal class BambooMediaSessionPlayer(
         playbackEngineBridge.dispatchPlayerCommand(COMMAND_SEEK_TO_NEXT)
         super.seekToNext()
     }
+
+    override fun seekTo(positionMs: Long) {
+        playbackEngineBridge.dispatchSeek(positionMs)
+        super.seekTo(positionMs)
+    }
+
+    override fun seekTo(mediaItemIndex: Int, positionMs: Long) {
+        playbackEngineBridge.dispatchSeek(positionMs)
+        super.seekTo(mediaItemIndex, positionMs)
+    }
+
+    override fun setPlaybackSpeed(speed: Float) {
+        playbackEngineBridge.dispatchPlaybackSpeed(speed)
+        super.setPlaybackSpeed(speed)
+    }
 }

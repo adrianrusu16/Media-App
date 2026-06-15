@@ -97,6 +97,34 @@ class Media3PlaybackEngineBridge(
         return true
     }
 
+    fun dispatchSeek(positionMillis: Long): Boolean {
+        val intent = PlaybackEngineCommandMapper.fromSeekPosition(positionMillis)
+        telemetryLogger.debug(
+            name = Media3PlaybackTelemetryEvents.PLAYER_COMMAND_DISPATCHED,
+            attributes = mapOf(
+                "player_command" to "seek_to",
+                "intent" to intent.telemetryName,
+                "position_millis" to intent.positionMillis.toString()
+            )
+        )
+        playbackRepository.dispatch(intent)
+        return true
+    }
+
+    fun dispatchPlaybackSpeed(speed: Float): Boolean {
+        val intent = PlaybackEngineCommandMapper.fromPlaybackSpeed(speed)
+        telemetryLogger.debug(
+            name = Media3PlaybackTelemetryEvents.PLAYER_COMMAND_DISPATCHED,
+            attributes = mapOf(
+                "player_command" to "set_speed",
+                "intent" to intent.telemetryName,
+                "speed" to intent.speed.toString()
+            )
+        )
+        playbackRepository.dispatch(intent)
+        return true
+    }
+
     override fun close() {
         playbackRepository.close()
     }
@@ -117,5 +145,7 @@ private val BambooPlaybackIntent.telemetryName: String
         BambooPlaybackIntent.TogglePlayback -> "toggle_playback"
         BambooPlaybackIntent.SkipPrevious -> "skip_previous"
         BambooPlaybackIntent.SkipNext -> "skip_next"
+        is BambooPlaybackIntent.SeekTo -> "seek_to"
+        is BambooPlaybackIntent.SetSpeed -> "set_speed"
         is BambooPlaybackIntent.PlatformEvent -> "platform_event_$type"
     }

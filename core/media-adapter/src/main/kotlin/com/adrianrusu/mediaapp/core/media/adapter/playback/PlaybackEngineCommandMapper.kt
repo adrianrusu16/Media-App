@@ -19,4 +19,12 @@ internal object PlaybackEngineCommandMapper {
 
         else -> null
     }
+
+    fun fromSeekPosition(positionMillis: Long): BambooPlaybackIntent.SeekTo = BambooPlaybackIntent.SeekTo(
+        positionMillis = positionMillis.coerceAtLeast(0L)
+    )
+
+    fun fromPlaybackSpeed(speed: Float): BambooPlaybackIntent.SetSpeed = BambooPlaybackIntent.SetSpeed(
+        speed = speed.coerceAtLeast(0F)
+    )
 }

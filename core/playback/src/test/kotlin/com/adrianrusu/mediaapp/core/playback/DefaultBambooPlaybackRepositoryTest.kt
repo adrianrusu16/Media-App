@@ -132,6 +132,35 @@ class DefaultBambooPlaybackRepositoryTest {
     }
 
     @Test
+    fun `ready engine allows seek and speed commands with typed payloads`() {
+        val engine = RecordingEngineGateway(initialSnapshot = EngineSnapshot.idle(nowMillis = 1L))
+        val repository = DefaultBambooPlaybackRepository(
+            engine = engine,
+            uxRestrictionObserver = FakeUxRestrictionObserver(
+                restrictions = AutomotiveUxRestrictions.unrestricted(
+                    AutomotiveUxRestrictions.Source.NotAutomotive
+                )
+            ),
+            telemetryLogger = testTelemetryLogger()
+        )
+
+        repository.start()
+        repository.dispatch(BambooPlaybackIntent.SeekTo(positionMillis = 12_345L))
+        repository.dispatch(BambooPlaybackIntent.SetSpeed(speed = 1.25F))
+
+        assertEquals(
+            listOf(
+                EngineCommand.TYPE_BOOTSTRAP,
+                EngineCommand.TYPE_SEEK,
+                EngineCommand.TYPE_SET_SPEED
+            ),
+            engine.commands.map { it.type }
+        )
+        assertEquals("12345", engine.commands[1].payload)
+        assertEquals("1.25", engine.commands[2].payload)
+    }
+
+    @Test
     fun `engine events update connection state and gate commands`() {
         val engine = RecordingEngineGateway(initialSnapshot = EngineSnapshot.idle(nowMillis = 1L))
         val repository = DefaultBambooPlaybackRepository(

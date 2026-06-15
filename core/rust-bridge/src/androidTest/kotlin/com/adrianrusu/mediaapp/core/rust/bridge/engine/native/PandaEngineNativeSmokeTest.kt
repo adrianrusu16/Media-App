@@ -32,6 +32,23 @@ class PandaEngineNativeSmokeTest {
             assertEquals(EngineCommand.TYPE_PLAY, playResult.event.message)
             assertEquals(2_000L, playResult.snapshot.updatedAtEpochMillis)
 
+            nowEpochMillis = 2_500L
+            val seekResult = engine.dispatch(
+                EngineCommand(
+                    type = EngineCommand.TYPE_SEEK,
+                    payload = "12345"
+                )
+            )
+            assertEquals(12_345L, seekResult.snapshot.positionMillis)
+
+            val speedResult = engine.dispatch(
+                EngineCommand(
+                    type = EngineCommand.TYPE_SET_SPEED,
+                    payload = "1.25"
+                )
+            )
+            assertEquals(1.25F, speedResult.snapshot.playbackSpeed)
+
             nowEpochMillis = 3_000L
             val platformResult = engine.dispatchPlatformEvent(
                 EnginePlatformEvent(

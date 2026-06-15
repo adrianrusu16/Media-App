@@ -93,6 +93,18 @@ class DefaultBambooPlaybackRepository(
                 sourceIntent = intent
             )
 
+            is BambooPlaybackIntent.SeekTo -> dispatchEngineCommand(
+                commandType = EngineCommand.TYPE_SEEK,
+                payload = intent.positionMillis.coerceAtLeast(0L).toString(),
+                sourceIntent = intent
+            )
+
+            is BambooPlaybackIntent.SetSpeed -> dispatchEngineCommand(
+                commandType = EngineCommand.TYPE_SET_SPEED,
+                payload = intent.speed.coerceAtLeast(0F).toString(),
+                sourceIntent = intent
+            )
+
             is BambooPlaybackIntent.PlatformEvent -> dispatchPlatformEvent(intent)
         }
     }
@@ -167,7 +179,11 @@ class DefaultBambooPlaybackRepository(
         )
     }
 
-    private fun dispatchEngineCommand(commandType: String, sourceIntent: BambooPlaybackIntent) {
+    private fun dispatchEngineCommand(
+        commandType: String,
+        payload: String? = null,
+        sourceIntent: BambooPlaybackIntent
+    ) {
         if (!state.value.canDispatchEngineCommands) {
             logBlockedIntent(sourceIntent)
             return
@@ -184,7 +200,7 @@ class DefaultBambooPlaybackRepository(
         val result = engine.dispatch(
             EngineCommand(
                 type = commandType,
-                payload = null
+                payload = payload
             )
         )
 
@@ -258,6 +274,8 @@ private val BambooPlaybackIntent.telemetryName: String
         BambooPlaybackIntent.TogglePlayback -> "toggle_playback"
         BambooPlaybackIntent.SkipPrevious -> "skip_previous"
         BambooPlaybackIntent.SkipNext -> "skip_next"
+        is BambooPlaybackIntent.SeekTo -> "seek_to"
+        is BambooPlaybackIntent.SetSpeed -> "set_speed"
         is BambooPlaybackIntent.PlatformEvent -> "platform_event"
     }
 

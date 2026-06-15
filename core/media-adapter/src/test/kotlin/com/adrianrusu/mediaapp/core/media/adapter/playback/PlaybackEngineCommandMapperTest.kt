@@ -57,4 +57,36 @@ class PlaybackEngineCommandMapperTest {
             )
         )
     }
+
+    @Test
+    fun `seek position maps to seek intent`() {
+        assertEquals(
+            BambooPlaybackIntent.SeekTo(positionMillis = 12_345L),
+            PlaybackEngineCommandMapper.fromSeekPosition(12_345L)
+        )
+    }
+
+    @Test
+    fun `negative seek position is clamped`() {
+        assertEquals(
+            BambooPlaybackIntent.SeekTo(positionMillis = 0L),
+            PlaybackEngineCommandMapper.fromSeekPosition(-1L)
+        )
+    }
+
+    @Test
+    fun `playback speed maps to speed intent`() {
+        assertEquals(
+            BambooPlaybackIntent.SetSpeed(speed = 1.25F),
+            PlaybackEngineCommandMapper.fromPlaybackSpeed(1.25F)
+        )
+    }
+
+    @Test
+    fun `negative playback speed is clamped`() {
+        assertEquals(
+            BambooPlaybackIntent.SetSpeed(speed = 0F),
+            PlaybackEngineCommandMapper.fromPlaybackSpeed(-1F)
+        )
+    }
 }

@@ -16,8 +16,11 @@ class BambooMediaSessionCommandPolicyTest {
         assertTrue(Player.COMMAND_GET_CURRENT_MEDIA_ITEM in commands)
         assertTrue(Player.COMMAND_GET_METADATA in commands)
         assertFalse(Player.COMMAND_PLAY_PAUSE in commands)
+        assertFalse(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM in commands)
+        assertFalse(Player.COMMAND_SEEK_TO_MEDIA_ITEM in commands)
         assertFalse(Player.COMMAND_SEEK_TO_PREVIOUS in commands)
         assertFalse(Player.COMMAND_SEEK_TO_NEXT in commands)
+        assertFalse(Player.COMMAND_SET_SPEED_AND_PITCH in commands)
     }
 
     @Test
@@ -30,8 +33,11 @@ class BambooMediaSessionCommandPolicyTest {
         assertTrue(Player.COMMAND_GET_CURRENT_MEDIA_ITEM in commands)
         assertTrue(Player.COMMAND_GET_METADATA in commands)
         assertTrue(Player.COMMAND_PLAY_PAUSE in commands)
+        assertTrue(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM in commands)
+        assertTrue(Player.COMMAND_SEEK_TO_MEDIA_ITEM in commands)
         assertTrue(Player.COMMAND_SEEK_TO_PREVIOUS in commands)
         assertTrue(Player.COMMAND_SEEK_TO_NEXT in commands)
+        assertTrue(Player.COMMAND_SET_SPEED_AND_PITCH in commands)
     }
 
     @Test
@@ -57,8 +63,11 @@ private fun allSupportedCommandTypes(): Set<Int> = setOf(
     Player.COMMAND_PLAY_PAUSE,
     Player.COMMAND_PREPARE,
     Player.COMMAND_STOP,
+    Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM,
+    Player.COMMAND_SEEK_TO_MEDIA_ITEM,
     Player.COMMAND_SEEK_TO_PREVIOUS,
     Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM,
     Player.COMMAND_SEEK_TO_NEXT,
-    Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM
+    Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM,
+    Player.COMMAND_SET_SPEED_AND_PITCH
 )
