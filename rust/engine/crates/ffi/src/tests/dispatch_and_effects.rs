@@ -17,6 +17,7 @@ fn dispatch_play_returns_buffering_snapshot() {
     assert_eq!(FFI_EVENT_COMMAND_APPLIED, outcome.event_type);
     assert_eq!(FFI_COMMAND_PLAY, outcome.applied_command_type);
     assert_eq!(900, outcome.snapshot.updated_at_epoch_millis);
+    assert_eq!(1, outcome.snapshot.metadata_revision);
 }
 
 #[test]
@@ -74,6 +75,7 @@ fn null_snapshot_returns_invalid_marker() {
 
     assert_eq!(FFI_COMMAND_UNKNOWN, snapshot.playback_state);
     assert_eq!(0, snapshot.updated_at_epoch_millis);
+    assert_eq!(0, snapshot.metadata_revision);
 }
 
 #[test]
@@ -121,7 +123,7 @@ fn current_media_queries_follow_snapshot_metadata() {
         (*engine).engine.with_engine(|e| e.queue().set_items(items));
     }
 
-    unsafe { panda_engine_dispatch(engine, FFI_COMMAND_PLAY, ptr::null(), 900) };
+    let outcome = unsafe { panda_engine_dispatch(engine, FFI_COMMAND_PLAY, ptr::null(), 900) };
 
     let media_id = unsafe { take_string(panda_engine_get_current_media_id(engine)) };
     let title = unsafe { take_string(panda_engine_get_current_title(engine)) };
@@ -132,6 +134,7 @@ fn current_media_queries_follow_snapshot_metadata() {
     assert_eq!(Some("Bamboo Road".to_string()), title);
     assert_eq!(Some("PandaWave".to_string()), artist);
     assert_eq!(Some("driver-7".to_string()), current_user_id);
+    assert_eq!(2, outcome.snapshot.metadata_revision);
 
     unsafe {
         panda_engine_destroy(engine);

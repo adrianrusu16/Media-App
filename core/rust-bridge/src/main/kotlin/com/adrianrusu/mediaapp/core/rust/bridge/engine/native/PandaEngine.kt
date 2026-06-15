@@ -79,7 +79,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     private external fun nativeDestroy(handle: Long)
 
     private fun LongArray.toEngineSnapshot(): EngineSnapshot =
-        metadataCache.enrich(PandaEngineNativeSnapshotMapper.toEngineSnapshot(this))
+        metadataCache.enrich(PandaEngineNativeSnapshotMapper.toProjection(this))
 
     private fun queryNativeMetadata(): NativeEngineMetadata = NativeEngineMetadata(
         mediaId = nativeCurrentMediaId(nativeHandle),
@@ -141,51 +141,56 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
 }
 
 internal object PandaEngineNativeSnapshotMapper {
-    fun toEngineSnapshot(nativeValues: LongArray): EngineSnapshot {
+    fun toProjection(nativeValues: LongArray): NativeEngineSnapshotProjection {
         require(nativeValues.size >= SNAPSHOT_VALUE_COUNT) {
             "Native snapshot must contain at least $SNAPSHOT_VALUE_COUNT values."
         }
 
-        return EngineSnapshot(
-            playbackState = playbackStateFromNative(nativeValues[SNAPSHOT_PLAYBACK_INDEX].toInt()),
-            mediaId = null,
-            title = null,
-            artist = null,
-            userId = null,
-            restrictionState = restrictionStateFromNative(
-                nativeValues[SNAPSHOT_RESTRICTION_INDEX].toInt()
+        return NativeEngineSnapshotProjection(
+            snapshot = EngineSnapshot(
+                playbackState = playbackStateFromNative(nativeValues[SNAPSHOT_PLAYBACK_INDEX].toInt()),
+                mediaId = null,
+                title = null,
+                artist = null,
+                userId = null,
+                restrictionState = restrictionStateFromNative(
+                    nativeValues[SNAPSHOT_RESTRICTION_INDEX].toInt()
+                ),
+                updatedAtEpochMillis = nativeValues[SNAPSHOT_UPDATED_AT_INDEX],
+                hasActiveSession = nativeValues[SNAPSHOT_HAS_ACTIVE_SESSION_INDEX].toBoolean(),
+                hasError = nativeValues[SNAPSHOT_HAS_ERROR_INDEX].toBoolean(),
+                errorType = errorTypeFromNative(nativeValues[SNAPSHOT_ERROR_TYPE_INDEX].toInt()),
+                searchResultsCount = nativeValues[SNAPSHOT_SEARCH_RESULTS_COUNT_INDEX].toInt(),
+                playbackSpeed = Float.fromBits(nativeValues[SNAPSHOT_PLAYBACK_SPEED_BITS_INDEX].toInt()),
+                positionMillis = nativeValues[SNAPSHOT_POSITION_MILLIS_INDEX],
+                isBusy = nativeValues[SNAPSHOT_IS_BUSY_INDEX].toBoolean(),
+                canDispatch = nativeValues[SNAPSHOT_CAN_DISPATCH_INDEX].toBoolean(),
+                controls = EnginePlayerControls(
+                    playPause = EngineControlState(
+                        isVisible = nativeValues[SNAPSHOT_PLAY_PAUSE_VISIBLE_INDEX].toBoolean(),
+                        isEnabled = nativeValues[SNAPSHOT_PLAY_PAUSE_ENABLED_INDEX].toBoolean(),
+                        isActive = nativeValues[SNAPSHOT_PLAY_PAUSE_ACTIVE_INDEX].toBoolean()
+                    ),
+                    skipNext = EngineControlState(
+                        isVisible = nativeValues[SNAPSHOT_SKIP_NEXT_VISIBLE_INDEX].toBoolean(),
+                        isEnabled = nativeValues[SNAPSHOT_SKIP_NEXT_ENABLED_INDEX].toBoolean(),
+                        isActive = nativeValues[SNAPSHOT_SKIP_NEXT_ACTIVE_INDEX].toBoolean()
+                    ),
+                    skipPrevious = EngineControlState(
+                        isVisible = nativeValues[SNAPSHOT_SKIP_PREVIOUS_VISIBLE_INDEX].toBoolean(),
+                        isEnabled = nativeValues[SNAPSHOT_SKIP_PREVIOUS_ENABLED_INDEX].toBoolean(),
+                        isActive = nativeValues[SNAPSHOT_SKIP_PREVIOUS_ACTIVE_INDEX].toBoolean()
+                    ),
+                    showPlayIcon = nativeValues[SNAPSHOT_SHOW_PLAY_ICON_INDEX].toBoolean()
+                ),
+                hasVoiceHypothesis = nativeValues[SNAPSHOT_HAS_VOICE_HYPOTHESIS_INDEX].toBoolean(),
+                browseResultsCount = nativeValues[SNAPSHOT_BROWSE_RESULTS_COUNT_INDEX].toInt()
             ),
-            updatedAtEpochMillis = nativeValues[SNAPSHOT_UPDATED_AT_INDEX],
-            hasActiveSession = nativeValues[SNAPSHOT_HAS_ACTIVE_SESSION_INDEX].toBoolean(),
-            hasError = nativeValues[SNAPSHOT_HAS_ERROR_INDEX].toBoolean(),
-            errorType = errorTypeFromNative(nativeValues[SNAPSHOT_ERROR_TYPE_INDEX].toInt()),
-            searchResultsCount = nativeValues[SNAPSHOT_SEARCH_RESULTS_COUNT_INDEX].toInt(),
-            playbackSpeed = Float.fromBits(nativeValues[SNAPSHOT_PLAYBACK_SPEED_BITS_INDEX].toInt()),
-            positionMillis = nativeValues[SNAPSHOT_POSITION_MILLIS_INDEX],
-            isBusy = nativeValues[SNAPSHOT_IS_BUSY_INDEX].toBoolean(),
-            canDispatch = nativeValues[SNAPSHOT_CAN_DISPATCH_INDEX].toBoolean(),
-            controls = EnginePlayerControls(
-                playPause = EngineControlState(
-                    isVisible = nativeValues[SNAPSHOT_PLAY_PAUSE_VISIBLE_INDEX].toBoolean(),
-                    isEnabled = nativeValues[SNAPSHOT_PLAY_PAUSE_ENABLED_INDEX].toBoolean(),
-                    isActive = nativeValues[SNAPSHOT_PLAY_PAUSE_ACTIVE_INDEX].toBoolean()
-                ),
-                skipNext = EngineControlState(
-                    isVisible = nativeValues[SNAPSHOT_SKIP_NEXT_VISIBLE_INDEX].toBoolean(),
-                    isEnabled = nativeValues[SNAPSHOT_SKIP_NEXT_ENABLED_INDEX].toBoolean(),
-                    isActive = nativeValues[SNAPSHOT_SKIP_NEXT_ACTIVE_INDEX].toBoolean()
-                ),
-                skipPrevious = EngineControlState(
-                    isVisible = nativeValues[SNAPSHOT_SKIP_PREVIOUS_VISIBLE_INDEX].toBoolean(),
-                    isEnabled = nativeValues[SNAPSHOT_SKIP_PREVIOUS_ENABLED_INDEX].toBoolean(),
-                    isActive = nativeValues[SNAPSHOT_SKIP_PREVIOUS_ACTIVE_INDEX].toBoolean()
-                ),
-                showPlayIcon = nativeValues[SNAPSHOT_SHOW_PLAY_ICON_INDEX].toBoolean()
-            ),
-            hasVoiceHypothesis = nativeValues[SNAPSHOT_HAS_VOICE_HYPOTHESIS_INDEX].toBoolean(),
-            browseResultsCount = nativeValues[SNAPSHOT_BROWSE_RESULTS_COUNT_INDEX].toInt()
+            metadataRevision = nativeValues[SNAPSHOT_METADATA_REVISION_INDEX]
         )
     }
+
+    fun toEngineSnapshot(nativeValues: LongArray): EngineSnapshot = toProjection(nativeValues).snapshot
 
     private fun playbackStateFromNative(value: Int): String = when (value) {
         PLAYBACK_IDLE -> EngineSnapshot.PLAYBACK_IDLE
@@ -228,7 +233,7 @@ internal object PandaEngineNativeSnapshotMapper {
     private const val ERROR_AUTHENTICATION = 4
     private const val ERROR_MEDIA_SKIPPED = 5
 
-    private const val SNAPSHOT_VALUE_COUNT = 23
+    private const val SNAPSHOT_VALUE_COUNT = 24
     private const val SNAPSHOT_PLAYBACK_INDEX = 0
     private const val SNAPSHOT_RESTRICTION_INDEX = 1
     private const val SNAPSHOT_UPDATED_AT_INDEX = 2
@@ -252,4 +257,5 @@ internal object PandaEngineNativeSnapshotMapper {
     private const val SNAPSHOT_SHOW_PLAY_ICON_INDEX = 20
     private const val SNAPSHOT_HAS_VOICE_HYPOTHESIS_INDEX = 21
     private const val SNAPSHOT_BROWSE_RESULTS_COUNT_INDEX = 22
+    private const val SNAPSHOT_METADATA_REVISION_INDEX = 23
 }

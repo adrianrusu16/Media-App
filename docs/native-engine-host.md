@@ -119,9 +119,10 @@ sequenceDiagram
    count, and player-control visibility/enabled/active state. String-heavy
    current media metadata is fetched through dedicated JNI query APIs after the
    compact snapshot is decoded. The Kotlin host caches those queried strings per
-   native snapshot update key so repeated observations of the same native state do
-   not re-cross JNI for unchanged metadata. Result item details should follow the
-   same query pattern rather than expanding the compact JNI snapshot indefinitely.
+   native metadata revision so repeated observations, progress ticks, or other
+   numeric state changes do not re-cross JNI for unchanged metadata. Result item
+   details should follow the same query pattern rather than expanding the compact
+   JNI snapshot indefinitely.
 
 5. **Effect Execution**
    Route engine effects to Android executors, then report platform events back

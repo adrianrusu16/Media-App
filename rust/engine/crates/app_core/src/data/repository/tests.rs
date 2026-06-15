@@ -134,6 +134,7 @@ fn test_with_media_snapshot() {
         ..Default::default()
     };
     let updated = snapshot.with_media(item);
+    assert_eq!(updated.metadata_revision, 1);
     assert_eq!(updated.media_id, Some("1".to_string()));
     assert_eq!(updated.title, Some("T".to_string()));
     assert_eq!(updated.artist, Some("A".to_string()));

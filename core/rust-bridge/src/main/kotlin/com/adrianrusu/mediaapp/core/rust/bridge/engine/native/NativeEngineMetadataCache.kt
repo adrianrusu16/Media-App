@@ -6,12 +6,12 @@ internal class NativeEngineMetadataCache(private val queryMetadata: () -> Native
     private var cachedKey: NativeEngineMetadataKey? = null
     private var cachedMetadata: NativeEngineMetadata = NativeEngineMetadata.empty()
 
-    fun enrich(snapshot: EngineSnapshot): EngineSnapshot {
-        val key = NativeEngineMetadataKey.from(snapshot)
+    fun enrich(projection: NativeEngineSnapshotProjection): EngineSnapshot {
+        val key = NativeEngineMetadataKey.from(projection)
         if (key == null) {
             cachedKey = null
             cachedMetadata = NativeEngineMetadata.empty()
-            return snapshot.withMetadata(NativeEngineMetadata.empty())
+            return projection.snapshot.withMetadata(NativeEngineMetadata.empty())
         }
 
         if (cachedKey != key) {
@@ -19,9 +19,11 @@ internal class NativeEngineMetadataCache(private val queryMetadata: () -> Native
             cachedMetadata = queryMetadata()
         }
 
-        return snapshot.withMetadata(cachedMetadata)
+        return projection.snapshot.withMetadata(cachedMetadata)
     }
 }
+
+internal data class NativeEngineSnapshotProjection(val snapshot: EngineSnapshot, val metadataRevision: Long)
 
 internal data class NativeEngineMetadata(
     val mediaId: String?,
@@ -39,10 +41,12 @@ internal data class NativeEngineMetadata(
     }
 }
 
-private data class NativeEngineMetadataKey(val updatedAtEpochMillis: Long) {
+private data class NativeEngineMetadataKey(val metadataRevision: Long) {
     companion object {
-        fun from(snapshot: EngineSnapshot): NativeEngineMetadataKey? = if (snapshot.hasActiveSession) {
-            NativeEngineMetadataKey(snapshot.updatedAtEpochMillis)
+        fun from(projection: NativeEngineSnapshotProjection): NativeEngineMetadataKey? = if (
+            projection.snapshot.hasActiveSession
+        ) {
+            NativeEngineMetadataKey(projection.metadataRevision)
         } else {
             null
         }

@@ -14,8 +14,8 @@ class NativeEngineMetadataCacheTest {
             metadata(title = "Track $queryCount")
         }
 
-        val firstSnapshot = cache.enrich(activeSnapshot(updatedAtEpochMillis = 42L))
-        val secondSnapshot = cache.enrich(activeSnapshot(updatedAtEpochMillis = 42L))
+        val firstSnapshot = cache.enrich(activeProjection(updatedAtEpochMillis = 42L, metadataRevision = 7L))
+        val secondSnapshot = cache.enrich(activeProjection(updatedAtEpochMillis = 43L, metadataRevision = 7L))
 
         assertEquals(1, queryCount)
         assertEquals("Track 1", firstSnapshot.title)
@@ -23,15 +23,15 @@ class NativeEngineMetadataCacheTest {
     }
 
     @Test
-    fun `metadata is queried again when native snapshot key changes`() {
+    fun `metadata is queried again when native metadata revision changes`() {
         var queryCount = 0
         val cache = NativeEngineMetadataCache {
             queryCount += 1
             metadata(title = "Track $queryCount")
         }
 
-        val firstSnapshot = cache.enrich(activeSnapshot(updatedAtEpochMillis = 42L))
-        val secondSnapshot = cache.enrich(activeSnapshot(updatedAtEpochMillis = 43L))
+        val firstSnapshot = cache.enrich(activeProjection(updatedAtEpochMillis = 42L, metadataRevision = 7L))
+        val secondSnapshot = cache.enrich(activeProjection(updatedAtEpochMillis = 43L, metadataRevision = 8L))
 
         assertEquals(2, queryCount)
         assertEquals("Track 1", firstSnapshot.title)
@@ -46,9 +46,14 @@ class NativeEngineMetadataCacheTest {
             metadata(title = "Track $queryCount")
         }
 
-        cache.enrich(activeSnapshot(updatedAtEpochMillis = 42L))
-        val idleSnapshot = cache.enrich(EngineSnapshot.idle(nowMillis = 42L))
-        val resumedSnapshot = cache.enrich(activeSnapshot(updatedAtEpochMillis = 42L))
+        cache.enrich(activeProjection(updatedAtEpochMillis = 42L, metadataRevision = 7L))
+        val idleSnapshot = cache.enrich(
+            NativeEngineSnapshotProjection(
+                snapshot = EngineSnapshot.idle(nowMillis = 42L),
+                metadataRevision = 7L
+            )
+        )
+        val resumedSnapshot = cache.enrich(activeProjection(updatedAtEpochMillis = 42L, metadataRevision = 7L))
 
         assertEquals(2, queryCount)
         assertNull(idleSnapshot.mediaId)
@@ -58,9 +63,12 @@ class NativeEngineMetadataCacheTest {
         assertEquals("Track 2", resumedSnapshot.title)
     }
 
-    private fun activeSnapshot(updatedAtEpochMillis: Long): EngineSnapshot =
-        EngineSnapshot.idle(nowMillis = updatedAtEpochMillis)
-            .copy(hasActiveSession = true)
+    private fun activeProjection(updatedAtEpochMillis: Long, metadataRevision: Long): NativeEngineSnapshotProjection =
+        NativeEngineSnapshotProjection(
+            snapshot = EngineSnapshot.idle(nowMillis = updatedAtEpochMillis)
+                .copy(hasActiveSession = true),
+            metadataRevision = metadataRevision
+        )
 
     private fun metadata(title: String): NativeEngineMetadata = NativeEngineMetadata(
         mediaId = "media-id",

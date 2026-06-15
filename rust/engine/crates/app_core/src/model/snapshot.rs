@@ -39,6 +39,13 @@ pub struct EngineSnapshot {
     /// and should only move when playback timing is intentionally advanced/rebased.
     #[serde(default)]
     pub last_progress_tick_epoch_millis: u64,
+    /// Monotonic revision for metadata queried across the native host boundary.
+    ///
+    /// This advances when session/user identity or current media metadata changes,
+    /// allowing Android to cache string-heavy metadata separately from the compact
+    /// numeric snapshot.
+    #[serde(default)]
+    pub metadata_revision: u64,
     /// The active media session, if any.
     pub session: Option<MediaSession>,
     /// The results of the last search operation.
@@ -98,6 +105,9 @@ impl EngineSnapshot {
     /// Functional update for the session, returning a new snapshot.
     #[must_use]
     pub fn with_session(mut self, session: Option<MediaSession>) -> Self {
+        if self.session != session {
+            self.metadata_revision = self.metadata_revision.saturating_add(1);
+        }
         self.session = session;
         self
     }
@@ -119,6 +129,16 @@ impl EngineSnapshot {
     /// Functional update for media metadata, returning a new snapshot.
     #[must_use]
     pub fn with_media(mut self, media: MediaItem) -> Self {
+        let metadata_changed = self.media_id.as_deref() != Some(media.id.as_str())
+            || self.title.as_deref() != Some(media.title.as_str())
+            || self.artist.as_deref() != Some(media.artist.as_str())
+            || self.album.as_deref() != media.album.as_deref()
+            || self.duration_millis != media.duration_millis
+            || self.thumbnail_url.as_deref() != media.thumbnail_url.as_deref();
+
+        if metadata_changed {
+            self.metadata_revision = self.metadata_revision.saturating_add(1);
+        }
         self.media_id = Some(media.id);
         self.title = Some(media.title);
         self.artist = Some(media.artist);
@@ -189,6 +209,7 @@ mod tests {
         assert_eq!(snapshot.playback_state, PlaybackState::Idle);
         assert_eq!(snapshot.updated_at_epoch_millis, 123);
         assert_eq!(snapshot.last_progress_tick_epoch_millis, 123);
+        assert_eq!(snapshot.metadata_revision, 0);
         assert_eq!(snapshot.playback_speed, 1.0);
         assert!(!snapshot.is_busy);
         assert!(snapshot.controls.show_play_icon);
@@ -206,5 +227,32 @@ mod tests {
 
         let buffering = idle.with_playback_state(PlaybackState::Buffering, 2);
         assert!(!buffering.can_dispatch());
+    }
+
+    #[test]
+    fn metadata_revision_advances_when_queried_metadata_changes() {
+        use crate::data::repository::MediaItem;
+        use crate::data::session::MediaSession;
+
+        let session = MediaSession::new("session-1".to_string(), "user-1".to_string(), 10);
+        let media = MediaItem {
+            id: "media-1".to_string(),
+            title: "Song".to_string(),
+            artist: "Artist".to_string(),
+            ..Default::default()
+        };
+
+        let snapshot = EngineSnapshot::idle(1);
+        let snapshot = snapshot.with_playback_state(PlaybackState::Playing, 2);
+        assert_eq!(snapshot.metadata_revision, 0);
+
+        let snapshot = snapshot.with_session(Some(session));
+        assert_eq!(snapshot.metadata_revision, 1);
+
+        let snapshot = snapshot.with_media(media.clone());
+        assert_eq!(snapshot.metadata_revision, 2);
+
+        let snapshot = snapshot.with_media(media);
+        assert_eq!(snapshot.metadata_revision, 2);
     }
 }

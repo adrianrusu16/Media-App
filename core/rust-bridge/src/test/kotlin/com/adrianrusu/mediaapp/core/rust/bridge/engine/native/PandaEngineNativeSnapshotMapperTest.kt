@@ -9,7 +9,7 @@ import kotlin.test.assertTrue
 class PandaEngineNativeSnapshotMapperTest {
     @Test
     fun `native values map to rich engine snapshot`() {
-        val snapshot = PandaEngineNativeSnapshotMapper.toEngineSnapshot(
+        val projection = PandaEngineNativeSnapshotMapper.toProjection(
             longArrayOf(
                 PLAYBACK_PLAYING.toLong(),
                 RESTRICTION_UNKNOWN.toLong(),
@@ -33,9 +33,11 @@ class PandaEngineNativeSnapshotMapperTest {
                 false.toLong(),
                 false.toLong(),
                 true.toLong(),
-                5L
+                5L,
+                7L
             )
         )
+        val snapshot = projection.snapshot
 
         assertEquals(EngineSnapshot.PLAYBACK_PLAYING, snapshot.playbackState)
         assertEquals(EngineSnapshot.RESTRICTION_UNKNOWN, snapshot.restrictionState)
@@ -60,6 +62,7 @@ class PandaEngineNativeSnapshotMapperTest {
         assertFalse(snapshot.controls.showPlayIcon)
         assertTrue(snapshot.hasVoiceHypothesis)
         assertEquals(5, snapshot.browseResultsCount)
+        assertEquals(7L, projection.metadataRevision)
     }
 
     @Test
