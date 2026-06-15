@@ -30,7 +30,6 @@ internal data class NativeEngineMetadata(
     val title: String?,
     val artist: String?,
     val album: String?,
-    val durationMillis: Long?,
     val artworkUri: String?,
     val userId: String?
 ) {
@@ -40,7 +39,6 @@ internal data class NativeEngineMetadata(
             title = null,
             artist = null,
             album = null,
-            durationMillis = null,
             artworkUri = null,
             userId = null
         )
@@ -64,7 +62,6 @@ private fun EngineSnapshot.withMetadata(metadata: NativeEngineMetadata): EngineS
     title = metadata.title,
     artist = metadata.artist,
     album = metadata.album,
-    durationMillis = metadata.durationMillis,
     artworkUri = metadata.artworkUri,
     userId = metadata.userId
 )

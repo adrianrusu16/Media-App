@@ -34,7 +34,8 @@ class PandaEngineNativeSnapshotMapperTest {
                 false.toLong(),
                 true.toLong(),
                 5L,
-                7L
+                7L,
+                222_000L
             )
         )
         val snapshot = projection.snapshot
@@ -63,6 +64,7 @@ class PandaEngineNativeSnapshotMapperTest {
         assertTrue(snapshot.hasVoiceHypothesis)
         assertEquals(5, snapshot.browseResultsCount)
         assertEquals(7L, projection.metadataRevision)
+        assertEquals(222_000L, snapshot.durationMillis)
     }
 
     @Test

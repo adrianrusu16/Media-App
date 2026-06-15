@@ -98,23 +98,6 @@ pub unsafe extern "C" fn panda_engine_get_current_album(
 #[unsafe(no_mangle)]
 /// # Safety
 /// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
-/// - The caller must ensure no concurrent mutable access while this function reads engine state.
-pub unsafe extern "C" fn panda_engine_get_current_duration_millis(
-    engine: *const PandaEngine,
-) -> i64 {
-    let engine = unsafe { engine.as_ref() };
-    if let Some(engine) = engine {
-        let snapshot = engine.engine.snapshot();
-        if let Some(duration_millis) = snapshot.duration_millis {
-            return duration_millis.min(i64::MAX as u64) as i64;
-        }
-    }
-    -1
-}
-
-#[unsafe(no_mangle)]
-/// # Safety
-/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
 /// - The returned string pointer must be released with `panda_engine_free_string`.
 /// - The caller must ensure no concurrent mutable access while this function reads engine state.
 pub unsafe extern "C" fn panda_engine_get_current_thumbnail_url(

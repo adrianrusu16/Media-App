@@ -9,9 +9,8 @@ use crate::{
     FfiEngineSnapshot, PandaEngine, panda_engine_create, panda_engine_destroy,
     panda_engine_dispatch, panda_engine_dispatch_platform_event, panda_engine_free_string,
     panda_engine_get_current_album, panda_engine_get_current_artist,
-    panda_engine_get_current_duration_millis, panda_engine_get_current_media_id,
-    panda_engine_get_current_thumbnail_url, panda_engine_get_current_title,
-    panda_engine_get_current_user_id, panda_engine_snapshot,
+    panda_engine_get_current_media_id, panda_engine_get_current_thumbnail_url,
+    panda_engine_get_current_title, panda_engine_get_current_user_id, panda_engine_snapshot,
 };
 
 #[unsafe(no_mangle)]
@@ -137,15 +136,6 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeCurrentDurationMillis(
-    _env: JNIEnv,
-    _this: JObject,
-    handle: jlong,
-) -> jlong {
-    unsafe { panda_engine_get_current_duration_millis(handle as *const PandaEngine) as jlong }
-}
-
-#[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeCurrentArtworkUri(
     mut env: JNIEnv,
     _this: JObject,
@@ -206,7 +196,7 @@ fn snapshot_to_jlong_array(env: &mut JNIEnv, snapshot: FfiEngineSnapshot) -> jlo
     array.into_raw()
 }
 
-fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 24] {
+fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 25] {
     [
         snapshot.playback_state as jlong,
         snapshot.restriction_state as jlong,
@@ -232,6 +222,7 @@ fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 24] {
         bool_to_jlong(snapshot.has_voice_hypothesis),
         snapshot.browse_results_count as jlong,
         snapshot.metadata_revision as jlong,
+        snapshot.duration_millis as jlong,
     ]
 }
 
@@ -257,6 +248,7 @@ mod tests {
             has_error: true,
             error_type: FFI_ERROR_NETWORK,
             metadata_revision: 7,
+            duration_millis: 222_000,
             search_results_count: 3,
             playback_speed: 1.25,
             position_millis: 9_000,
@@ -311,6 +303,7 @@ mod tests {
                 1,
                 5,
                 7,
+                222_000,
             ],
             snapshot_to_jlong_values(snapshot)
         );

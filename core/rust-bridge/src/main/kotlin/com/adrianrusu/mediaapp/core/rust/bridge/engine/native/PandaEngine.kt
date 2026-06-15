@@ -67,8 +67,6 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
 
     private external fun nativeCurrentAlbum(handle: Long): String?
 
-    private external fun nativeCurrentDurationMillis(handle: Long): Long
-
     private external fun nativeCurrentArtworkUri(handle: Long): String?
 
     private external fun nativeCurrentUserId(handle: Long): String?
@@ -92,9 +90,6 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         title = nativeCurrentTitle(nativeHandle),
         artist = nativeCurrentArtist(nativeHandle),
         album = nativeCurrentAlbum(nativeHandle),
-        durationMillis = nativeCurrentDurationMillis(nativeHandle).takeIf { durationMillis ->
-            durationMillis >= 0L
-        },
         artworkUri = nativeCurrentArtworkUri(nativeHandle),
         userId = nativeCurrentUserId(nativeHandle)
     )
@@ -164,7 +159,9 @@ internal object PandaEngineNativeSnapshotMapper {
                 title = null,
                 artist = null,
                 album = null,
-                durationMillis = null,
+                durationMillis = nativeValues[SNAPSHOT_DURATION_MILLIS_INDEX].takeIf { durationMillis ->
+                    durationMillis >= 0L
+                },
                 artworkUri = null,
                 userId = null,
                 restrictionState = restrictionStateFromNative(
@@ -247,7 +244,7 @@ internal object PandaEngineNativeSnapshotMapper {
     private const val ERROR_AUTHENTICATION = 4
     private const val ERROR_MEDIA_SKIPPED = 5
 
-    private const val SNAPSHOT_VALUE_COUNT = 24
+    private const val SNAPSHOT_VALUE_COUNT = 25
     private const val SNAPSHOT_PLAYBACK_INDEX = 0
     private const val SNAPSHOT_RESTRICTION_INDEX = 1
     private const val SNAPSHOT_UPDATED_AT_INDEX = 2
@@ -272,4 +269,5 @@ internal object PandaEngineNativeSnapshotMapper {
     private const val SNAPSHOT_HAS_VOICE_HYPOTHESIS_INDEX = 21
     private const val SNAPSHOT_BROWSE_RESULTS_COUNT_INDEX = 22
     private const val SNAPSHOT_METADATA_REVISION_INDEX = 23
+    private const val SNAPSHOT_DURATION_MILLIS_INDEX = 24
 }

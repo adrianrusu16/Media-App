@@ -132,7 +132,6 @@ fn current_media_queries_follow_snapshot_metadata() {
     let title = unsafe { take_string(panda_engine_get_current_title(engine)) };
     let artist = unsafe { take_string(panda_engine_get_current_artist(engine)) };
     let album = unsafe { take_string(panda_engine_get_current_album(engine)) };
-    let duration_millis = unsafe { panda_engine_get_current_duration_millis(engine) };
     let thumbnail_url = unsafe { take_string(panda_engine_get_current_thumbnail_url(engine)) };
     let current_user_id = unsafe { take_string(panda_engine_get_current_user_id(engine)) };
 
@@ -140,7 +139,7 @@ fn current_media_queries_follow_snapshot_metadata() {
     assert_eq!(Some("Bamboo Road".to_string()), title);
     assert_eq!(Some("PandaWave".to_string()), artist);
     assert_eq!(Some("Canopy Sessions".to_string()), album);
-    assert_eq!(222_000, duration_millis);
+    assert_eq!(222_000, outcome.snapshot.duration_millis);
     assert_eq!(
         Some("content://pandawave/art/track-7".to_string()),
         thumbnail_url

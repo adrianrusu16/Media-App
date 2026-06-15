@@ -46,6 +46,7 @@ pub struct FfiEngineSnapshot {
     pub restriction_state: i32,
     pub updated_at_epoch_millis: u64,
     pub metadata_revision: u64,
+    pub duration_millis: i64,
     pub has_active_session: bool,
     pub has_error: bool,
     pub error_type: i32,
@@ -75,6 +76,7 @@ impl FfiEngineSnapshot {
             restriction_state: FFI_COMMAND_UNKNOWN,
             updated_at_epoch_millis: 0,
             metadata_revision: 0,
+            duration_millis: -1,
             has_active_session: false,
             has_error: false,
             error_type: FFI_ERROR_NONE,
@@ -124,6 +126,10 @@ impl From<&EngineSnapshot> for FfiEngineSnapshot {
             restriction_state: restriction_to_ffi(snapshot.restriction_state),
             updated_at_epoch_millis: snapshot.updated_at_epoch_millis,
             metadata_revision: snapshot.metadata_revision,
+            duration_millis: snapshot
+                .duration_millis
+                .map(|duration_millis| duration_millis.min(i64::MAX as u64) as i64)
+                .unwrap_or(-1),
             has_active_session: snapshot.session.is_some(),
             has_error: snapshot.last_error.is_some(),
             error_type: snapshot

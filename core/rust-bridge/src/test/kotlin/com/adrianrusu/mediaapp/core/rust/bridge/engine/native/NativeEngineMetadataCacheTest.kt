@@ -60,7 +60,6 @@ class NativeEngineMetadataCacheTest {
         assertNull(idleSnapshot.title)
         assertNull(idleSnapshot.artist)
         assertNull(idleSnapshot.album)
-        assertNull(idleSnapshot.durationMillis)
         assertNull(idleSnapshot.artworkUri)
         assertNull(idleSnapshot.userId)
         assertEquals("Track 2", resumedSnapshot.title)
@@ -78,7 +77,6 @@ class NativeEngineMetadataCacheTest {
         title = title,
         artist = "PandaWave",
         album = "Canopy Sessions",
-        durationMillis = 222_000L,
         artworkUri = "content://pandawave/art/media-id",
         userId = "user-id"
     )
