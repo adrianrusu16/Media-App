@@ -192,8 +192,25 @@ class BambooMediaLibraryCatalogTest {
                 browseResultsCount = 1,
                 searchResultsCount = 1
             ),
-            browseResults = listOf(EngineCatalogItem(mediaId = "album-1", title = "Forest Drive")),
-            searchResults = listOf(EngineCatalogItem(mediaId = "track-1", title = "Bamboo Radio"))
+            browseResults = listOf(
+                EngineCatalogItem(
+                    mediaId = "album-1",
+                    title = "Forest Drive",
+                    artist = "PandaWave",
+                    artworkUri = "content://pandawave/art/album-1",
+                    itemType = EngineCatalogItem.TYPE_ALBUM
+                )
+            ),
+            searchResults = listOf(
+                EngineCatalogItem(
+                    mediaId = "track-1",
+                    title = "Bamboo Radio",
+                    artist = "PandaWave",
+                    album = "Canopy Sessions",
+                    artworkUri = "content://pandawave/art/track-1",
+                    itemType = EngineCatalogItem.TYPE_TRACK
+                )
+            )
         )
         val bridge = Media3PlaybackEngineBridge(
             playbackRepository = repository,
@@ -211,10 +228,14 @@ class BambooMediaLibraryCatalogTest {
 
         assertEquals(listOf("album-1"), browseChildren.map { item -> item.mediaId })
         assertEquals("Forest Drive", browseChildren.single().mediaMetadata.title.toString())
-        assertTrue(browseChildren.single().mediaMetadata.isPlayable == true)
-        assertFalse(browseChildren.single().mediaMetadata.isBrowsable == true)
+        assertEquals("PandaWave", browseChildren.single().mediaMetadata.subtitle.toString())
+        assertFalse(browseChildren.single().mediaMetadata.isPlayable == true)
+        assertTrue(browseChildren.single().mediaMetadata.isBrowsable == true)
         assertEquals(listOf("track-1"), searchResults.map { item -> item.mediaId })
         assertEquals("Bamboo Radio", searchResults.single().mediaMetadata.title.toString())
+        assertEquals("PandaWave - Canopy Sessions", searchResults.single().mediaMetadata.subtitle.toString())
+        assertTrue(searchResults.single().mediaMetadata.isPlayable == true)
+        assertFalse(searchResults.single().mediaMetadata.isBrowsable == true)
     }
 }
 

@@ -1,5 +1,6 @@
 package com.adrianrusu.mediaapp.core.rust.bridge.engine
 
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommandPayloads
 import kotlin.test.Test
@@ -56,8 +57,11 @@ class PandaEngineFactoryTest {
         assertEquals(1, searchResult.snapshot.searchResultsCount)
         assertEquals("browse-0", engine.browseResult(0)?.mediaId)
         assertEquals("Browse result 0", engine.browseResult(0)?.title)
+        assertEquals(EngineCatalogItem.TYPE_ALBUM, engine.browseResult(0)?.itemType)
         assertEquals("search-0", engine.searchResult(0)?.mediaId)
         assertEquals("Search result 0", engine.searchResult(0)?.title)
+        assertEquals("Canopy Sessions", engine.searchResult(0)?.album)
+        assertEquals(EngineCatalogItem.TYPE_TRACK, engine.searchResult(0)?.itemType)
         assertEquals(null, engine.browseResult(1))
         assertEquals(null, engine.searchResult(1))
     }

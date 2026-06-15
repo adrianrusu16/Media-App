@@ -59,3 +59,10 @@ pub const FFI_ERROR_PLAYER: i32 = 3;
 pub const FFI_ERROR_AUTHENTICATION: i32 = 4;
 pub const FFI_ERROR_MEDIA_SKIPPED: i32 = 5;
 pub const FFI_ERROR_UNKNOWN: i32 = -1;
+
+pub const FFI_MEDIA_ITEM_TRACK: i32 = 0;
+pub const FFI_MEDIA_ITEM_ARTIST: i32 = 1;
+pub const FFI_MEDIA_ITEM_ALBUM: i32 = 2;
+pub const FFI_MEDIA_ITEM_FOLDER: i32 = 3;
+pub const FFI_MEDIA_ITEM_PLAYLIST: i32 = 4;
+pub const FFI_MEDIA_ITEM_RADIO_STATION: i32 = 5;

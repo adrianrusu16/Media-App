@@ -1,5 +1,6 @@
 use panda_engine_core::{
-    EngineCommandType, EngineEffect, EngineEventType, PlaybackState, RestrictionState,
+    EngineCommandType, EngineEffect, EngineEventType, MediaItemType, PlaybackState,
+    RestrictionState,
 };
 
 use crate::constants::*;
@@ -83,5 +84,16 @@ pub(crate) fn event_to_ffi(event_type: &EngineEventType) -> i32 {
         EngineEventType::PlatformEventApplied => FFI_EVENT_COMMAND_APPLIED,
         EngineEventType::ListenerRegistered => FFI_EVENT_LISTENER_REGISTERED,
         EngineEventType::AnalyticsReported => FFI_EVENT_ANALYTICS_REPORTED,
+    }
+}
+
+pub(crate) fn media_item_type_to_ffi(item_type: &MediaItemType) -> i32 {
+    match item_type {
+        MediaItemType::Track => FFI_MEDIA_ITEM_TRACK,
+        MediaItemType::Artist => FFI_MEDIA_ITEM_ARTIST,
+        MediaItemType::Album => FFI_MEDIA_ITEM_ALBUM,
+        MediaItemType::Folder => FFI_MEDIA_ITEM_FOLDER,
+        MediaItemType::Playlist => FFI_MEDIA_ITEM_PLAYLIST,
+        MediaItemType::RadioStation => FFI_MEDIA_ITEM_RADIO_STATION,
     }
 }

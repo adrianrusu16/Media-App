@@ -1,5 +1,5 @@
 use super::super::*;
-use panda_engine_core::MediaItem;
+use panda_engine_core::{MediaItem, MediaItemType};
 use std::ffi::{CString, c_char};
 use std::ptr;
 
@@ -160,6 +160,9 @@ fn search_updates_snapshot_results() {
             id: "1".to_string(),
             title: "Rust Song".to_string(),
             artist: "A".to_string(),
+            album: Some("Systems Album".to_string()),
+            thumbnail_url: Some("content://pandawave/art/1".to_string()),
+            item_type: MediaItemType::Track,
             ..Default::default()
         }];
         (*engine).engine.with_engine(|e| {
@@ -172,11 +175,20 @@ fn search_updates_snapshot_results() {
 
     assert_eq!(1, outcome.snapshot.search_results_count);
 
-    let id_ptr = unsafe { panda_engine_get_search_result_id(engine, 0) };
-    let id = unsafe { CString::from_raw(id_ptr as *mut c_char) }
-        .to_string_lossy()
-        .into_owned();
-    assert_eq!("1", id);
+    let id = unsafe { take_string(panda_engine_get_search_result_id(engine, 0)) };
+    let title = unsafe { take_string(panda_engine_get_search_result_title(engine, 0)) };
+    let artist = unsafe { take_string(panda_engine_get_search_result_artist(engine, 0)) };
+    let album = unsafe { take_string(panda_engine_get_search_result_album(engine, 0)) };
+    let thumbnail_url =
+        unsafe { take_string(panda_engine_get_search_result_thumbnail_url(engine, 0)) };
+    let item_type = unsafe { panda_engine_get_search_result_item_type(engine, 0) };
+
+    assert_eq!(Some("1".to_string()), id);
+    assert_eq!(Some("Rust Song".to_string()), title);
+    assert_eq!(Some("A".to_string()), artist);
+    assert_eq!(Some("Systems Album".to_string()), album);
+    assert_eq!(Some("content://pandawave/art/1".to_string()), thumbnail_url);
+    assert_eq!(FFI_MEDIA_ITEM_TRACK, item_type);
 
     unsafe {
         panda_engine_destroy(engine);
@@ -210,6 +222,7 @@ fn browse_keeps_search_results_separate() {
                 id: "browse-1".to_string(),
                 title: "Playlist Item".to_string(),
                 artist: "B".to_string(),
+                item_type: MediaItemType::Album,
                 parent_id: Some("root".to_string()),
                 ..Default::default()
             },
@@ -232,17 +245,13 @@ fn browse_keeps_search_results_separate() {
     assert_eq!(1, browse_outcome.snapshot.search_results_count);
     assert_eq!(1, browse_outcome.snapshot.browse_results_count);
 
-    let browse_id_ptr = unsafe { panda_engine_get_browse_result_id(engine, 0) };
-    let browse_id = unsafe { CString::from_raw(browse_id_ptr as *mut c_char) }
-        .to_string_lossy()
-        .into_owned();
-    assert_eq!("browse-1", browse_id);
+    let browse_id = unsafe { take_string(panda_engine_get_browse_result_id(engine, 0)) };
+    let browse_type = unsafe { panda_engine_get_browse_result_item_type(engine, 0) };
+    assert_eq!(Some("browse-1".to_string()), browse_id);
+    assert_eq!(FFI_MEDIA_ITEM_ALBUM, browse_type);
 
-    let search_id_ptr = unsafe { panda_engine_get_search_result_id(engine, 0) };
-    let search_id = unsafe { CString::from_raw(search_id_ptr as *mut c_char) }
-        .to_string_lossy()
-        .into_owned();
-    assert_eq!("search-1", search_id);
+    let search_id = unsafe { take_string(panda_engine_get_search_result_id(engine, 0)) };
+    assert_eq!(Some("search-1".to_string()), search_id);
 
     unsafe {
         panda_engine_destroy(engine);

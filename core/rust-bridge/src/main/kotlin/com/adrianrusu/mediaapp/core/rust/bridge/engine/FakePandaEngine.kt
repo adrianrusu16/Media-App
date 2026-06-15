@@ -16,7 +16,10 @@ internal class FakePandaEngine(private val clock: () -> Long = System::currentTi
     override fun browseResult(index: Int): EngineCatalogItem? = when {
         index in 0 until currentSnapshot.browseResultsCount -> EngineCatalogItem(
             mediaId = "browse-$index",
-            title = "Browse result $index"
+            title = "Browse result $index",
+            artist = "PandaWave",
+            artworkUri = "content://pandawave/catalog/browse-$index",
+            itemType = EngineCatalogItem.TYPE_ALBUM
         )
 
         else -> null
@@ -25,7 +28,11 @@ internal class FakePandaEngine(private val clock: () -> Long = System::currentTi
     override fun searchResult(index: Int): EngineCatalogItem? = when {
         index in 0 until currentSnapshot.searchResultsCount -> EngineCatalogItem(
             mediaId = "search-$index",
-            title = "Search result $index"
+            title = "Search result $index",
+            artist = "PandaWave",
+            album = "Canopy Sessions",
+            artworkUri = "content://pandawave/catalog/search-$index",
+            itemType = EngineCatalogItem.TYPE_TRACK
         )
 
         else -> null

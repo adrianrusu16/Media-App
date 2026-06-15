@@ -1,5 +1,6 @@
 package com.adrianrusu.mediaapp.core.media.adapter.playback
 
+import android.net.Uri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import com.adrianrusu.mediaapp.core.model.catalog.BambooCatalogNode
@@ -67,8 +68,27 @@ private fun EngineGateway.browseResults(): List<BambooCatalogNode> = List(
 private fun EngineCatalogItem.toCatalogNode(): BambooCatalogNode = BambooCatalogNode(
     mediaId = mediaId,
     title = title,
-    isBrowsable = false,
-    isPlayable = true
+    subtitle = subtitle(),
+    artworkUri = artworkUri,
+    isBrowsable = itemType.isBrowsableCatalogType(),
+    isPlayable = itemType.isPlayableCatalogType()
+)
+
+private fun EngineCatalogItem.subtitle(): String? = listOfNotNull(
+    artist.takeUnless { value -> value.isNullOrBlank() },
+    album.takeUnless { value -> value.isNullOrBlank() }
+).joinToString(separator = " - ").takeUnless { value -> value.isBlank() }
+
+private fun Int.isBrowsableCatalogType(): Boolean = this in setOf(
+    EngineCatalogItem.TYPE_ARTIST,
+    EngineCatalogItem.TYPE_ALBUM,
+    EngineCatalogItem.TYPE_FOLDER,
+    EngineCatalogItem.TYPE_PLAYLIST
+)
+
+private fun Int.isPlayableCatalogType(): Boolean = this in setOf(
+    EngineCatalogItem.TYPE_TRACK,
+    EngineCatalogItem.TYPE_RADIO_STATION
 )
 
 internal class BambooMediaLibraryCatalog(private val source: BambooCatalogSource) {
@@ -110,11 +130,18 @@ private fun BambooCatalogNode.toMediaItem(): MediaItem = MediaItem.Builder()
         MediaMetadata.Builder()
             .setTitle(title)
             .setSubtitle(subtitle)
+            .setArtworkUri(artworkUri?.toAndroidUriOrNull())
             .setIsBrowsable(isBrowsable)
             .setIsPlayable(isPlayable)
             .build()
     )
     .build()
+
+private fun String.toAndroidUriOrNull(): Uri? = try {
+    Uri.parse(this)
+} catch (_: RuntimeException) {
+    null
+}
 
 private fun <T> List<T>.paged(page: Int, pageSize: Int): List<T> {
     val fromIndex = page * pageSize

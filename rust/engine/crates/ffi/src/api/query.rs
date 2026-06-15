@@ -3,7 +3,9 @@ use std::ptr;
 
 use panda_engine_core::{EngineEffect, EngineSnapshot};
 
+use crate::constants::FFI_MEDIA_ITEM_TRACK;
 use crate::mappings::effect_to_ffi;
+use crate::mappings::media_item_type_to_ffi;
 use crate::{FfiEngineConfig, FfiEngineSnapshot, PandaEngine};
 
 #[unsafe(no_mangle)]
@@ -238,14 +240,61 @@ pub unsafe extern "C" fn panda_engine_get_search_result_title(
     engine: *const PandaEngine,
     index: usize,
 ) -> *const c_char {
+    search_result_string(engine, index, |item| Some(&item.title))
+}
+
+#[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The returned string pointer must be released with `panda_engine_free_string`.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
+pub unsafe extern "C" fn panda_engine_get_search_result_artist(
+    engine: *const PandaEngine,
+    index: usize,
+) -> *const c_char {
+    search_result_string(engine, index, |item| Some(&item.artist))
+}
+
+#[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The returned string pointer must be released with `panda_engine_free_string`.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
+pub unsafe extern "C" fn panda_engine_get_search_result_album(
+    engine: *const PandaEngine,
+    index: usize,
+) -> *const c_char {
+    search_result_string(engine, index, |item| item.album.as_ref())
+}
+
+#[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The returned string pointer must be released with `panda_engine_free_string`.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
+pub unsafe extern "C" fn panda_engine_get_search_result_thumbnail_url(
+    engine: *const PandaEngine,
+    index: usize,
+) -> *const c_char {
+    search_result_string(engine, index, |item| item.thumbnail_url.as_ref())
+}
+
+#[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
+pub unsafe extern "C" fn panda_engine_get_search_result_item_type(
+    engine: *const PandaEngine,
+    index: usize,
+) -> i32 {
     let engine = unsafe { engine.as_ref() };
     if let Some(engine) = engine {
         let snapshot = engine.engine.snapshot();
         if let Some(item) = snapshot.search_results.get(index) {
-            return CString::new(item.title.clone()).unwrap().into_raw();
+            return media_item_type_to_ffi(&item.item_type);
         }
     }
-    ptr::null()
+    FFI_MEDIA_ITEM_TRACK
 }
 
 #[unsafe(no_mangle)]
@@ -276,14 +325,61 @@ pub unsafe extern "C" fn panda_engine_get_browse_result_title(
     engine: *const PandaEngine,
     index: usize,
 ) -> *const c_char {
+    browse_result_string(engine, index, |item| Some(&item.title))
+}
+
+#[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The returned string pointer must be released with `panda_engine_free_string`.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
+pub unsafe extern "C" fn panda_engine_get_browse_result_artist(
+    engine: *const PandaEngine,
+    index: usize,
+) -> *const c_char {
+    browse_result_string(engine, index, |item| Some(&item.artist))
+}
+
+#[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The returned string pointer must be released with `panda_engine_free_string`.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
+pub unsafe extern "C" fn panda_engine_get_browse_result_album(
+    engine: *const PandaEngine,
+    index: usize,
+) -> *const c_char {
+    browse_result_string(engine, index, |item| item.album.as_ref())
+}
+
+#[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The returned string pointer must be released with `panda_engine_free_string`.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
+pub unsafe extern "C" fn panda_engine_get_browse_result_thumbnail_url(
+    engine: *const PandaEngine,
+    index: usize,
+) -> *const c_char {
+    browse_result_string(engine, index, |item| item.thumbnail_url.as_ref())
+}
+
+#[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
+pub unsafe extern "C" fn panda_engine_get_browse_result_item_type(
+    engine: *const PandaEngine,
+    index: usize,
+) -> i32 {
     let engine = unsafe { engine.as_ref() };
     if let Some(engine) = engine {
         let snapshot = engine.engine.snapshot();
         if let Some(item) = snapshot.browse_results.get(index) {
-            return CString::new(item.title.clone()).unwrap().into_raw();
+            return media_item_type_to_ffi(&item.item_type);
         }
     }
-    ptr::null()
+    FFI_MEDIA_ITEM_TRACK
 }
 
 #[unsafe(no_mangle)]
@@ -347,6 +443,40 @@ fn current_snapshot_string(
     if let Some(engine) = engine {
         let snapshot = engine.engine.snapshot();
         if let Some(value) = value(&snapshot) {
+            return CString::new(value.as_str()).unwrap().into_raw();
+        }
+    }
+    ptr::null()
+}
+
+fn search_result_string(
+    engine: *const PandaEngine,
+    index: usize,
+    value: fn(&panda_engine_core::MediaItem) -> Option<&String>,
+) -> *const c_char {
+    let engine = unsafe { engine.as_ref() };
+    if let Some(engine) = engine {
+        let snapshot = engine.engine.snapshot();
+        if let Some(item) = snapshot.search_results.get(index)
+            && let Some(value) = value(item)
+        {
+            return CString::new(value.as_str()).unwrap().into_raw();
+        }
+    }
+    ptr::null()
+}
+
+fn browse_result_string(
+    engine: *const PandaEngine,
+    index: usize,
+    value: fn(&panda_engine_core::MediaItem) -> Option<&String>,
+) -> *const c_char {
+    let engine = unsafe { engine.as_ref() };
+    if let Some(engine) = engine {
+        let snapshot = engine.engine.snapshot();
+        if let Some(item) = snapshot.browse_results.get(index)
+            && let Some(value) = value(item)
+        {
             return CString::new(value.as_str()).unwrap().into_raw();
         }
     }

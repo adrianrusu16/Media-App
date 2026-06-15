@@ -4,6 +4,7 @@ data class BambooCatalogNode(
     val mediaId: String,
     val title: String,
     val subtitle: String? = null,
+    val artworkUri: String? = null,
     val isBrowsable: Boolean,
     val isPlayable: Boolean
 ) {

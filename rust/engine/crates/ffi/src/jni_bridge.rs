@@ -8,11 +8,16 @@ use jni::sys::{jint, jlong, jlongArray, jstring};
 use crate::{
     FfiEngineSnapshot, PandaEngine, panda_engine_create, panda_engine_destroy,
     panda_engine_dispatch, panda_engine_dispatch_platform_event, panda_engine_free_string,
-    panda_engine_get_browse_result_id, panda_engine_get_browse_result_title,
+    panda_engine_get_browse_result_album, panda_engine_get_browse_result_artist,
+    panda_engine_get_browse_result_id, panda_engine_get_browse_result_item_type,
+    panda_engine_get_browse_result_thumbnail_url, panda_engine_get_browse_result_title,
     panda_engine_get_current_album, panda_engine_get_current_artist,
     panda_engine_get_current_media_id, panda_engine_get_current_thumbnail_url,
     panda_engine_get_current_title, panda_engine_get_current_user_id,
-    panda_engine_get_search_result_id, panda_engine_get_search_result_title, panda_engine_snapshot,
+    panda_engine_get_search_result_album, panda_engine_get_search_result_artist,
+    panda_engine_get_search_result_id, panda_engine_get_search_result_item_type,
+    panda_engine_get_search_result_thumbnail_url, panda_engine_get_search_result_title,
+    panda_engine_snapshot,
 };
 
 #[unsafe(no_mangle)]
@@ -186,6 +191,57 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
 }
 
 #[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeSearchResultArtist(
+    mut env: JNIEnv,
+    _this: JObject,
+    handle: jlong,
+    index: jint,
+) -> jstring {
+    let value = unsafe {
+        panda_engine_get_search_result_artist(handle as *const PandaEngine, index as usize)
+    };
+    owned_c_string_to_jstring(&mut env, value)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeSearchResultAlbum(
+    mut env: JNIEnv,
+    _this: JObject,
+    handle: jlong,
+    index: jint,
+) -> jstring {
+    let value = unsafe {
+        panda_engine_get_search_result_album(handle as *const PandaEngine, index as usize)
+    };
+    owned_c_string_to_jstring(&mut env, value)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeSearchResultArtworkUri(
+    mut env: JNIEnv,
+    _this: JObject,
+    handle: jlong,
+    index: jint,
+) -> jstring {
+    let value = unsafe {
+        panda_engine_get_search_result_thumbnail_url(handle as *const PandaEngine, index as usize)
+    };
+    owned_c_string_to_jstring(&mut env, value)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeSearchResultItemType(
+    _env: JNIEnv,
+    _this: JObject,
+    handle: jlong,
+    index: jint,
+) -> jint {
+    unsafe {
+        panda_engine_get_search_result_item_type(handle as *const PandaEngine, index as usize)
+    }
+}
+
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeBrowseResultId(
     mut env: JNIEnv,
     _this: JObject,
@@ -208,6 +264,57 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
         panda_engine_get_browse_result_title(handle as *const PandaEngine, index as usize)
     };
     owned_c_string_to_jstring(&mut env, value)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeBrowseResultArtist(
+    mut env: JNIEnv,
+    _this: JObject,
+    handle: jlong,
+    index: jint,
+) -> jstring {
+    let value = unsafe {
+        panda_engine_get_browse_result_artist(handle as *const PandaEngine, index as usize)
+    };
+    owned_c_string_to_jstring(&mut env, value)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeBrowseResultAlbum(
+    mut env: JNIEnv,
+    _this: JObject,
+    handle: jlong,
+    index: jint,
+) -> jstring {
+    let value = unsafe {
+        panda_engine_get_browse_result_album(handle as *const PandaEngine, index as usize)
+    };
+    owned_c_string_to_jstring(&mut env, value)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeBrowseResultArtworkUri(
+    mut env: JNIEnv,
+    _this: JObject,
+    handle: jlong,
+    index: jint,
+) -> jstring {
+    let value = unsafe {
+        panda_engine_get_browse_result_thumbnail_url(handle as *const PandaEngine, index as usize)
+    };
+    owned_c_string_to_jstring(&mut env, value)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeBrowseResultItemType(
+    _env: JNIEnv,
+    _this: JObject,
+    handle: jlong,
+    index: jint,
+) -> jint {
+    unsafe {
+        panda_engine_get_browse_result_item_type(handle as *const PandaEngine, index as usize)
+    }
 }
 
 fn jni_string_to_c_string(env: &mut JNIEnv, value: JObject) -> Option<CString> {

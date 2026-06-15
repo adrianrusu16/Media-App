@@ -23,12 +23,20 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
 
     override fun browseResult(index: Int): EngineCatalogItem? = resultItem(
         id = nativeBrowseResultId(nativeHandle, index),
-        title = nativeBrowseResultTitle(nativeHandle, index)
+        title = nativeBrowseResultTitle(nativeHandle, index),
+        artist = nativeBrowseResultArtist(nativeHandle, index),
+        album = nativeBrowseResultAlbum(nativeHandle, index),
+        artworkUri = nativeBrowseResultArtworkUri(nativeHandle, index),
+        itemType = nativeBrowseResultItemType(nativeHandle, index)
     )
 
     override fun searchResult(index: Int): EngineCatalogItem? = resultItem(
         id = nativeSearchResultId(nativeHandle, index),
-        title = nativeSearchResultTitle(nativeHandle, index)
+        title = nativeSearchResultTitle(nativeHandle, index),
+        artist = nativeSearchResultArtist(nativeHandle, index),
+        album = nativeSearchResultAlbum(nativeHandle, index),
+        artworkUri = nativeSearchResultArtworkUri(nativeHandle, index),
+        itemType = nativeSearchResultItemType(nativeHandle, index)
     )
 
     override fun dispatch(command: EngineCommand): EngineDispatchResult {
@@ -87,9 +95,25 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
 
     private external fun nativeSearchResultTitle(handle: Long, index: Int): String?
 
+    private external fun nativeSearchResultArtist(handle: Long, index: Int): String?
+
+    private external fun nativeSearchResultAlbum(handle: Long, index: Int): String?
+
+    private external fun nativeSearchResultArtworkUri(handle: Long, index: Int): String?
+
+    private external fun nativeSearchResultItemType(handle: Long, index: Int): Int
+
     private external fun nativeBrowseResultId(handle: Long, index: Int): String?
 
     private external fun nativeBrowseResultTitle(handle: Long, index: Int): String?
+
+    private external fun nativeBrowseResultArtist(handle: Long, index: Int): String?
+
+    private external fun nativeBrowseResultAlbum(handle: Long, index: Int): String?
+
+    private external fun nativeBrowseResultArtworkUri(handle: Long, index: Int): String?
+
+    private external fun nativeBrowseResultItemType(handle: Long, index: Int): Int
 
     private external fun nativeDispatch(
         handle: Long,
@@ -119,9 +143,24 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         userId = nativeCurrentUserId(nativeHandle)
     )
 
-    private fun resultItem(id: String?, title: String?): EngineCatalogItem? = when {
+    private fun resultItem(
+        id: String?,
+        title: String?,
+        artist: String?,
+        album: String?,
+        artworkUri: String?,
+        itemType: Int
+    ): EngineCatalogItem? = when {
         id.isNullOrBlank() || title.isNullOrBlank() -> null
-        else -> EngineCatalogItem(mediaId = id, title = title)
+
+        else -> EngineCatalogItem(
+            mediaId = id,
+            title = title,
+            artist = artist.takeUnless { value -> value.isNullOrBlank() },
+            album = album.takeUnless { value -> value.isNullOrBlank() },
+            artworkUri = artworkUri.takeUnless { value -> value.isNullOrBlank() },
+            itemType = itemType
+        )
     }
 
     companion object {
