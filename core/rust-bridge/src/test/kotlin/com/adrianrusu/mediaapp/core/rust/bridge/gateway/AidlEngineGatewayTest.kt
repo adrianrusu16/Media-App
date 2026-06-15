@@ -2,6 +2,7 @@ package com.adrianrusu.mediaapp.core.rust.bridge.gateway
 
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
@@ -46,6 +47,32 @@ class AidlEngineGatewayTest {
         assertEquals(listOf(EngineCommand.TYPE_PLAY), service.commandTypes)
         assertEquals(EngineSnapshot.PLAYBACK_PLAYING, result.snapshot.playbackState)
         assertEquals(EngineEvent.TYPE_COMMAND_APPLIED, result.event.type)
+    }
+
+    @Test
+    fun `dispatch returns service effects when connected`() {
+        val service = RecordingEngineService(
+            initialSnapshot = EngineSnapshot.idle(nowMillis = 10L)
+        )
+        val gateway = AidlEngineGateway(
+            connection = FakeEngineServiceConnection(service = service),
+            clock = { 1L }
+        )
+
+        val result = gateway.dispatch(
+            EngineCommand(
+                type = EngineCommand.TYPE_PLAY,
+                payload = null
+            )
+        )
+
+        assertEquals(
+            listOf(
+                EngineEffect(type = EngineEffect.TYPE_REQUEST_AUDIO_FOCUS),
+                EngineEffect(type = EngineEffect.TYPE_PLAY)
+            ),
+            result.effects
+        )
     }
 
     @Test
@@ -439,6 +466,7 @@ private class FakeEngineServiceConnection(override var service: EngineService?) 
 
 private class RecordingEngineService(initialSnapshot: EngineSnapshot) : EngineService {
     private var currentSnapshot = initialSnapshot
+    private var currentEffects: List<EngineEffect> = emptyList()
     private val commands = mutableListOf<EngineCommand>()
     private val platformEvents = mutableListOf<EnginePlatformEvent>()
 
@@ -454,8 +482,13 @@ private class RecordingEngineService(initialSnapshot: EngineSnapshot) : EngineSe
 
     override fun searchResult(index: Int): EngineCatalogItem? = null
 
+    override fun effectCount(): Int = currentEffects.size
+
+    override fun effect(index: Int): EngineEffect? = currentEffects.getOrNull(index)
+
     override fun dispatch(command: EngineCommand) {
         commands += command
+        currentEffects = effectsFor(command)
         currentSnapshot = when (command.type) {
             EngineCommand.TYPE_PLAY -> currentSnapshot.copy(
                 playbackState = EngineSnapshot.PLAYBACK_PLAYING,
@@ -473,9 +506,21 @@ private class RecordingEngineService(initialSnapshot: EngineSnapshot) : EngineSe
 
     override fun dispatchPlatformEvent(event: EnginePlatformEvent) {
         platformEvents += event
+        currentEffects = emptyList()
         currentSnapshot = currentSnapshot.copy(
             updatedAtEpochMillis = currentSnapshot.updatedAtEpochMillis + 1
         )
+    }
+
+    private fun effectsFor(command: EngineCommand): List<EngineEffect> = when (command.type) {
+        EngineCommand.TYPE_PLAY -> listOf(
+            EngineEffect(type = EngineEffect.TYPE_REQUEST_AUDIO_FOCUS),
+            EngineEffect(type = EngineEffect.TYPE_PLAY)
+        )
+
+        EngineCommand.TYPE_PAUSE -> listOf(EngineEffect(type = EngineEffect.TYPE_PAUSE))
+
+        else -> emptyList()
     }
 }
 

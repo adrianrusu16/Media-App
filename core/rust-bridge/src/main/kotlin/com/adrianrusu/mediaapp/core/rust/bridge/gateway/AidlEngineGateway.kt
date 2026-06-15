@@ -2,6 +2,7 @@ package com.adrianrusu.mediaapp.core.rust.bridge.gateway
 
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
@@ -78,7 +79,8 @@ class AidlEngineGateway(
                     event = EngineEvent(
                         type = EngineEvent.TYPE_COMMAND_APPLIED,
                         message = command.type
-                    )
+                    ),
+                    effects = service.effects()
                 )
             }
         }
@@ -103,7 +105,8 @@ class AidlEngineGateway(
                     event = EngineEvent(
                         type = EngineEvent.TYPE_PLATFORM_EVENT_APPLIED,
                         message = event.type
-                    )
+                    ),
+                    effects = service.effects()
                 )
             }
         }
@@ -182,6 +185,11 @@ class AidlEngineGateway(
             listener(event)
         }
     }
+
+    private fun EngineService.effects(): List<EngineEffect> = List(
+        size = effectCount(),
+        init = ::effect
+    ).filterNotNull()
 
     private fun queuedResult(command: EngineCommand): EngineDispatchResult {
         if (pendingCommands.size == MAX_PENDING_COMMANDS) {

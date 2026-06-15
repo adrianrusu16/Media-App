@@ -6,6 +6,7 @@ import android.os.IBinder
 import android.os.RemoteCallbackList
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
@@ -22,6 +23,10 @@ class MediaEngineService : Service() {
         override fun getBrowseResult(index: Int): EngineCatalogItem? = engine.browseResult(index)
 
         override fun getSearchResult(index: Int): EngineCatalogItem? = engine.searchResult(index)
+
+        override fun getEffectCount(): Int = engine.effectCount()
+
+        override fun getEffect(index: Int): EngineEffect? = engine.effect(index)
 
         override fun dispatch(command: EngineCommand) {
             val result = engine.dispatch(command)

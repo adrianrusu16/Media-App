@@ -3,6 +3,7 @@ package com.adrianrusu.mediaapp.core.rust.bridge.engine
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommandPayloads
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -35,6 +36,30 @@ class PandaEngineFactoryTest {
 
         assertEquals(12_345L, seekResult.snapshot.positionMillis)
         assertEquals(1.25F, speedResult.snapshot.playbackSpeed)
+        assertEquals(listOf(EngineEffect(type = EngineEffect.TYPE_SEEK)), seekResult.effects)
+        assertEquals(listOf(EngineEffect(type = EngineEffect.TYPE_SET_SPEED)), speedResult.effects)
+    }
+
+    @Test
+    fun `fake engine exposes command effects`() {
+        val engine = PandaEngineFactory.createFake(clock = { 42L })
+
+        val result = engine.dispatch(
+            EngineCommand(
+                type = EngineCommand.TYPE_PLAY,
+                payload = null
+            )
+        )
+
+        assertEquals(
+            listOf(
+                EngineEffect(type = EngineEffect.TYPE_REQUEST_AUDIO_FOCUS),
+                EngineEffect(type = EngineEffect.TYPE_PLAY)
+            ),
+            result.effects
+        )
+        assertEquals(2, engine.effectCount())
+        assertEquals(EngineEffect(type = EngineEffect.TYPE_PLAY), engine.effect(index = 1))
     }
 
     @Test
@@ -81,5 +106,16 @@ class PandaEngineFactoryTest {
         assertEquals(EngineSnapshot.PLAYBACK_BUFFERING, result.snapshot.playbackState)
         assertEquals("track-42", result.snapshot.mediaId)
         assertEquals("track-42", result.snapshot.title)
+        assertEquals(
+            listOf(
+                EngineEffect(
+                    type = EngineEffect.TYPE_UPDATE_METADATA,
+                    mediaId = "track-42"
+                ),
+                EngineEffect(type = EngineEffect.TYPE_REQUEST_AUDIO_FOCUS),
+                EngineEffect(type = EngineEffect.TYPE_PLAY)
+            ),
+            result.effects
+        )
     }
 }

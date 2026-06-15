@@ -159,6 +159,24 @@ pub unsafe extern "C" fn panda_engine_get_effects_types(
 #[unsafe(no_mangle)]
 /// # Safety
 /// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
+pub unsafe extern "C" fn panda_engine_get_effect_type(
+    engine: *const PandaEngine,
+    index: usize,
+) -> i32 {
+    let engine = unsafe { engine.as_ref() };
+    if let Some(engine) = engine {
+        let effects = engine.last_effects.lock().unwrap();
+        if let Some(effect) = effects.get(index) {
+            return effect_to_ffi(effect);
+        }
+    }
+    crate::FFI_COMMAND_UNKNOWN
+}
+
+#[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
 /// - The returned string pointer must be released with `panda_engine_free_string`.
 /// - The caller must ensure no concurrent mutable access while this function reads engine state.
 pub unsafe extern "C" fn panda_engine_get_effect_media_id(

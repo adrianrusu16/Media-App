@@ -7,6 +7,7 @@ import android.os.IBinder
 import android.os.RemoteException
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
@@ -133,6 +134,10 @@ class AndroidEngineServiceConnection(
         override fun browseResult(index: Int): EngineCatalogItem? = remote.getBrowseResult(index)
 
         override fun searchResult(index: Int): EngineCatalogItem? = remote.getSearchResult(index)
+
+        override fun effectCount(): Int = remote.effectCount
+
+        override fun effect(index: Int): EngineEffect? = remote.getEffect(index)
 
         override fun dispatch(command: EngineCommand) {
             remote.dispatch(command)

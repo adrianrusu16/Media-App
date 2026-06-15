@@ -14,6 +14,8 @@ use crate::{
     panda_engine_get_current_album, panda_engine_get_current_artist,
     panda_engine_get_current_media_id, panda_engine_get_current_thumbnail_url,
     panda_engine_get_current_title, panda_engine_get_current_user_id,
+    panda_engine_get_effect_media_id, panda_engine_get_effect_notify_message,
+    panda_engine_get_effect_type, panda_engine_get_effects_count,
     panda_engine_get_search_result_album, panda_engine_get_search_result_artist,
     panda_engine_get_search_result_id, panda_engine_get_search_result_item_type,
     panda_engine_get_search_result_thumbnail_url, panda_engine_get_search_result_title,
@@ -162,6 +164,50 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
     handle: jlong,
 ) -> jstring {
     let value = unsafe { panda_engine_get_current_user_id(handle as *const PandaEngine) };
+    owned_c_string_to_jstring(&mut env, value)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeEffectCount(
+    _env: JNIEnv,
+    _this: JObject,
+    handle: jlong,
+) -> jint {
+    unsafe { panda_engine_get_effects_count(handle as *const PandaEngine) as jint }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeEffectType(
+    _env: JNIEnv,
+    _this: JObject,
+    handle: jlong,
+    index: jint,
+) -> jint {
+    unsafe { panda_engine_get_effect_type(handle as *const PandaEngine, index as usize) }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeEffectMediaId(
+    mut env: JNIEnv,
+    _this: JObject,
+    handle: jlong,
+    index: jint,
+) -> jstring {
+    let value =
+        unsafe { panda_engine_get_effect_media_id(handle as *const PandaEngine, index as usize) };
+    owned_c_string_to_jstring(&mut env, value)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeEffectNotifyMessage(
+    mut env: JNIEnv,
+    _this: JObject,
+    handle: jlong,
+    index: jint,
+) -> jstring {
+    let value = unsafe {
+        panda_engine_get_effect_notify_message(handle as *const PandaEngine, index as usize)
+    };
     owned_c_string_to_jstring(&mut env, value)
 }
 

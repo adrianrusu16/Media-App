@@ -2,6 +2,7 @@ package com.adrianrusu.mediaapp.core.rust.bridge.engine
 
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
 
@@ -11,6 +12,10 @@ interface RustEngine {
     fun browseResult(index: Int): EngineCatalogItem?
 
     fun searchResult(index: Int): EngineCatalogItem?
+
+    fun effectCount(): Int
+
+    fun effect(index: Int): EngineEffect?
 
     fun dispatch(command: EngineCommand): EngineDispatchResult
 

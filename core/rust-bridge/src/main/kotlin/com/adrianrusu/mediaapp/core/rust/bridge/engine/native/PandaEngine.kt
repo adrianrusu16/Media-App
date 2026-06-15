@@ -3,6 +3,7 @@ package com.adrianrusu.mediaapp.core.rust.bridge.engine.native
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineControlState
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlayerControls
@@ -39,6 +40,14 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         itemType = nativeSearchResultItemType(nativeHandle, index)
     )
 
+    override fun effectCount(): Int = nativeEffectCount(nativeHandle)
+
+    override fun effect(index: Int): EngineEffect? = effectItem(
+        type = nativeEffectType(nativeHandle, index),
+        mediaId = nativeEffectMediaId(nativeHandle, index),
+        message = nativeEffectNotifyMessage(nativeHandle, index)
+    )
+
     override fun dispatch(command: EngineCommand): EngineDispatchResult {
         val nativeValues = nativeDispatch(
             handle = nativeHandle,
@@ -52,7 +61,8 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             event = EngineEvent(
                 type = EngineEvent.TYPE_COMMAND_APPLIED,
                 message = command.type
-            )
+            ),
+            effects = effects()
         )
     }
 
@@ -69,7 +79,8 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             event = EngineEvent(
                 type = EngineEvent.TYPE_PLATFORM_EVENT_APPLIED,
                 message = event.type
-            )
+            ),
+            effects = effects()
         )
     }
 
@@ -90,6 +101,14 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     private external fun nativeCurrentArtworkUri(handle: Long): String?
 
     private external fun nativeCurrentUserId(handle: Long): String?
+
+    private external fun nativeEffectCount(handle: Long): Int
+
+    private external fun nativeEffectType(handle: Long, index: Int): Int
+
+    private external fun nativeEffectMediaId(handle: Long, index: Int): String?
+
+    private external fun nativeEffectNotifyMessage(handle: Long, index: Int): String?
 
     private external fun nativeSearchResultId(handle: Long, index: Int): String?
 
@@ -163,6 +182,24 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         )
     }
 
+    private fun effects(): List<EngineEffect> = List(
+        size = effectCount(),
+        init = ::effect
+    ).filterNotNull()
+
+    private fun effectItem(type: Int, mediaId: String?, message: String?): EngineEffect? {
+        val effectType = type.toEngineEffectType()
+        return when (effectType) {
+            EngineEffect.TYPE_UNKNOWN -> null
+
+            else -> EngineEffect(
+                type = effectType,
+                mediaId = mediaId.takeUnless { value -> value.isNullOrBlank() },
+                message = message.takeUnless { value -> value.isNullOrBlank() }
+            )
+        }
+    }
+
     companion object {
         fun create(clock: () -> Long = System::currentTimeMillis): PandaEngine {
             PandaEngineLibrary.load()
@@ -197,6 +234,22 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         private const val PLATFORM_EVENT_MEDIA_ERROR = 7
         private const val PLATFORM_EVENT_UNKNOWN = -1
 
+        private const val EFFECT_PLAY = 0
+        private const val EFFECT_PAUSE = 1
+        private const val EFFECT_STOP = 2
+        private const val EFFECT_SEEK = 3
+        private const val EFFECT_REQUEST_AUDIO_FOCUS = 4
+        private const val EFFECT_ABANDON_AUDIO_FOCUS = 5
+        private const val EFFECT_UPDATE_METADATA = 6
+        private const val EFFECT_SESSION_STARTED = 7
+        private const val EFFECT_SESSION_ENDED = 8
+        private const val EFFECT_SET_SPEED = 9
+        private const val EFFECT_NOTIFY_USER = 10
+        private const val EFFECT_START_AUDIO_CAPTURE = 11
+        private const val EFFECT_STOP_AUDIO_CAPTURE = 12
+        private const val EFFECT_DUCK_AUDIO = 13
+        private const val EFFECT_UNDUCK_AUDIO = 14
+
         private fun EngineCommand.toNativeCommandType(): Int = when (type) {
             EngineCommand.TYPE_BOOTSTRAP -> COMMAND_BOOTSTRAP
             EngineCommand.TYPE_PLAY -> COMMAND_PLAY
@@ -221,6 +274,25 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             EnginePlatformEvent.TYPE_MEDIA_LOADED -> PLATFORM_EVENT_MEDIA_LOADED
             EnginePlatformEvent.TYPE_MEDIA_ERROR -> PLATFORM_EVENT_MEDIA_ERROR
             else -> PLATFORM_EVENT_UNKNOWN
+        }
+
+        private fun Int.toEngineEffectType(): String = when (this) {
+            EFFECT_PLAY -> EngineEffect.TYPE_PLAY
+            EFFECT_PAUSE -> EngineEffect.TYPE_PAUSE
+            EFFECT_STOP -> EngineEffect.TYPE_STOP
+            EFFECT_SEEK -> EngineEffect.TYPE_SEEK
+            EFFECT_REQUEST_AUDIO_FOCUS -> EngineEffect.TYPE_REQUEST_AUDIO_FOCUS
+            EFFECT_ABANDON_AUDIO_FOCUS -> EngineEffect.TYPE_ABANDON_AUDIO_FOCUS
+            EFFECT_UPDATE_METADATA -> EngineEffect.TYPE_UPDATE_METADATA
+            EFFECT_SESSION_STARTED -> EngineEffect.TYPE_SESSION_STARTED
+            EFFECT_SESSION_ENDED -> EngineEffect.TYPE_SESSION_ENDED
+            EFFECT_SET_SPEED -> EngineEffect.TYPE_SET_SPEED
+            EFFECT_NOTIFY_USER -> EngineEffect.TYPE_NOTIFY_USER
+            EFFECT_START_AUDIO_CAPTURE -> EngineEffect.TYPE_START_AUDIO_CAPTURE
+            EFFECT_STOP_AUDIO_CAPTURE -> EngineEffect.TYPE_STOP_AUDIO_CAPTURE
+            EFFECT_DUCK_AUDIO -> EngineEffect.TYPE_DUCK_AUDIO
+            EFFECT_UNDUCK_AUDIO -> EngineEffect.TYPE_UNDUCK_AUDIO
+            else -> EngineEffect.TYPE_UNKNOWN
         }
     }
 }

@@ -102,6 +102,7 @@ fn dispatch_play_emits_effects_in_ffi() {
 
     assert!(types.contains(&FFI_EFFECT_PLAY));
     assert!(types.contains(&FFI_EFFECT_REQUEST_AUDIO_FOCUS));
+    assert_eq!(types[0], unsafe { panda_engine_get_effect_type(engine, 0) });
 
     unsafe {
         panda_engine_destroy(engine);
