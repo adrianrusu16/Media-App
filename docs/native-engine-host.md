@@ -119,6 +119,9 @@ sequenceDiagram
    Route engine effect requests to Android executors, then report platform
    events back into PandaEngine. The engine defines what work is needed; Android
    decides how framework-specific work is executed.
+   Playback source preparation is a dedicated effect request, separate from
+   metadata updates, so host code does not infer data-plane work from display
+   metadata changes.
 
 6. **Engine-Backed Catalog Contract**
    Expose browse/search commands and result-query APIs through the engine

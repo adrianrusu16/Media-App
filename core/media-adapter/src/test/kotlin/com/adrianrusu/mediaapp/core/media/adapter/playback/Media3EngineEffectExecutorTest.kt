@@ -12,7 +12,7 @@ import kotlin.test.assertEquals
 
 class Media3EngineEffectExecutorTest {
     @Test
-    fun `update metadata effect sets projected media item before play`() {
+    fun `prepare playback source effect sets projected media item before play`() {
         val player = RecordingEffectPlayer(playbackState = Player.STATE_IDLE)
         val executor = effectExecutor(
             player = player,
@@ -30,6 +30,10 @@ class Media3EngineEffectExecutorTest {
 
         executor.execute(
             listOf(
+                EngineEffect(
+                    type = EngineEffect.TYPE_PREPARE_PLAYBACK_SOURCE,
+                    mediaId = "track-1"
+                ),
                 EngineEffect(
                     type = EngineEffect.TYPE_UPDATE_METADATA,
                     mediaId = "track-1"
@@ -99,7 +103,7 @@ class Media3EngineEffectExecutorTest {
     }
 
     @Test
-    fun `stale update metadata effect is ignored`() {
+    fun `stale prepare playback source effect is ignored`() {
         val telemetrySink = RecordingEffectTelemetrySink()
         val player = RecordingEffectPlayer(playbackState = Player.STATE_READY)
         val executor = effectExecutor(
@@ -119,7 +123,7 @@ class Media3EngineEffectExecutorTest {
         executor.execute(
             listOf(
                 EngineEffect(
-                    type = EngineEffect.TYPE_UPDATE_METADATA,
+                    type = EngineEffect.TYPE_PREPARE_PLAYBACK_SOURCE,
                     mediaId = "track-1"
                 )
             )
@@ -128,7 +132,7 @@ class Media3EngineEffectExecutorTest {
         assertEquals(emptyList<String>(), player.calls)
         assertEquals(Media3EffectTelemetryEvents.EFFECT_IGNORED, telemetrySink.events.last().name)
         assertEquals(
-            Media3EffectTelemetryValues.STALE_METADATA,
+            Media3EffectTelemetryValues.STALE_PROJECTION,
             telemetrySink.events.last().attributes[Media3EffectTelemetryAttributes.REASON]
         )
     }

@@ -133,6 +133,10 @@ class PandaEngineFactoryTest {
         assertEquals(
             listOf(
                 EngineEffect(
+                    type = EngineEffect.TYPE_PREPARE_PLAYBACK_SOURCE,
+                    mediaId = "track-42"
+                ),
+                EngineEffect(
                     type = EngineEffect.TYPE_UPDATE_METADATA,
                     mediaId = "track-42"
                 ),

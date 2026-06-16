@@ -129,6 +129,10 @@ internal class FakePandaEngine(private val clock: () -> Long = System::currentTi
 
         return listOf(
             EngineEffect(
+                type = EngineEffect.TYPE_PREPARE_PLAYBACK_SOURCE,
+                mediaId = mediaId.takeUnless { value -> value.isBlank() }
+            ),
+            EngineEffect(
                 type = EngineEffect.TYPE_UPDATE_METADATA,
                 mediaId = mediaId.takeUnless { value -> value.isBlank() }
             ),

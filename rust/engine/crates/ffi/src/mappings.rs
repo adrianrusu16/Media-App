@@ -22,6 +22,7 @@ pub(crate) fn effect_to_ffi(effect: &EngineEffect) -> i32 {
         EngineEffect::StopAudioCapture => FFI_EFFECT_STOP_AUDIO_CAPTURE,
         EngineEffect::DuckAudio => FFI_EFFECT_DUCK_AUDIO,
         EngineEffect::UnduckAudio => FFI_EFFECT_UNDUCK_AUDIO,
+        EngineEffect::PreparePlaybackSource { .. } => FFI_EFFECT_PREPARE_PLAYBACK_SOURCE,
     }
 }
 

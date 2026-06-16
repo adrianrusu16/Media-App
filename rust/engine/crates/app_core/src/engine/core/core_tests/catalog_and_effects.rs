@@ -141,7 +141,14 @@ async fn play_command_emits_effects() {
 
     let outcome = engine.dispatch(EngineCommand::play(), 200).await;
 
-    // Should emit UpdateMetadata, RequestAudioFocus, and Play
+    // Should emit PreparePlaybackSource, UpdateMetadata, RequestAudioFocus, and Play
+    assert!(
+        outcome
+            .effects
+            .contains(&EngineEffect::PreparePlaybackSource {
+                media_id: "1".to_string(),
+            })
+    );
     assert!(outcome.effects.contains(&EngineEffect::UpdateMetadata {
         media_id: "1".to_string(),
         title: "Song 1".to_string(),
@@ -187,6 +194,13 @@ async fn play_media_by_id_resolves_playback_source() {
     );
     assert_eq!(outcome.snapshot.mime_type.as_deref(), Some("audio/mpeg"));
     assert_eq!(outcome.snapshot.duration_millis, Some(222_000));
+    assert!(
+        outcome
+            .effects
+            .contains(&EngineEffect::PreparePlaybackSource {
+                media_id: "track-1".to_string(),
+            })
+    );
     assert!(outcome.effects.contains(&EngineEffect::UpdateMetadata {
         media_id: "track-1".to_string(),
         title: "Resolved Track".to_string(),
@@ -362,7 +376,7 @@ async fn player_bridge_drives_mock_player() {
     }];
     engine.queue().set_items(items);
 
-    // Play command should trigger UpdateMetadata and Play effects
+    // Play command should trigger source preparation and Play effects
     engine.dispatch(EngineCommand::play(), 120).await;
 
     // Check the player state through the engine (we need to cast or just check effects were emitted)

@@ -9,7 +9,7 @@ impl Engine {
                     EngineEffect::Play => player.play(),
                     EngineEffect::Pause => player.pause(),
                     EngineEffect::Stop => player.stop(),
-                    EngineEffect::UpdateMetadata { media_id, .. } => player.prepare(media_id),
+                    EngineEffect::PreparePlaybackSource { media_id } => player.prepare(media_id),
                     EngineEffect::Seek(position_millis) => player.seek(*position_millis),
                     EngineEffect::SetSpeed(speed) => player.set_speed(*speed),
                     _ => {}
@@ -25,6 +25,9 @@ impl Engine {
         effects: &mut Vec<EngineEffect>,
     ) -> EngineSnapshot {
         let next_snapshot = snapshot.with_media(media.clone());
+        effects.push(EngineEffect::PreparePlaybackSource {
+            media_id: media.id.clone(),
+        });
         effects.push(EngineEffect::UpdateMetadata {
             media_id: media.id.clone(),
             title: media.title.clone(),

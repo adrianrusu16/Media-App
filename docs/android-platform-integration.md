@@ -76,6 +76,11 @@ Root browsing may fall back to stable Android placeholder categories only when
 the engine has no root results yet. Media3 item selection routes the selected
 media ID back to PandaEngine through `play_media_by_id`.
 
+When PandaEngine selects a playable item, it emits a source-preparation effect
+before playback. Media3 uses the current Android playback projection to install
+the resolved `MediaItem`; metadata update effects remain metadata-only and must
+not be treated as implicit source-preparation commands.
+
 ## Playback Source And Cache
 
 Playback source acquisition is driven by PandaEngine through the

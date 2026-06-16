@@ -13,6 +13,9 @@ impl Engine {
 
                     if let Some(media_id) = &self.snapshot.media_id {
                         let effects = vec![
+                            EngineEffect::PreparePlaybackSource {
+                                media_id: media_id.clone(),
+                            },
                             EngineEffect::UpdateMetadata {
                                 media_id: media_id.clone(),
                                 title: self.snapshot.title.clone().unwrap_or_default(),
@@ -27,6 +30,9 @@ impl Engine {
                     self.snapshot.playback_state = PlaybackState::Paused;
                     if let Some(media_id) = &self.snapshot.media_id {
                         let effects = vec![
+                            EngineEffect::PreparePlaybackSource {
+                                media_id: media_id.clone(),
+                            },
                             EngineEffect::UpdateMetadata {
                                 media_id: media_id.clone(),
                                 title: self.snapshot.title.clone().unwrap_or_default(),
@@ -39,6 +45,9 @@ impl Engine {
                 }
             } else if let Some(media_id) = &self.snapshot.media_id {
                 let effects = vec![
+                    EngineEffect::PreparePlaybackSource {
+                        media_id: media_id.clone(),
+                    },
                     EngineEffect::UpdateMetadata {
                         media_id: media_id.clone(),
                         title: self.snapshot.title.clone().unwrap_or_default(),

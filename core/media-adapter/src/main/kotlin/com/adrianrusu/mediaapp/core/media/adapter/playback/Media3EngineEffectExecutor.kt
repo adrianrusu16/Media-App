@@ -36,7 +36,8 @@ internal class Media3EngineEffectExecutor(
             EngineEffect.TYPE_PLAY -> play()
             EngineEffect.TYPE_PAUSE -> player.pause()
             EngineEffect.TYPE_STOP -> player.stop()
-            EngineEffect.TYPE_UPDATE_METADATA -> updateMetadata(effect)
+            EngineEffect.TYPE_PREPARE_PLAYBACK_SOURCE -> preparePlaybackSource(effect)
+            EngineEffect.TYPE_UPDATE_METADATA -> logNoOp(effect)
             EngineEffect.TYPE_SEEK -> seek(effect)
             EngineEffect.TYPE_SET_SPEED -> setSpeed(effect)
             else -> logNoOp(effect)
@@ -51,11 +52,11 @@ internal class Media3EngineEffectExecutor(
         player.play()
     }
 
-    private fun updateMetadata(effect: EngineEffect) {
+    private fun preparePlaybackSource(effect: EngineEffect) {
         val mediaId = effect.mediaId ?: return logMissingPayload(effect)
         val projection = currentProjection() ?: return logMissingProjection(effect)
         if (projection.mediaItem.mediaId != mediaId) {
-            return logStaleMetadata(effect)
+            return logStaleProjection(effect)
         }
 
         player.setMediaItem(projection.mediaItem, projection.positionMillis)
@@ -91,13 +92,13 @@ internal class Media3EngineEffectExecutor(
         )
     }
 
-    private fun logStaleMetadata(effect: EngineEffect) {
+    private fun logStaleProjection(effect: EngineEffect) {
         telemetryLogger.debug(
             name = Media3EffectTelemetryEvents.EFFECT_IGNORED,
             attributes = mapOf(
                 Media3EffectTelemetryAttributes.EFFECT_TYPE to effect.type,
                 Media3EffectTelemetryAttributes.MEDIA_ID to effect.mediaId.orEmpty(),
-                Media3EffectTelemetryAttributes.REASON to Media3EffectTelemetryValues.STALE_METADATA
+                Media3EffectTelemetryAttributes.REASON to Media3EffectTelemetryValues.STALE_PROJECTION
             )
         )
     }
@@ -176,7 +177,7 @@ internal object Media3EffectTelemetryAttributes {
 internal object Media3EffectTelemetryValues {
     const val MISSING_PAYLOAD = "missing_payload"
     const val MISSING_PROJECTION = "missing_projection"
-    const val STALE_METADATA = "stale_metadata"
+    const val STALE_PROJECTION = "stale_projection"
 }
 
 private const val MIN_POSITION_MILLIS = 0L

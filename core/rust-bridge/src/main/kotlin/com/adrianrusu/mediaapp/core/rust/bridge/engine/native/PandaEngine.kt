@@ -294,6 +294,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         private const val EFFECT_STOP_AUDIO_CAPTURE = 12
         private const val EFFECT_DUCK_AUDIO = 13
         private const val EFFECT_UNDUCK_AUDIO = 14
+        private const val EFFECT_PREPARE_PLAYBACK_SOURCE = 15
 
         private fun EngineCommand.toNativeCommandType(): Int = when (type) {
             EngineCommand.TYPE_BOOTSTRAP -> COMMAND_BOOTSTRAP
@@ -337,6 +338,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             EFFECT_STOP_AUDIO_CAPTURE -> EngineEffect.TYPE_STOP_AUDIO_CAPTURE
             EFFECT_DUCK_AUDIO -> EngineEffect.TYPE_DUCK_AUDIO
             EFFECT_UNDUCK_AUDIO -> EngineEffect.TYPE_UNDUCK_AUDIO
+            EFFECT_PREPARE_PLAYBACK_SOURCE -> EngineEffect.TYPE_PREPARE_PLAYBACK_SOURCE
             else -> EngineEffect.TYPE_UNKNOWN
         }
     }

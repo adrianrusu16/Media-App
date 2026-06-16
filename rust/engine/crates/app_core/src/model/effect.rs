@@ -32,6 +32,8 @@ pub enum EngineEffect {
     DuckAudio,
     /// Request the platform to unduck audio sources.
     UnduckAudio,
+    /// Request the platform to prepare the resolved playback source.
+    PreparePlaybackSource { media_id: String },
     /// Update the system's media session metadata.
     UpdateMetadata {
         media_id: String,
@@ -71,6 +73,8 @@ impl EngineEffect {
     pub const UNDUCK_AUDIO_WIRE: &'static str = "unduck_audio";
     /// Wire value for UpdateMetadata effect.
     pub const UPDATE_METADATA_WIRE: &'static str = "update_metadata";
+    /// Wire value for PreparePlaybackSource effect.
+    pub const PREPARE_PLAYBACK_SOURCE_WIRE: &'static str = "prepare_playback_source";
 
     /// Returns the wire string representation of the effect type.
     pub fn as_wire(&self) -> &'static str {
@@ -89,6 +93,7 @@ impl EngineEffect {
             Self::StopAudioCapture => Self::STOP_AUDIO_CAPTURE_WIRE,
             Self::DuckAudio => Self::DUCK_AUDIO_WIRE,
             Self::UnduckAudio => Self::UNDUCK_AUDIO_WIRE,
+            Self::PreparePlaybackSource { .. } => Self::PREPARE_PLAYBACK_SOURCE_WIRE,
             Self::UpdateMetadata { .. } => Self::UPDATE_METADATA_WIRE,
         }
     }

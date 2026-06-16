@@ -100,9 +100,19 @@ fn dispatch_play_emits_effects_in_ffi() {
     let mut types = vec![0i32; count];
     unsafe { panda_engine_get_effects_types(engine, types.as_mut_ptr()) };
 
+    assert!(types.contains(&FFI_EFFECT_PREPARE_PLAYBACK_SOURCE));
     assert!(types.contains(&FFI_EFFECT_PLAY));
     assert!(types.contains(&FFI_EFFECT_REQUEST_AUDIO_FOCUS));
     assert_eq!(types[0], unsafe { panda_engine_get_effect_type(engine, 0) });
+
+    let prepare_effect_index = effect_index(engine, FFI_EFFECT_PREPARE_PLAYBACK_SOURCE).unwrap();
+    let prepared_media_id = unsafe {
+        take_string(panda_engine_get_effect_media_id(
+            engine,
+            prepare_effect_index,
+        ))
+    };
+    assert_eq!(Some("1".to_string()), prepared_media_id);
 
     unsafe {
         panda_engine_destroy(engine);
