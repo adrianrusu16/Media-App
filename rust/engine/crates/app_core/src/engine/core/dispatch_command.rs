@@ -62,26 +62,56 @@ impl Engine {
                 effects.push(EngineEffect::SessionEnded);
             }
             EngineCommandType::SkipNext => {
-                if let Some(next_media) = self.queue.next_item() {
-                    next_snapshot =
-                        Self::update_media_state(next_media, next_snapshot, &mut effects);
+                if let Some(next_media) = self.queue.next_item().cloned() {
+                    match self.resolve_playback_source(&next_media).await {
+                        Ok(media) => {
+                            next_snapshot =
+                                Self::update_media_state(&media, next_snapshot, &mut effects);
+                        }
+                        Err(error) => {
+                            next_snapshot = next_snapshot.with_error(Some(error)).with_busy(false);
+                            next_snapshot.playback_state = PlaybackState::Error;
+                        }
+                    }
                 }
             }
             EngineCommandType::SkipPrevious => {
-                if let Some(prev_media) = self.queue.previous_item() {
-                    next_snapshot =
-                        Self::update_media_state(prev_media, next_snapshot, &mut effects);
+                if let Some(prev_media) = self.queue.previous_item().cloned() {
+                    match self.resolve_playback_source(&prev_media).await {
+                        Ok(media) => {
+                            next_snapshot =
+                                Self::update_media_state(&media, next_snapshot, &mut effects);
+                        }
+                        Err(error) => {
+                            next_snapshot = next_snapshot.with_error(Some(error)).with_busy(false);
+                            next_snapshot.playback_state = PlaybackState::Error;
+                        }
+                    }
                 }
             }
             EngineCommandType::Play => {
                 if next_snapshot.session.is_some() {
                     if self.snapshot.media_id.is_none() {
-                        if let Some(media) = self.queue.current_item() {
-                            next_snapshot =
-                                Self::update_media_state(media, next_snapshot, &mut effects);
-                        } else if let Some(media) = self.queue.next_item() {
-                            next_snapshot =
-                                Self::update_media_state(media, next_snapshot, &mut effects);
+                        let selected_media = self
+                            .queue
+                            .current_item()
+                            .cloned()
+                            .or_else(|| self.queue.next_item().cloned());
+                        if let Some(media) = selected_media {
+                            match self.resolve_playback_source(&media).await {
+                                Ok(media) => {
+                                    next_snapshot = Self::update_media_state(
+                                        &media,
+                                        next_snapshot,
+                                        &mut effects,
+                                    );
+                                }
+                                Err(error) => {
+                                    next_snapshot =
+                                        next_snapshot.with_error(Some(error)).with_busy(false);
+                                    next_snapshot.playback_state = PlaybackState::Error;
+                                }
+                            }
                         }
                     }
                 } else {
@@ -187,8 +217,17 @@ impl Engine {
                 let results = self.repository.search(query).await.unwrap_or_default();
                 if let Some(first) = results.first() {
                     let media = first.clone();
-                    next_snapshot = Self::update_media_state(&media, next_snapshot, &mut effects);
-                    next_snapshot.playback_state = PlaybackState::Buffering;
+                    match self.resolve_playback_source(&media).await {
+                        Ok(media) => {
+                            next_snapshot =
+                                Self::update_media_state(&media, next_snapshot, &mut effects);
+                            next_snapshot.playback_state = PlaybackState::Buffering;
+                        }
+                        Err(error) => {
+                            next_snapshot = next_snapshot.with_error(Some(error));
+                            next_snapshot.playback_state = PlaybackState::Error;
+                        }
+                    }
                 } else {
                     info!("Voice search found no results for: {}", query);
                     effects.push(EngineEffect::NotifyUser {
@@ -200,8 +239,17 @@ impl Engine {
             EngineCommandType::PlayMediaById { media_id } => {
                 next_snapshot = next_snapshot.with_busy(true);
                 if let Some(media) = self.repository.get_by_id(media_id) {
-                    next_snapshot = Self::update_media_state(&media, next_snapshot, &mut effects);
-                    next_snapshot.playback_state = PlaybackState::Buffering;
+                    match self.resolve_playback_source(&media).await {
+                        Ok(media) => {
+                            next_snapshot =
+                                Self::update_media_state(&media, next_snapshot, &mut effects);
+                            next_snapshot.playback_state = PlaybackState::Buffering;
+                        }
+                        Err(error) => {
+                            next_snapshot = next_snapshot.with_error(Some(error));
+                            next_snapshot.playback_state = PlaybackState::Error;
+                        }
+                    }
                 }
                 next_snapshot = next_snapshot.with_busy(false);
             }

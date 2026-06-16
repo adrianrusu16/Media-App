@@ -1,4 +1,7 @@
 use super::*;
+use crate::networking::PlaybackSource;
+use crate::networking::audio_source_client::MockAudioSourceClient;
+use std::sync::Arc;
 
 #[tokio::test]
 async fn skip_updates_metadata() {
@@ -146,6 +149,84 @@ async fn play_command_emits_effects() {
     }));
     assert!(outcome.effects.contains(&EngineEffect::RequestAudioFocus));
     assert!(outcome.effects.contains(&EngineEffect::Play));
+}
+
+#[tokio::test]
+async fn play_media_by_id_resolves_playback_source() {
+    let mut engine = Engine::new(100);
+    let items = vec![MediaItem {
+        id: "track-1".to_string(),
+        title: "Resolved Track".to_string(),
+        artist: "PandaWave".to_string(),
+        ..Default::default()
+    }];
+    engine.set_repository(Box::new(InMemoryRepository::new(items)));
+
+    let mut audio_source_client = MockAudioSourceClient::new();
+    audio_source_client
+        .expect_resolve_track()
+        .withf(|track_id| track_id == "track-1")
+        .times(1)
+        .returning(|_| {
+            Ok(PlaybackSource {
+                source_id: "source-track-1".to_string(),
+                uri: "https://cdn.pandawave.test/audio/track-1.mp3".to_string(),
+                mime_type: Some("audio/mpeg".to_string()),
+                expected_duration_ms: Some(222_000),
+            })
+        });
+    engine.set_audio_source_client(Arc::new(audio_source_client));
+
+    let outcome = engine
+        .dispatch(EngineCommand::play_media_by_id("track-1".to_string()), 200)
+        .await;
+
+    assert_eq!(
+        outcome.snapshot.source_uri.as_deref(),
+        Some("https://cdn.pandawave.test/audio/track-1.mp3")
+    );
+    assert_eq!(outcome.snapshot.mime_type.as_deref(), Some("audio/mpeg"));
+    assert_eq!(outcome.snapshot.duration_millis, Some(222_000));
+    assert!(outcome.effects.contains(&EngineEffect::UpdateMetadata {
+        media_id: "track-1".to_string(),
+        title: "Resolved Track".to_string(),
+        artist: "PandaWave".to_string(),
+    }));
+    assert!(outcome.effects.contains(&EngineEffect::Play));
+}
+
+#[tokio::test]
+async fn play_media_by_id_source_resolution_failure_moves_to_error() {
+    let mut engine = Engine::new(100);
+    let items = vec![MediaItem {
+        id: "track-1".to_string(),
+        title: "Broken Track".to_string(),
+        artist: "PandaWave".to_string(),
+        ..Default::default()
+    }];
+    engine.set_repository(Box::new(InMemoryRepository::new(items)));
+
+    let mut audio_source_client = MockAudioSourceClient::new();
+    audio_source_client
+        .expect_resolve_track()
+        .times(1)
+        .returning(|_| Err(anyhow::anyhow!("canopy unavailable")));
+    engine.set_audio_source_client(Arc::new(audio_source_client));
+
+    let outcome = engine
+        .dispatch(EngineCommand::play_media_by_id("track-1".to_string()), 200)
+        .await;
+
+    assert_eq!(PlaybackState::Error, outcome.snapshot.playback_state);
+    assert_eq!(
+        outcome
+            .snapshot
+            .last_error
+            .as_ref()
+            .map(|error| &error.error_type),
+        Some(&crate::model::error::EngineErrorType::NetworkError)
+    );
+    assert!(outcome.effects.is_empty());
 }
 
 #[tokio::test]

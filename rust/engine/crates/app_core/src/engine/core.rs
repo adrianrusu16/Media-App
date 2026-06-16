@@ -11,6 +11,7 @@ use crate::model::event::EngineEvent;
 use crate::model::platform_event::{EnginePlatformEvent, EnginePlatformEventType};
 use crate::model::playback::PlaybackState;
 use crate::model::snapshot::EngineSnapshot;
+use crate::networking::AudioSourceClient;
 use crate::services::player::MediaPlayer;
 use crate::services::voice::{VoiceEngine, VoiceInteractionResult};
 use tracing::{info, instrument, warn};
@@ -52,6 +53,7 @@ pub struct Engine {
     persistence: Box<dyn Persistence>,
     event_bus: Arc<EventBus>,
     service_manager: ServiceManager,
+    audio_source_client: Option<Arc<dyn AudioSourceClient>>,
     player: Option<Box<dyn MediaPlayer>>,
     voice_engine: Option<Box<dyn VoiceEngine>>,
 }
@@ -68,6 +70,7 @@ impl Default for Engine {
             persistence: Box::new(NoopPersistence),
             event_bus: bus,
             service_manager: ServiceManager::new(),
+            audio_source_client: None,
             player: None,
             voice_engine: None,
         }
@@ -100,6 +103,7 @@ impl Engine {
             persistence: Box::new(NoopPersistence),
             event_bus: bus,
             service_manager: ServiceManager::new(),
+            audio_source_client: None,
             player: None,
             voice_engine: None,
         };
@@ -151,6 +155,11 @@ impl Engine {
     /// Sets the persistence for the engine.
     pub fn set_persistence(&mut self, persistence: Box<dyn Persistence>) {
         self.persistence = persistence;
+    }
+
+    /// Sets the playback source resolver for the engine.
+    pub fn set_audio_source_client(&mut self, client: Arc<dyn AudioSourceClient>) {
+        self.audio_source_client = Some(client);
     }
 
     /// Sets the media player for the engine.
