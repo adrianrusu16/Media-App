@@ -35,17 +35,17 @@ The next binding layer is also scaffolded:
 
 The fake engine remains an explicit test/local fixture only.
 
-See [native-engine-host.md](native-engine-host.md) for the by-the-books Android
-service, AIDL, JNI, Rust FFI, and PandaEngine hosting model.
+See [native-engine-host.md](native-engine-host.md) for the by-the-books AIDL,
+JNI, Rust FFI, and PandaEngine hosting boundary. See
+[android-platform-integration.md](android-platform-integration.md) for Android
+surface projection, AAOS integration, content providers, and native packaging.
 
 ## Intended Flow
 
 ```text
-Compose, Media3, AAOS system command
+Android gateway caller
         |
-Kotlin platform adapter
-        |
-AIDL service boundary
+AIDL engine service boundary
         |
 Kotlin PandaEngine native binding adapter
         |
@@ -61,8 +61,8 @@ EngineSnapshot and platform commands
 ## State Ownership
 
 PandaEngine owns playback, session readiness, queue, catalog, and platform-aware
-media behavior. Android projects those snapshots into Compose and Media3 state,
-then sends user input back as engine commands.
+media behavior. Android callers project those snapshots into their own surface
+state, then send user input back as engine commands.
 
 Platform lifecycle changes enter the same boundary as commands through
 `EnginePlatformEvent`. The first events are intentionally no-op state-machine
@@ -71,7 +71,7 @@ can use the same path for suspend-to-RAM, resume, UX restriction, and service
 recovery behavior.
 
 Theme selection remains profile/preference state instead of playback engine
-state. Android may project a server-backed profile preference into Compose and
+state. Android may project a server-backed profile preference into UI state and
 RRO resources, but PandaEngine should not decide visual theme unless that theme
 becomes part of a broader profile contract shared with backend/user state.
 
@@ -90,36 +90,14 @@ the boundary, while Rust keeps enum-based domain models internally.
 
 ## Verification
 
-Run Android verification from the project root:
+Run the Android app verification from the project root:
 
 ```powershell
 .\gradlew.bat --no-configuration-cache :app:assembleDebug
 ```
 
-Build and sync Android native libraries after installing the Android NDK and
-Rust Android targets:
-
-```powershell
-.\gradlew.bat --no-configuration-cache :core:rust-bridge:syncPandaEngineAndroidJniLibs --console=plain
-```
-
-Enable native packaging during app assembly with:
-
-```powershell
-.\gradlew.bat --no-configuration-cache "-PpandaEngine.buildNative=true" :app:assembleDebug --console=plain
-```
-
-Compile the Android native smoke test with:
-
-```powershell
-.\gradlew.bat --no-configuration-cache "-PpandaEngine.buildNative=true" :core:rust-bridge:assembleDebugAndroidTest --console=plain
-```
-
-Run the smoke test on a connected device or emulator with:
-
-```powershell
-.\gradlew.bat --no-configuration-cache "-PpandaEngine.buildNative=true" :core:rust-bridge:connectedDebugAndroidTest --console=plain
-```
+Android native packaging and smoke-test commands live in
+[android-platform-integration.md](android-platform-integration.md).
 
 Run Rust verification from `rust/engine` after Rust is installed:
 

@@ -43,8 +43,12 @@ flowchart TD
 
 The native engine host plan is tracked in
 [native-engine-host.md](native-engine-host.md). That document is the source of
-truth for the Android service, AIDL, JNI, Rust FFI, and PandaEngine hosting
-boundary.
+truth for the AIDL, JNI, Rust FFI, and PandaEngine hosting boundary.
+
+Android platform integration details are tracked in
+[android-platform-integration.md](android-platform-integration.md). That
+document owns AAOS declarations, Media3 projection, content-provider/cache
+bridges, and the Android native packaging lane.
 
 ## Planned Modules
 
