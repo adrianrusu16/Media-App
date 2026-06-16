@@ -9,6 +9,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 class PandaEngineFactoryTest {
     @Test
@@ -207,5 +208,22 @@ class PandaEngineFactoryTest {
         assertEquals(null, PandaWaveAudioSourceContract.trackIdFromSourceUri("https://example.com/audio/track-42"))
         assertEquals(null, PandaWaveAudioSourceContract.trackIdFromSourceUri("content://pandawave/audio/track-42"))
         assertEquals(null, PandaWaveAudioSourceContract.trackIdFromSourceUri("content://com.adrianrusu.mediaapp.audio"))
+    }
+
+    @Test
+    fun `panda wave cache keys are stable and filesystem safe`() {
+        val first = PandaWaveAudioCacheKey.fileNameForTrack(" track-42 ")
+        val second = PandaWaveAudioCacheKey.fileNameForTrack("track-42")
+
+        assertEquals(first, second)
+        assertTrue(first.endsWith(".audio"))
+        assertTrue(first.removeSuffix(".audio").all { value -> value in '0'..'9' || value in 'a'..'f' })
+    }
+
+    @Test
+    fun `panda wave cache keys reject blank track ids`() {
+        assertFailsWith<IllegalArgumentException> {
+            PandaWaveAudioCacheKey.fileNameForTrack(" ")
+        }
     }
 }

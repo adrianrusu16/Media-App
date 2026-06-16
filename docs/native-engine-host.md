@@ -146,8 +146,8 @@ sequenceDiagram
    `content://com.adrianrusu.mediaapp.audio/audio/{trackId}`. Future
    Canopy/Jade-backed stores should serve those URIs through
    `PandaWaveAudioContentProvider` without moving playback-state authority out
-   of PandaEngine. The default content store fails loudly until a real backend
-   or local cache is installed.
+   of PandaEngine. The app installs a file-backed cache store at startup; cache
+   misses fail loudly until a real Canopy/Jade download path populates the cache.
 
 6. **Engine-Backed Catalog**
    Replace placeholder Media3 browsing/search with engine browse/search
