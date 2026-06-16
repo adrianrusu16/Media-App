@@ -148,6 +148,8 @@ sequenceDiagram
    `PandaWaveAudioContentProvider` without moving playback-state authority out
    of PandaEngine. The app installs a file-backed cache store at startup; cache
    misses fail loudly until a real Canopy/Jade download path populates the cache.
+   Cache population writes to a temporary file and moves completed audio into
+   place, so Media3 never opens a partially written source.
 
 6. **Engine-Backed Catalog**
    Replace placeholder Media3 browsing/search with engine browse/search
