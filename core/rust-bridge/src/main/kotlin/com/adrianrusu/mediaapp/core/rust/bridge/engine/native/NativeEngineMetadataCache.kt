@@ -31,6 +31,8 @@ internal data class NativeEngineMetadata(
     val artist: String?,
     val album: String?,
     val artworkUri: String?,
+    val sourceUri: String?,
+    val mimeType: String?,
     val userId: String?
 ) {
     companion object {
@@ -40,6 +42,8 @@ internal data class NativeEngineMetadata(
             artist = null,
             album = null,
             artworkUri = null,
+            sourceUri = null,
+            mimeType = null,
             userId = null
         )
     }
@@ -63,5 +67,7 @@ private fun EngineSnapshot.withMetadata(metadata: NativeEngineMetadata): EngineS
     artist = metadata.artist,
     album = metadata.album,
     artworkUri = metadata.artworkUri,
+    sourceUri = metadata.sourceUri,
+    mimeType = metadata.mimeType,
     userId = metadata.userId
 )

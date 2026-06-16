@@ -155,6 +155,8 @@ fn current_media_queries_follow_snapshot_metadata() {
             album: Some("Canopy Sessions".to_string()),
             duration_millis: Some(222_000),
             thumbnail_url: Some("content://pandawave/art/track-7".to_string()),
+            source_uri: Some("https://cdn.pandawave.test/audio/track-7.mp3".to_string()),
+            mime_type: Some("audio/mpeg".to_string()),
             ..Default::default()
         }];
         (*engine).engine.with_engine(|e| e.queue().set_items(items));
@@ -167,6 +169,8 @@ fn current_media_queries_follow_snapshot_metadata() {
     let artist = unsafe { take_string(panda_engine_get_current_artist(engine)) };
     let album = unsafe { take_string(panda_engine_get_current_album(engine)) };
     let thumbnail_url = unsafe { take_string(panda_engine_get_current_thumbnail_url(engine)) };
+    let source_uri = unsafe { take_string(panda_engine_get_current_source_uri(engine)) };
+    let mime_type = unsafe { take_string(panda_engine_get_current_mime_type(engine)) };
     let current_user_id = unsafe { take_string(panda_engine_get_current_user_id(engine)) };
 
     assert_eq!(Some("track-7".to_string()), media_id);
@@ -178,6 +182,11 @@ fn current_media_queries_follow_snapshot_metadata() {
         Some("content://pandawave/art/track-7".to_string()),
         thumbnail_url
     );
+    assert_eq!(
+        Some("https://cdn.pandawave.test/audio/track-7.mp3".to_string()),
+        source_uri
+    );
+    assert_eq!(Some("audio/mpeg".to_string()), mime_type);
     assert_eq!(Some("driver-7".to_string()), current_user_id);
     assert_eq!(2, outcome.snapshot.metadata_revision);
 
@@ -235,6 +244,8 @@ fn search_updates_snapshot_results() {
             artist: "A".to_string(),
             album: Some("Systems Album".to_string()),
             thumbnail_url: Some("content://pandawave/art/1".to_string()),
+            source_uri: Some("https://cdn.pandawave.test/audio/1.mp3".to_string()),
+            mime_type: Some("audio/mpeg".to_string()),
             item_type: MediaItemType::Track,
             ..Default::default()
         }];
@@ -254,6 +265,8 @@ fn search_updates_snapshot_results() {
     let album = unsafe { take_string(panda_engine_get_search_result_album(engine, 0)) };
     let thumbnail_url =
         unsafe { take_string(panda_engine_get_search_result_thumbnail_url(engine, 0)) };
+    let source_uri = unsafe { take_string(panda_engine_get_search_result_source_uri(engine, 0)) };
+    let mime_type = unsafe { take_string(panda_engine_get_search_result_mime_type(engine, 0)) };
     let item_type = unsafe { panda_engine_get_search_result_item_type(engine, 0) };
 
     assert_eq!(Some("1".to_string()), id);
@@ -261,6 +274,11 @@ fn search_updates_snapshot_results() {
     assert_eq!(Some("A".to_string()), artist);
     assert_eq!(Some("Systems Album".to_string()), album);
     assert_eq!(Some("content://pandawave/art/1".to_string()), thumbnail_url);
+    assert_eq!(
+        Some("https://cdn.pandawave.test/audio/1.mp3".to_string()),
+        source_uri
+    );
+    assert_eq!(Some("audio/mpeg".to_string()), mime_type);
     assert_eq!(FFI_MEDIA_ITEM_TRACK, item_type);
 
     unsafe {

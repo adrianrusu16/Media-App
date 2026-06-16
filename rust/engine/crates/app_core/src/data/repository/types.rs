@@ -20,6 +20,8 @@ pub struct MediaItem {
     pub album: Option<String>,
     pub duration_millis: Option<u64>,
     pub thumbnail_url: Option<String>,
+    pub source_uri: Option<String>,
+    pub mime_type: Option<String>,
     pub item_type: MediaItemType,
     pub parent_id: Option<String>,
 }

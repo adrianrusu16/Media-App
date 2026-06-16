@@ -27,6 +27,10 @@ pub struct EngineSnapshot {
     pub duration_millis: Option<u64>,
     /// Thumbnail/artwork URL for the current media item.
     pub thumbnail_url: Option<String>,
+    /// URI for the current playable media source.
+    pub source_uri: Option<String>,
+    /// MIME type for the current playable media source.
+    pub mime_type: Option<String>,
     /// The ID of the user currently interacting with the engine.
     pub user_id: Option<String>,
     /// Current restrictions applied to the media (e.g., UX restrictions).
@@ -134,7 +138,9 @@ impl EngineSnapshot {
             || self.artist.as_deref() != Some(media.artist.as_str())
             || self.album.as_deref() != media.album.as_deref()
             || self.duration_millis != media.duration_millis
-            || self.thumbnail_url.as_deref() != media.thumbnail_url.as_deref();
+            || self.thumbnail_url.as_deref() != media.thumbnail_url.as_deref()
+            || self.source_uri.as_deref() != media.source_uri.as_deref()
+            || self.mime_type.as_deref() != media.mime_type.as_deref();
 
         if metadata_changed {
             self.metadata_revision = self.metadata_revision.saturating_add(1);
@@ -145,6 +151,8 @@ impl EngineSnapshot {
         self.album = media.album;
         self.duration_millis = media.duration_millis;
         self.thumbnail_url = media.thumbnail_url;
+        self.source_uri = media.source_uri;
+        self.mime_type = media.mime_type;
         self
     }
 

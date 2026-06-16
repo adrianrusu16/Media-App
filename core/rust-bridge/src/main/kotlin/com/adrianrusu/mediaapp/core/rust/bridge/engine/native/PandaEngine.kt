@@ -28,6 +28,8 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         artist = nativeBrowseResultArtist(nativeHandle, index),
         album = nativeBrowseResultAlbum(nativeHandle, index),
         artworkUri = nativeBrowseResultArtworkUri(nativeHandle, index),
+        sourceUri = nativeBrowseResultSourceUri(nativeHandle, index),
+        mimeType = nativeBrowseResultMimeType(nativeHandle, index),
         itemType = nativeBrowseResultItemType(nativeHandle, index)
     )
 
@@ -37,6 +39,8 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         artist = nativeSearchResultArtist(nativeHandle, index),
         album = nativeSearchResultAlbum(nativeHandle, index),
         artworkUri = nativeSearchResultArtworkUri(nativeHandle, index),
+        sourceUri = nativeSearchResultSourceUri(nativeHandle, index),
+        mimeType = nativeSearchResultMimeType(nativeHandle, index),
         itemType = nativeSearchResultItemType(nativeHandle, index)
     )
 
@@ -102,6 +106,10 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
 
     private external fun nativeCurrentArtworkUri(handle: Long): String?
 
+    private external fun nativeCurrentSourceUri(handle: Long): String?
+
+    private external fun nativeCurrentMimeType(handle: Long): String?
+
     private external fun nativeCurrentUserId(handle: Long): String?
 
     private external fun nativeEffectCount(handle: Long): Int
@@ -126,6 +134,10 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
 
     private external fun nativeSearchResultArtworkUri(handle: Long, index: Int): String?
 
+    private external fun nativeSearchResultSourceUri(handle: Long, index: Int): String?
+
+    private external fun nativeSearchResultMimeType(handle: Long, index: Int): String?
+
     private external fun nativeSearchResultItemType(handle: Long, index: Int): Int
 
     private external fun nativeBrowseResultId(handle: Long, index: Int): String?
@@ -137,6 +149,10 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     private external fun nativeBrowseResultAlbum(handle: Long, index: Int): String?
 
     private external fun nativeBrowseResultArtworkUri(handle: Long, index: Int): String?
+
+    private external fun nativeBrowseResultSourceUri(handle: Long, index: Int): String?
+
+    private external fun nativeBrowseResultMimeType(handle: Long, index: Int): String?
 
     private external fun nativeBrowseResultItemType(handle: Long, index: Int): Int
 
@@ -165,6 +181,8 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         artist = nativeCurrentArtist(nativeHandle),
         album = nativeCurrentAlbum(nativeHandle),
         artworkUri = nativeCurrentArtworkUri(nativeHandle),
+        sourceUri = nativeCurrentSourceUri(nativeHandle),
+        mimeType = nativeCurrentMimeType(nativeHandle),
         userId = nativeCurrentUserId(nativeHandle)
     )
 
@@ -174,6 +192,8 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         artist: String?,
         album: String?,
         artworkUri: String?,
+        sourceUri: String?,
+        mimeType: String?,
         itemType: Int
     ): EngineCatalogItem? = when {
         id.isNullOrBlank() || title.isNullOrBlank() -> null
@@ -184,6 +204,8 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             artist = artist.takeUnless { value -> value.isNullOrBlank() },
             album = album.takeUnless { value -> value.isNullOrBlank() },
             artworkUri = artworkUri.takeUnless { value -> value.isNullOrBlank() },
+            sourceUri = sourceUri.takeUnless { value -> value.isNullOrBlank() },
+            mimeType = mimeType.takeUnless { value -> value.isNullOrBlank() },
             itemType = itemType
         )
     }

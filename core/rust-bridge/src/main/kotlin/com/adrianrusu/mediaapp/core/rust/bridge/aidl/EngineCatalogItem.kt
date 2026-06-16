@@ -9,6 +9,8 @@ data class EngineCatalogItem(
     val artist: String? = null,
     val album: String? = null,
     val artworkUri: String? = null,
+    val sourceUri: String? = null,
+    val mimeType: String? = null,
     val itemType: Int = TYPE_TRACK
 ) : Parcelable {
     init {
@@ -29,6 +31,8 @@ data class EngineCatalogItem(
         artist = parcel.readString(),
         album = parcel.readString(),
         artworkUri = parcel.readString(),
+        sourceUri = parcel.readString(),
+        mimeType = parcel.readString(),
         itemType = parcel.readInt()
     )
 
@@ -38,6 +42,8 @@ data class EngineCatalogItem(
         parcel.writeString(artist)
         parcel.writeString(album)
         parcel.writeString(artworkUri)
+        parcel.writeString(sourceUri)
+        parcel.writeString(mimeType)
         parcel.writeInt(itemType)
     }
 

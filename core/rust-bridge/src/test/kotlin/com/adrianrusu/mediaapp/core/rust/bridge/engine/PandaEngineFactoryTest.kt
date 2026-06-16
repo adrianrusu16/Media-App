@@ -99,10 +99,14 @@ class PandaEngineFactoryTest {
         assertEquals(1, searchResult.snapshot.searchResultsCount)
         assertEquals("browse-0", engine.browseResult(0)?.mediaId)
         assertEquals("Browse result 0", engine.browseResult(0)?.title)
+        assertEquals("content://pandawave/audio/browse-0", engine.browseResult(0)?.sourceUri)
+        assertEquals("audio/mpeg", engine.browseResult(0)?.mimeType)
         assertEquals(EngineCatalogItem.TYPE_ALBUM, engine.browseResult(0)?.itemType)
         assertEquals("search-0", engine.searchResult(0)?.mediaId)
         assertEquals("Search result 0", engine.searchResult(0)?.title)
         assertEquals("Canopy Sessions", engine.searchResult(0)?.album)
+        assertEquals("content://pandawave/audio/search-0", engine.searchResult(0)?.sourceUri)
+        assertEquals("audio/mpeg", engine.searchResult(0)?.mimeType)
         assertEquals(EngineCatalogItem.TYPE_TRACK, engine.searchResult(0)?.itemType)
         assertEquals(null, engine.browseResult(1))
         assertEquals(null, engine.searchResult(1))
@@ -122,6 +126,8 @@ class PandaEngineFactoryTest {
         assertEquals(EngineSnapshot.PLAYBACK_BUFFERING, result.snapshot.playbackState)
         assertEquals("track-42", result.snapshot.mediaId)
         assertEquals("track-42", result.snapshot.title)
+        assertEquals("content://pandawave/audio/track-42", result.snapshot.sourceUri)
+        assertEquals("audio/mpeg", result.snapshot.mimeType)
         assertEquals(
             listOf(
                 EngineEffect(

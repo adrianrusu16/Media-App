@@ -29,6 +29,8 @@ class DefaultBambooPlaybackRepositoryTest {
                     mediaId = "track-1",
                     title = "Quiet Cabin",
                     artist = "PandaWave",
+                    sourceUri = "https://cdn.pandawave.test/audio/track-1.mp3",
+                    mimeType = "audio/mpeg",
                     userId = null,
                     restrictionState = EngineSnapshot.RESTRICTION_UNKNOWN,
                     updatedAtEpochMillis = 100L
@@ -46,6 +48,8 @@ class DefaultBambooPlaybackRepositoryTest {
 
         assertEquals("Quiet Cabin", repository.state.value.title)
         assertEquals("PandaWave", repository.state.value.artist)
+        assertEquals("https://cdn.pandawave.test/audio/track-1.mp3", repository.state.value.sourceUri)
+        assertEquals("audio/mpeg", repository.state.value.mimeType)
         assertEquals(BambooPlaybackStatus.Paused, repository.state.value.playbackStatus)
         assertEquals(BambooEngineConnectionUiState.Ready, repository.state.value.engineConnection)
         assertEquals("Standard device", repository.state.value.restriction.label)

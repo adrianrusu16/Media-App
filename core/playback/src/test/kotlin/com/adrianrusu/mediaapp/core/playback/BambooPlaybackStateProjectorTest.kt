@@ -20,6 +20,8 @@ class BambooPlaybackStateProjectorTest {
             album = "Canopy Sessions",
             durationMillis = 222_000L,
             artworkUri = "content://pandawave/art/track-1",
+            sourceUri = "https://cdn.pandawave.test/audio/track-1.mp3",
+            mimeType = "audio/mpeg",
             userId = null,
             restrictionState = EngineSnapshot.RESTRICTION_UNKNOWN,
             updatedAtEpochMillis = 100L,
@@ -61,6 +63,8 @@ class BambooPlaybackStateProjectorTest {
         assertEquals("Canopy Sessions", state.album)
         assertEquals(222_000L, state.durationMillis)
         assertEquals("content://pandawave/art/track-1", state.artworkUri)
+        assertEquals("https://cdn.pandawave.test/audio/track-1.mp3", state.sourceUri)
+        assertEquals("audio/mpeg", state.mimeType)
         assertEquals(BambooPlaybackStatus.Playing, state.playbackStatus)
         assertEquals(100L, state.updatedAtEpochMillis)
         assertEquals(true, state.hasActiveSession)

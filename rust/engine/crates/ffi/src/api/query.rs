@@ -113,6 +113,28 @@ pub unsafe extern "C" fn panda_engine_get_current_thumbnail_url(
 /// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
 /// - The returned string pointer must be released with `panda_engine_free_string`.
 /// - The caller must ensure no concurrent mutable access while this function reads engine state.
+pub unsafe extern "C" fn panda_engine_get_current_source_uri(
+    engine: *const PandaEngine,
+) -> *const c_char {
+    current_snapshot_string(engine, |snapshot| snapshot.source_uri.as_ref())
+}
+
+#[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The returned string pointer must be released with `panda_engine_free_string`.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
+pub unsafe extern "C" fn panda_engine_get_current_mime_type(
+    engine: *const PandaEngine,
+) -> *const c_char {
+    current_snapshot_string(engine, |snapshot| snapshot.mime_type.as_ref())
+}
+
+#[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The returned string pointer must be released with `panda_engine_free_string`.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
 pub unsafe extern "C" fn panda_engine_get_current_user_id(
     engine: *const PandaEngine,
 ) -> *const c_char {
@@ -336,6 +358,30 @@ pub unsafe extern "C" fn panda_engine_get_search_result_thumbnail_url(
 #[unsafe(no_mangle)]
 /// # Safety
 /// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The returned string pointer must be released with `panda_engine_free_string`.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
+pub unsafe extern "C" fn panda_engine_get_search_result_source_uri(
+    engine: *const PandaEngine,
+    index: usize,
+) -> *const c_char {
+    search_result_string(engine, index, |item| item.source_uri.as_ref())
+}
+
+#[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The returned string pointer must be released with `panda_engine_free_string`.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
+pub unsafe extern "C" fn panda_engine_get_search_result_mime_type(
+    engine: *const PandaEngine,
+    index: usize,
+) -> *const c_char {
+    search_result_string(engine, index, |item| item.mime_type.as_ref())
+}
+
+#[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
 /// - The caller must ensure no concurrent mutable access while this function reads engine state.
 pub unsafe extern "C" fn panda_engine_get_search_result_item_type(
     engine: *const PandaEngine,
@@ -416,6 +462,30 @@ pub unsafe extern "C" fn panda_engine_get_browse_result_thumbnail_url(
     index: usize,
 ) -> *const c_char {
     browse_result_string(engine, index, |item| item.thumbnail_url.as_ref())
+}
+
+#[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The returned string pointer must be released with `panda_engine_free_string`.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
+pub unsafe extern "C" fn panda_engine_get_browse_result_source_uri(
+    engine: *const PandaEngine,
+    index: usize,
+) -> *const c_char {
+    browse_result_string(engine, index, |item| item.source_uri.as_ref())
+}
+
+#[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The returned string pointer must be released with `panda_engine_free_string`.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
+pub unsafe extern "C" fn panda_engine_get_browse_result_mime_type(
+    engine: *const PandaEngine,
+    index: usize,
+) -> *const c_char {
+    browse_result_string(engine, index, |item| item.mime_type.as_ref())
 }
 
 #[unsafe(no_mangle)]

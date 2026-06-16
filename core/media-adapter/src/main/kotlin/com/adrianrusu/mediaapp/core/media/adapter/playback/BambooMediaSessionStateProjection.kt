@@ -12,31 +12,38 @@ internal data class BambooMediaSessionStateProjection(
     val positionMillis: Long
 )
 
-internal fun interface BambooArtworkUriParser {
+internal fun interface BambooUriParser {
     fun parse(value: String): Uri?
 }
 
-private val DefaultArtworkUriParser = BambooArtworkUriParser { value -> Uri.parse(value) }
+private val DefaultUriParser = BambooUriParser { value -> Uri.parse(value) }
 
 internal fun BambooPlaybackState.toMediaSessionStateProjection(
-    artworkUriParser: BambooArtworkUriParser = DefaultArtworkUriParser
-): BambooMediaSessionStateProjection = BambooMediaSessionStateProjection(
-    mediaItem = MediaItem.Builder()
+    uriParser: BambooUriParser = DefaultUriParser
+): BambooMediaSessionStateProjection {
+    val mediaItemBuilder = MediaItem.Builder()
         .setMediaId(mediaId ?: FALLBACK_MEDIA_ID)
-        .setMediaMetadata(
-            MediaMetadata.Builder()
-                .setTitle(title)
-                .setArtist(artist)
-                .setAlbumTitle(album)
-                .setDurationMs(durationMillis)
-                .setArtworkUri(artworkUri?.let(artworkUriParser::parse))
-                .setIsBrowsable(false)
-                .setIsPlayable(true)
-                .build()
-        )
-        .build(),
-    playWhenReady = playbackStatus == BambooPlaybackStatus.Playing,
-    positionMillis = positionMillis.coerceAtLeast(0L)
-)
+
+    sourceUri?.let { value -> mediaItemBuilder.setUri(uriParser.parse(value)) }
+    mimeType?.let(mediaItemBuilder::setMimeType)
+
+    return BambooMediaSessionStateProjection(
+        mediaItem = mediaItemBuilder
+            .setMediaMetadata(
+                MediaMetadata.Builder()
+                    .setTitle(title)
+                    .setArtist(artist)
+                    .setAlbumTitle(album)
+                    .setDurationMs(durationMillis)
+                    .setArtworkUri(artworkUri?.let(uriParser::parse))
+                    .setIsBrowsable(false)
+                    .setIsPlayable(true)
+                    .build()
+            )
+            .build(),
+        playWhenReady = playbackStatus == BambooPlaybackStatus.Playing,
+        positionMillis = positionMillis.coerceAtLeast(0L)
+    )
+}
 
 private const val FALLBACK_MEDIA_ID = "pandawave.playback.current"

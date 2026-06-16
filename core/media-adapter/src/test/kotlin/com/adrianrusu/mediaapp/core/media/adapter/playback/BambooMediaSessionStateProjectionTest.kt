@@ -10,7 +10,7 @@ import kotlin.test.assertTrue
 class BambooMediaSessionStateProjectionTest {
     @Test
     fun `playing state maps to playable media item`() {
-        var parsedArtworkUri: String? = null
+        val parsedUris = mutableListOf<String>()
         val projection = BambooPlaybackState(
             mediaId = "track-1",
             title = "Bamboo Drive",
@@ -18,11 +18,13 @@ class BambooMediaSessionStateProjectionTest {
             album = "Canopy Sessions",
             durationMillis = 222_000L,
             artworkUri = "content://pandawave/art/track-1",
+            sourceUri = "https://cdn.pandawave.test/audio/track-1.mp3",
+            mimeType = "audio/mpeg",
             playbackStatus = BambooPlaybackStatus.Playing,
             positionMillis = 9_000L
         ).toMediaSessionStateProjection(
-            artworkUriParser = BambooArtworkUriParser { value ->
-                parsedArtworkUri = value
+            uriParser = BambooUriParser { value ->
+                parsedUris += value
                 null
             }
         )
@@ -32,7 +34,13 @@ class BambooMediaSessionStateProjectionTest {
         assertEquals("PandaWave", projection.mediaItem.mediaMetadata.artist)
         assertEquals("Canopy Sessions", projection.mediaItem.mediaMetadata.albumTitle)
         assertEquals(222_000L, projection.mediaItem.mediaMetadata.durationMs)
-        assertEquals("content://pandawave/art/track-1", parsedArtworkUri)
+        assertEquals(
+            listOf(
+                "https://cdn.pandawave.test/audio/track-1.mp3",
+                "content://pandawave/art/track-1"
+            ),
+            parsedUris
+        )
         assertEquals(false, projection.mediaItem.mediaMetadata.isBrowsable)
         assertEquals(true, projection.mediaItem.mediaMetadata.isPlayable)
         assertTrue(projection.playWhenReady)
