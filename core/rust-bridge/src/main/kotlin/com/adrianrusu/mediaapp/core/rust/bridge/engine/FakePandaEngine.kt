@@ -35,7 +35,7 @@ internal class FakePandaEngine(private val clock: () -> Long = System::currentTi
             title = "Browse result $index",
             artist = "PandaWave",
             artworkUri = "content://pandawave/catalog/browse-$index",
-            sourceUri = "content://pandawave/audio/browse-$index",
+            sourceUri = PandaWaveAudioSourceContract.sourceUriForTrack("browse-$index"),
             mimeType = DEFAULT_AUDIO_MIME_TYPE,
             itemType = EngineCatalogItem.TYPE_ALBUM
         )
@@ -50,7 +50,7 @@ internal class FakePandaEngine(private val clock: () -> Long = System::currentTi
             artist = "PandaWave",
             album = "Canopy Sessions",
             artworkUri = "content://pandawave/catalog/search-$index",
-            sourceUri = "content://pandawave/audio/search-$index",
+            sourceUri = PandaWaveAudioSourceContract.sourceUriForTrack("search-$index"),
             mimeType = DEFAULT_AUDIO_MIME_TYPE,
             itemType = EngineCatalogItem.TYPE_TRACK
         )

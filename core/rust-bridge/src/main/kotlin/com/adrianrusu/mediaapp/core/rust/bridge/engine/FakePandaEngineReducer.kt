@@ -53,7 +53,7 @@ internal object FakePandaEngineReducer {
                 mediaId = mediaId.ifBlank { current.mediaId },
                 title = mediaId.ifBlank { current.title },
                 sourceUri = mediaId.takeUnless { value -> value.isBlank() }
-                    ?.let { value -> "content://pandawave/audio/$value" }
+                    ?.let(PandaWaveAudioSourceContract::sourceUriForTrack)
                     ?: current.sourceUri,
                 mimeType = mediaId.takeUnless { value -> value.isBlank() }
                     ?.let { DEFAULT_AUDIO_MIME_TYPE }

@@ -100,13 +100,13 @@ class PandaEngineFactoryTest {
         assertEquals(1, searchResult.snapshot.searchResultsCount)
         assertEquals("browse-0", engine.browseResult(0)?.mediaId)
         assertEquals("Browse result 0", engine.browseResult(0)?.title)
-        assertEquals("content://pandawave/audio/browse-0", engine.browseResult(0)?.sourceUri)
+        assertEquals("content://com.adrianrusu.mediaapp.audio/audio/browse-0", engine.browseResult(0)?.sourceUri)
         assertEquals("audio/mpeg", engine.browseResult(0)?.mimeType)
         assertEquals(EngineCatalogItem.TYPE_ALBUM, engine.browseResult(0)?.itemType)
         assertEquals("search-0", engine.searchResult(0)?.mediaId)
         assertEquals("Search result 0", engine.searchResult(0)?.title)
         assertEquals("Canopy Sessions", engine.searchResult(0)?.album)
-        assertEquals("content://pandawave/audio/search-0", engine.searchResult(0)?.sourceUri)
+        assertEquals("content://com.adrianrusu.mediaapp.audio/audio/search-0", engine.searchResult(0)?.sourceUri)
         assertEquals("audio/mpeg", engine.searchResult(0)?.mimeType)
         assertEquals(EngineCatalogItem.TYPE_TRACK, engine.searchResult(0)?.itemType)
         assertEquals(null, engine.browseResult(1))
@@ -127,7 +127,7 @@ class PandaEngineFactoryTest {
         assertEquals(EngineSnapshot.PLAYBACK_BUFFERING, result.snapshot.playbackState)
         assertEquals("track-42", result.snapshot.mediaId)
         assertEquals("track-42", result.snapshot.title)
-        assertEquals("content://pandawave/audio/track-42", result.snapshot.sourceUri)
+        assertEquals("content://com.adrianrusu.mediaapp.audio/audio/track-42", result.snapshot.sourceUri)
         assertEquals("audio/mpeg", result.snapshot.mimeType)
         assertEquals(
             listOf(
@@ -154,7 +154,7 @@ class PandaEngineFactoryTest {
         assertFailsWith<IllegalArgumentException> {
             EnginePlaybackSource(
                 sourceId = "source-1",
-                uri = "content://pandawave/audio/track-42",
+                uri = "content://com.adrianrusu.mediaapp.audio/audio/track-42",
                 expectedDurationMillis = -1L
             )
         }
@@ -182,5 +182,22 @@ class PandaEngineFactoryTest {
         assertEquals("content://resolver/audio/track-42", result.snapshot.sourceUri)
         assertEquals("audio/flac", result.snapshot.mimeType)
         assertEquals(123_000L, result.snapshot.durationMillis)
+    }
+
+    @Test
+    fun `panda wave content resolver maps track ids to stable content sources`() {
+        val source = PandaWaveContentAudioSourceResolver().resolve(" track 42/side A ")
+
+        assertEquals("pandawave:track 42/side A", source.sourceId)
+        assertEquals("content://com.adrianrusu.mediaapp.audio/audio/track%2042%2Fside%20A", source.uri)
+        assertEquals("audio/mpeg", source.mimeType)
+        assertEquals(null, source.expectedDurationMillis)
+    }
+
+    @Test
+    fun `panda wave content resolver rejects blank track ids`() {
+        assertFailsWith<IllegalArgumentException> {
+            PandaWaveContentAudioSourceResolver().resolve(" ")
+        }
     }
 }

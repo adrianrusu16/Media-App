@@ -23,6 +23,8 @@ data class EnginePlaybackSource(
 }
 
 object AudioSourceResolvers {
+    fun pandaWaveContent(): AudioSourceResolver = PandaWaveContentAudioSourceResolver()
+
     fun unavailable(): AudioSourceResolver = UnavailableAudioSourceResolver
 }
 

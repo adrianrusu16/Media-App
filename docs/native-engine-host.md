@@ -139,6 +139,14 @@ sequenceDiagram
    Route engine effects to Android executors, then report platform events back
    into PandaEngine.
 
+   Playback source acquisition is driven by PandaEngine through the
+   `AudioSourceClient` trait. Android installs an `AudioSourceResolver` on the
+   native host via JNI; the current production resolver maps engine track IDs to
+   the stable PandaWave content-URI contract
+   `content://com.adrianrusu.mediaapp.audio/audio/{trackId}`. Future
+   Canopy/Jade-backed providers should serve or translate those URIs without
+   moving playback-state authority out of PandaEngine.
+
 6. **Engine-Backed Catalog**
    Replace placeholder Media3 browsing/search with engine browse/search
    commands and snapshot/result projection.
