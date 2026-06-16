@@ -1,5 +1,6 @@
 package com.adrianrusu.mediaapp.core.media.adapter.playback
 
+import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import com.adrianrusu.mediaapp.core.media.adapter.playback.focus.BambooAudioFocusController
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEffect
@@ -16,7 +17,8 @@ internal object NoOpBambooPlaybackEffectExecutor : BambooPlaybackEffectExecutor 
 internal class Media3EngineEffectExecutor(
     private val player: Media3EffectPlayer,
     private val audioFocusController: BambooAudioFocusController,
-    private val telemetryLogger: TelemetryLogger
+    private val telemetryLogger: TelemetryLogger,
+    private val currentProjection: () -> BambooMediaSessionStateProjection? = { null }
 ) : BambooPlaybackEffectExecutor {
     override fun execute(effects: List<EngineEffect>) {
         effects.forEach(::execute)
@@ -34,6 +36,7 @@ internal class Media3EngineEffectExecutor(
             EngineEffect.TYPE_PLAY -> play()
             EngineEffect.TYPE_PAUSE -> player.pause()
             EngineEffect.TYPE_STOP -> player.stop()
+            EngineEffect.TYPE_UPDATE_METADATA -> updateMetadata(effect)
             EngineEffect.TYPE_SEEK -> seek(effect)
             EngineEffect.TYPE_SET_SPEED -> setSpeed(effect)
             else -> logNoOp(effect)
@@ -46,6 +49,16 @@ internal class Media3EngineEffectExecutor(
         }
 
         player.play()
+    }
+
+    private fun updateMetadata(effect: EngineEffect) {
+        val mediaId = effect.mediaId ?: return logMissingPayload(effect)
+        val projection = currentProjection() ?: return logMissingProjection(effect)
+        if (projection.mediaItem.mediaId != mediaId) {
+            return logStaleMetadata(effect)
+        }
+
+        player.setMediaItem(projection.mediaItem, projection.positionMillis)
     }
 
     private fun seek(effect: EngineEffect) {
@@ -68,6 +81,27 @@ internal class Media3EngineEffectExecutor(
         )
     }
 
+    private fun logMissingProjection(effect: EngineEffect) {
+        telemetryLogger.debug(
+            name = Media3EffectTelemetryEvents.EFFECT_IGNORED,
+            attributes = mapOf(
+                Media3EffectTelemetryAttributes.EFFECT_TYPE to effect.type,
+                Media3EffectTelemetryAttributes.REASON to Media3EffectTelemetryValues.MISSING_PROJECTION
+            )
+        )
+    }
+
+    private fun logStaleMetadata(effect: EngineEffect) {
+        telemetryLogger.debug(
+            name = Media3EffectTelemetryEvents.EFFECT_IGNORED,
+            attributes = mapOf(
+                Media3EffectTelemetryAttributes.EFFECT_TYPE to effect.type,
+                Media3EffectTelemetryAttributes.MEDIA_ID to effect.mediaId.orEmpty(),
+                Media3EffectTelemetryAttributes.REASON to Media3EffectTelemetryValues.STALE_METADATA
+            )
+        )
+    }
+
     private fun logNoOp(effect: EngineEffect) {
         telemetryLogger.debug(
             name = Media3EffectTelemetryEvents.EFFECT_NO_OP,
@@ -78,6 +112,8 @@ internal class Media3EngineEffectExecutor(
 
 internal interface Media3EffectPlayer {
     val playbackState: Int
+
+    fun setMediaItem(mediaItem: MediaItem, positionMillis: Long)
 
     fun prepare()
 
@@ -95,6 +131,10 @@ internal interface Media3EffectPlayer {
 internal class PlayerMedia3EffectPlayer(private val player: Player) : Media3EffectPlayer {
     override val playbackState: Int
         get() = player.playbackState
+
+    override fun setMediaItem(mediaItem: MediaItem, positionMillis: Long) {
+        player.setMediaItem(mediaItem, positionMillis)
+    }
 
     override fun prepare() {
         player.prepare()
@@ -129,11 +169,14 @@ internal object Media3EffectTelemetryEvents {
 
 internal object Media3EffectTelemetryAttributes {
     const val EFFECT_TYPE = "effect_type"
+    const val MEDIA_ID = "media_id"
     const val REASON = "reason"
 }
 
 internal object Media3EffectTelemetryValues {
     const val MISSING_PAYLOAD = "missing_payload"
+    const val MISSING_PROJECTION = "missing_projection"
+    const val STALE_METADATA = "stale_metadata"
 }
 
 private const val MIN_POSITION_MILLIS = 0L

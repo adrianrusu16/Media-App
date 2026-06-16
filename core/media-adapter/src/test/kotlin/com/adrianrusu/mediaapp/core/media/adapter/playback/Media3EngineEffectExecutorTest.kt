@@ -1,5 +1,6 @@
 package com.adrianrusu.mediaapp.core.media.adapter.playback
 
+import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import com.adrianrusu.mediaapp.core.media.adapter.playback.focus.BambooAudioFocusController
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEffect
@@ -10,6 +11,43 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class Media3EngineEffectExecutorTest {
+    @Test
+    fun `update metadata effect sets projected media item before play`() {
+        val player = RecordingEffectPlayer(playbackState = Player.STATE_IDLE)
+        val executor = effectExecutor(
+            player = player,
+            currentProjection = {
+                BambooMediaSessionStateProjection(
+                    mediaItem = MediaItem.Builder()
+                        .setMediaId("track-1")
+                        .setMimeType("audio/mpeg")
+                        .build(),
+                    playWhenReady = false,
+                    positionMillis = 9_000L
+                )
+            }
+        )
+
+        executor.execute(
+            listOf(
+                EngineEffect(
+                    type = EngineEffect.TYPE_UPDATE_METADATA,
+                    mediaId = "track-1"
+                ),
+                EngineEffect(type = EngineEffect.TYPE_PLAY)
+            )
+        )
+
+        assertEquals(
+            listOf(
+                "setMediaItem:track-1:9000",
+                "prepare",
+                "play"
+            ),
+            player.calls
+        )
+    }
+
     @Test
     fun `play effect prepares idle player and starts playback`() {
         val player = RecordingEffectPlayer(playbackState = Player.STATE_IDLE)
@@ -61,6 +99,41 @@ class Media3EngineEffectExecutorTest {
     }
 
     @Test
+    fun `stale update metadata effect is ignored`() {
+        val telemetrySink = RecordingEffectTelemetrySink()
+        val player = RecordingEffectPlayer(playbackState = Player.STATE_READY)
+        val executor = effectExecutor(
+            player = player,
+            telemetrySink = telemetrySink,
+            currentProjection = {
+                BambooMediaSessionStateProjection(
+                    mediaItem = MediaItem.Builder()
+                        .setMediaId("track-2")
+                        .build(),
+                    playWhenReady = false,
+                    positionMillis = 0L
+                )
+            }
+        )
+
+        executor.execute(
+            listOf(
+                EngineEffect(
+                    type = EngineEffect.TYPE_UPDATE_METADATA,
+                    mediaId = "track-1"
+                )
+            )
+        )
+
+        assertEquals(emptyList<String>(), player.calls)
+        assertEquals(Media3EffectTelemetryEvents.EFFECT_IGNORED, telemetrySink.events.last().name)
+        assertEquals(
+            Media3EffectTelemetryValues.STALE_METADATA,
+            telemetrySink.events.last().attributes[Media3EffectTelemetryAttributes.REASON]
+        )
+    }
+
+    @Test
     fun `missing effect payloads are ignored`() {
         val telemetrySink = RecordingEffectTelemetrySink()
         val player = RecordingEffectPlayer(playbackState = Player.STATE_READY)
@@ -92,18 +165,24 @@ class Media3EngineEffectExecutorTest {
 private fun effectExecutor(
     player: RecordingEffectPlayer = RecordingEffectPlayer(playbackState = Player.STATE_READY),
     focusController: RecordingAudioFocusController = RecordingAudioFocusController(),
-    telemetrySink: TelemetrySink = TelemetrySink { }
+    telemetrySink: TelemetrySink = TelemetrySink { },
+    currentProjection: () -> BambooMediaSessionStateProjection? = { null }
 ): Media3EngineEffectExecutor = Media3EngineEffectExecutor(
     player = player,
     audioFocusController = focusController,
     telemetryLogger = TelemetryLogger(
         sink = telemetrySink,
         clock = { 42L }
-    )
+    ),
+    currentProjection = currentProjection
 )
 
 private class RecordingEffectPlayer(override val playbackState: Int) : Media3EffectPlayer {
     val calls = mutableListOf<String>()
+
+    override fun setMediaItem(mediaItem: MediaItem, positionMillis: Long) {
+        calls += "setMediaItem:${mediaItem.mediaId}:$positionMillis"
+    }
 
     override fun prepare() {
         calls += "prepare"

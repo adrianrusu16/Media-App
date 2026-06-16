@@ -51,7 +51,8 @@ class BambooMediaLibraryService : MediaLibraryService() {
         val effectExecutor = Media3EngineEffectExecutor(
             player = PlayerMedia3EffectPlayer(exoPlayer),
             audioFocusController = focusHandler,
-            telemetryLogger = telemetryLogger
+            telemetryLogger = telemetryLogger,
+            currentProjection = { playbackRepository.state.value.toMediaSessionStateProjection() }
         )
         playbackEngineBridge = Media3PlaybackEngineBridge(
             playbackRepository = playbackRepository,
