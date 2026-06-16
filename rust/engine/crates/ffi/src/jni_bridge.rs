@@ -3,8 +3,10 @@ use std::ptr;
 
 use jni::JNIEnv;
 use jni::objects::{JClass, JObject, JString};
-use jni::sys::{jfloat, jint, jlong, jlongArray, jstring};
+use jni::sys::{jboolean, jfloat, jint, jlong, jlongArray, jstring};
+use std::sync::Arc;
 
+use crate::jni_audio_source_client::JniAudioSourceClient;
 use crate::{
     FfiEngineSnapshot, PandaEngine, panda_engine_create, panda_engine_destroy,
     panda_engine_dispatch, panda_engine_dispatch_platform_event, panda_engine_free_string,
@@ -109,6 +111,26 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
     handle: jlong,
 ) {
     unsafe { panda_engine_destroy(handle as *mut PandaEngine) };
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeSetAudioSourceResolver(
+    mut env: JNIEnv,
+    _this: JObject,
+    handle: jlong,
+    resolver: JObject,
+) -> jboolean {
+    let Some(engine) = (unsafe { (handle as *mut PandaEngine).as_mut() }) else {
+        return false.into();
+    };
+    let Ok(client) = JniAudioSourceClient::new(&mut env, resolver) else {
+        return false.into();
+    };
+
+    engine
+        .engine
+        .with_engine(|engine| engine.set_audio_source_client(Arc::new(client)));
+    true.into()
 }
 
 #[unsafe(no_mangle)]

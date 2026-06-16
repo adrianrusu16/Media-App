@@ -7,6 +7,7 @@ import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 
 class PandaEngineFactoryTest {
@@ -139,5 +140,47 @@ class PandaEngineFactoryTest {
             ),
             result.effects
         )
+    }
+
+    @Test
+    fun `engine playback source rejects invalid values`() {
+        assertFailsWith<IllegalArgumentException> {
+            EnginePlaybackSource(
+                sourceId = "source-1",
+                uri = "",
+                expectedDurationMillis = 1L
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            EnginePlaybackSource(
+                sourceId = "source-1",
+                uri = "content://pandawave/audio/track-42",
+                expectedDurationMillis = -1L
+            )
+        }
+    }
+
+    @Test
+    fun `fake engine can resolve play media source through configured resolver`() {
+        val engine = PandaEngineFactory.createFake(clock = { 42L })
+        engine.setAudioSourceResolver { trackId ->
+            EnginePlaybackSource(
+                sourceId = "source-$trackId",
+                uri = "content://resolver/audio/$trackId",
+                mimeType = "audio/flac",
+                expectedDurationMillis = 123_000L
+            )
+        }
+
+        val result = engine.dispatch(
+            EngineCommand(
+                type = EngineCommand.TYPE_PLAY_MEDIA_BY_ID,
+                payload = EngineCommandPayloads.mediaId("track-42")
+            )
+        )
+
+        assertEquals("content://resolver/audio/track-42", result.snapshot.sourceUri)
+        assertEquals("audio/flac", result.snapshot.mimeType)
+        assertEquals(123_000L, result.snapshot.durationMillis)
     }
 }

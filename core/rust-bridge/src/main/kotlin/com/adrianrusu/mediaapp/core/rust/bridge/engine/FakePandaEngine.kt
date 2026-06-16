@@ -16,6 +16,13 @@ internal class FakePandaEngine(private val clock: () -> Long = System::currentTi
     @Volatile
     private var currentEffects: List<EngineEffect> = emptyList()
 
+    @Volatile
+    private var audioSourceResolver: AudioSourceResolver? = null
+
+    override fun setAudioSourceResolver(resolver: AudioSourceResolver) {
+        audioSourceResolver = resolver
+    }
+
     override fun snapshot(): EngineSnapshot = currentSnapshot
 
     override fun effectCount(): Int = currentEffects.size
@@ -52,11 +59,12 @@ internal class FakePandaEngine(private val clock: () -> Long = System::currentTi
     }
 
     override fun dispatch(command: EngineCommand): EngineDispatchResult {
-        val nextSnapshot = FakePandaEngineReducer.reduce(
+        val reducedSnapshot = FakePandaEngineReducer.reduce(
             current = currentSnapshot,
             command = command,
             nowMillis = clock()
         )
+        val nextSnapshot = resolvePlaybackSource(command, reducedSnapshot)
         currentSnapshot = nextSnapshot
         currentEffects = effectsFor(command)
 
@@ -126,6 +134,19 @@ internal class FakePandaEngine(private val clock: () -> Long = System::currentTi
             ),
             EngineEffect(type = EngineEffect.TYPE_REQUEST_AUDIO_FOCUS),
             EngineEffect(type = EngineEffect.TYPE_PLAY)
+        )
+    }
+
+    private fun resolvePlaybackSource(command: EngineCommand, snapshot: EngineSnapshot): EngineSnapshot {
+        if (command.type != EngineCommand.TYPE_PLAY_MEDIA_BY_ID) return snapshot
+        val mediaId = EngineCommandPayloads.parseMediaId(command.payload)
+        if (mediaId.isBlank()) return snapshot
+
+        val source = audioSourceResolver?.resolve(mediaId) ?: return snapshot
+        return snapshot.copy(
+            sourceUri = source.uri,
+            mimeType = source.mimeType ?: snapshot.mimeType,
+            durationMillis = source.expectedDurationMillis ?: snapshot.durationMillis
         )
     }
 }

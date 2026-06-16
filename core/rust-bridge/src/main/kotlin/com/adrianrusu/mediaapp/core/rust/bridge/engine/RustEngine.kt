@@ -7,6 +7,8 @@ import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
 
 interface RustEngine {
+    fun setAudioSourceResolver(resolver: AudioSourceResolver)
+
     fun snapshot(): EngineSnapshot
 
     fun browseResult(index: Int): EngineCatalogItem?

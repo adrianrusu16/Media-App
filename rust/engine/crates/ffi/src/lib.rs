@@ -4,6 +4,7 @@
 mod api;
 mod constants;
 mod engine_handle;
+mod jni_audio_source_client;
 mod jni_bridge;
 mod mappings;
 mod types;

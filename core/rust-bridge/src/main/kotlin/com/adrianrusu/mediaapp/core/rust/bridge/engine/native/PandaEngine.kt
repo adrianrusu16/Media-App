@@ -8,6 +8,7 @@ import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlayerControls
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
+import com.adrianrusu.mediaapp.core.rust.bridge.engine.AudioSourceResolver
 import com.adrianrusu.mediaapp.core.rust.bridge.engine.EngineDispatchResult
 import com.adrianrusu.mediaapp.core.rust.bridge.engine.RustEngine
 
@@ -18,6 +19,12 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
 
     init {
         check(nativeHandle != 0L) { "PandaEngine native handle must not be zero." }
+    }
+
+    override fun setAudioSourceResolver(resolver: AudioSourceResolver) {
+        check(nativeSetAudioSourceResolver(nativeHandle, resolver)) {
+            "PandaEngine failed to install the audio source resolver."
+        }
     }
 
     override fun snapshot(): EngineSnapshot = nativeSnapshot(nativeHandle).toEngineSnapshot()
@@ -171,6 +178,8 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     ): LongArray
 
     private external fun nativeDestroy(handle: Long)
+
+    private external fun nativeSetAudioSourceResolver(handle: Long, resolver: AudioSourceResolver): Boolean
 
     private fun LongArray.toEngineSnapshot(): EngineSnapshot =
         metadataCache.enrich(PandaEngineNativeSnapshotMapper.toProjection(this))
