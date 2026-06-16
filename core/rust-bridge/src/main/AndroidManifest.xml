@@ -6,6 +6,11 @@
             android:name=".engine.MediaEngineService"
             android:exported="false"
             android:process=":engine" />
+
+        <provider
+            android:name=".engine.PandaWaveAudioContentProvider"
+            android:authorities="com.adrianrusu.mediaapp.audio"
+            android:exported="false" />
     </application>
 
 </manifest>

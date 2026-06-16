@@ -192,6 +192,7 @@ class PandaEngineFactoryTest {
         assertEquals("content://com.adrianrusu.mediaapp.audio/audio/track%2042%2Fside%20A", source.uri)
         assertEquals("audio/mpeg", source.mimeType)
         assertEquals(null, source.expectedDurationMillis)
+        assertEquals("track 42/side A", PandaWaveAudioSourceContract.trackIdFromSourceUri(source.uri))
     }
 
     @Test
@@ -199,5 +200,12 @@ class PandaEngineFactoryTest {
         assertFailsWith<IllegalArgumentException> {
             PandaWaveContentAudioSourceResolver().resolve(" ")
         }
+    }
+
+    @Test
+    fun `panda wave source contract rejects unknown source uris`() {
+        assertEquals(null, PandaWaveAudioSourceContract.trackIdFromSourceUri("https://example.com/audio/track-42"))
+        assertEquals(null, PandaWaveAudioSourceContract.trackIdFromSourceUri("content://pandawave/audio/track-42"))
+        assertEquals(null, PandaWaveAudioSourceContract.trackIdFromSourceUri("content://com.adrianrusu.mediaapp.audio"))
     }
 }

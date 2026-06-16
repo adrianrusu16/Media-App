@@ -144,8 +144,10 @@ sequenceDiagram
    native host via JNI; the current production resolver maps engine track IDs to
    the stable PandaWave content-URI contract
    `content://com.adrianrusu.mediaapp.audio/audio/{trackId}`. Future
-   Canopy/Jade-backed providers should serve or translate those URIs without
-   moving playback-state authority out of PandaEngine.
+   Canopy/Jade-backed stores should serve those URIs through
+   `PandaWaveAudioContentProvider` without moving playback-state authority out
+   of PandaEngine. The default content store fails loudly until a real backend
+   or local cache is installed.
 
 6. **Engine-Backed Catalog**
    Replace placeholder Media3 browsing/search with engine browse/search
