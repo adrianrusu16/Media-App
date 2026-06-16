@@ -71,11 +71,6 @@ The engine should be hosted by a non-exported Android service boundary and
 observed by Media3, Compose, widgets, and future PandaOS surfaces through the
 same gateway contract. Android can keep media affordances alive through
 `MediaLibraryService`, while the engine service owns one Rust engine instance.
-PandaWave declares itself as an Android Automotive media app with the
-`com.android.automotive` descriptor in the final app manifest. During drive
-mode, driver-safe browsing is expected to flow through the AAOS media host and
-`BambooMediaLibraryService`; the Compose activity remains subject to platform
-UX restrictions.
 
 ```mermaid
 sequenceDiagram

@@ -194,6 +194,11 @@ AAOS media controls share the same command gating and Rust boundary as in-app co
 ## Automotive Integration
 
 - Use Media3 and `MediaSession` as the platform media path.
+- Declare the final app as an Android Automotive media app with the
+  `com.android.automotive` descriptor. During drive mode, driver-safe browsing
+  should flow through the AAOS media host and the app's Media3
+  `MediaLibraryService`; the Compose activity remains subject to platform UX
+  restrictions.
 - Observe AAOS UX restrictions with a platform adapter and project them into
   app and Rust state.
 - Use RRO-ready design tokens for OEM customization.
