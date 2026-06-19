@@ -18,7 +18,6 @@ import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationRail
@@ -42,8 +41,6 @@ import com.adrianrusu.mediaapp.core.designsystem.tokens.md
 import com.adrianrusu.mediaapp.core.designsystem.tokens.sm
 import com.adrianrusu.mediaapp.core.designsystem.tokens.touchTargetLg
 import com.adrianrusu.mediaapp.core.designsystem.tokens.xs
-import com.adrianrusu.mediaapp.core.playback.BambooEngineConnectionStatus
-import com.adrianrusu.mediaapp.core.playback.BambooEngineConnectionUiState
 import com.adrianrusu.mediaapp.core.ui.miniplayer.BambooMiniPlayer
 import com.adrianrusu.mediaapp.feature.home.HomeRoute
 import com.adrianrusu.mediaapp.feature.library.LibraryRoute
@@ -153,19 +150,15 @@ private fun AppShellContent(state: AppShellState, onIntent: (AppShellIntent) -> 
             Header(
                 selectedDestination = state.selectedDestination,
                 restrictionLabel = state.restriction.label,
-                isRestricted = state.restriction.isRestricted,
-                engineConnection = state.engineConnection
+                isRestricted = state.restriction.isRestricted
             )
         }
 
         item {
             DestinationContent(
-                destination = state.selectedDestination
+                destination = state.selectedDestination,
+                onIntent = onIntent
             )
-        }
-
-        item {
-            QuickActions(onIntent = onIntent)
         }
     }
 }
@@ -181,12 +174,7 @@ private val AppDestination.icon: ImageVector
     }
 
 @Composable
-private fun Header(
-    selectedDestination: AppDestination,
-    restrictionLabel: String,
-    isRestricted: Boolean,
-    engineConnection: BambooEngineConnectionUiState
-) {
+private fun Header(selectedDestination: AppDestination, restrictionLabel: String, isRestricted: Boolean) {
     val tokens = LocalPandaWaveDesignTokens.current
 
     Row(
@@ -218,10 +206,6 @@ private fun Header(
                 label = restrictionLabel,
                 isHighlighted = isRestricted
             )
-            StatusChip(
-                label = engineConnection.label,
-                isHighlighted = engineConnection.status != BambooEngineConnectionStatus.Ready
-            )
         }
     }
 }
@@ -250,37 +234,22 @@ private fun StatusChip(label: String, isHighlighted: Boolean) {
 }
 
 @Composable
-private fun QuickActions(onIntent: (AppShellIntent) -> Unit) {
-    val tokens = LocalPandaWaveDesignTokens.current
-
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(tokens.spacing.md)
-    ) {
-        Button(
-            onClick = {
-                onIntent(AppShellIntent.SelectDestination(AppDestination.Library))
-            }
-        ) {
-            Text(text = "Library")
-        }
-        Button(
-            onClick = {
-                onIntent(AppShellIntent.SelectDestination(AppDestination.Settings))
-            }
-        ) {
-            Text(text = "Settings")
-        }
-    }
-}
-
-@Composable
-private fun DestinationContent(destination: AppDestination) {
+private fun DestinationContent(destination: AppDestination, onIntent: (AppShellIntent) -> Unit) {
     when (destination) {
         AppDestination.Home -> HomeRoute()
+
         AppDestination.Library -> LibraryRoute()
-        AppDestination.NowPlaying -> NowPlayingRoute()
+
+        AppDestination.NowPlaying -> NowPlayingRoute(
+            onLibraryClick = {
+                onIntent(AppShellIntent.SelectDestination(AppDestination.Library))
+            }
+        )
+
         AppDestination.Search -> SearchRoute()
+
         AppDestination.Settings -> SettingsRoute()
+
         AppDestination.Profile -> ProfileRoute()
     }
 }

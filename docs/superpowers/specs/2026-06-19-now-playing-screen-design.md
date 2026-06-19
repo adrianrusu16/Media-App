@@ -56,7 +56,7 @@ The full Now Playing screen is arranged as a playback cockpit:
 
 3. Primary controls
 
-   Playback controls are large, icon-first, and AAOS-friendly. The play/pause button is the visual hero: a large circular primary green pebble with a soft glow and the current play or pause icon centered inside. Previous and next controls sit beside it in smaller glass/pebble buttons. Refresh is not shown in the primary cluster because it reads as an implementation/debug action in this design.
+   Playback controls are large, icon-first, and AAOS-friendly. The play/pause button is the visual hero: a large circular primary green pebble with a soft glow. When playback is paused or ready to play, the icon is a panda paw. When playback is playing, the icon becomes the standard two-line pause symbol. Previous and next controls sit beside it in smaller glass/pebble buttons. Refresh is not shown in the primary cluster because it reads as an implementation/debug action in this design.
 
 4. Quick actions
 
@@ -92,6 +92,8 @@ Add reusable BambooUI pieces only where they remove real duplication:
 Keep feature-specific screen composition in `feature/nowplaying`. Shared generic playback UI belongs in `core/ui` only when it is not tied to Now Playing feature copy or domain state.
 
 The current `BambooMiniPlayer` should remain stable. Any shared helper should avoid changing mini-player behavior unless tests prove parity.
+
+The mini-player remains the reference playback surface for non-Now Playing screens. The richer Stitch cockpit treatment, including the panda paw play button and leaf scrubber, belongs to the full Now Playing surface.
 
 ## Data Flow
 
