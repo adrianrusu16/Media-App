@@ -10,6 +10,26 @@
     <color name="mediaapp_color_on_surface_variant">#394A3B</color>
     <color name="mediaapp_color_error">#BA1A1A</color>
     <color name="mediaapp_color_on_error">#FFFFFF</color>
+    <color name="mediaapp_theme_bamboo_grove_light_color_brand_primary">#3F6046</color>
+    <color name="mediaapp_theme_bamboo_grove_light_color_brand_on_primary">#F8F6EF</color>
+    <color name="mediaapp_theme_bamboo_grove_light_color_brand_secondary">#5A4A2C</color>
+    <color name="mediaapp_theme_bamboo_grove_light_color_brand_on_secondary">#F8F6EF</color>
+    <color name="mediaapp_theme_bamboo_grove_light_color_surface">#F8F6EF</color>
+    <color name="mediaapp_theme_bamboo_grove_light_color_on_surface">#141C18</color>
+    <color name="mediaapp_theme_bamboo_grove_light_color_surface_variant">#C9D8BF</color>
+    <color name="mediaapp_theme_bamboo_grove_light_color_on_surface_variant">#394A3B</color>
+    <color name="mediaapp_theme_bamboo_grove_light_color_error">#BA1A1A</color>
+    <color name="mediaapp_theme_bamboo_grove_light_color_on_error">#FFFFFF</color>
+    <color name="mediaapp_theme_moonlit_bamboo_dark_color_brand_primary">#B8CEAA</color>
+    <color name="mediaapp_theme_moonlit_bamboo_dark_color_brand_on_primary">#172318</color>
+    <color name="mediaapp_theme_moonlit_bamboo_dark_color_brand_secondary">#D0C986</color>
+    <color name="mediaapp_theme_moonlit_bamboo_dark_color_brand_on_secondary">#272608</color>
+    <color name="mediaapp_theme_moonlit_bamboo_dark_color_surface">#0F1712</color>
+    <color name="mediaapp_theme_moonlit_bamboo_dark_color_on_surface">#EEEADF</color>
+    <color name="mediaapp_theme_moonlit_bamboo_dark_color_surface_variant">#223427</color>
+    <color name="mediaapp_theme_moonlit_bamboo_dark_color_on_surface_variant">#CAD5C2</color>
+    <color name="mediaapp_theme_moonlit_bamboo_dark_color_error">#FFB4AB</color>
+    <color name="mediaapp_theme_moonlit_bamboo_dark_color_on_error">#690005</color>
 
     <dimen name="mediaapp_spacing_xs">4dp</dimen>
     <dimen name="mediaapp_spacing_sm">8dp</dimen>

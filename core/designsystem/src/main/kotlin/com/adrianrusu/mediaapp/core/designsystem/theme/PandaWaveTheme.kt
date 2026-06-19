@@ -1,6 +1,5 @@
 package com.adrianrusu.mediaapp.core.designsystem.theme
 
-import android.content.res.Configuration
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
@@ -20,18 +19,31 @@ import com.adrianrusu.mediaapp.core.designsystem.tokens.mediumCorner
 import com.adrianrusu.mediaapp.core.designsystem.tokens.smallCorner
 import com.adrianrusu.mediaapp.core.model.theme.PandaWaveThemePreference
 
-enum class PandaWaveThemeId(val displayName: String) {
-    BambooGroveLight(displayName = "Bamboo Grove Light"),
-    MoonlitBambooDark(displayName = "Moonlit Bamboo Dark")
+enum class PandaWaveThemeId(val displayName: String, val isDark: Boolean) {
+    BambooGroveLight(
+        displayName = "Bamboo Grove Light",
+        isDark = false
+    ),
+    MoonlitBambooDark(
+        displayName = "Moonlit Bamboo Dark",
+        isDark = true
+    ),
+    ForestTechLight(
+        displayName = "Forest Tech Light",
+        isDark = false
+    ),
+    ForestTechDark(
+        displayName = "Forest Tech Dark",
+        isDark = true
+    )
 }
 
-data class PandaWaveThemeProfile(val id: PandaWaveThemeId, val isDark: Boolean)
+data class PandaWaveThemeProfile(val id: PandaWaveThemeId) {
+    val isDark: Boolean = id.isDark
+}
 
 val LocalPandaWaveThemeProfile = staticCompositionLocalOf {
-    PandaWaveThemeProfile(
-        id = PandaWaveThemeId.BambooGroveLight,
-        isDark = false
-    )
+    PandaWaveThemeProfile(id = PandaWaveThemeId.BambooGroveLight)
 }
 
 @Composable
@@ -44,19 +56,8 @@ fun PandaWaveTheme(
     val themeProfile = remember(themePreference, darkTheme) {
         themePreference.toThemeProfile(systemDark = darkTheme)
     }
-    val resourceContext = remember(context, themeProfile.isDark) {
-        val configuration = Configuration(context.resources.configuration).apply {
-            uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or
-                if (themeProfile.isDark) {
-                    Configuration.UI_MODE_NIGHT_YES
-                } else {
-                    Configuration.UI_MODE_NIGHT_NO
-                }
-        }
-        context.createConfigurationContext(configuration)
-    }
-    val tokens = remember(resourceContext) {
-        ResourceDesignTokenProvider(resourceContext).load()
+    val tokens = remember(context, themeProfile.id) {
+        ResourceDesignTokenProvider(context).load(themeProfile.id)
     }
     val shapes = Shapes(
         extraSmall = RoundedCornerShape(tokens.shape.smallCorner),
@@ -81,28 +82,22 @@ fun PandaWaveTheme(
 fun PandaWaveThemePreference.toThemeProfile(systemDark: Boolean): PandaWaveThemeProfile = when (this) {
     PandaWaveThemePreference.SystemDefault ->
         if (systemDark) {
-            PandaWaveThemeProfile(
-                id = PandaWaveThemeId.MoonlitBambooDark,
-                isDark = true
-            )
+            PandaWaveThemeProfile(id = PandaWaveThemeId.MoonlitBambooDark)
         } else {
-            PandaWaveThemeProfile(
-                id = PandaWaveThemeId.BambooGroveLight,
-                isDark = false
-            )
+            PandaWaveThemeProfile(id = PandaWaveThemeId.BambooGroveLight)
         }
 
     PandaWaveThemePreference.BambooGroveLight ->
-        PandaWaveThemeProfile(
-            id = PandaWaveThemeId.BambooGroveLight,
-            isDark = false
-        )
+        PandaWaveThemeProfile(id = PandaWaveThemeId.BambooGroveLight)
 
     PandaWaveThemePreference.MoonlitBambooDark ->
-        PandaWaveThemeProfile(
-            id = PandaWaveThemeId.MoonlitBambooDark,
-            isDark = true
-        )
+        PandaWaveThemeProfile(id = PandaWaveThemeId.MoonlitBambooDark)
+
+    PandaWaveThemePreference.ForestTechLight ->
+        PandaWaveThemeProfile(id = PandaWaveThemeId.ForestTechLight)
+
+    PandaWaveThemePreference.ForestTechDark ->
+        PandaWaveThemeProfile(id = PandaWaveThemeId.ForestTechDark)
 }
 
 private fun PandaWaveColorTokens.toColorScheme(darkTheme: Boolean): ColorScheme {

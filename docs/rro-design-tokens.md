@@ -9,8 +9,15 @@ The app owns its default brand themes in `:core:designsystem`:
 
 | Theme | Resource qualifier | Palette direction |
 | --- | --- | --- |
-| Bamboo Grove Light | `values` | Panda ivory surfaces, bamboo greens, bark accents |
-| Moonlit Bamboo Dark | `values-night` | Panda charcoal surfaces, moonlit bamboo greens, moss accents |
+| Bamboo Grove Light | Named resources in `values` | Panda ivory surfaces, bamboo greens, bark accents |
+| Moonlit Bamboo Dark | Named resources in `values` | Panda charcoal surfaces, moonlit bamboo greens, moss accents |
+| Forest Tech Light | Named resources in `values` | Daytime Forest Tech surfaces, bamboo green emphasis, cockpit-neutral grays |
+| Forest Tech Dark | Named resources in `values` | Stitch Forest Tech deep charcoal, bright bamboo green, panda-white text |
+
+The legacy `mediaapp_color_*` resources still exist as compatibility aliases for
+the default light/night pair, but Compose now loads a specific named palette
+from the active `PandaWaveThemeId`. That keeps Android system light/dark as a
+mode input rather than the whole theme system.
 
 These named themes are the app's canonical experience. Future user-selectable
 themes should map settings or profile preferences to app theme ids, then sync
@@ -33,9 +40,9 @@ customization.
 ## Runtime Preference Boundary
 
 Runtime theme selection starts with `PandaWaveThemePreference.SystemDefault`,
-then can explicitly select `BambooGroveLight` or `MoonlitBambooDark`. The app
-observes that preference through a repository/use-case boundary before passing
-it into `PandaWaveTheme`.
+then can explicitly select `BambooGroveLight`, `MoonlitBambooDark`,
+`ForestTechLight`, or `ForestTechDark`. The app observes that preference
+through a repository/use-case boundary before passing it into `PandaWaveTheme`.
 
 The current repository is in-memory; future storage or backend profile sync
 should replace that repository without changing the design-system token API.

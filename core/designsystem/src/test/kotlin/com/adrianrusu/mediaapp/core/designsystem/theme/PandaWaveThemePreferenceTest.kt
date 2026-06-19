@@ -27,10 +27,16 @@ class PandaWaveThemePreferenceTest {
     fun `explicit preference overrides system mode`() {
         val lightProfile = PandaWaveThemePreference.BambooGroveLight.toThemeProfile(systemDark = true)
         val darkProfile = PandaWaveThemePreference.MoonlitBambooDark.toThemeProfile(systemDark = false)
+        val forestLightProfile = PandaWaveThemePreference.ForestTechLight.toThemeProfile(systemDark = true)
+        val forestDarkProfile = PandaWaveThemePreference.ForestTechDark.toThemeProfile(systemDark = false)
 
         assertEquals(PandaWaveThemeId.BambooGroveLight, lightProfile.id)
         assertFalse(lightProfile.isDark)
         assertEquals(PandaWaveThemeId.MoonlitBambooDark, darkProfile.id)
         assertTrue(darkProfile.isDark)
+        assertEquals(PandaWaveThemeId.ForestTechLight, forestLightProfile.id)
+        assertFalse(forestLightProfile.isDark)
+        assertEquals(PandaWaveThemeId.ForestTechDark, forestDarkProfile.id)
+        assertTrue(forestDarkProfile.isDark)
     }
 }

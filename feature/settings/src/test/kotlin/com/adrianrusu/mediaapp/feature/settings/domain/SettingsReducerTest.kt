@@ -57,9 +57,9 @@ class SettingsReducerTest {
     fun `selects theme preference when controls are enabled`() {
         val result = SettingsReducer.reduce(
             state = SettingsState(),
-            intent = SettingsIntent.SelectThemePreference(PandaWaveThemePreference.MoonlitBambooDark)
+            intent = SettingsIntent.SelectThemePreference(PandaWaveThemePreference.ForestTechDark)
         )
 
-        assertEquals(PandaWaveThemePreference.MoonlitBambooDark, result.themePreference)
+        assertEquals(PandaWaveThemePreference.ForestTechDark, result.themePreference)
     }
 }

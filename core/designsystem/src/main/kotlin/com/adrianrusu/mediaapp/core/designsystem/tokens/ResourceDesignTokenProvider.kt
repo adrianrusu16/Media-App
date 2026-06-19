@@ -2,24 +2,26 @@ package com.adrianrusu.mediaapp.core.designsystem.tokens
 
 import android.content.Context
 import android.content.res.Resources
+import androidx.annotation.ColorRes
 import com.adrianrusu.mediaapp.core.designsystem.R
+import com.adrianrusu.mediaapp.core.designsystem.theme.PandaWaveThemeId
 
 class ResourceDesignTokenProvider(context: Context) {
     private val resources: Resources = context.resources
     private val theme = context.theme
 
-    fun load(): PandaWaveDesignTokens = PandaWaveDesignTokens(
+    fun load(themeId: PandaWaveThemeId): PandaWaveDesignTokens = PandaWaveDesignTokens(
         colors = PandaWaveColorTokens(
-            primary = color(R.color.mediaapp_color_brand_primary),
-            onPrimary = color(R.color.mediaapp_color_brand_on_primary),
-            secondary = color(R.color.mediaapp_color_brand_secondary),
-            onSecondary = color(R.color.mediaapp_color_brand_on_secondary),
-            surface = color(R.color.mediaapp_color_surface),
-            onSurface = color(R.color.mediaapp_color_on_surface),
-            surfaceVariant = color(R.color.mediaapp_color_surface_variant),
-            onSurfaceVariant = color(R.color.mediaapp_color_on_surface_variant),
-            error = color(R.color.mediaapp_color_error),
-            onError = color(R.color.mediaapp_color_on_error)
+            primary = color(themeId.colorResources.primary),
+            onPrimary = color(themeId.colorResources.onPrimary),
+            secondary = color(themeId.colorResources.secondary),
+            onSecondary = color(themeId.colorResources.onSecondary),
+            surface = color(themeId.colorResources.surface),
+            onSurface = color(themeId.colorResources.onSurface),
+            surfaceVariant = color(themeId.colorResources.surfaceVariant),
+            onSurfaceVariant = color(themeId.colorResources.onSurfaceVariant),
+            error = color(themeId.colorResources.error),
+            onError = color(themeId.colorResources.onError)
         ),
         spacing = PandaWaveSpacingTokens(
             xsPx = dimension(R.dimen.mediaapp_spacing_xs),
@@ -50,7 +52,75 @@ class ResourceDesignTokenProvider(context: Context) {
         )
     )
 
-    private fun color(id: Int): Int = resources.getColor(id, theme)
+    private fun color(@ColorRes id: Int): Int = resources.getColor(id, theme)
 
     private fun dimension(id: Int): Int = resources.getDimensionPixelSize(id)
 }
+
+private data class ColorTokenResourceIds(
+    @param:ColorRes val primary: Int,
+    @param:ColorRes val onPrimary: Int,
+    @param:ColorRes val secondary: Int,
+    @param:ColorRes val onSecondary: Int,
+    @param:ColorRes val surface: Int,
+    @param:ColorRes val onSurface: Int,
+    @param:ColorRes val surfaceVariant: Int,
+    @param:ColorRes val onSurfaceVariant: Int,
+    @param:ColorRes val error: Int,
+    @param:ColorRes val onError: Int
+)
+
+private val PandaWaveThemeId.colorResources: ColorTokenResourceIds
+    get() = when (this) {
+        PandaWaveThemeId.BambooGroveLight -> ColorTokenResourceIds(
+            primary = R.color.mediaapp_theme_bamboo_grove_light_color_brand_primary,
+            onPrimary = R.color.mediaapp_theme_bamboo_grove_light_color_brand_on_primary,
+            secondary = R.color.mediaapp_theme_bamboo_grove_light_color_brand_secondary,
+            onSecondary = R.color.mediaapp_theme_bamboo_grove_light_color_brand_on_secondary,
+            surface = R.color.mediaapp_theme_bamboo_grove_light_color_surface,
+            onSurface = R.color.mediaapp_theme_bamboo_grove_light_color_on_surface,
+            surfaceVariant = R.color.mediaapp_theme_bamboo_grove_light_color_surface_variant,
+            onSurfaceVariant = R.color.mediaapp_theme_bamboo_grove_light_color_on_surface_variant,
+            error = R.color.mediaapp_theme_bamboo_grove_light_color_error,
+            onError = R.color.mediaapp_theme_bamboo_grove_light_color_on_error
+        )
+
+        PandaWaveThemeId.MoonlitBambooDark -> ColorTokenResourceIds(
+            primary = R.color.mediaapp_theme_moonlit_bamboo_dark_color_brand_primary,
+            onPrimary = R.color.mediaapp_theme_moonlit_bamboo_dark_color_brand_on_primary,
+            secondary = R.color.mediaapp_theme_moonlit_bamboo_dark_color_brand_secondary,
+            onSecondary = R.color.mediaapp_theme_moonlit_bamboo_dark_color_brand_on_secondary,
+            surface = R.color.mediaapp_theme_moonlit_bamboo_dark_color_surface,
+            onSurface = R.color.mediaapp_theme_moonlit_bamboo_dark_color_on_surface,
+            surfaceVariant = R.color.mediaapp_theme_moonlit_bamboo_dark_color_surface_variant,
+            onSurfaceVariant = R.color.mediaapp_theme_moonlit_bamboo_dark_color_on_surface_variant,
+            error = R.color.mediaapp_theme_moonlit_bamboo_dark_color_error,
+            onError = R.color.mediaapp_theme_moonlit_bamboo_dark_color_on_error
+        )
+
+        PandaWaveThemeId.ForestTechLight -> ColorTokenResourceIds(
+            primary = R.color.mediaapp_theme_forest_tech_light_color_brand_primary,
+            onPrimary = R.color.mediaapp_theme_forest_tech_light_color_brand_on_primary,
+            secondary = R.color.mediaapp_theme_forest_tech_light_color_brand_secondary,
+            onSecondary = R.color.mediaapp_theme_forest_tech_light_color_brand_on_secondary,
+            surface = R.color.mediaapp_theme_forest_tech_light_color_surface,
+            onSurface = R.color.mediaapp_theme_forest_tech_light_color_on_surface,
+            surfaceVariant = R.color.mediaapp_theme_forest_tech_light_color_surface_variant,
+            onSurfaceVariant = R.color.mediaapp_theme_forest_tech_light_color_on_surface_variant,
+            error = R.color.mediaapp_theme_forest_tech_light_color_error,
+            onError = R.color.mediaapp_theme_forest_tech_light_color_on_error
+        )
+
+        PandaWaveThemeId.ForestTechDark -> ColorTokenResourceIds(
+            primary = R.color.mediaapp_theme_forest_tech_dark_color_brand_primary,
+            onPrimary = R.color.mediaapp_theme_forest_tech_dark_color_brand_on_primary,
+            secondary = R.color.mediaapp_theme_forest_tech_dark_color_brand_secondary,
+            onSecondary = R.color.mediaapp_theme_forest_tech_dark_color_brand_on_secondary,
+            surface = R.color.mediaapp_theme_forest_tech_dark_color_surface,
+            onSurface = R.color.mediaapp_theme_forest_tech_dark_color_on_surface,
+            surfaceVariant = R.color.mediaapp_theme_forest_tech_dark_color_surface_variant,
+            onSurfaceVariant = R.color.mediaapp_theme_forest_tech_dark_color_on_surface_variant,
+            error = R.color.mediaapp_theme_forest_tech_dark_color_error,
+            onError = R.color.mediaapp_theme_forest_tech_dark_color_on_error
+        )
+    }

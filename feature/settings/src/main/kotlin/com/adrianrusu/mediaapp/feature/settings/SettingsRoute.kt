@@ -1,16 +1,14 @@
 package com.adrianrusu.mediaapp.feature.settings
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -26,6 +24,7 @@ import com.adrianrusu.mediaapp.core.designsystem.tokens.cardResting
 import com.adrianrusu.mediaapp.core.designsystem.tokens.lg
 import com.adrianrusu.mediaapp.core.designsystem.tokens.md
 import com.adrianrusu.mediaapp.core.designsystem.tokens.sm
+import com.adrianrusu.mediaapp.core.designsystem.tokens.xs
 import com.adrianrusu.mediaapp.core.model.theme.PandaWaveThemePreference
 import com.adrianrusu.mediaapp.feature.settings.domain.SettingsIntent
 import com.adrianrusu.mediaapp.feature.settings.domain.SettingsState
@@ -165,7 +164,6 @@ private fun SettingsSwitchRow(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ThemePreferenceCard(
     selectedPreference: PandaWaveThemePreference,
@@ -180,11 +178,19 @@ private fun ThemePreferenceCard(
         ),
         ThemePreferenceOption(
             preference = PandaWaveThemePreference.BambooGroveLight,
-            label = "Light"
+            label = "Bamboo Grove Light"
         ),
         ThemePreferenceOption(
             preference = PandaWaveThemePreference.MoonlitBambooDark,
-            label = "Dark"
+            label = "Moonlit Bamboo Dark"
+        ),
+        ThemePreferenceOption(
+            preference = PandaWaveThemePreference.ForestTechLight,
+            label = "Forest Tech Light"
+        ),
+        ThemePreferenceOption(
+            preference = PandaWaveThemePreference.ForestTechDark,
+            label = "Forest Tech Dark"
         )
     )
 
@@ -211,20 +217,66 @@ private fun ThemePreferenceCard(
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                options.forEachIndexed { index, option ->
-                    SegmentedButton(
+            Column(verticalArrangement = Arrangement.spacedBy(tokens.spacing.sm)) {
+                options.forEach { option ->
+                    ThemePreferenceRow(
+                        option = option,
                         selected = option.preference == selectedPreference,
                         enabled = enabled,
-                        onClick = { onPreferenceSelected(option.preference) },
-                        shape = SegmentedButtonDefaults.itemShape(
-                            index = index,
-                            count = options.size
-                        )
-                    ) {
-                        Text(text = option.label)
-                    }
+                        onPreferenceSelected = onPreferenceSelected
+                    )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ThemePreferenceRow(
+    option: ThemePreferenceOption,
+    selected: Boolean,
+    enabled: Boolean,
+    onPreferenceSelected: (PandaWaveThemePreference) -> Unit
+) {
+    val tokens = LocalPandaWaveDesignTokens.current
+    val background = if (selected) {
+        MaterialTheme.colorScheme.surfaceVariant
+    } else {
+        MaterialTheme.colorScheme.surface
+    }
+
+    Surface(
+        color = background,
+        shape = MaterialTheme.shapes.small,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled) {
+                onPreferenceSelected(option.preference)
+            }
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(tokens.spacing.md),
+            horizontalArrangement = Arrangement.spacedBy(tokens.spacing.sm),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            RadioButton(
+                selected = selected,
+                enabled = enabled,
+                onClick = { onPreferenceSelected(option.preference) }
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(tokens.spacing.xs)) {
+                Text(
+                    text = option.label,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = option.preference.description,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium
+                )
             }
         }
     }
@@ -282,4 +334,15 @@ private val PandaWaveThemePreference.label: String
         PandaWaveThemePreference.SystemDefault -> "Follow system appearance."
         PandaWaveThemePreference.BambooGroveLight -> "Bamboo Grove Light"
         PandaWaveThemePreference.MoonlitBambooDark -> "Moonlit Bamboo Dark"
+        PandaWaveThemePreference.ForestTechLight -> "Forest Tech Light"
+        PandaWaveThemePreference.ForestTechDark -> "Forest Tech Dark"
+    }
+
+private val PandaWaveThemePreference.description: String
+    get() = when (this) {
+        PandaWaveThemePreference.SystemDefault -> "Use the vehicle or device appearance setting."
+        PandaWaveThemePreference.BambooGroveLight -> "Panda ivory surfaces with bamboo and bark accents."
+        PandaWaveThemePreference.MoonlitBambooDark -> "Charcoal surfaces with moonlit bamboo greens."
+        PandaWaveThemePreference.ForestTechLight -> "A brighter Forest Tech palette for daytime cabins."
+        PandaWaveThemePreference.ForestTechDark -> "The Stitch Forest Tech palette for low-glare driving."
     }

@@ -12,6 +12,46 @@
             <item type="color" name="mediaapp_color_on_surface_variant" />
             <item type="color" name="mediaapp_color_error" />
             <item type="color" name="mediaapp_color_on_error" />
+            <item type="color" name="mediaapp_theme_bamboo_grove_light_color_brand_primary" />
+            <item type="color" name="mediaapp_theme_bamboo_grove_light_color_brand_on_primary" />
+            <item type="color" name="mediaapp_theme_bamboo_grove_light_color_brand_secondary" />
+            <item type="color" name="mediaapp_theme_bamboo_grove_light_color_brand_on_secondary" />
+            <item type="color" name="mediaapp_theme_bamboo_grove_light_color_surface" />
+            <item type="color" name="mediaapp_theme_bamboo_grove_light_color_on_surface" />
+            <item type="color" name="mediaapp_theme_bamboo_grove_light_color_surface_variant" />
+            <item type="color" name="mediaapp_theme_bamboo_grove_light_color_on_surface_variant" />
+            <item type="color" name="mediaapp_theme_bamboo_grove_light_color_error" />
+            <item type="color" name="mediaapp_theme_bamboo_grove_light_color_on_error" />
+            <item type="color" name="mediaapp_theme_moonlit_bamboo_dark_color_brand_primary" />
+            <item type="color" name="mediaapp_theme_moonlit_bamboo_dark_color_brand_on_primary" />
+            <item type="color" name="mediaapp_theme_moonlit_bamboo_dark_color_brand_secondary" />
+            <item type="color" name="mediaapp_theme_moonlit_bamboo_dark_color_brand_on_secondary" />
+            <item type="color" name="mediaapp_theme_moonlit_bamboo_dark_color_surface" />
+            <item type="color" name="mediaapp_theme_moonlit_bamboo_dark_color_on_surface" />
+            <item type="color" name="mediaapp_theme_moonlit_bamboo_dark_color_surface_variant" />
+            <item type="color" name="mediaapp_theme_moonlit_bamboo_dark_color_on_surface_variant" />
+            <item type="color" name="mediaapp_theme_moonlit_bamboo_dark_color_error" />
+            <item type="color" name="mediaapp_theme_moonlit_bamboo_dark_color_on_error" />
+            <item type="color" name="mediaapp_theme_forest_tech_light_color_brand_primary" />
+            <item type="color" name="mediaapp_theme_forest_tech_light_color_brand_on_primary" />
+            <item type="color" name="mediaapp_theme_forest_tech_light_color_brand_secondary" />
+            <item type="color" name="mediaapp_theme_forest_tech_light_color_brand_on_secondary" />
+            <item type="color" name="mediaapp_theme_forest_tech_light_color_surface" />
+            <item type="color" name="mediaapp_theme_forest_tech_light_color_on_surface" />
+            <item type="color" name="mediaapp_theme_forest_tech_light_color_surface_variant" />
+            <item type="color" name="mediaapp_theme_forest_tech_light_color_on_surface_variant" />
+            <item type="color" name="mediaapp_theme_forest_tech_light_color_error" />
+            <item type="color" name="mediaapp_theme_forest_tech_light_color_on_error" />
+            <item type="color" name="mediaapp_theme_forest_tech_dark_color_brand_primary" />
+            <item type="color" name="mediaapp_theme_forest_tech_dark_color_brand_on_primary" />
+            <item type="color" name="mediaapp_theme_forest_tech_dark_color_brand_secondary" />
+            <item type="color" name="mediaapp_theme_forest_tech_dark_color_brand_on_secondary" />
+            <item type="color" name="mediaapp_theme_forest_tech_dark_color_surface" />
+            <item type="color" name="mediaapp_theme_forest_tech_dark_color_on_surface" />
+            <item type="color" name="mediaapp_theme_forest_tech_dark_color_surface_variant" />
+            <item type="color" name="mediaapp_theme_forest_tech_dark_color_on_surface_variant" />
+            <item type="color" name="mediaapp_theme_forest_tech_dark_color_error" />
+            <item type="color" name="mediaapp_theme_forest_tech_dark_color_on_error" />
             <item type="dimen" name="mediaapp_spacing_xs" />
             <item type="dimen" name="mediaapp_spacing_sm" />
             <item type="dimen" name="mediaapp_spacing_md" />

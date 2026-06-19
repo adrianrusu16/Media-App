@@ -17,8 +17,8 @@ class InMemoryThemePreferenceRepositoryTest {
         val observe = ObserveThemePreferenceUseCase(repository)
         val set = SetThemePreferenceUseCase(repository)
 
-        set(PandaWaveThemePreference.BambooGroveLight)
+        set(PandaWaveThemePreference.ForestTechLight)
 
-        assertEquals(PandaWaveThemePreference.BambooGroveLight, observe().value)
+        assertEquals(PandaWaveThemePreference.ForestTechLight, observe().value)
     }
 }

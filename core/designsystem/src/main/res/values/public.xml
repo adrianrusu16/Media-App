@@ -10,6 +10,46 @@
     <public type="color" name="mediaapp_color_on_surface_variant" />
     <public type="color" name="mediaapp_color_error" />
     <public type="color" name="mediaapp_color_on_error" />
+    <public type="color" name="mediaapp_theme_bamboo_grove_light_color_brand_primary" />
+    <public type="color" name="mediaapp_theme_bamboo_grove_light_color_brand_on_primary" />
+    <public type="color" name="mediaapp_theme_bamboo_grove_light_color_brand_secondary" />
+    <public type="color" name="mediaapp_theme_bamboo_grove_light_color_brand_on_secondary" />
+    <public type="color" name="mediaapp_theme_bamboo_grove_light_color_surface" />
+    <public type="color" name="mediaapp_theme_bamboo_grove_light_color_on_surface" />
+    <public type="color" name="mediaapp_theme_bamboo_grove_light_color_surface_variant" />
+    <public type="color" name="mediaapp_theme_bamboo_grove_light_color_on_surface_variant" />
+    <public type="color" name="mediaapp_theme_bamboo_grove_light_color_error" />
+    <public type="color" name="mediaapp_theme_bamboo_grove_light_color_on_error" />
+    <public type="color" name="mediaapp_theme_moonlit_bamboo_dark_color_brand_primary" />
+    <public type="color" name="mediaapp_theme_moonlit_bamboo_dark_color_brand_on_primary" />
+    <public type="color" name="mediaapp_theme_moonlit_bamboo_dark_color_brand_secondary" />
+    <public type="color" name="mediaapp_theme_moonlit_bamboo_dark_color_brand_on_secondary" />
+    <public type="color" name="mediaapp_theme_moonlit_bamboo_dark_color_surface" />
+    <public type="color" name="mediaapp_theme_moonlit_bamboo_dark_color_on_surface" />
+    <public type="color" name="mediaapp_theme_moonlit_bamboo_dark_color_surface_variant" />
+    <public type="color" name="mediaapp_theme_moonlit_bamboo_dark_color_on_surface_variant" />
+    <public type="color" name="mediaapp_theme_moonlit_bamboo_dark_color_error" />
+    <public type="color" name="mediaapp_theme_moonlit_bamboo_dark_color_on_error" />
+    <public type="color" name="mediaapp_theme_forest_tech_light_color_brand_primary" />
+    <public type="color" name="mediaapp_theme_forest_tech_light_color_brand_on_primary" />
+    <public type="color" name="mediaapp_theme_forest_tech_light_color_brand_secondary" />
+    <public type="color" name="mediaapp_theme_forest_tech_light_color_brand_on_secondary" />
+    <public type="color" name="mediaapp_theme_forest_tech_light_color_surface" />
+    <public type="color" name="mediaapp_theme_forest_tech_light_color_on_surface" />
+    <public type="color" name="mediaapp_theme_forest_tech_light_color_surface_variant" />
+    <public type="color" name="mediaapp_theme_forest_tech_light_color_on_surface_variant" />
+    <public type="color" name="mediaapp_theme_forest_tech_light_color_error" />
+    <public type="color" name="mediaapp_theme_forest_tech_light_color_on_error" />
+    <public type="color" name="mediaapp_theme_forest_tech_dark_color_brand_primary" />
+    <public type="color" name="mediaapp_theme_forest_tech_dark_color_brand_on_primary" />
+    <public type="color" name="mediaapp_theme_forest_tech_dark_color_brand_secondary" />
+    <public type="color" name="mediaapp_theme_forest_tech_dark_color_brand_on_secondary" />
+    <public type="color" name="mediaapp_theme_forest_tech_dark_color_surface" />
+    <public type="color" name="mediaapp_theme_forest_tech_dark_color_on_surface" />
+    <public type="color" name="mediaapp_theme_forest_tech_dark_color_surface_variant" />
+    <public type="color" name="mediaapp_theme_forest_tech_dark_color_on_surface_variant" />
+    <public type="color" name="mediaapp_theme_forest_tech_dark_color_error" />
+    <public type="color" name="mediaapp_theme_forest_tech_dark_color_on_error" />
     <public type="dimen" name="mediaapp_spacing_xs" />
     <public type="dimen" name="mediaapp_spacing_sm" />
     <public type="dimen" name="mediaapp_spacing_md" />

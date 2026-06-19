@@ -1,15 +1,59 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="mediaapp_color_brand_primary">#49694F</color>
-    <color name="mediaapp_color_brand_on_primary">#FFFFFF</color>
-    <color name="mediaapp_color_brand_secondary">#4B3D24</color>
-    <color name="mediaapp_color_brand_on_secondary">#F7F4EA</color>
-    <color name="mediaapp_color_surface">#F7F4EA</color>
-    <color name="mediaapp_color_on_surface">#171E1B</color>
-    <color name="mediaapp_color_surface_variant">#D6E0CC</color>
-    <color name="mediaapp_color_on_surface_variant">#405041</color>
-    <color name="mediaapp_color_error">#BA1A1A</color>
-    <color name="mediaapp_color_on_error">#FFFFFF</color>
+    <color name="mediaapp_color_brand_primary">@color/mediaapp_theme_bamboo_grove_light_color_brand_primary</color>
+    <color name="mediaapp_color_brand_on_primary">@color/mediaapp_theme_bamboo_grove_light_color_brand_on_primary</color>
+    <color name="mediaapp_color_brand_secondary">@color/mediaapp_theme_bamboo_grove_light_color_brand_secondary</color>
+    <color name="mediaapp_color_brand_on_secondary">@color/mediaapp_theme_bamboo_grove_light_color_brand_on_secondary</color>
+    <color name="mediaapp_color_surface">@color/mediaapp_theme_bamboo_grove_light_color_surface</color>
+    <color name="mediaapp_color_on_surface">@color/mediaapp_theme_bamboo_grove_light_color_on_surface</color>
+    <color name="mediaapp_color_surface_variant">@color/mediaapp_theme_bamboo_grove_light_color_surface_variant</color>
+    <color name="mediaapp_color_on_surface_variant">@color/mediaapp_theme_bamboo_grove_light_color_on_surface_variant</color>
+    <color name="mediaapp_color_error">@color/mediaapp_theme_bamboo_grove_light_color_error</color>
+    <color name="mediaapp_color_on_error">@color/mediaapp_theme_bamboo_grove_light_color_on_error</color>
+
+    <color name="mediaapp_theme_bamboo_grove_light_color_brand_primary">#49694F</color>
+    <color name="mediaapp_theme_bamboo_grove_light_color_brand_on_primary">#FFFFFF</color>
+    <color name="mediaapp_theme_bamboo_grove_light_color_brand_secondary">#4B3D24</color>
+    <color name="mediaapp_theme_bamboo_grove_light_color_brand_on_secondary">#F7F4EA</color>
+    <color name="mediaapp_theme_bamboo_grove_light_color_surface">#F7F4EA</color>
+    <color name="mediaapp_theme_bamboo_grove_light_color_on_surface">#171E1B</color>
+    <color name="mediaapp_theme_bamboo_grove_light_color_surface_variant">#D6E0CC</color>
+    <color name="mediaapp_theme_bamboo_grove_light_color_on_surface_variant">#405041</color>
+    <color name="mediaapp_theme_bamboo_grove_light_color_error">#BA1A1A</color>
+    <color name="mediaapp_theme_bamboo_grove_light_color_on_error">#FFFFFF</color>
+
+    <color name="mediaapp_theme_moonlit_bamboo_dark_color_brand_primary">#AFC5A2</color>
+    <color name="mediaapp_theme_moonlit_bamboo_dark_color_brand_on_primary">#1D2A20</color>
+    <color name="mediaapp_theme_moonlit_bamboo_dark_color_brand_secondary">#C0BE78</color>
+    <color name="mediaapp_theme_moonlit_bamboo_dark_color_brand_on_secondary">#2E2D12</color>
+    <color name="mediaapp_theme_moonlit_bamboo_dark_color_surface">#111815</color>
+    <color name="mediaapp_theme_moonlit_bamboo_dark_color_on_surface">#ECE8DC</color>
+    <color name="mediaapp_theme_moonlit_bamboo_dark_color_surface_variant">#26332A</color>
+    <color name="mediaapp_theme_moonlit_bamboo_dark_color_on_surface_variant">#C2CCBB</color>
+    <color name="mediaapp_theme_moonlit_bamboo_dark_color_error">#FFB4AB</color>
+    <color name="mediaapp_theme_moonlit_bamboo_dark_color_on_error">#690005</color>
+
+    <color name="mediaapp_theme_forest_tech_light_color_brand_primary">#2D6B1F</color>
+    <color name="mediaapp_theme_forest_tech_light_color_brand_on_primary">#FFFFFF</color>
+    <color name="mediaapp_theme_forest_tech_light_color_brand_secondary">#4D4F4F</color>
+    <color name="mediaapp_theme_forest_tech_light_color_brand_on_secondary">#FFFFFF</color>
+    <color name="mediaapp_theme_forest_tech_light_color_surface">#F6F8F0</color>
+    <color name="mediaapp_theme_forest_tech_light_color_on_surface">#172018</color>
+    <color name="mediaapp_theme_forest_tech_light_color_surface_variant">#DDE7D4</color>
+    <color name="mediaapp_theme_forest_tech_light_color_on_surface_variant">#424D3D</color>
+    <color name="mediaapp_theme_forest_tech_light_color_error">#BA1A1A</color>
+    <color name="mediaapp_theme_forest_tech_light_color_on_error">#FFFFFF</color>
+
+    <color name="mediaapp_theme_forest_tech_dark_color_brand_primary">#93D87E</color>
+    <color name="mediaapp_theme_forest_tech_dark_color_brand_on_primary">#043900</color>
+    <color name="mediaapp_theme_forest_tech_dark_color_brand_secondary">#C6C6C7</color>
+    <color name="mediaapp_theme_forest_tech_dark_color_brand_on_secondary">#2F3131</color>
+    <color name="mediaapp_theme_forest_tech_dark_color_surface">#131313</color>
+    <color name="mediaapp_theme_forest_tech_dark_color_on_surface">#E5E2E1</color>
+    <color name="mediaapp_theme_forest_tech_dark_color_surface_variant">#353535</color>
+    <color name="mediaapp_theme_forest_tech_dark_color_on_surface_variant">#C1C9B9</color>
+    <color name="mediaapp_theme_forest_tech_dark_color_error">#FFB4AB</color>
+    <color name="mediaapp_theme_forest_tech_dark_color_on_error">#690005</color>
 
     <dimen name="mediaapp_spacing_xs">4dp</dimen>
     <dimen name="mediaapp_spacing_sm">8dp</dimen>
