@@ -1,31 +1,23 @@
 package com.adrianrusu.mediaapp.feature.settings
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.adrianrusu.mediaapp.core.designsystem.tokens.LocalPandaWaveDesignTokens
-import com.adrianrusu.mediaapp.core.designsystem.tokens.cardResting
-import com.adrianrusu.mediaapp.core.designsystem.tokens.lg
 import com.adrianrusu.mediaapp.core.designsystem.tokens.md
 import com.adrianrusu.mediaapp.core.designsystem.tokens.sm
-import com.adrianrusu.mediaapp.core.designsystem.tokens.xs
 import com.adrianrusu.mediaapp.core.model.theme.PandaWaveThemePreference
+import com.adrianrusu.mediaapp.core.ui.components.BambooActionCard
+import com.adrianrusu.mediaapp.core.ui.components.BambooCard
+import com.adrianrusu.mediaapp.core.ui.components.BambooSelectableRow
+import com.adrianrusu.mediaapp.core.ui.components.BambooStatusCard
+import com.adrianrusu.mediaapp.core.ui.components.BambooSwitchRow
+import com.adrianrusu.mediaapp.core.ui.components.BambooTitleBody
 import com.adrianrusu.mediaapp.feature.settings.domain.SettingsIntent
 import com.adrianrusu.mediaapp.feature.settings.domain.SettingsState
 import com.adrianrusu.mediaapp.feature.settings.presentation.SettingsViewModel
@@ -88,34 +80,11 @@ private fun SettingsScreen(state: SettingsState, onIntent: (SettingsIntent) -> U
 
 @Composable
 private fun SettingsStatusCard(state: SettingsState) {
-    val tokens = LocalPandaWaveDesignTokens.current
-
-    Surface(
-        color = if (state.restriction.isRestricted) {
-            MaterialTheme.colorScheme.primaryContainer
-        } else {
-            MaterialTheme.colorScheme.surfaceVariant
-        },
-        shape = MaterialTheme.shapes.small
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(tokens.spacing.lg),
-            verticalArrangement = Arrangement.spacedBy(tokens.spacing.sm)
-        ) {
-            Text(
-                text = "Settings safety",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
-            )
-            Text(
-                text = state.restriction.label,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
-    }
+    BambooStatusCard(
+        title = "Settings safety",
+        body = state.restriction.label,
+        highlighted = state.restriction.isRestricted
+    )
 }
 
 @Composable
@@ -126,42 +95,13 @@ private fun SettingsSwitchRow(
     enabled: Boolean,
     onCheckedChange: () -> Unit
 ) {
-    val tokens = LocalPandaWaveDesignTokens.current
-
-    Surface(
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = tokens.elevation.cardResting,
-        shape = MaterialTheme.shapes.small
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(tokens.spacing.lg),
-            horizontalArrangement = Arrangement.spacedBy(tokens.spacing.md),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(tokens.spacing.sm)
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = body,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-            Switch(
-                checked = checked,
-                enabled = enabled,
-                onCheckedChange = { onCheckedChange() }
-            )
-        }
-    }
+    BambooSwitchRow(
+        title = title,
+        body = body,
+        checked = checked,
+        enabled = enabled,
+        onCheckedChange = { onCheckedChange() }
+    )
 }
 
 @Composable
@@ -194,36 +134,24 @@ private fun ThemePreferenceCard(
         )
     )
 
-    Surface(
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = tokens.elevation.cardResting,
-        shape = MaterialTheme.shapes.small
-    ) {
+    BambooCard {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(tokens.spacing.lg),
             verticalArrangement = Arrangement.spacedBy(tokens.spacing.md)
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(tokens.spacing.sm)) {
-                Text(
-                    text = "Theme",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = selectedPreference.label,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
+            BambooTitleBody(
+                title = "Theme",
+                body = selectedPreference.label
+            )
             Column(verticalArrangement = Arrangement.spacedBy(tokens.spacing.sm)) {
                 options.forEach { option ->
-                    ThemePreferenceRow(
-                        option = option,
+                    BambooSelectableRow(
+                        title = option.label,
+                        body = option.preference.description,
                         selected = option.preference == selectedPreference,
                         enabled = enabled,
-                        onPreferenceSelected = onPreferenceSelected
+                        onClick = {
+                            onPreferenceSelected(option.preference)
+                        }
                     )
                 }
             }
@@ -232,99 +160,18 @@ private fun ThemePreferenceCard(
 }
 
 @Composable
-private fun ThemePreferenceRow(
-    option: ThemePreferenceOption,
-    selected: Boolean,
-    enabled: Boolean,
-    onPreferenceSelected: (PandaWaveThemePreference) -> Unit
-) {
-    val tokens = LocalPandaWaveDesignTokens.current
-    val background = if (selected) {
-        MaterialTheme.colorScheme.surfaceVariant
-    } else {
-        MaterialTheme.colorScheme.surface
-    }
-
-    Surface(
-        color = background,
-        shape = MaterialTheme.shapes.small,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(enabled = enabled) {
-                onPreferenceSelected(option.preference)
-            }
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(tokens.spacing.md),
-            horizontalArrangement = Arrangement.spacedBy(tokens.spacing.sm),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            RadioButton(
-                selected = selected,
-                enabled = enabled,
-                onClick = { onPreferenceSelected(option.preference) }
-            )
-            Column(verticalArrangement = Arrangement.spacedBy(tokens.spacing.xs)) {
-                Text(
-                    text = option.label,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = option.preference.description,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun PrivacyNoticeCard(acknowledged: Boolean, onAcknowledge: () -> Unit) {
-    val tokens = LocalPandaWaveDesignTokens.current
-
-    Surface(
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = tokens.elevation.cardResting,
-        shape = MaterialTheme.shapes.small
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(tokens.spacing.lg),
-            horizontalArrangement = Arrangement.spacedBy(tokens.spacing.md),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(tokens.spacing.sm)
-            ) {
-                Text(
-                    text = "Privacy notice",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = if (acknowledged) {
-                        "Acknowledged for this session."
-                    } else {
-                        "Review data choices before enabling deeper account and provider sync."
-                    },
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-            Button(
-                enabled = !acknowledged,
-                onClick = onAcknowledge
-            ) {
-                Text(text = if (acknowledged) "Done" else "Acknowledge")
-            }
-        }
-    }
+    BambooActionCard(
+        title = "Privacy notice",
+        body = if (acknowledged) {
+            "Acknowledged for this session."
+        } else {
+            "Review data choices before enabling deeper account and provider sync."
+        },
+        actionLabel = if (acknowledged) "Done" else "Acknowledge",
+        actionEnabled = !acknowledged,
+        onActionClick = onAcknowledge
+    )
 }
 
 private data class ThemePreferenceOption(val preference: PandaWaveThemePreference, val label: String)
