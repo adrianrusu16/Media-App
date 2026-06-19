@@ -20,8 +20,8 @@ local.properties
 # Kotlin
 **/.kotlin/
 
-# Local working plans
-docs/superpowers/plans/
+# Local Codex/Superpowers working docs
+docs/superpowers/
 
 # OS
 .DS_Store
