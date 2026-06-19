@@ -34,14 +34,18 @@ data class MiniPlayerProgressAnchor(
     val isPlaying: Boolean = false
 )
 
-data class MiniPlayerProgress(val fraction: Float)
+data class MiniPlayerProgress(val fraction: Float, val positionMillis: Long, val durationMillis: Long?)
 
 internal object MiniPlayerProgressProjector {
     fun fromAnchor(anchor: MiniPlayerProgressAnchor, nowMillis: Long): MiniPlayerProgress {
         val durationMillis = anchor.durationMillis?.takeIf { duration -> duration > 0L }
 
         if (durationMillis == null) {
-            return MiniPlayerProgress(fraction = 0F)
+            return MiniPlayerProgress(
+                fraction = 0F,
+                positionMillis = max(0L, anchor.positionMillis),
+                durationMillis = null
+            )
         }
 
         val projectedPositionMillis = projectedPositionMillis(
@@ -51,7 +55,9 @@ internal object MiniPlayerProgressProjector {
         )
 
         return MiniPlayerProgress(
-            fraction = (projectedPositionMillis.toDouble() / durationMillis.toDouble()).toFloat().coerceIn(0F, 1F)
+            fraction = (projectedPositionMillis.toDouble() / durationMillis.toDouble()).toFloat().coerceIn(0F, 1F),
+            positionMillis = projectedPositionMillis,
+            durationMillis = durationMillis
         )
     }
 

@@ -18,6 +18,8 @@ class MiniPlayerProgressProjectorTest {
         )
 
         assertEquals(0.325F, progress.fraction)
+        assertEquals(13_000L, progress.positionMillis)
+        assertEquals(40_000L, progress.durationMillis)
     }
 
     @Test
@@ -33,6 +35,8 @@ class MiniPlayerProgressProjectorTest {
         )
 
         assertEquals(1F, progress.fraction)
+        assertEquals(40_000L, progress.positionMillis)
+        assertEquals(40_000L, progress.durationMillis)
     }
 
     @Test
@@ -48,5 +52,7 @@ class MiniPlayerProgressProjectorTest {
         )
 
         assertEquals(0F, progress.fraction)
+        assertEquals(10_000L, progress.positionMillis)
+        assertEquals(null, progress.durationMillis)
     }
 }
