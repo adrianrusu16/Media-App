@@ -20,6 +20,9 @@ local.properties
 # Kotlin
 **/.kotlin/
 
+# Local working plans
+docs/superpowers/plans/
+
 # OS
 .DS_Store
 Thumbs.db
