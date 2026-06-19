@@ -8,6 +8,7 @@ import com.adrianrusu.mediaapp.core.playback.BambooPlaybackRepository
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackRestrictionState
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackState
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackStatus
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEffect
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -100,6 +101,8 @@ private class RecordingPlaybackRepository(initialState: BambooPlaybackState = Ba
             listeners -= listener
         }
     }
+
+    override fun observeEffects(listener: (List<EngineEffect>) -> Unit): AutoCloseable = AutoCloseable { }
 
     override fun close() = Unit
 }

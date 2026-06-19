@@ -1,31 +1,46 @@
 package com.adrianrusu.mediaapp.appshell.presentation
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LibraryMusic
+import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import com.adrianrusu.mediaapp.appshell.domain.AppDestination
 import com.adrianrusu.mediaapp.appshell.domain.AppShellIntent
 import com.adrianrusu.mediaapp.appshell.domain.AppShellState
+import com.adrianrusu.mediaapp.core.designsystem.R
 import com.adrianrusu.mediaapp.core.designsystem.tokens.LocalPandaWaveDesignTokens
 import com.adrianrusu.mediaapp.core.designsystem.tokens.lg
 import com.adrianrusu.mediaapp.core.designsystem.tokens.md
 import com.adrianrusu.mediaapp.core.designsystem.tokens.sm
+import com.adrianrusu.mediaapp.core.designsystem.tokens.touchTargetLg
 import com.adrianrusu.mediaapp.core.designsystem.tokens.xs
 import com.adrianrusu.mediaapp.core.playback.BambooEngineConnectionStatus
 import com.adrianrusu.mediaapp.core.playback.BambooEngineConnectionUiState
@@ -42,55 +57,95 @@ fun AppShellScreen(state: AppShellState, onIntent: (AppShellIntent) -> Unit, mod
     Scaffold(
         modifier = modifier.fillMaxSize(),
         bottomBar = {
-            Column {
-                if (state.shouldShowMiniPlayer) {
-                    BambooMiniPlayer(
-                        state = state.miniPlayer,
-                        controlsEnabled = state.canDispatchEngineCommands,
-                        onSkipPreviousClick = {
-                            onIntent(AppShellIntent.SkipPrevious)
-                        },
-                        onPlayPauseClick = {
-                            onIntent(AppShellIntent.TogglePlayback)
-                        },
-                        onSkipNextClick = {
-                            onIntent(AppShellIntent.SkipNext)
-                        }
-                    )
-                }
-                NavigationBar {
-                    state.destinations.forEach { destination ->
-                        NavigationBarItem(
-                            selected = destination == state.selectedDestination,
-                            onClick = {
-                                onIntent(AppShellIntent.SelectDestination(destination))
-                            },
-                            icon = {},
-                            label = {
-                                Text(text = destination.label)
-                            }
-                        )
+            if (state.shouldShowMiniPlayer) {
+                BambooMiniPlayer(
+                    state = state.miniPlayer,
+                    controlsEnabled = state.canDispatchEngineCommands,
+                    onSkipPreviousClick = {
+                        onIntent(AppShellIntent.SkipPrevious)
+                    },
+                    onPlayPauseClick = {
+                        onIntent(AppShellIntent.TogglePlayback)
+                    },
+                    onSkipNextClick = {
+                        onIntent(AppShellIntent.SkipNext)
                     }
-                }
+                )
             }
         }
     ) { innerPadding ->
-        AppShellContent(
-            state = state,
-            onIntent = onIntent,
-            contentPadding = innerPadding
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            PandaWaveNavigationRail(
+                destinations = state.destinations,
+                selectedDestination = state.selectedDestination,
+                onDestinationSelected = { destination ->
+                    onIntent(AppShellIntent.SelectDestination(destination))
+                }
+            )
+            AppShellContent(
+                state = state,
+                onIntent = onIntent
+            )
+        }
     }
 }
 
 @Composable
-private fun AppShellContent(state: AppShellState, onIntent: (AppShellIntent) -> Unit, contentPadding: PaddingValues) {
+private fun PandaWaveNavigationRail(
+    destinations: List<AppDestination>,
+    selectedDestination: AppDestination,
+    onDestinationSelected: (AppDestination) -> Unit
+) {
+    val tokens = LocalPandaWaveDesignTokens.current
+
+    NavigationRail(
+        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        header = {
+            Box(
+                modifier = Modifier.padding(
+                    top = tokens.spacing.md,
+                    bottom = tokens.spacing.lg
+                ),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.ic_pandawave_logo),
+                    contentDescription = "PandaWave",
+                    modifier = Modifier.size(tokens.sizing.touchTargetLg)
+                )
+            }
+        }
+    ) {
+        destinations.forEach { destination ->
+            NavigationRailItem(
+                selected = destination == selectedDestination,
+                onClick = {
+                    onDestinationSelected(destination)
+                },
+                icon = {
+                    Icon(
+                        imageVector = destination.icon,
+                        contentDescription = null
+                    )
+                },
+                label = {
+                    Text(text = destination.label)
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun AppShellContent(state: AppShellState, onIntent: (AppShellIntent) -> Unit) {
     val tokens = LocalPandaWaveDesignTokens.current
 
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(contentPadding),
+        modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(tokens.spacing.lg),
         verticalArrangement = Arrangement.spacedBy(tokens.spacing.md)
     ) {
@@ -114,6 +169,16 @@ private fun AppShellContent(state: AppShellState, onIntent: (AppShellIntent) -> 
         }
     }
 }
+
+private val AppDestination.icon: ImageVector
+    get() = when (this) {
+        AppDestination.Home -> Icons.Filled.Home
+        AppDestination.Library -> Icons.Filled.LibraryMusic
+        AppDestination.NowPlaying -> Icons.Filled.PlayCircle
+        AppDestination.Search -> Icons.Filled.Search
+        AppDestination.Settings -> Icons.Filled.Settings
+        AppDestination.Profile -> Icons.Filled.AccountCircle
+    }
 
 @Composable
 private fun Header(

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <public type="drawable" name="ic_pandawave_logo" />
     <public type="color" name="mediaapp_color_brand_primary" />
     <public type="color" name="mediaapp_color_brand_on_primary" />
     <public type="color" name="mediaapp_color_brand_secondary" />
