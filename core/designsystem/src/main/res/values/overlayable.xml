@@ -67,6 +67,50 @@
             <item type="dimen" name="mediaapp_miniplayer_height" />
             <item type="dimen" name="mediaapp_touch_target_md" />
             <item type="dimen" name="mediaapp_touch_target_lg" />
+            <item type="dimen" name="mediaapp_focus_outline_width" />
+            <item type="dimen" name="mediaapp_focus_outline_padding" />
+            <item type="dimen" name="mediaapp_icon_size_sm" />
+            <item type="dimen" name="mediaapp_icon_size_md" />
+            <item type="dimen" name="mediaapp_icon_size_lg" />
+            <item type="dimen" name="mediaapp_rotary_step_threshold" />
+            <item type="dimen" name="mediaapp_navigation_logo_size" />
+            <item type="dimen" name="mediaapp_navigation_item_height" />
+            <item type="dimen" name="mediaapp_navigation_item_spacing" />
+            <item type="dimen" name="mediaapp_navigation_selected_indicator_inset" />
+            <item type="dimen" name="mediaapp_media_tile_compact_min_width" />
+            <item type="dimen" name="mediaapp_media_tile_compact_max_width" />
+            <item type="dimen" name="mediaapp_media_tile_compact_min_height" />
+            <item type="dimen" name="mediaapp_media_tile_standard_min_width" />
+            <item type="dimen" name="mediaapp_media_tile_standard_max_width" />
+            <item type="dimen" name="mediaapp_media_tile_standard_min_height" />
+            <item type="dimen" name="mediaapp_media_tile_compact_artwork_height" />
+            <item type="dimen" name="mediaapp_media_tile_standard_artwork_height" />
+            <item type="dimen" name="mediaapp_media_row_artwork_size" />
+            <item type="dimen" name="mediaapp_media_row_min_height" />
+            <item type="dimen" name="mediaapp_category_card_min_width" />
+            <item type="dimen" name="mediaapp_category_card_max_width" />
+            <item type="dimen" name="mediaapp_category_card_min_height" />
+            <item type="dimen" name="mediaapp_card_padding" />
+            <item type="dimen" name="mediaapp_actionable_card_min_height" />
+            <item type="dimen" name="mediaapp_miniplayer_artwork_size" />
+            <item type="dimen" name="mediaapp_miniplayer_transport_button_size" />
+            <item type="dimen" name="mediaapp_miniplayer_internal_spacing" />
+            <item type="dimen" name="mediaapp_progress_track_height" />
+            <item type="dimen" name="mediaapp_progress_thumb_size" />
+            <item type="dimen" name="mediaapp_volume_control_height" />
+            <item type="dimen" name="mediaapp_waveform_height" />
+            <item type="dimen" name="mediaapp_waveform_bar_width" />
+            <item type="dimen" name="mediaapp_voice_indicator_border_width" />
+            <item type="dimen" name="mediaapp_voice_indicator_bars_width" />
+            <item type="dimen" name="mediaapp_voice_indicator_bars_height" />
+            <item type="dimen" name="mediaapp_voice_bar_width" />
+            <item type="dimen" name="mediaapp_voice_bar_gap" />
+            <item type="dimen" name="mediaapp_voice_bar_idle_height" />
+            <item type="dimen" name="mediaapp_now_playing_secondary_transport_size" />
+            <item type="dimen" name="mediaapp_now_playing_transport_spacing" />
+            <item type="dimen" name="mediaapp_now_playing_footer_height" />
+            <item type="dimen" name="mediaapp_now_playing_quick_action_width" />
+            <item type="dimen" name="mediaapp_now_playing_quick_action_height" />
             <item type="dimen" name="mediaapp_app_content_padding" />
             <item type="dimen" name="mediaapp_navigation_rail_width" />
             <item type="dimen" name="mediaapp_navigation_selected_indicator_width" />

@@ -4,14 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Album
-import androidx.compose.material.icons.filled.Eco
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.LibraryMusic
-import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -19,6 +12,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import com.adrianrusu.mediaapp.core.designsystem.tokens.LocalPandaWaveDesignTokens
 import com.adrianrusu.mediaapp.core.designsystem.tokens.lg
 import com.adrianrusu.mediaapp.core.designsystem.tokens.md
@@ -29,6 +23,9 @@ import com.adrianrusu.mediaapp.core.ui.discovery.BambooMediaHeroCard
 import com.adrianrusu.mediaapp.core.ui.discovery.BambooMediaItem
 import com.adrianrusu.mediaapp.core.ui.discovery.BambooMediaListRow
 import com.adrianrusu.mediaapp.core.ui.discovery.BambooSectionHeader
+import com.adrianrusu.mediaapp.core.ui.focus.BambooFocusableLazyRow
+import com.adrianrusu.mediaapp.core.ui.focus.BambooRotaryColumn
+import com.adrianrusu.mediaapp.core.ui.icons.PandaWaveIcons
 
 @Composable
 fun LibraryRoute(modifier: Modifier = Modifier) {
@@ -46,8 +43,10 @@ fun LibraryRoute(modifier: Modifier = Modifier) {
         )
     )
 
-    Column(
-        modifier = modifier.fillMaxWidth(),
+    BambooRotaryColumn(
+        modifier = modifier
+            .fillMaxWidth()
+            .testTag("library-route"),
         verticalArrangement = Arrangement.spacedBy(tokens.spacing.lg)
     ) {
         BambooSectionHeader(
@@ -57,14 +56,19 @@ fun LibraryRoute(modifier: Modifier = Modifier) {
 
         Column(verticalArrangement = Arrangement.spacedBy(tokens.spacing.md)) {
             BambooSectionHeader(title = "Panda Picks")
-            LazyRow(
+            BambooFocusableLazyRow(
                 horizontalArrangement = Arrangement.spacedBy(tokens.spacing.md),
                 contentPadding = PaddingValues(horizontal = tokens.spacing.md)
             ) {
                 items(featured, key = { it.id }) { item ->
                     BambooMediaHeroCard(
+                        modifier = Modifier.testTag("library-featured-${item.id}"),
                         item = item,
-                        icon = if (item.id == "bamboo-forest") Icons.Filled.Eco else Icons.Filled.Spa,
+                        icon = if (item.id == "bamboo-forest") {
+                            PandaWaveIcons.Nature
+                        } else {
+                            PandaWaveIcons.Relax
+                        },
                         accentColor = MaterialTheme.colorScheme.primary,
                         onClick = {}
                     )
@@ -74,16 +78,18 @@ fun LibraryRoute(modifier: Modifier = Modifier) {
 
         Column(verticalArrangement = Arrangement.spacedBy(tokens.spacing.md)) {
             BambooFilterChipRow(
+                modifier = Modifier.testTag("library-filters"),
                 options = filters,
                 onFilterSelected = { selectedFilter = it }
             )
             rows.forEach { item ->
                 BambooMediaListRow(
+                    modifier = Modifier.testTag("library-row-${item.id}"),
                     item = item,
                     icon = when (selectedFilter) {
-                        "albums" -> Icons.Filled.Album
-                        "stations" -> Icons.Filled.Favorite
-                        else -> Icons.Filled.LibraryMusic
+                        "albums" -> PandaWaveIcons.Album
+                        "stations" -> PandaWaveIcons.Favorite
+                        else -> PandaWaveIcons.MusicLibrary
                     },
                     accentColor = MaterialTheme.colorScheme.secondary,
                     onClick = {}

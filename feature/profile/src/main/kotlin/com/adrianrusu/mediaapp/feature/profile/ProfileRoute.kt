@@ -1,14 +1,13 @@
 package com.adrianrusu.mediaapp.feature.profile
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import com.adrianrusu.mediaapp.core.designsystem.tokens.LocalPandaWaveDesignTokens
 import com.adrianrusu.mediaapp.core.designsystem.tokens.md
 import com.adrianrusu.mediaapp.core.ui.components.BambooActionCard
+import com.adrianrusu.mediaapp.core.ui.focus.BambooRotaryColumn
 import com.adrianrusu.mediaapp.core.ui.overview.FeatureOverviewItem
 import com.adrianrusu.mediaapp.core.ui.overview.FeatureOverviewScreen
 
@@ -16,8 +15,8 @@ import com.adrianrusu.mediaapp.core.ui.overview.FeatureOverviewScreen
 fun ProfileRoute(onSettingsClick: () -> Unit, modifier: Modifier = Modifier) {
     val tokens = LocalPandaWaveDesignTokens.current
 
-    Column(
-        modifier = modifier.verticalScroll(rememberScrollState()),
+    BambooRotaryColumn(
+        modifier = modifier.testTag("profile-route"),
         verticalArrangement = Arrangement.spacedBy(tokens.spacing.md)
     ) {
         FeatureOverviewScreen(
@@ -33,6 +32,7 @@ fun ProfileRoute(onSettingsClick: () -> Unit, modifier: Modifier = Modifier) {
             )
         )
         BambooActionCard(
+            modifier = Modifier.testTag("profile-settings"),
             title = "Preferences",
             body = "Appearance, privacy, content, and diagnostics.",
             actionLabel = "Open",

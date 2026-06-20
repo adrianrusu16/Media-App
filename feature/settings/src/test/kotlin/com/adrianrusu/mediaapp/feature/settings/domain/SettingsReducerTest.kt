@@ -18,7 +18,7 @@ class SettingsReducerTest {
     }
 
     @Test
-    fun `blocks setting changes when restricted`() {
+    fun `allows setting changes when restrictions target unrelated capabilities`() {
         val restricted = SettingsState(
             personalizationEnabled = false,
             restriction = SettingsRestrictionState(
@@ -32,7 +32,7 @@ class SettingsReducerTest {
             intent = SettingsIntent.TogglePersonalization
         )
 
-        assertFalse(result.personalizationEnabled)
+        assertTrue(result.personalizationEnabled)
     }
 
     @Test

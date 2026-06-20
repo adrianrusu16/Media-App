@@ -11,6 +11,8 @@ data class PandaWaveDesignTokens(
     val spacing: PandaWaveSpacingTokens,
     val shape: PandaWaveShapeTokens,
     val sizing: PandaWaveSizingTokens,
+    val focus: PandaWaveFocusTokens,
+    val components: PandaWaveComponentTokens,
     val layout: PandaWaveLayoutTokens,
     val elevation: PandaWaveElevationTokens,
     val restrictions: PandaWaveRestrictionTokens
@@ -34,6 +36,53 @@ data class PandaWaveSpacingTokens(val xsPx: Int, val smPx: Int, val mdPx: Int, v
 data class PandaWaveShapeTokens(val smallCornerPx: Int, val mediumCornerPx: Int, val miniPlayerHeightPx: Int)
 
 data class PandaWaveSizingTokens(val touchTargetMdPx: Int, val touchTargetLgPx: Int)
+
+data class PandaWaveFocusTokens(val outlineWidthPx: Int, val outlinePaddingPx: Int)
+
+data class PandaWaveComponentTokens(
+    val iconSmallPx: Int,
+    val iconMediumPx: Int,
+    val iconLargePx: Int,
+    val rotaryStepThresholdPx: Int,
+    val navigationLogoSizePx: Int,
+    val navigationItemHeightPx: Int,
+    val navigationItemSpacingPx: Int,
+    val navigationSelectedIndicatorInsetPx: Int,
+    val mediaTileCompactMinWidthPx: Int,
+    val mediaTileCompactMaxWidthPx: Int,
+    val mediaTileCompactMinHeightPx: Int,
+    val mediaTileStandardMinWidthPx: Int,
+    val mediaTileStandardMaxWidthPx: Int,
+    val mediaTileStandardMinHeightPx: Int,
+    val mediaTileCompactArtworkHeightPx: Int,
+    val mediaTileStandardArtworkHeightPx: Int,
+    val mediaRowArtworkSizePx: Int,
+    val mediaRowMinHeightPx: Int,
+    val categoryCardMinWidthPx: Int,
+    val categoryCardMaxWidthPx: Int,
+    val categoryCardMinHeightPx: Int,
+    val cardPaddingPx: Int,
+    val actionableCardMinHeightPx: Int,
+    val miniPlayerArtworkSizePx: Int,
+    val miniPlayerTransportButtonSizePx: Int,
+    val miniPlayerInternalSpacingPx: Int,
+    val progressTrackHeightPx: Int,
+    val progressThumbSizePx: Int,
+    val volumeControlHeightPx: Int,
+    val waveformHeightPx: Int,
+    val waveformBarWidthPx: Int,
+    val voiceIndicatorBorderWidthPx: Int,
+    val voiceIndicatorBarsWidthPx: Int,
+    val voiceIndicatorBarsHeightPx: Int,
+    val voiceBarWidthPx: Int,
+    val voiceBarGapPx: Int,
+    val voiceBarIdleHeightPx: Int,
+    val nowPlayingSecondaryTransportSizePx: Int,
+    val nowPlayingTransportSpacingPx: Int,
+    val nowPlayingFooterHeightPx: Int,
+    val nowPlayingQuickActionWidthPx: Int,
+    val nowPlayingQuickActionHeightPx: Int
+)
 
 data class PandaWaveLayoutTokens(
     val appContentPaddingPx: Int,
@@ -88,6 +137,138 @@ val PandaWaveSizingTokens.touchTargetMd: Dp
 
 val PandaWaveSizingTokens.touchTargetLg: Dp
     @Composable get() = touchTargetLgPx.toDp()
+
+val PandaWaveFocusTokens.outlineWidth: Dp
+    @Composable get() = outlineWidthPx.toDp()
+
+val PandaWaveFocusTokens.outlinePadding: Dp
+    @Composable get() = outlinePaddingPx.toDp()
+
+val PandaWaveComponentTokens.iconSmall: Dp
+    @Composable get() = iconSmallPx.toDp()
+
+val PandaWaveComponentTokens.iconMedium: Dp
+    @Composable get() = iconMediumPx.toDp()
+
+val PandaWaveComponentTokens.iconLarge: Dp
+    @Composable get() = iconLargePx.toDp()
+
+val PandaWaveComponentTokens.rotaryStepThreshold: Dp
+    @Composable get() = rotaryStepThresholdPx.toDp()
+
+val PandaWaveComponentTokens.navigationLogoSize: Dp
+    @Composable get() = navigationLogoSizePx.toDp()
+
+val PandaWaveComponentTokens.navigationItemHeight: Dp
+    @Composable get() = navigationItemHeightPx.toDp()
+
+val PandaWaveComponentTokens.navigationItemSpacing: Dp
+    @Composable get() = navigationItemSpacingPx.toDp()
+
+val PandaWaveComponentTokens.navigationSelectedIndicatorInset: Dp
+    @Composable get() = navigationSelectedIndicatorInsetPx.toDp()
+
+val PandaWaveComponentTokens.mediaTileCompactMinWidth: Dp
+    @Composable get() = mediaTileCompactMinWidthPx.toDp()
+
+val PandaWaveComponentTokens.mediaTileCompactMaxWidth: Dp
+    @Composable get() = mediaTileCompactMaxWidthPx.toDp()
+
+val PandaWaveComponentTokens.mediaTileCompactMinHeight: Dp
+    @Composable get() = mediaTileCompactMinHeightPx.toDp()
+
+val PandaWaveComponentTokens.mediaTileStandardMinWidth: Dp
+    @Composable get() = mediaTileStandardMinWidthPx.toDp()
+
+val PandaWaveComponentTokens.mediaTileStandardMaxWidth: Dp
+    @Composable get() = mediaTileStandardMaxWidthPx.toDp()
+
+val PandaWaveComponentTokens.mediaTileStandardMinHeight: Dp
+    @Composable get() = mediaTileStandardMinHeightPx.toDp()
+
+val PandaWaveComponentTokens.mediaTileCompactArtworkHeight: Dp
+    @Composable get() = mediaTileCompactArtworkHeightPx.toDp()
+
+val PandaWaveComponentTokens.mediaTileStandardArtworkHeight: Dp
+    @Composable get() = mediaTileStandardArtworkHeightPx.toDp()
+
+val PandaWaveComponentTokens.mediaRowArtworkSize: Dp
+    @Composable get() = mediaRowArtworkSizePx.toDp()
+
+val PandaWaveComponentTokens.mediaRowMinHeight: Dp
+    @Composable get() = mediaRowMinHeightPx.toDp()
+
+val PandaWaveComponentTokens.categoryCardMinWidth: Dp
+    @Composable get() = categoryCardMinWidthPx.toDp()
+
+val PandaWaveComponentTokens.categoryCardMaxWidth: Dp
+    @Composable get() = categoryCardMaxWidthPx.toDp()
+
+val PandaWaveComponentTokens.categoryCardMinHeight: Dp
+    @Composable get() = categoryCardMinHeightPx.toDp()
+
+val PandaWaveComponentTokens.cardPadding: Dp
+    @Composable get() = cardPaddingPx.toDp()
+
+val PandaWaveComponentTokens.actionableCardMinHeight: Dp
+    @Composable get() = actionableCardMinHeightPx.toDp()
+
+val PandaWaveComponentTokens.miniPlayerArtworkSize: Dp
+    @Composable get() = miniPlayerArtworkSizePx.toDp()
+
+val PandaWaveComponentTokens.miniPlayerTransportButtonSize: Dp
+    @Composable get() = miniPlayerTransportButtonSizePx.toDp()
+
+val PandaWaveComponentTokens.miniPlayerInternalSpacing: Dp
+    @Composable get() = miniPlayerInternalSpacingPx.toDp()
+
+val PandaWaveComponentTokens.progressTrackHeight: Dp
+    @Composable get() = progressTrackHeightPx.toDp()
+
+val PandaWaveComponentTokens.progressThumbSize: Dp
+    @Composable get() = progressThumbSizePx.toDp()
+
+val PandaWaveComponentTokens.volumeControlHeight: Dp
+    @Composable get() = volumeControlHeightPx.toDp()
+
+val PandaWaveComponentTokens.waveformHeight: Dp
+    @Composable get() = waveformHeightPx.toDp()
+
+val PandaWaveComponentTokens.waveformBarWidth: Dp
+    @Composable get() = waveformBarWidthPx.toDp()
+
+val PandaWaveComponentTokens.voiceIndicatorBorderWidth: Dp
+    @Composable get() = voiceIndicatorBorderWidthPx.toDp()
+
+val PandaWaveComponentTokens.voiceIndicatorBarsWidth: Dp
+    @Composable get() = voiceIndicatorBarsWidthPx.toDp()
+
+val PandaWaveComponentTokens.voiceIndicatorBarsHeight: Dp
+    @Composable get() = voiceIndicatorBarsHeightPx.toDp()
+
+val PandaWaveComponentTokens.voiceBarWidth: Dp
+    @Composable get() = voiceBarWidthPx.toDp()
+
+val PandaWaveComponentTokens.voiceBarGap: Dp
+    @Composable get() = voiceBarGapPx.toDp()
+
+val PandaWaveComponentTokens.voiceBarIdleHeight: Dp
+    @Composable get() = voiceBarIdleHeightPx.toDp()
+
+val PandaWaveComponentTokens.nowPlayingSecondaryTransportSize: Dp
+    @Composable get() = nowPlayingSecondaryTransportSizePx.toDp()
+
+val PandaWaveComponentTokens.nowPlayingTransportSpacing: Dp
+    @Composable get() = nowPlayingTransportSpacingPx.toDp()
+
+val PandaWaveComponentTokens.nowPlayingFooterHeight: Dp
+    @Composable get() = nowPlayingFooterHeightPx.toDp()
+
+val PandaWaveComponentTokens.nowPlayingQuickActionWidth: Dp
+    @Composable get() = nowPlayingQuickActionWidthPx.toDp()
+
+val PandaWaveComponentTokens.nowPlayingQuickActionHeight: Dp
+    @Composable get() = nowPlayingQuickActionHeightPx.toDp()
 
 val PandaWaveLayoutTokens.appContentPadding: Dp
     @Composable get() = appContentPaddingPx.toDp()

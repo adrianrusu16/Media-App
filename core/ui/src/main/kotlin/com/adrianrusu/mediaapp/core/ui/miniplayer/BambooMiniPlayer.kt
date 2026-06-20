@@ -14,11 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -41,12 +36,20 @@ import androidx.compose.ui.text.style.TextOverflow
 import com.adrianrusu.mediaapp.core.designsystem.R
 import com.adrianrusu.mediaapp.core.designsystem.tokens.LocalPandaWaveDesignTokens
 import com.adrianrusu.mediaapp.core.designsystem.tokens.cardResting
+import com.adrianrusu.mediaapp.core.designsystem.tokens.iconLarge
 import com.adrianrusu.mediaapp.core.designsystem.tokens.lg
 import com.adrianrusu.mediaapp.core.designsystem.tokens.md
+import com.adrianrusu.mediaapp.core.designsystem.tokens.miniPlayerArtworkSize
 import com.adrianrusu.mediaapp.core.designsystem.tokens.miniPlayerHeight
+import com.adrianrusu.mediaapp.core.designsystem.tokens.miniPlayerInternalSpacing
+import com.adrianrusu.mediaapp.core.designsystem.tokens.miniPlayerTransportButtonSize
+import com.adrianrusu.mediaapp.core.designsystem.tokens.progressTrackHeight
 import com.adrianrusu.mediaapp.core.designsystem.tokens.sm
 import com.adrianrusu.mediaapp.core.designsystem.tokens.touchTargetLg
 import com.adrianrusu.mediaapp.core.designsystem.tokens.xs
+import com.adrianrusu.mediaapp.core.ui.focus.bambooBringIntoViewOnFocus
+import com.adrianrusu.mediaapp.core.ui.focus.bambooFocusIndicator
+import com.adrianrusu.mediaapp.core.ui.icons.PandaWaveIcons
 import com.adrianrusu.mediaapp.core.ui.playback.BambooPlaybackText
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.delay
@@ -80,6 +83,8 @@ fun BambooMiniPlayer(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = tokens.shape.miniPlayerHeight)
+            .bambooFocusIndicator()
+            .bambooBringIntoViewOnFocus()
             .clickable(
                 role = Role.Button,
                 onClickLabel = BambooPlaybackText.ACTION_OPEN_NOW_PLAYING,
@@ -91,9 +96,9 @@ fun BambooMiniPlayer(
         Column(
             modifier = Modifier.padding(
                 horizontal = tokens.spacing.lg,
-                vertical = tokens.spacing.sm
+                vertical = tokens.components.miniPlayerInternalSpacing
             ),
-            verticalArrangement = Arrangement.spacedBy(tokens.spacing.sm)
+            verticalArrangement = Arrangement.spacedBy(tokens.components.miniPlayerInternalSpacing)
         ) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(tokens.spacing.lg),
@@ -130,35 +135,44 @@ fun BambooMiniPlayer(
                 ) {
                     IconButton(
                         enabled = controlsEnabled,
-                        modifier = Modifier.size(tokens.sizing.touchTargetLg),
+                        modifier = Modifier
+                            .size(tokens.components.miniPlayerTransportButtonSize)
+                            .bambooBringIntoViewOnFocus(),
                         onClick = onSkipPreviousClick
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.SkipPrevious,
+                            imageVector = PandaWaveIcons.SkipPrevious,
                             contentDescription = BambooPlaybackText.ACTION_SKIP_PREVIOUS
                         )
                     }
                     FilledIconButton(
                         enabled = controlsEnabled,
-                        modifier = Modifier.size(tokens.sizing.touchTargetLg),
+                        modifier = Modifier
+                            .size(tokens.components.miniPlayerTransportButtonSize)
+                            .bambooBringIntoViewOnFocus(),
                         onClick = onPlayPauseClick
                     ) {
-                        Icon(
-                            imageVector = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                            contentDescription = if (state.isPlaying) {
-                                BambooPlaybackText.ACTION_PAUSE
-                            } else {
-                                BambooPlaybackText.ACTION_PLAY
-                            }
-                        )
+                        if (state.isPlaying) {
+                            Icon(
+                                imageVector = PandaWaveIcons.Pause,
+                                contentDescription = BambooPlaybackText.ACTION_PAUSE
+                            )
+                        } else {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_panda_paw),
+                                contentDescription = BambooPlaybackText.ACTION_PLAY
+                            )
+                        }
                     }
                     IconButton(
                         enabled = controlsEnabled,
-                        modifier = Modifier.size(tokens.sizing.touchTargetLg),
+                        modifier = Modifier
+                            .size(tokens.components.miniPlayerTransportButtonSize)
+                            .bambooBringIntoViewOnFocus(),
                         onClick = onSkipNextClick
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.SkipNext,
+                            imageVector = PandaWaveIcons.SkipNext,
                             contentDescription = BambooPlaybackText.ACTION_SKIP_NEXT
                         )
                     }
@@ -173,10 +187,8 @@ fun BambooMiniPlayer(
 @Composable
 private fun MiniPlayerArtwork() {
     val tokens = LocalPandaWaveDesignTokens.current
-    val artworkSize = tokens.shape.miniPlayerHeight - tokens.spacing.lg
-
     Surface(
-        modifier = Modifier.size(artworkSize),
+        modifier = Modifier.size(tokens.components.miniPlayerArtworkSize),
         color = MaterialTheme.colorScheme.surfaceVariant,
         shape = MaterialTheme.shapes.medium
     ) {
@@ -186,7 +198,7 @@ private fun MiniPlayerArtwork() {
             Image(
                 painter = painterResource(id = R.drawable.ic_pandawave_logo),
                 contentDescription = null,
-                modifier = Modifier.size(tokens.sizing.touchTargetLg)
+                modifier = Modifier.size(tokens.components.iconLarge)
             )
         }
     }
@@ -208,14 +220,14 @@ private fun MiniPlayerProgressBar(progress: MiniPlayerProgress) {
         Box(
             modifier = Modifier
                 .weight(1f)
-                .height(tokens.spacing.sm)
+                .height(tokens.components.progressTrackHeight)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth(progress.fraction)
-                    .height(tokens.spacing.sm)
+                    .height(tokens.components.progressTrackHeight)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.primary)
             )

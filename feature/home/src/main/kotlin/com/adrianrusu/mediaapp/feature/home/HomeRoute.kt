@@ -4,18 +4,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Eco
-import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.LibraryMusic
-import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import com.adrianrusu.mediaapp.core.designsystem.tokens.LocalPandaWaveDesignTokens
 import com.adrianrusu.mediaapp.core.designsystem.tokens.lg
 import com.adrianrusu.mediaapp.core.designsystem.tokens.md
@@ -24,6 +17,9 @@ import com.adrianrusu.mediaapp.core.ui.discovery.BambooMediaHeroCard
 import com.adrianrusu.mediaapp.core.ui.discovery.BambooMediaItem
 import com.adrianrusu.mediaapp.core.ui.discovery.BambooMediaTile
 import com.adrianrusu.mediaapp.core.ui.discovery.BambooSectionHeader
+import com.adrianrusu.mediaapp.core.ui.focus.BambooFocusableLazyRow
+import com.adrianrusu.mediaapp.core.ui.focus.BambooRotaryColumn
+import com.adrianrusu.mediaapp.core.ui.icons.PandaWaveIcons
 
 @Composable
 fun HomeRoute(modifier: Modifier = Modifier) {
@@ -31,10 +27,10 @@ fun HomeRoute(modifier: Modifier = Modifier) {
     val forYou = homeForYouItems()
     val recent = homeRecentItems()
 
-    Column(
+    BambooRotaryColumn(
         modifier = modifier
             .fillMaxWidth()
-            .verticalScroll(rememberScrollState()),
+            .testTag("home-route"),
         verticalArrangement = Arrangement.spacedBy(tokens.spacing.lg)
     ) {
         BambooSectionHeader(
@@ -44,17 +40,18 @@ fun HomeRoute(modifier: Modifier = Modifier) {
 
         Column(verticalArrangement = Arrangement.spacedBy(tokens.spacing.md)) {
             BambooSectionHeader(title = "For You")
-            LazyRow(
+            BambooFocusableLazyRow(
                 horizontalArrangement = Arrangement.spacedBy(tokens.spacing.md),
                 contentPadding = PaddingValues(horizontal = tokens.spacing.md)
             ) {
                 items(forYou, key = { it.id }) { item ->
                     BambooMediaHeroCard(
+                        modifier = Modifier.testTag("home-for-you-${item.id}"),
                         item = item,
                         icon = when (item.id) {
-                            "bamboo-beats" -> Icons.Filled.GraphicEq
-                            "quiet-canopy" -> Icons.Filled.Spa
-                            else -> Icons.Filled.Eco
+                            "bamboo-beats" -> PandaWaveIcons.Equalizer
+                            "quiet-canopy" -> PandaWaveIcons.Relax
+                            else -> PandaWaveIcons.Nature
                         },
                         accentColor = when (item.id) {
                             "bamboo-beats" -> MaterialTheme.colorScheme.primary
@@ -69,14 +66,15 @@ fun HomeRoute(modifier: Modifier = Modifier) {
 
         Column(verticalArrangement = Arrangement.spacedBy(tokens.spacing.md)) {
             BambooSectionHeader(title = "Recent")
-            LazyRow(
+            BambooFocusableLazyRow(
                 horizontalArrangement = Arrangement.spacedBy(tokens.spacing.md),
                 contentPadding = PaddingValues(horizontal = tokens.spacing.md)
             ) {
                 items(recent, key = { it.id }) { item ->
                     BambooMediaTile(
+                        modifier = Modifier.testTag("home-recent-${item.id}"),
                         item = item,
-                        icon = Icons.Filled.LibraryMusic,
+                        icon = PandaWaveIcons.MusicLibrary,
                         accentColor = MaterialTheme.colorScheme.secondary,
                         onClick = {}
                     )

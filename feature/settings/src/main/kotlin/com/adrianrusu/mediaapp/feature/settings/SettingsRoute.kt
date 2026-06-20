@@ -3,11 +3,10 @@ package com.adrianrusu.mediaapp.feature.settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.adrianrusu.mediaapp.core.designsystem.tokens.LocalPandaWaveDesignTokens
@@ -17,9 +16,9 @@ import com.adrianrusu.mediaapp.core.model.theme.PandaWaveThemePreference
 import com.adrianrusu.mediaapp.core.ui.components.BambooActionCard
 import com.adrianrusu.mediaapp.core.ui.components.BambooCard
 import com.adrianrusu.mediaapp.core.ui.components.BambooSelectableRow
-import com.adrianrusu.mediaapp.core.ui.components.BambooStatusCard
 import com.adrianrusu.mediaapp.core.ui.components.BambooSwitchRow
 import com.adrianrusu.mediaapp.core.ui.components.BambooTitleBody
+import com.adrianrusu.mediaapp.core.ui.focus.BambooRotaryColumn
 import com.adrianrusu.mediaapp.feature.settings.domain.SettingsIntent
 import com.adrianrusu.mediaapp.feature.settings.domain.SettingsState
 import com.adrianrusu.mediaapp.feature.settings.presentation.SettingsViewModel
@@ -40,37 +39,32 @@ fun SettingsRoute(modifier: Modifier = Modifier) {
 private fun SettingsScreen(state: SettingsState, onIntent: (SettingsIntent) -> Unit, modifier: Modifier = Modifier) {
     val tokens = LocalPandaWaveDesignTokens.current
 
-    Column(
+    BambooRotaryColumn(
         modifier = modifier
             .fillMaxWidth()
-            .verticalScroll(state = rememberScrollState()),
+            .testTag("settings-route"),
         verticalArrangement = Arrangement.spacedBy(tokens.spacing.md)
     ) {
-        SettingsStatusCard(state = state)
         SettingsSwitchRow(
             title = "Diagnostics",
             body = "Share redacted reliability events and playback health signals.",
             checked = state.diagnosticsEnabled,
-            enabled = state.controlsEnabled,
             onCheckedChange = { onIntent(SettingsIntent.ToggleDiagnostics) }
         )
         SettingsSwitchRow(
             title = "Personalization",
             body = "Let the Rust engine use recent listening state to shape recommendations.",
             checked = state.personalizationEnabled,
-            enabled = state.controlsEnabled,
             onCheckedChange = { onIntent(SettingsIntent.TogglePersonalization) }
         )
         SettingsSwitchRow(
             title = "Explicit content",
             body = "Allow content marked explicit when provider policy supports it.",
             checked = state.explicitContentAllowed,
-            enabled = state.controlsEnabled,
             onCheckedChange = { onIntent(SettingsIntent.ToggleExplicitContent) }
         )
         ThemePreferenceCard(
             selectedPreference = state.themePreference,
-            enabled = state.controlsEnabled,
             onPreferenceSelected = { preference ->
                 onIntent(SettingsIntent.SelectThemePreference(preference))
             }
@@ -83,27 +77,12 @@ private fun SettingsScreen(state: SettingsState, onIntent: (SettingsIntent) -> U
 }
 
 @Composable
-private fun SettingsStatusCard(state: SettingsState) {
-    BambooStatusCard(
-        title = "Settings safety",
-        body = state.restriction.label,
-        highlighted = state.restriction.isRestricted
-    )
-}
-
-@Composable
-private fun SettingsSwitchRow(
-    title: String,
-    body: String,
-    checked: Boolean,
-    enabled: Boolean,
-    onCheckedChange: () -> Unit
-) {
+private fun SettingsSwitchRow(title: String, body: String, checked: Boolean, onCheckedChange: () -> Unit) {
     BambooSwitchRow(
         title = title,
         body = body,
         checked = checked,
-        enabled = enabled,
+        enabled = true,
         onCheckedChange = { onCheckedChange() }
     )
 }
@@ -111,7 +90,6 @@ private fun SettingsSwitchRow(
 @Composable
 private fun ThemePreferenceCard(
     selectedPreference: PandaWaveThemePreference,
-    enabled: Boolean,
     onPreferenceSelected: (PandaWaveThemePreference) -> Unit
 ) {
     val tokens = LocalPandaWaveDesignTokens.current
@@ -152,7 +130,7 @@ private fun ThemePreferenceCard(
                         title = option.label,
                         body = option.preference.description,
                         selected = option.preference == selectedPreference,
-                        enabled = enabled,
+                        enabled = true,
                         onClick = {
                             onPreferenceSelected(option.preference)
                         }

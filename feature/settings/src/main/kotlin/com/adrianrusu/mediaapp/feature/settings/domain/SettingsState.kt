@@ -9,10 +9,7 @@ data class SettingsState(
     val privacyNoticeAcknowledged: Boolean = false,
     val themePreference: PandaWaveThemePreference = PandaWaveThemePreference.SystemDefault,
     val restriction: SettingsRestrictionState = SettingsRestrictionState.Unavailable
-) {
-    val controlsEnabled: Boolean
-        get() = !restriction.isRestricted
-}
+)
 
 data class SettingsRestrictionState(val label: String, val isRestricted: Boolean) {
     companion object {

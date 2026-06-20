@@ -14,20 +14,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.QueueMusic
-import androidx.compose.material.icons.automirrored.filled.VolumeDown
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
-import androidx.compose.material.icons.filled.Eco
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.Shuffle
-import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -45,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -53,20 +41,34 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.adrianrusu.mediaapp.core.designsystem.R
 import com.adrianrusu.mediaapp.core.designsystem.tokens.LocalPandaWaveDesignTokens
 import com.adrianrusu.mediaapp.core.designsystem.tokens.cardResting
+import com.adrianrusu.mediaapp.core.designsystem.tokens.iconLarge
+import com.adrianrusu.mediaapp.core.designsystem.tokens.iconMedium
+import com.adrianrusu.mediaapp.core.designsystem.tokens.iconSmall
 import com.adrianrusu.mediaapp.core.designsystem.tokens.lg
 import com.adrianrusu.mediaapp.core.designsystem.tokens.md
 import com.adrianrusu.mediaapp.core.designsystem.tokens.nowPlayingArtworkCompact
 import com.adrianrusu.mediaapp.core.designsystem.tokens.nowPlayingArtworkStandard
 import com.adrianrusu.mediaapp.core.designsystem.tokens.nowPlayingCompactHeightThreshold
+import com.adrianrusu.mediaapp.core.designsystem.tokens.nowPlayingFooterHeight
 import com.adrianrusu.mediaapp.core.designsystem.tokens.nowPlayingPrimaryButton
+import com.adrianrusu.mediaapp.core.designsystem.tokens.nowPlayingQuickActionHeight
+import com.adrianrusu.mediaapp.core.designsystem.tokens.nowPlayingQuickActionWidth
 import com.adrianrusu.mediaapp.core.designsystem.tokens.nowPlayingScrollHeightThreshold
+import com.adrianrusu.mediaapp.core.designsystem.tokens.nowPlayingSecondaryTransportSize
+import com.adrianrusu.mediaapp.core.designsystem.tokens.nowPlayingTransportSpacing
+import com.adrianrusu.mediaapp.core.designsystem.tokens.progressThumbSize
+import com.adrianrusu.mediaapp.core.designsystem.tokens.progressTrackHeight
 import com.adrianrusu.mediaapp.core.designsystem.tokens.sm
 import com.adrianrusu.mediaapp.core.designsystem.tokens.touchTargetLg
 import com.adrianrusu.mediaapp.core.designsystem.tokens.touchTargetMd
+import com.adrianrusu.mediaapp.core.designsystem.tokens.volumeControlHeight
 import com.adrianrusu.mediaapp.core.designsystem.tokens.xl
 import com.adrianrusu.mediaapp.core.designsystem.tokens.xs
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackProgress
 import com.adrianrusu.mediaapp.core.ui.components.BambooVoiceIndicator
+import com.adrianrusu.mediaapp.core.ui.focus.BambooRotaryColumn
+import com.adrianrusu.mediaapp.core.ui.focus.bambooBringIntoViewOnFocus
+import com.adrianrusu.mediaapp.core.ui.icons.PandaWaveIcons
 import com.adrianrusu.mediaapp.core.ui.playback.BambooPlaybackText
 import com.adrianrusu.mediaapp.feature.nowplaying.domain.NowPlayingIntent
 import com.adrianrusu.mediaapp.feature.nowplaying.domain.NowPlayingState
@@ -120,21 +122,19 @@ private fun NowPlayingScreen(
             scrollHeightThreshold = tokens.layout.nowPlayingScrollHeightThreshold
         )
         val isCompact = layoutMode != NowPlayingLayoutMode.Standard
-        val scrollState = rememberScrollState()
-        val contentModifier = if (layoutMode == NowPlayingLayoutMode.ScrollableCompact) {
-            Modifier
-                .fillMaxWidth()
-                .verticalScroll(scrollState)
-        } else {
-            Modifier.fillMaxSize()
-        }
-
-        Column(
-            modifier = contentModifier,
+        BambooRotaryColumn(
+            modifier = (
+                if (layoutMode == NowPlayingLayoutMode.ScrollableCompact) {
+                    Modifier.fillMaxWidth()
+                } else {
+                    Modifier.fillMaxSize()
+                }
+                ).testTag("now-playing-route"),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(
                 if (isCompact) tokens.spacing.sm else tokens.spacing.lg
-            )
+            ),
+            scrollEnabled = layoutMode == NowPlayingLayoutMode.ScrollableCompact
         ) {
             NowPlayingArtworkPanel(
                 title = uiModel.title,
@@ -299,41 +299,41 @@ private fun LeafProgressTrack(progress: Float, modifier: Modifier = Modifier) {
     val clampedProgress = progress.coerceIn(MIN_PROGRESS_FRACTION, MAX_PROGRESS_FRACTION)
 
     Box(
-        modifier = modifier.height(tokens.spacing.xl),
+        modifier = modifier.height(tokens.components.progressThumbSize),
         contentAlignment = Alignment.CenterStart
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(tokens.spacing.sm)
+                .height(tokens.components.progressTrackHeight)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         )
         Box(
             modifier = Modifier
                 .fillMaxWidth(clampedProgress)
-                .height(tokens.spacing.sm)
+                .height(tokens.components.progressTrackHeight)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.primary.copy(alpha = PROGRESS_ACTIVE_ALPHA))
         )
         Box(
             modifier = Modifier
                 .fillMaxWidth(clampedProgress)
-                .height(tokens.spacing.xl),
+                .height(tokens.components.progressThumbSize),
             contentAlignment = Alignment.CenterEnd
         ) {
             Surface(
-                modifier = Modifier.size(tokens.sizing.touchTargetMd),
+                modifier = Modifier.size(tokens.components.progressThumbSize),
                 color = MaterialTheme.colorScheme.primary,
                 shape = CircleShape,
                 shadowElevation = tokens.elevation.cardResting
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
-                        imageVector = Icons.Filled.Eco,
+                        imageVector = PandaWaveIcons.Nature,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(tokens.spacing.lg)
+                        modifier = Modifier.size(tokens.components.iconSmall)
                     )
                 }
             }
@@ -356,17 +356,17 @@ private fun NowPlayingControls(
         verticalAlignment = Alignment.CenterVertically
     ) {
         SecondaryRoundAction(
-            icon = Icons.Filled.Shuffle,
+            icon = PandaWaveIcons.Shuffle,
             contentDescription = "Shuffle unavailable",
             enabled = false,
             onClick = {}
         )
         Row(
-            horizontalArrangement = Arrangement.spacedBy(tokens.spacing.lg),
+            horizontalArrangement = Arrangement.spacedBy(tokens.components.nowPlayingTransportSpacing),
             verticalAlignment = Alignment.CenterVertically
         ) {
             TransportRoundAction(
-                icon = Icons.Filled.SkipPrevious,
+                icon = PandaWaveIcons.SkipPrevious,
                 contentDescription = BambooPlaybackText.ACTION_SKIP_PREVIOUS,
                 enabled = uiModel.controlsEnabled,
                 onClick = onSkipPreviousClick
@@ -376,14 +376,14 @@ private fun NowPlayingControls(
                 onClick = onPlayPauseClick
             )
             TransportRoundAction(
-                icon = Icons.Filled.SkipNext,
+                icon = PandaWaveIcons.SkipNext,
                 contentDescription = BambooPlaybackText.ACTION_SKIP_NEXT,
                 enabled = uiModel.controlsEnabled,
                 onClick = onSkipNextClick
             )
         }
         SecondaryRoundAction(
-            icon = Icons.Filled.Favorite,
+            icon = PandaWaveIcons.Favorite,
             contentDescription = "Favorite unavailable",
             enabled = false,
             onClick = {}
@@ -403,7 +403,10 @@ private fun PrimaryPlaybackButton(uiModel: NowPlayingUiModel, onClick: () -> Uni
         shadowElevation = tokens.elevation.cardResting
     ) {
         IconButton(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .testTag("now-playing-play-pause")
+                .bambooBringIntoViewOnFocus(),
             enabled = uiModel.controlsEnabled,
             onClick = onClick
         ) {
@@ -411,13 +414,13 @@ private fun PrimaryPlaybackButton(uiModel: NowPlayingUiModel, onClick: () -> Uni
                 Icon(
                     painter = painterResource(id = R.drawable.ic_panda_paw),
                     contentDescription = uiModel.primaryActionLabel,
-                    modifier = Modifier.size(tokens.sizing.touchTargetLg)
+                    modifier = Modifier.size(tokens.components.iconLarge)
                 )
             } else {
                 Icon(
-                    imageVector = Icons.Filled.Pause,
+                    imageVector = PandaWaveIcons.Pause,
                     contentDescription = uiModel.primaryActionLabel,
-                    modifier = Modifier.size(tokens.sizing.touchTargetLg)
+                    modifier = Modifier.size(tokens.components.iconLarge)
                 )
             }
         }
@@ -429,20 +432,22 @@ private fun TransportRoundAction(icon: ImageVector, contentDescription: String, 
     val tokens = LocalPandaWaveDesignTokens.current
 
     Surface(
-        modifier = Modifier.size(tokens.sizing.touchTargetLg),
+        modifier = Modifier.size(tokens.components.nowPlayingSecondaryTransportSize),
         color = MaterialTheme.colorScheme.surfaceVariant,
         shape = CircleShape,
         tonalElevation = tokens.elevation.cardResting
     ) {
         IconButton(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .bambooBringIntoViewOnFocus(),
             enabled = enabled,
             onClick = onClick
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = contentDescription,
-                modifier = Modifier.size(tokens.spacing.xl)
+                modifier = Modifier.size(tokens.components.iconMedium)
             )
         }
     }
@@ -453,20 +458,22 @@ private fun SecondaryRoundAction(icon: ImageVector, contentDescription: String, 
     val tokens = LocalPandaWaveDesignTokens.current
 
     Surface(
-        modifier = Modifier.size(tokens.sizing.touchTargetLg),
+        modifier = Modifier.size(tokens.components.nowPlayingSecondaryTransportSize),
         color = MaterialTheme.colorScheme.surface,
         shape = CircleShape,
         tonalElevation = tokens.elevation.cardResting
     ) {
         IconButton(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .bambooBringIntoViewOnFocus(),
             enabled = enabled,
             onClick = onClick
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = contentDescription,
-                modifier = Modifier.size(tokens.spacing.xl)
+                modifier = Modifier.size(tokens.components.iconMedium)
             )
         }
     }
@@ -481,12 +488,14 @@ private fun NowPlayingFooter(
     val tokens = LocalPandaWaveDesignTokens.current
 
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = tokens.components.nowPlayingFooterHeight),
         horizontalArrangement = Arrangement.spacedBy(tokens.spacing.lg),
         verticalAlignment = Alignment.CenterVertically
     ) {
         QuickActionButton(
-            icon = Icons.AutoMirrored.Filled.QueueMusic,
+            icon = PandaWaveIcons.Queue,
             label = "Library",
             enabled = true,
             onClick = onLibraryClick
@@ -510,10 +519,12 @@ private fun QuickActionButton(icon: ImageVector, label: String, enabled: Boolean
         tonalElevation = tokens.elevation.cardResting
     ) {
         IconButton(
-            modifier = Modifier.size(
-                width = tokens.sizing.touchTargetLg + tokens.spacing.lg,
-                height = tokens.sizing.touchTargetLg
-            ),
+            modifier = Modifier
+                .size(
+                    width = tokens.components.nowPlayingQuickActionWidth,
+                    height = tokens.components.nowPlayingQuickActionHeight
+                )
+                .bambooBringIntoViewOnFocus(),
             enabled = enabled,
             onClick = onClick
         ) {
@@ -524,7 +535,7 @@ private fun QuickActionButton(icon: ImageVector, label: String, enabled: Boolean
                 Icon(
                     imageVector = icon,
                     contentDescription = label,
-                    modifier = Modifier.size(tokens.spacing.xl)
+                    modifier = Modifier.size(tokens.components.iconMedium)
                 )
                 Text(
                     text = label,
@@ -546,7 +557,7 @@ private fun VolumeControl(
     val tokens = LocalPandaWaveDesignTokens.current
 
     Surface(
-        modifier = modifier.heightIn(min = tokens.sizing.touchTargetMd),
+        modifier = modifier.heightIn(min = tokens.components.volumeControlHeight),
         color = MaterialTheme.colorScheme.surfaceVariant,
         shape = CircleShape,
         tonalElevation = tokens.elevation.cardResting
@@ -557,18 +568,21 @@ private fun VolumeControl(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.VolumeDown,
+                imageVector = PandaWaveIcons.VolumeDown,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Slider(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("now-playing-volume")
+                    .bambooBringIntoViewOnFocus(),
                 value = volume.value,
                 valueRange = MIN_VOLUME_VALUE..MAX_VOLUME_VALUE,
                 onValueChange = onVolumeChange
             )
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.VolumeUp,
+                imageVector = PandaWaveIcons.VolumeUp,
                 contentDescription = "Volume ${volume.value.toInt()} percent",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )

@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
@@ -23,11 +24,15 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import com.adrianrusu.mediaapp.core.designsystem.tokens.LocalPandaWaveDesignTokens
+import com.adrianrusu.mediaapp.core.designsystem.tokens.actionableCardMinHeight
+import com.adrianrusu.mediaapp.core.designsystem.tokens.cardPadding
 import com.adrianrusu.mediaapp.core.designsystem.tokens.cardResting
 import com.adrianrusu.mediaapp.core.designsystem.tokens.lg
 import com.adrianrusu.mediaapp.core.designsystem.tokens.md
 import com.adrianrusu.mediaapp.core.designsystem.tokens.sm
 import com.adrianrusu.mediaapp.core.designsystem.tokens.xs
+import com.adrianrusu.mediaapp.core.ui.focus.bambooBringIntoViewOnFocus
+import com.adrianrusu.mediaapp.core.ui.focus.bambooFocusIndicator
 
 @Composable
 fun BambooCard(modifier: Modifier = Modifier, highlighted: Boolean = false, content: @Composable () -> Unit) {
@@ -46,7 +51,7 @@ fun BambooCard(modifier: Modifier = Modifier, highlighted: Boolean = false, cont
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(tokens.spacing.lg),
+                .padding(tokens.components.cardPadding),
             verticalArrangement = Arrangement.spacedBy(tokens.spacing.sm)
         ) {
             content()
@@ -78,7 +83,7 @@ fun BambooActionCard(
 ) {
     val tokens = LocalPandaWaveDesignTokens.current
 
-    BambooCard(modifier = modifier) {
+    BambooCard(modifier = modifier.heightIn(min = tokens.components.actionableCardMinHeight)) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(tokens.spacing.md),
             verticalAlignment = Alignment.CenterVertically
@@ -89,6 +94,7 @@ fun BambooActionCard(
                 modifier = Modifier.weight(1f)
             )
             Button(
+                modifier = Modifier.bambooBringIntoViewOnFocus(),
                 enabled = actionEnabled,
                 onClick = onActionClick
             ) {
@@ -110,12 +116,15 @@ fun BambooSwitchRow(
     val tokens = LocalPandaWaveDesignTokens.current
 
     BambooCard(
-        modifier = modifier.toggleable(
-            value = checked,
-            enabled = enabled,
-            role = Role.Switch,
-            onValueChange = onCheckedChange
-        )
+        modifier = modifier
+            .bambooFocusIndicator(enabled = enabled)
+            .bambooBringIntoViewOnFocus()
+            .toggleable(
+                value = checked,
+                enabled = enabled,
+                role = Role.Switch,
+                onValueChange = onCheckedChange
+            )
     ) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(tokens.spacing.md),
@@ -149,6 +158,8 @@ fun BambooSelectableRow(
     Surface(
         modifier = modifier
             .fillMaxWidth()
+            .bambooFocusIndicator(enabled = enabled)
+            .bambooBringIntoViewOnFocus()
             .selectable(
                 selected = selected,
                 enabled = enabled,

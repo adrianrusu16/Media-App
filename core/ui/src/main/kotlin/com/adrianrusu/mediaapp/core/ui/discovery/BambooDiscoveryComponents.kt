@@ -14,13 +14,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -39,15 +34,34 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import com.adrianrusu.mediaapp.core.designsystem.tokens.LocalPandaWaveDesignTokens
 import com.adrianrusu.mediaapp.core.designsystem.tokens.cardResting
+import com.adrianrusu.mediaapp.core.designsystem.tokens.categoryCardMaxWidth
+import com.adrianrusu.mediaapp.core.designsystem.tokens.categoryCardMinHeight
+import com.adrianrusu.mediaapp.core.designsystem.tokens.categoryCardMinWidth
+import com.adrianrusu.mediaapp.core.designsystem.tokens.iconSmall
 import com.adrianrusu.mediaapp.core.designsystem.tokens.lg
 import com.adrianrusu.mediaapp.core.designsystem.tokens.md
+import com.adrianrusu.mediaapp.core.designsystem.tokens.mediaRowArtworkSize
+import com.adrianrusu.mediaapp.core.designsystem.tokens.mediaRowMinHeight
+import com.adrianrusu.mediaapp.core.designsystem.tokens.mediaTileCompactArtworkHeight
+import com.adrianrusu.mediaapp.core.designsystem.tokens.mediaTileCompactMaxWidth
+import com.adrianrusu.mediaapp.core.designsystem.tokens.mediaTileCompactMinHeight
+import com.adrianrusu.mediaapp.core.designsystem.tokens.mediaTileCompactMinWidth
+import com.adrianrusu.mediaapp.core.designsystem.tokens.mediaTileStandardArtworkHeight
+import com.adrianrusu.mediaapp.core.designsystem.tokens.mediaTileStandardMaxWidth
+import com.adrianrusu.mediaapp.core.designsystem.tokens.mediaTileStandardMinHeight
+import com.adrianrusu.mediaapp.core.designsystem.tokens.mediaTileStandardMinWidth
 import com.adrianrusu.mediaapp.core.designsystem.tokens.sm
 import com.adrianrusu.mediaapp.core.designsystem.tokens.touchTargetLg
+import com.adrianrusu.mediaapp.core.designsystem.tokens.waveformBarWidth
+import com.adrianrusu.mediaapp.core.designsystem.tokens.waveformHeight
 import com.adrianrusu.mediaapp.core.designsystem.tokens.xl
 import com.adrianrusu.mediaapp.core.designsystem.tokens.xs
+import com.adrianrusu.mediaapp.core.ui.focus.BambooFocusableLazyRow
+import com.adrianrusu.mediaapp.core.ui.focus.bambooBringIntoViewOnFocus
+import com.adrianrusu.mediaapp.core.ui.focus.bambooFocusIndicator
+import com.adrianrusu.mediaapp.core.ui.icons.PandaWaveIcons
 
 @Composable
 fun BambooSectionHeader(title: String, modifier: Modifier = Modifier, subtitle: String? = null) {
@@ -92,8 +106,13 @@ fun BambooMediaHeroCard(
 
     Surface(
         modifier = modifier
-            .widthIn(min = 280.dp, max = 360.dp)
-            .heightIn(min = 208.dp)
+            .widthIn(
+                min = tokens.components.mediaTileStandardMinWidth,
+                max = tokens.components.mediaTileStandardMaxWidth
+            )
+            .bambooFocusIndicator(enabled = enabled)
+            .bambooBringIntoViewOnFocus()
+            .heightIn(min = tokens.components.mediaTileStandardMinHeight)
             .clickable(
                 enabled = enabled,
                 role = Role.Button,
@@ -114,7 +133,7 @@ fun BambooMediaHeroCard(
                 accentColor = resolvedAccent,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(104.dp)
+                    .height(tokens.components.mediaTileStandardArtworkHeight)
             )
 
             Row(
@@ -135,8 +154,8 @@ fun BambooMediaHeroCard(
                         Icon(
                             modifier = Modifier
                                 .padding(tokens.spacing.sm)
-                                .size(tokens.sizing.touchTargetLg / 2),
-                            imageVector = Icons.Filled.PlayArrow,
+                                .size(tokens.components.iconSmall),
+                            imageVector = PandaWaveIcons.Play,
                             contentDescription = null
                         )
                     }
@@ -160,8 +179,13 @@ fun BambooMediaTile(
 
     Surface(
         modifier = modifier
-            .widthIn(min = 168.dp, max = 220.dp)
-            .heightIn(min = 184.dp)
+            .widthIn(
+                min = tokens.components.mediaTileCompactMinWidth,
+                max = tokens.components.mediaTileCompactMaxWidth
+            )
+            .bambooFocusIndicator(enabled = enabled)
+            .bambooBringIntoViewOnFocus()
+            .heightIn(min = tokens.components.mediaTileCompactMinHeight)
             .clickable(
                 enabled = enabled,
                 role = Role.Button,
@@ -180,7 +204,7 @@ fun BambooMediaTile(
                 accentColor = resolvedAccent,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(88.dp)
+                    .height(tokens.components.mediaTileCompactArtworkHeight)
             )
             BambooMediaCopy(
                 item = item,
@@ -205,7 +229,9 @@ fun BambooMediaListRow(
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .heightIn(min = 88.dp)
+            .bambooFocusIndicator(enabled = enabled)
+            .bambooBringIntoViewOnFocus()
+            .heightIn(min = tokens.components.mediaRowMinHeight)
             .clickable(
                 enabled = enabled,
                 role = Role.Button,
@@ -223,7 +249,7 @@ fun BambooMediaListRow(
             BambooArtworkPlate(
                 icon = icon,
                 accentColor = resolvedAccent,
-                modifier = Modifier.size(64.dp)
+                modifier = Modifier.size(tokens.components.mediaRowArtworkSize)
             )
             BambooMediaCopy(
                 item = item,
@@ -232,7 +258,7 @@ fun BambooMediaListRow(
             )
             if (enabled) {
                 Icon(
-                    imageVector = Icons.Filled.PlayArrow,
+                    imageVector = PandaWaveIcons.Play,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
                 )
@@ -259,8 +285,13 @@ fun BambooCategoryCard(
 
     Surface(
         modifier = modifier
-            .widthIn(min = 176.dp, max = 240.dp)
-            .heightIn(min = 128.dp)
+            .widthIn(
+                min = tokens.components.categoryCardMinWidth,
+                max = tokens.components.categoryCardMaxWidth
+            )
+            .bambooFocusIndicator(enabled = category.enabled)
+            .bambooBringIntoViewOnFocus()
+            .heightIn(min = tokens.components.categoryCardMinHeight)
             .clickable(
                 enabled = category.enabled,
                 role = Role.Button,
@@ -284,7 +315,7 @@ fun BambooCategoryCard(
                 Icon(
                     modifier = Modifier
                         .padding(tokens.spacing.sm)
-                        .size(tokens.sizing.touchTargetLg / 2),
+                        .size(tokens.components.iconSmall),
                     imageVector = icon,
                     contentDescription = null
                 )
@@ -316,13 +347,14 @@ fun BambooFilterChipRow(
 ) {
     val tokens = LocalPandaWaveDesignTokens.current
 
-    LazyRow(
+    BambooFocusableLazyRow(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(tokens.spacing.sm),
         contentPadding = PaddingValues(horizontal = tokens.spacing.xs)
     ) {
         items(items = options, key = { it.id }) { option ->
             FilterChip(
+                modifier = Modifier.bambooBringIntoViewOnFocus(),
                 selected = option.selected,
                 onClick = { onFilterSelected(option.id) },
                 label = {
@@ -346,14 +378,16 @@ fun BambooSearchBar(
     onVoiceClick: (() -> Unit)? = null
 ) {
     OutlinedTextField(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .bambooBringIntoViewOnFocus(),
         value = query,
         onValueChange = onQueryChange,
         singleLine = true,
         textStyle = MaterialTheme.typography.titleMedium,
         leadingIcon = {
             Icon(
-                imageVector = Icons.Filled.Search,
+                imageVector = PandaWaveIcons.Search,
                 contentDescription = null
             )
         },
@@ -361,7 +395,7 @@ fun BambooSearchBar(
             if (onVoiceClick != null) {
                 IconButton(onClick = onVoiceClick) {
                     Icon(
-                        imageVector = Icons.Filled.Mic,
+                        imageVector = PandaWaveIcons.Microphone,
                         contentDescription = VOICE_SEARCH_CONTENT_DESCRIPTION
                     )
                 }
@@ -385,15 +419,15 @@ fun BambooWaveform(modifier: Modifier = Modifier, active: Boolean = true) {
     val bars = listOf(0.38f, 0.82f, 0.56f, 1f, 0.48f, 0.72f, 0.32f)
 
     Row(
-        modifier = modifier.height(44.dp),
+        modifier = modifier.height(tokens.components.waveformHeight),
         horizontalArrangement = Arrangement.spacedBy(tokens.spacing.xs),
         verticalAlignment = Alignment.CenterVertically
     ) {
         bars.forEach { fraction ->
             Box(
                 modifier = Modifier
-                    .width(6.dp)
-                    .height(44.dp * fraction)
+                    .width(tokens.components.waveformBarWidth)
+                    .height(tokens.components.waveformHeight * fraction)
                     .clip(CircleShape)
                     .background(color)
             )

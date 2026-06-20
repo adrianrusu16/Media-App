@@ -1,26 +1,20 @@
 package com.adrianrusu.mediaapp.feature.settings.domain
 
 internal object SettingsReducer {
-    fun reduce(state: SettingsState, intent: SettingsIntent): SettingsState {
-        if (state.restriction.isRestricted && intent != SettingsIntent.AcknowledgePrivacyNotice) {
-            return state
-        }
+    fun reduce(state: SettingsState, intent: SettingsIntent): SettingsState = when (intent) {
+        SettingsIntent.ToggleDiagnostics ->
+            state.copy(diagnosticsEnabled = !state.diagnosticsEnabled)
 
-        return when (intent) {
-            SettingsIntent.ToggleDiagnostics ->
-                state.copy(diagnosticsEnabled = !state.diagnosticsEnabled)
+        SettingsIntent.TogglePersonalization ->
+            state.copy(personalizationEnabled = !state.personalizationEnabled)
 
-            SettingsIntent.TogglePersonalization ->
-                state.copy(personalizationEnabled = !state.personalizationEnabled)
+        SettingsIntent.ToggleExplicitContent ->
+            state.copy(explicitContentAllowed = !state.explicitContentAllowed)
 
-            SettingsIntent.ToggleExplicitContent ->
-                state.copy(explicitContentAllowed = !state.explicitContentAllowed)
+        SettingsIntent.AcknowledgePrivacyNotice ->
+            state.copy(privacyNoticeAcknowledged = true)
 
-            SettingsIntent.AcknowledgePrivacyNotice ->
-                state.copy(privacyNoticeAcknowledged = true)
-
-            is SettingsIntent.SelectThemePreference ->
-                state.copy(themePreference = intent.preference)
-        }
+        is SettingsIntent.SelectThemePreference ->
+            state.copy(themePreference = intent.preference)
     }
 }

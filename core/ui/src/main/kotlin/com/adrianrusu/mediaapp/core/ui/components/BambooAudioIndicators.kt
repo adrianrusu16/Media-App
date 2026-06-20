@@ -28,10 +28,15 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.lerp as lerpColor
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import com.adrianrusu.mediaapp.core.designsystem.tokens.LocalPandaWaveDesignTokens
 import com.adrianrusu.mediaapp.core.designsystem.tokens.md
 import com.adrianrusu.mediaapp.core.designsystem.tokens.sm
+import com.adrianrusu.mediaapp.core.designsystem.tokens.voiceBarGap
+import com.adrianrusu.mediaapp.core.designsystem.tokens.voiceBarIdleHeight
+import com.adrianrusu.mediaapp.core.designsystem.tokens.voiceBarWidth
+import com.adrianrusu.mediaapp.core.designsystem.tokens.voiceIndicatorBarsHeight
+import com.adrianrusu.mediaapp.core.designsystem.tokens.voiceIndicatorBarsWidth
+import com.adrianrusu.mediaapp.core.designsystem.tokens.voiceIndicatorBorderWidth
 import com.adrianrusu.mediaapp.core.ui.playback.BambooPlaybackText
 import kotlin.math.PI
 import kotlin.math.sin
@@ -48,14 +53,21 @@ fun BambooVoiceIndicator(
         modifier = modifier
             .clip(CircleShape)
             .background(MaterialTheme.colorScheme.surface)
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
+            .border(
+                tokens.components.voiceIndicatorBorderWidth,
+                MaterialTheme.colorScheme.outlineVariant,
+                CircleShape
+            )
             .padding(horizontal = tokens.spacing.md, vertical = tokens.spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(tokens.spacing.sm)
     ) {
         BambooVoiceBars(
             isActive = isActive,
-            modifier = Modifier.size(width = 30.dp, height = 26.dp)
+            modifier = Modifier.size(
+                width = tokens.components.voiceIndicatorBarsWidth,
+                height = tokens.components.voiceIndicatorBarsHeight
+            )
         )
 
         Text(
@@ -70,6 +82,10 @@ fun BambooVoiceIndicator(
 
 @Composable
 private fun BambooVoiceBars(modifier: Modifier = Modifier, isActive: Boolean, barOffset: Int = 2) {
+    val tokens = LocalPandaWaveDesignTokens.current
+    val voiceBarWidth = tokens.components.voiceBarWidth
+    val voiceBarGap = tokens.components.voiceBarGap
+    val voiceBarIdleHeight = tokens.components.voiceBarIdleHeight
     val activeColor = MaterialTheme.colorScheme.primary
     val idleColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = IDLE_COLOR_ALPHA)
     val infiniteTransition = rememberInfiniteTransition(label = "bambooVoiceClock")
@@ -105,11 +121,11 @@ private fun BambooVoiceBars(modifier: Modifier = Modifier, isActive: Boolean, ba
 
     Canvas(modifier = modifier) {
         val barCount = 3
-        val barWidth = 3.dp.toPx()
-        val gap = 5.dp.toPx()
+        val barWidth = voiceBarWidth.toPx()
+        val gap = voiceBarGap.toPx()
         val radius = barWidth / 2f
 
-        val idleHeight = 7.dp.toPx()
+        val idleHeight = voiceBarIdleHeight.toPx()
         val maxHeight = size.height
 
         val totalWidth = barCount * barWidth + (barCount - 1) * gap

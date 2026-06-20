@@ -8,7 +8,6 @@ import com.adrianrusu.mediaapp.core.preferences.ThemePreferenceCoordinator
 import com.adrianrusu.mediaapp.feature.settings.domain.SettingsIntent
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,7 +18,7 @@ import kotlinx.coroutines.test.runTest
 @OptIn(ExperimentalCoroutinesApi::class)
 class InMemorySettingsRepositoryTest {
     @Test
-    fun `applies ux restrictions to settings state`() = runTest {
+    fun `keeps settings interactive while projecting ux restrictions`() = runTest {
         val observer = RecordingUxRestrictionObserver()
         val repository = InMemorySettingsRepository(
             uxRestrictionObserver = observer,
@@ -39,7 +38,10 @@ class InMemorySettingsRepositoryTest {
         )
 
         assertTrue(repository.settingsState.value.restriction.isRestricted)
-        assertFalse(repository.settingsState.value.controlsEnabled)
+
+        repository.dispatch(SettingsIntent.TogglePersonalization)
+
+        assertTrue(repository.settingsState.value.personalizationEnabled)
     }
 
     @Test
