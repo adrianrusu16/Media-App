@@ -41,6 +41,15 @@
     <dimen name="mediaapp_miniplayer_height">96dp</dimen>
     <dimen name="mediaapp_touch_target_md">48dp</dimen>
     <dimen name="mediaapp_touch_target_lg">56dp</dimen>
+    <dimen name="mediaapp_app_content_padding">16dp</dimen>
+    <dimen name="mediaapp_navigation_rail_width">64dp</dimen>
+    <dimen name="mediaapp_navigation_selected_indicator_width">4dp</dimen>
+    <dimen name="mediaapp_navigation_selected_indicator_height">48dp</dimen>
+    <dimen name="mediaapp_now_playing_artwork_compact">192dp</dimen>
+    <dimen name="mediaapp_now_playing_artwork_standard">336dp</dimen>
+    <dimen name="mediaapp_now_playing_primary_button">96dp</dimen>
+    <dimen name="mediaapp_now_playing_compact_height_threshold">640dp</dimen>
+    <dimen name="mediaapp_now_playing_scroll_height_threshold">480dp</dimen>
     <dimen name="mediaapp_elevation_card_resting">1dp</dimen>
 
     <integer name="mediaapp_max_browse_columns_unrestricted">4</integer>

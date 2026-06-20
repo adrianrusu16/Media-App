@@ -1,6 +1,7 @@
 package com.adrianrusu.mediaapp.core.media.adapter.playback
 
 import android.net.Uri
+import androidx.core.net.toUri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import com.adrianrusu.mediaapp.core.model.catalog.BambooCatalogNode
@@ -138,7 +139,7 @@ private fun BambooCatalogNode.toMediaItem(): MediaItem = MediaItem.Builder()
     .build()
 
 private fun String.toAndroidUriOrNull(): Uri? = try {
-    Uri.parse(this)
+    this.toUri()
 } catch (_: RuntimeException) {
     null
 }

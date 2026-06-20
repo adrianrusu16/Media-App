@@ -8,7 +8,6 @@ data class MiniPlayerState(
     val title: String,
     val subtitle: String,
     val isPlaying: Boolean,
-    val isRestricted: Boolean,
     val progressAnchor: MiniPlayerProgressAnchor = MiniPlayerProgressAnchor()
 ) {
     fun progressAt(nowMillis: Long): MiniPlayerProgress = MiniPlayerProgressProjector.fromAnchor(
@@ -20,8 +19,7 @@ data class MiniPlayerState(
         val Empty = MiniPlayerState(
             title = BambooPlaybackText.FALLBACK_IDLE_TITLE,
             subtitle = BambooPlaybackText.FALLBACK_IDLE_SUBTITLE,
-            isPlaying = false,
-            isRestricted = false
+            isPlaying = false
         )
     }
 }

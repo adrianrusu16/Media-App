@@ -41,10 +41,43 @@ class InMemoryAppShellRepositoryTest {
         assertEquals("Quiet Cabin", repository.state.value.miniPlayer.title)
         assertEquals("PandaWave", repository.state.value.miniPlayer.subtitle)
         assertTrue(repository.state.value.miniPlayer.isPlaying)
-        assertTrue(repository.state.value.miniPlayer.isRestricted)
         assertEquals(0.325F, repository.state.value.miniPlayer.progressAt(nowMillis = 2_100L).fraction)
         assertEquals(BambooEngineConnectionUiState.Ready, repository.state.value.engineConnection)
-        assertEquals("Driver-safe mode", repository.state.value.restriction.label)
+    }
+
+    @Test
+    fun `restriction state does not change mini player presentation`() {
+        val unrestrictedPlayback = BambooPlaybackState(
+            mediaId = "track-1",
+            title = "Quiet Cabin",
+            artist = "PandaWave",
+            playbackStatus = BambooPlaybackStatus.Playing,
+            engineConnection = BambooEngineConnectionUiState.Ready,
+            restriction = BambooPlaybackRestrictionState(
+                label = "Parked",
+                isRestricted = false
+            )
+        )
+        val restrictedPlayback = unrestrictedPlayback.copy(
+            restriction = BambooPlaybackRestrictionState(
+                label = "Driver-safe mode",
+                isRestricted = true
+            )
+        )
+        val unrestrictedRepository = InMemoryAppShellRepository(
+            playbackRepository = RecordingPlaybackRepository(unrestrictedPlayback)
+        )
+        val restrictedRepository = InMemoryAppShellRepository(
+            playbackRepository = RecordingPlaybackRepository(restrictedPlayback)
+        )
+
+        unrestrictedRepository.start()
+        restrictedRepository.start()
+
+        assertEquals(
+            unrestrictedRepository.state.value.miniPlayer,
+            restrictedRepository.state.value.miniPlayer
+        )
     }
 
     @Test
@@ -72,7 +105,7 @@ class InMemoryAppShellRepositoryTest {
         val repository = InMemoryAppShellRepository(playbackRepository = RecordingPlaybackRepository())
 
         repository.start()
-        repository.dispatch(AppShellIntent.SelectDestination(AppDestination.NowPlaying))
+        repository.dispatch(AppShellIntent.OpenNowPlaying)
 
         assertFalse(repository.state.value.shouldShowMiniPlayer)
     }

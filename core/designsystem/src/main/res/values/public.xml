@@ -62,6 +62,15 @@
     <public type="dimen" name="mediaapp_miniplayer_height" />
     <public type="dimen" name="mediaapp_touch_target_md" />
     <public type="dimen" name="mediaapp_touch_target_lg" />
+    <public type="dimen" name="mediaapp_app_content_padding" />
+    <public type="dimen" name="mediaapp_navigation_rail_width" />
+    <public type="dimen" name="mediaapp_navigation_selected_indicator_width" />
+    <public type="dimen" name="mediaapp_navigation_selected_indicator_height" />
+    <public type="dimen" name="mediaapp_now_playing_artwork_compact" />
+    <public type="dimen" name="mediaapp_now_playing_artwork_standard" />
+    <public type="dimen" name="mediaapp_now_playing_primary_button" />
+    <public type="dimen" name="mediaapp_now_playing_compact_height_threshold" />
+    <public type="dimen" name="mediaapp_now_playing_scroll_height_threshold" />
     <public type="dimen" name="mediaapp_elevation_card_resting" />
     <public type="integer" name="mediaapp_max_browse_columns_unrestricted" />
     <public type="integer" name="mediaapp_max_browse_columns_restricted" />

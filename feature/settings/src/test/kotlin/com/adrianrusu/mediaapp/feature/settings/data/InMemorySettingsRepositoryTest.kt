@@ -31,8 +31,8 @@ class InMemorySettingsRepositoryTest {
             )
         )
 
-        assertTrue(repository.state.value.restriction.isRestricted)
-        assertFalse(repository.state.value.controlsEnabled)
+        assertTrue(repository.settingsState.value.restriction.isRestricted)
+        assertFalse(repository.settingsState.value.controlsEnabled)
     }
 
     @Test
@@ -44,7 +44,7 @@ class InMemorySettingsRepositoryTest {
 
         repository.dispatch(SettingsIntent.TogglePersonalization)
 
-        assertTrue(repository.state.value.personalizationEnabled)
+        assertTrue(repository.settingsState.value.personalizationEnabled)
     }
 
     @Test
@@ -57,7 +57,7 @@ class InMemorySettingsRepositoryTest {
 
         repository.dispatch(SettingsIntent.SelectThemePreference(PandaWaveThemePreference.MoonlitBambooDark))
 
-        assertEquals(PandaWaveThemePreference.MoonlitBambooDark, repository.state.value.themePreference)
+        assertEquals(PandaWaveThemePreference.MoonlitBambooDark, repository.settingsState.value.themePreference)
         assertEquals(PandaWaveThemePreference.MoonlitBambooDark, themePreferenceRepository.preference.value)
     }
 }

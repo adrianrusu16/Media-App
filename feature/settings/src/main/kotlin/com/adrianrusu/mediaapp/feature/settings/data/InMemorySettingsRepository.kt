@@ -17,22 +17,22 @@ internal class InMemorySettingsRepository(
     private val uxRestrictionObserver: AutomotiveUxRestrictionObserver,
     private val themePreferenceRepository: ThemePreferenceRepository
 ) : SettingsRepository {
-    private val mutableState = MutableStateFlow(
+    private val _settingsState = MutableStateFlow(
         SettingsState(themePreference = themePreferenceRepository.preference.value)
     )
 
-    override val state: StateFlow<SettingsState> = mutableState.asStateFlow()
+    override val settingsState: StateFlow<SettingsState> = _settingsState.asStateFlow()
 
     override fun start() {
         uxRestrictionObserver.start { restrictions ->
-            mutableState.update { current ->
+            _settingsState.update { current ->
                 current.copy(restriction = restrictions.toSettingsRestrictionState())
             }
         }
     }
 
     override fun dispatch(intent: SettingsIntent) {
-        mutableState.update { current ->
+        _settingsState.update { current ->
             val next = SettingsReducer.reduce(current, intent)
             if (next.themePreference != current.themePreference) {
                 themePreferenceRepository.setPreference(next.themePreference)

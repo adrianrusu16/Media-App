@@ -11,6 +11,7 @@ data class PandaWaveDesignTokens(
     val spacing: PandaWaveSpacingTokens,
     val shape: PandaWaveShapeTokens,
     val sizing: PandaWaveSizingTokens,
+    val layout: PandaWaveLayoutTokens,
     val elevation: PandaWaveElevationTokens,
     val restrictions: PandaWaveRestrictionTokens
 )
@@ -33,6 +34,18 @@ data class PandaWaveSpacingTokens(val xsPx: Int, val smPx: Int, val mdPx: Int, v
 data class PandaWaveShapeTokens(val smallCornerPx: Int, val mediumCornerPx: Int, val miniPlayerHeightPx: Int)
 
 data class PandaWaveSizingTokens(val touchTargetMdPx: Int, val touchTargetLgPx: Int)
+
+data class PandaWaveLayoutTokens(
+    val appContentPaddingPx: Int,
+    val navigationRailWidthPx: Int,
+    val navigationSelectedIndicatorWidthPx: Int,
+    val navigationSelectedIndicatorHeightPx: Int,
+    val nowPlayingArtworkCompactPx: Int,
+    val nowPlayingArtworkStandardPx: Int,
+    val nowPlayingPrimaryButtonPx: Int,
+    val nowPlayingCompactHeightThresholdPx: Int,
+    val nowPlayingScrollHeightThresholdPx: Int
+)
 
 data class PandaWaveElevationTokens(val cardRestingPx: Int)
 
@@ -75,6 +88,33 @@ val PandaWaveSizingTokens.touchTargetMd: Dp
 
 val PandaWaveSizingTokens.touchTargetLg: Dp
     @Composable get() = touchTargetLgPx.toDp()
+
+val PandaWaveLayoutTokens.appContentPadding: Dp
+    @Composable get() = appContentPaddingPx.toDp()
+
+val PandaWaveLayoutTokens.navigationRailWidth: Dp
+    @Composable get() = navigationRailWidthPx.toDp()
+
+val PandaWaveLayoutTokens.navigationSelectedIndicatorWidth: Dp
+    @Composable get() = navigationSelectedIndicatorWidthPx.toDp()
+
+val PandaWaveLayoutTokens.navigationSelectedIndicatorHeight: Dp
+    @Composable get() = navigationSelectedIndicatorHeightPx.toDp()
+
+val PandaWaveLayoutTokens.nowPlayingArtworkCompact: Dp
+    @Composable get() = nowPlayingArtworkCompactPx.toDp()
+
+val PandaWaveLayoutTokens.nowPlayingArtworkStandard: Dp
+    @Composable get() = nowPlayingArtworkStandardPx.toDp()
+
+val PandaWaveLayoutTokens.nowPlayingPrimaryButton: Dp
+    @Composable get() = nowPlayingPrimaryButtonPx.toDp()
+
+val PandaWaveLayoutTokens.nowPlayingCompactHeightThreshold: Dp
+    @Composable get() = nowPlayingCompactHeightThresholdPx.toDp()
+
+val PandaWaveLayoutTokens.nowPlayingScrollHeightThreshold: Dp
+    @Composable get() = nowPlayingScrollHeightThresholdPx.toDp()
 
 val PandaWaveElevationTokens.cardResting: Dp
     @Composable get() = cardRestingPx.toDp()

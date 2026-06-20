@@ -85,6 +85,9 @@ class Media3PlaybackEngineBridge(
             Player.STATE_BUFFERING -> {
                 // We could dispatch a buffering event if needed, but Rust handles this via commands
             }
+
+            Player.STATE_IDLE,
+            Player.STATE_ENDED -> Unit
         }
     }
 

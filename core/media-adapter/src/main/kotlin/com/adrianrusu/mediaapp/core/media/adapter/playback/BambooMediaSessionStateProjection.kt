@@ -1,6 +1,7 @@
 package com.adrianrusu.mediaapp.core.media.adapter.playback
 
 import android.net.Uri
+import androidx.core.net.toUri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackState
@@ -16,7 +17,7 @@ internal fun interface BambooUriParser {
     fun parse(value: String): Uri?
 }
 
-private val DefaultUriParser = BambooUriParser { value -> Uri.parse(value) }
+private val DefaultUriParser = BambooUriParser { value -> value.toUri() }
 
 internal fun BambooPlaybackState.toMediaSessionStateProjection(
     uriParser: BambooUriParser = DefaultUriParser

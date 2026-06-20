@@ -1,6 +1,7 @@
 package com.adrianrusu.mediaapp.core.media.adapter.playback
 
 import androidx.media3.common.MediaItem
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
@@ -15,6 +16,7 @@ import com.google.common.util.concurrent.ListenableFuture
  * Library contents flow through a catalog source so PandaEngine can become the
  * backing provider without changing the Media3 session contract.
  */
+@UnstableApi
 internal class BambooMediaLibrarySessionCallback(
     private val controlsEnabled: () -> Boolean,
     private val catalog: BambooMediaLibraryCatalog,

@@ -2,6 +2,7 @@ package com.adrianrusu.mediaapp.core.ui.miniplayer
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import com.adrianrusu.mediaapp.core.designsystem.R
@@ -46,16 +48,18 @@ import com.adrianrusu.mediaapp.core.designsystem.tokens.sm
 import com.adrianrusu.mediaapp.core.designsystem.tokens.touchTargetLg
 import com.adrianrusu.mediaapp.core.designsystem.tokens.xs
 import com.adrianrusu.mediaapp.core.ui.playback.BambooPlaybackText
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.delay
 
 @Composable
 fun BambooMiniPlayer(
+    modifier: Modifier = Modifier,
     state: MiniPlayerState,
+    onClick: () -> Unit,
     onSkipPreviousClick: () -> Unit,
     onPlayPauseClick: () -> Unit,
     onSkipNextClick: () -> Unit,
-    controlsEnabled: Boolean = false,
-    modifier: Modifier = Modifier
+    controlsEnabled: Boolean = false
 ) {
     val tokens = LocalPandaWaveDesignTokens.current
     var nowMillis by remember(state.progressAnchor) {
@@ -67,7 +71,7 @@ fun BambooMiniPlayer(
         nowMillis = System.currentTimeMillis()
 
         while (state.progressAnchor.isPlaying) {
-            delay(MINI_PLAYER_PROGRESS_TICK_MILLIS)
+            delay(MINI_PLAYER_PROGRESS_TICK_MILLIS.milliseconds)
             nowMillis = System.currentTimeMillis()
         }
     }
@@ -75,7 +79,12 @@ fun BambooMiniPlayer(
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .heightIn(min = tokens.shape.miniPlayerHeight),
+            .heightIn(min = tokens.shape.miniPlayerHeight)
+            .clickable(
+                role = Role.Button,
+                onClickLabel = BambooPlaybackText.ACTION_OPEN_NOW_PLAYING,
+                onClick = onClick
+            ),
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = tokens.elevation.cardResting
     ) {
@@ -113,13 +122,6 @@ fun BambooMiniPlayer(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    if (state.isRestricted) {
-                        Text(
-                            text = BambooPlaybackText.DRIVER_SAFE_MODE,
-                            color = MaterialTheme.colorScheme.primary,
-                            style = MaterialTheme.typography.labelMedium
-                        )
-                    }
                 }
 
                 Row(

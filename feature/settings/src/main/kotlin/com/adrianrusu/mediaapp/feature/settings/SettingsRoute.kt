@@ -3,6 +3,8 @@ package com.adrianrusu.mediaapp.feature.settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -39,7 +41,9 @@ private fun SettingsScreen(state: SettingsState, onIntent: (SettingsIntent) -> U
     val tokens = LocalPandaWaveDesignTokens.current
 
     Column(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .verticalScroll(state = rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(tokens.spacing.md)
     ) {
         SettingsStatusCard(state = state)

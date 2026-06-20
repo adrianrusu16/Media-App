@@ -19,9 +19,11 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.runtime)
     implementation(libs.androidx.compose.ui)
+    implementation(libs.androidx.ui.tooling.preview)
 
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.kotlin.test.junit5)
     testImplementation(libs.junit.jupiter)
+    debugImplementation(libs.androidx.ui.tooling)
     testRuntimeOnly(libs.junit.platform.launcher)
 }

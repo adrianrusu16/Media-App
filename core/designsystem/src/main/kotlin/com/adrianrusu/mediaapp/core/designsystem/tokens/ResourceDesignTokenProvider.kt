@@ -39,6 +39,21 @@ class ResourceDesignTokenProvider(context: Context) {
             touchTargetMdPx = dimension(R.dimen.mediaapp_touch_target_md),
             touchTargetLgPx = dimension(R.dimen.mediaapp_touch_target_lg)
         ),
+        layout = PandaWaveLayoutTokens(
+            appContentPaddingPx = dimension(R.dimen.mediaapp_app_content_padding),
+            navigationRailWidthPx = dimension(R.dimen.mediaapp_navigation_rail_width),
+            navigationSelectedIndicatorWidthPx =
+                dimension(R.dimen.mediaapp_navigation_selected_indicator_width),
+            navigationSelectedIndicatorHeightPx =
+                dimension(R.dimen.mediaapp_navigation_selected_indicator_height),
+            nowPlayingArtworkCompactPx = dimension(R.dimen.mediaapp_now_playing_artwork_compact),
+            nowPlayingArtworkStandardPx = dimension(R.dimen.mediaapp_now_playing_artwork_standard),
+            nowPlayingPrimaryButtonPx = dimension(R.dimen.mediaapp_now_playing_primary_button),
+            nowPlayingCompactHeightThresholdPx =
+                dimension(R.dimen.mediaapp_now_playing_compact_height_threshold),
+            nowPlayingScrollHeightThresholdPx =
+                dimension(R.dimen.mediaapp_now_playing_scroll_height_threshold)
+        ),
         elevation = PandaWaveElevationTokens(
             cardRestingPx = dimension(R.dimen.mediaapp_elevation_card_resting)
         ),
