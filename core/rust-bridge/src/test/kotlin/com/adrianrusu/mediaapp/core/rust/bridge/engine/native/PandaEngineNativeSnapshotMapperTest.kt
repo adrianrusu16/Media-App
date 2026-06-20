@@ -35,7 +35,11 @@ class PandaEngineNativeSnapshotMapperTest {
                 true.toLong(),
                 5L,
                 7L,
-                222_000L
+                222_000L,
+                THEME_FOREST_TECH_DARK.toLong(),
+                PREFERENCE_SOURCE_REMOTE_PROFILE.toLong(),
+                8L,
+                true.toLong()
             )
         )
         val snapshot = projection.snapshot
@@ -65,6 +69,10 @@ class PandaEngineNativeSnapshotMapperTest {
         assertEquals(5, snapshot.browseResultsCount)
         assertEquals(7L, projection.metadataRevision)
         assertEquals(222_000L, snapshot.durationMillis)
+        assertEquals("forest_tech_dark", snapshot.themePreference.themeId)
+        assertEquals("remote_profile", snapshot.themePreference.source)
+        assertEquals(8L, snapshot.themePreference.revision)
+        assertTrue(snapshot.themePreference.initialized)
     }
 
     @Test
@@ -83,5 +91,7 @@ class PandaEngineNativeSnapshotMapperTest {
         const val PLAYBACK_PLAYING = 1
         const val RESTRICTION_UNKNOWN = 0
         const val ERROR_NETWORK = 2
+        const val THEME_FOREST_TECH_DARK = 4
+        const val PREFERENCE_SOURCE_REMOTE_PROFILE = 3
     }
 }

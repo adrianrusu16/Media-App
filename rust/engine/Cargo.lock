@@ -698,6 +698,8 @@ dependencies = [
  "jni",
  "log",
  "media_app_core",
+ "serde",
+ "serde_json",
  "tokio",
  "tracing",
  "tracing-subscriber",

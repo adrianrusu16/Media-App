@@ -1,6 +1,6 @@
 use panda_engine_core::{
     EngineCommandType, EngineEffect, EngineEventType, MediaItemType, PlaybackState,
-    RestrictionState,
+    PreferenceSource, RestrictionState, ThemePreference,
 };
 
 use crate::constants::*;
@@ -42,6 +42,19 @@ pub(crate) fn command_from_ffi(command_type: i32) -> EngineCommandType {
         FFI_COMMAND_PLAY_MEDIA_BY_ID => EngineCommandType::PlayMediaById {
             media_id: String::new(),
         },
+        FFI_COMMAND_HYDRATE_THEME_PREFERENCE => EngineCommandType::HydrateThemePreference {
+            theme: ThemePreference::SystemDefault,
+        },
+        FFI_COMMAND_SET_THEME_PREFERENCE => EngineCommandType::SetThemePreference {
+            theme: ThemePreference::SystemDefault,
+        },
+        FFI_COMMAND_APPLY_REMOTE_THEME_PREFERENCE => {
+            EngineCommandType::ApplyRemoteThemePreference {
+                theme: ThemePreference::SystemDefault,
+                user_id: String::new(),
+                baseline_revision: 0,
+            }
+        }
         _ => EngineCommandType::Unknown(command_type.to_string()),
     }
 }
@@ -79,6 +92,25 @@ pub(crate) fn playback_to_ffi(playback_state: PlaybackState) -> i32 {
 pub(crate) fn restriction_to_ffi(restriction_state: RestrictionState) -> i32 {
     match restriction_state {
         RestrictionState::Unknown => FFI_RESTRICTION_UNKNOWN,
+    }
+}
+
+pub(crate) fn theme_preference_to_ffi(theme: ThemePreference) -> i32 {
+    match theme {
+        ThemePreference::SystemDefault => FFI_THEME_SYSTEM_DEFAULT,
+        ThemePreference::BambooGroveLight => FFI_THEME_BAMBOO_GROVE_LIGHT,
+        ThemePreference::MoonlitBambooDark => FFI_THEME_MOONLIT_BAMBOO_DARK,
+        ThemePreference::ForestTechLight => FFI_THEME_FOREST_TECH_LIGHT,
+        ThemePreference::ForestTechDark => FFI_THEME_FOREST_TECH_DARK,
+    }
+}
+
+pub(crate) fn preference_source_to_ffi(source: PreferenceSource) -> i32 {
+    match source {
+        PreferenceSource::Uninitialized => FFI_PREFERENCE_SOURCE_UNINITIALIZED,
+        PreferenceSource::LocalCache => FFI_PREFERENCE_SOURCE_LOCAL_CACHE,
+        PreferenceSource::LocalUser => FFI_PREFERENCE_SOURCE_LOCAL_USER,
+        PreferenceSource::RemoteProfile => FFI_PREFERENCE_SOURCE_REMOTE_PROFILE,
     }
 }
 

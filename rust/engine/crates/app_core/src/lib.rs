@@ -64,6 +64,7 @@ pub use crate::model::error::{EngineError, EngineErrorType};
 pub use crate::model::event::{EngineEvent, EngineEventType};
 pub use crate::model::platform_event::{EnginePlatformEvent, EnginePlatformEventType};
 pub use crate::model::playback::{ControlState, PlaybackState, PlayerControls, RestrictionState};
+pub use crate::model::preferences::{PreferenceSource, ThemePreference, ThemePreferenceState};
 pub use crate::model::snapshot::EngineSnapshot;
 pub use crate::networking::{
     AudioChunk, AudioSourceClient, BackendClient, CanopyAudioSourceClient, PlaybackSource,

@@ -59,6 +59,7 @@ impl Engine {
             }
             EngineCommandType::EndSession => {
                 next_snapshot = next_snapshot.with_session(None);
+                next_snapshot.theme_preference.session_user_id = None;
                 effects.push(EngineEffect::SessionEnded);
             }
             EngineCommandType::SkipNext => {
@@ -145,6 +146,61 @@ impl Engine {
             EngineCommandType::UpdateConfig { config } => {
                 self.config = config.clone();
                 info!("Engine configuration updated: {:?}", config);
+            }
+            EngineCommandType::HydrateThemePreference { theme } => {
+                let current = &next_snapshot.theme_preference;
+                if !current.is_initialized() || current.theme != *theme {
+                    next_snapshot.theme_preference =
+                        crate::model::preferences::ThemePreferenceState {
+                            theme: *theme,
+                            source: crate::model::preferences::PreferenceSource::LocalCache,
+                            revision: current.revision.saturating_add(1),
+                            session_user_id: None,
+                        };
+                }
+            }
+            EngineCommandType::SetThemePreference { theme } => {
+                let current = &next_snapshot.theme_preference;
+                if current.theme != *theme
+                    || current.source != crate::model::preferences::PreferenceSource::LocalUser
+                {
+                    next_snapshot.theme_preference =
+                        crate::model::preferences::ThemePreferenceState {
+                            theme: *theme,
+                            source: crate::model::preferences::PreferenceSource::LocalUser,
+                            revision: current.revision.saturating_add(1),
+                            session_user_id: next_snapshot
+                                .session
+                                .as_ref()
+                                .map(|session| session.user_id.clone()),
+                        };
+                }
+            }
+            EngineCommandType::ApplyRemoteThemePreference {
+                theme,
+                user_id,
+                baseline_revision,
+            } => {
+                let active_user_id = next_snapshot
+                    .session
+                    .as_ref()
+                    .map(|session| session.user_id.as_str());
+                let current = &next_snapshot.theme_preference;
+                let session_is_current = active_user_id == Some(user_id.as_str());
+                let revision_is_current = current.revision == *baseline_revision;
+                let value_changed = current.theme != *theme
+                    || current.source != crate::model::preferences::PreferenceSource::RemoteProfile
+                    || current.session_user_id.as_deref() != Some(user_id.as_str());
+
+                if session_is_current && revision_is_current && value_changed {
+                    next_snapshot.theme_preference =
+                        crate::model::preferences::ThemePreferenceState {
+                            theme: *theme,
+                            source: crate::model::preferences::PreferenceSource::RemoteProfile,
+                            revision: current.revision.saturating_add(1),
+                            session_user_id: Some(user_id.clone()),
+                        };
+                }
             }
             EngineCommandType::StartVoiceInteraction => {
                 if let Some(ve) = &mut self.voice_engine {

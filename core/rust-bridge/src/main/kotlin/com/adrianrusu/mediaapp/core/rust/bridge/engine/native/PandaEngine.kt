@@ -8,6 +8,7 @@ import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlayerControls
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineThemePreference
 import com.adrianrusu.mediaapp.core.rust.bridge.engine.AudioSourceResolver
 import com.adrianrusu.mediaapp.core.rust.bridge.engine.EngineDispatchResult
 import com.adrianrusu.mediaapp.core.rust.bridge.engine.RustEngine
@@ -267,6 +268,9 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         private const val COMMAND_SET_SPEED = 9
         private const val COMMAND_SEEK = 10
         private const val COMMAND_PLAY_MEDIA_BY_ID = 14
+        private const val COMMAND_HYDRATE_THEME_PREFERENCE = 15
+        private const val COMMAND_SET_THEME_PREFERENCE = 16
+        private const val COMMAND_APPLY_REMOTE_THEME_PREFERENCE = 17
         private const val COMMAND_UNKNOWN = -1
 
         private const val PLATFORM_EVENT_APP_FOREGROUNDED = 0
@@ -307,6 +311,9 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             EngineCommand.TYPE_SET_SPEED -> COMMAND_SET_SPEED
             EngineCommand.TYPE_SEEK -> COMMAND_SEEK
             EngineCommand.TYPE_PLAY_MEDIA_BY_ID -> COMMAND_PLAY_MEDIA_BY_ID
+            EngineCommand.TYPE_HYDRATE_THEME_PREFERENCE -> COMMAND_HYDRATE_THEME_PREFERENCE
+            EngineCommand.TYPE_SET_THEME_PREFERENCE -> COMMAND_SET_THEME_PREFERENCE
+            EngineCommand.TYPE_APPLY_REMOTE_THEME_PREFERENCE -> COMMAND_APPLY_REMOTE_THEME_PREFERENCE
             else -> COMMAND_UNKNOWN
         }
 
@@ -393,7 +400,13 @@ internal object PandaEngineNativeSnapshotMapper {
                     showPlayIcon = nativeValues[SNAPSHOT_SHOW_PLAY_ICON_INDEX].toBoolean()
                 ),
                 hasVoiceHypothesis = nativeValues[SNAPSHOT_HAS_VOICE_HYPOTHESIS_INDEX].toBoolean(),
-                browseResultsCount = nativeValues[SNAPSHOT_BROWSE_RESULTS_COUNT_INDEX].toInt()
+                browseResultsCount = nativeValues[SNAPSHOT_BROWSE_RESULTS_COUNT_INDEX].toInt(),
+                themePreference = EngineThemePreference(
+                    themeId = themePreferenceFromNative(nativeValues[SNAPSHOT_THEME_PREFERENCE_INDEX].toInt()),
+                    source = preferenceSourceFromNative(nativeValues[SNAPSHOT_PREFERENCE_SOURCE_INDEX].toInt()),
+                    revision = nativeValues[SNAPSHOT_PREFERENCE_REVISION_INDEX],
+                    initialized = nativeValues[SNAPSHOT_PREFERENCE_INITIALIZED_INDEX].toBoolean()
+                )
             ),
             metadataRevision = nativeValues[SNAPSHOT_METADATA_REVISION_INDEX]
         )
@@ -425,6 +438,21 @@ internal object PandaEngineNativeSnapshotMapper {
         else -> EngineSnapshot.ERROR_UNKNOWN
     }
 
+    private fun themePreferenceFromNative(value: Int): String = when (value) {
+        THEME_BAMBOO_GROVE_LIGHT -> EngineThemePreference.THEME_BAMBOO_GROVE_LIGHT
+        THEME_MOONLIT_BAMBOO_DARK -> EngineThemePreference.THEME_MOONLIT_BAMBOO_DARK
+        THEME_FOREST_TECH_LIGHT -> EngineThemePreference.THEME_FOREST_TECH_LIGHT
+        THEME_FOREST_TECH_DARK -> EngineThemePreference.THEME_FOREST_TECH_DARK
+        else -> EngineThemePreference.THEME_SYSTEM_DEFAULT
+    }
+
+    private fun preferenceSourceFromNative(value: Int): String = when (value) {
+        PREFERENCE_SOURCE_LOCAL_CACHE -> EngineThemePreference.SOURCE_LOCAL_CACHE
+        PREFERENCE_SOURCE_LOCAL_USER -> EngineThemePreference.SOURCE_LOCAL_USER
+        PREFERENCE_SOURCE_REMOTE_PROFILE -> EngineThemePreference.SOURCE_REMOTE_PROFILE
+        else -> EngineThemePreference.SOURCE_UNINITIALIZED
+    }
+
     private fun Long.toBoolean(): Boolean = this != 0L
 
     private const val PLAYBACK_IDLE = 0
@@ -442,7 +470,16 @@ internal object PandaEngineNativeSnapshotMapper {
     private const val ERROR_AUTHENTICATION = 4
     private const val ERROR_MEDIA_SKIPPED = 5
 
-    private const val SNAPSHOT_VALUE_COUNT = 25
+    private const val THEME_BAMBOO_GROVE_LIGHT = 1
+    private const val THEME_MOONLIT_BAMBOO_DARK = 2
+    private const val THEME_FOREST_TECH_LIGHT = 3
+    private const val THEME_FOREST_TECH_DARK = 4
+
+    private const val PREFERENCE_SOURCE_LOCAL_CACHE = 1
+    private const val PREFERENCE_SOURCE_LOCAL_USER = 2
+    private const val PREFERENCE_SOURCE_REMOTE_PROFILE = 3
+
+    private const val SNAPSHOT_VALUE_COUNT = 29
     private const val SNAPSHOT_PLAYBACK_INDEX = 0
     private const val SNAPSHOT_RESTRICTION_INDEX = 1
     private const val SNAPSHOT_UPDATED_AT_INDEX = 2
@@ -468,4 +505,8 @@ internal object PandaEngineNativeSnapshotMapper {
     private const val SNAPSHOT_BROWSE_RESULTS_COUNT_INDEX = 22
     private const val SNAPSHOT_METADATA_REVISION_INDEX = 23
     private const val SNAPSHOT_DURATION_MILLIS_INDEX = 24
+    private const val SNAPSHOT_THEME_PREFERENCE_INDEX = 25
+    private const val SNAPSHOT_PREFERENCE_SOURCE_INDEX = 26
+    private const val SNAPSHOT_PREFERENCE_REVISION_INDEX = 27
+    private const val SNAPSHOT_PREFERENCE_INITIALIZED_INDEX = 28
 }

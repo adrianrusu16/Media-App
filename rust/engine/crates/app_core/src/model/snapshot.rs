@@ -2,6 +2,7 @@ use crate::data::repository::MediaItem;
 use crate::data::session::MediaSession;
 use crate::model::error::EngineError;
 use crate::model::playback::{PlaybackState, PlayerControls, RestrictionState};
+use crate::model::preferences::ThemePreferenceState;
 
 use serde::{Deserialize, Serialize};
 
@@ -33,6 +34,9 @@ pub struct EngineSnapshot {
     pub mime_type: Option<String>,
     /// The ID of the user currently interacting with the engine.
     pub user_id: Option<String>,
+    /// Theme preference projected from local cache, local input, or an authenticated profile.
+    #[serde(default)]
+    pub theme_preference: ThemePreferenceState,
     /// Current restrictions applied to the media (e.g., UX restrictions).
     pub restriction_state: RestrictionState,
     /// Unix timestamp in milliseconds when this snapshot was created/updated.

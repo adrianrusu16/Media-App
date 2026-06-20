@@ -4,6 +4,7 @@ import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineCommandPayloads
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
+import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineThemePreference
 
 internal object FakePandaEngineReducer {
     fun reduce(current: EngineSnapshot, command: EngineCommand, nowMillis: Long): EngineSnapshot = when (command.type) {
@@ -60,6 +61,34 @@ internal object FakePandaEngineReducer {
                     ?: current.mimeType,
                 updatedAtEpochMillis = nowMillis
             )
+        }
+
+        EngineCommand.TYPE_HYDRATE_THEME_PREFERENCE,
+        EngineCommand.TYPE_SET_THEME_PREFERENCE -> {
+            val payload = EngineCommandPayloads.parseThemePreference(command.payload)
+            val source = if (command.type == EngineCommand.TYPE_HYDRATE_THEME_PREFERENCE) {
+                EngineThemePreference.SOURCE_LOCAL_CACHE
+            } else {
+                EngineThemePreference.SOURCE_LOCAL_USER
+            }
+            if (payload == null ||
+                (
+                    current.themePreference.themeId == payload.themeId &&
+                        current.themePreference.source == source
+                    )
+            ) {
+                current.copy(updatedAtEpochMillis = nowMillis)
+            } else {
+                current.copy(
+                    themePreference = EngineThemePreference(
+                        themeId = payload.themeId,
+                        source = source,
+                        revision = current.themePreference.revision + 1L,
+                        initialized = true
+                    ),
+                    updatedAtEpochMillis = nowMillis
+                )
+            }
         }
 
         else -> current.copy(updatedAtEpochMillis = nowMillis)

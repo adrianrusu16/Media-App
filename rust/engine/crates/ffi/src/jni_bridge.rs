@@ -522,7 +522,7 @@ fn snapshot_to_jlong_array(env: &mut JNIEnv, snapshot: FfiEngineSnapshot) -> jlo
     array.into_raw()
 }
 
-fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 25] {
+fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 29] {
     [
         snapshot.playback_state as jlong,
         snapshot.restriction_state as jlong,
@@ -549,6 +549,10 @@ fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 25] {
         snapshot.browse_results_count as jlong,
         snapshot.metadata_revision as jlong,
         snapshot.duration_millis as jlong,
+        snapshot.theme_preference as jlong,
+        snapshot.preference_source as jlong,
+        snapshot.preference_revision as jlong,
+        bool_to_jlong(snapshot.preference_initialized),
     ]
 }
 
@@ -575,6 +579,10 @@ mod tests {
             error_type: FFI_ERROR_NETWORK,
             metadata_revision: 7,
             duration_millis: 222_000,
+            theme_preference: 4,
+            preference_source: 3,
+            preference_revision: 8,
+            preference_initialized: true,
             search_results_count: 3,
             playback_speed: 1.25,
             position_millis: 9_000,
@@ -630,6 +638,10 @@ mod tests {
                 5,
                 7,
                 222_000,
+                4,
+                3,
+                8,
+                1,
             ],
             snapshot_to_jlong_values(snapshot)
         );

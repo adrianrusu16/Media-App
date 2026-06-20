@@ -44,8 +44,11 @@ then can explicitly select `BambooGroveLight`, `MoonlitBambooDark`,
 `ForestTechLight`, or `ForestTechDark`. The app observes that preference
 through a repository/use-case boundary before passing it into `PandaWaveTheme`.
 
-The current repository is in-memory; future storage or backend profile sync
-should replace that repository without changing the design-system token API.
+The app resolves its device-wide cached theme from DataStore first, then hydrates
+PandaEngine through a versioned command. An accepted authenticated profile theme
+flows back through the same coordinator and is written to DataStore without
+changing the design-system token API. Engine or backend availability never blocks
+the local preference from becoming usable.
 
 ## Overlayable Target
 
@@ -72,6 +75,7 @@ to stable resource names.
 | Sizing | `dimen` | Touch targets and fixed interactive affordances |
 | Elevation | `dimen` | Shared surface elevation levels |
 | Restrictions | `integer` | UX-restricted browse density and action limits |
+| Brand startup | `color`, `drawable`, `integer` | Adaptive icon layers, splash mark, splash surface, exit timing |
 
 Compose reads these resources through `ResourceDesignTokenProvider`, so runtime
 resource overlays can affect the app without code changes.

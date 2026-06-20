@@ -55,6 +55,9 @@
     <color name="mediaapp_theme_forest_tech_dark_color_error">#FFB4AB</color>
     <color name="mediaapp_theme_forest_tech_dark_color_on_error">#690005</color>
 
+    <color name="mediaapp_launcher_background">#93D87E</color>
+    <color name="mediaapp_splash_background">#131313</color>
+
     <dimen name="mediaapp_spacing_xs">4dp</dimen>
     <dimen name="mediaapp_spacing_sm">8dp</dimen>
     <dimen name="mediaapp_spacing_md">16dp</dimen>
@@ -79,4 +82,5 @@
     <integer name="mediaapp_max_browse_columns_unrestricted">4</integer>
     <integer name="mediaapp_max_browse_columns_restricted">2</integer>
     <integer name="mediaapp_max_visible_actions_restricted">3</integer>
+    <integer name="mediaapp_splash_exit_animation_duration_millis">220</integer>
 </resources>

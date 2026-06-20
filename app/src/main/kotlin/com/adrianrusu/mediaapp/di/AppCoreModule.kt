@@ -1,13 +1,18 @@
 package com.adrianrusu.mediaapp.di
 
 import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.preferencesDataStoreFile
 import com.adrianrusu.mediaapp.core.automotive.ux.PlatformAutomotiveUxRestrictionObserver
-import com.adrianrusu.mediaapp.core.model.theme.InMemoryThemePreferenceRepository
-import com.adrianrusu.mediaapp.core.model.theme.ObserveThemePreferenceUseCase
-import com.adrianrusu.mediaapp.core.model.theme.SetThemePreferenceUseCase
 import com.adrianrusu.mediaapp.core.model.theme.ThemePreferenceRepository
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackRepository
 import com.adrianrusu.mediaapp.core.playback.DefaultBambooPlaybackRepository
+import com.adrianrusu.mediaapp.core.preferences.DataStoreThemePreferenceRepository
+import com.adrianrusu.mediaapp.core.preferences.DefaultThemePreferenceCoordinator
+import com.adrianrusu.mediaapp.core.preferences.ThemePreferenceCoordinator
 import com.adrianrusu.mediaapp.core.rust.bridge.gateway.AidlEngineGateway
 import com.adrianrusu.mediaapp.core.rust.bridge.gateway.AndroidEngineServiceConnection
 import com.adrianrusu.mediaapp.core.rust.bridge.gateway.EngineGateway
@@ -20,7 +25,11 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import javax.inject.Qualifier
 import javax.inject.Singleton
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -60,13 +69,47 @@ object AppCoreModule {
 
     @Provides
     @Singleton
-    fun provideThemePreferenceRepository(): ThemePreferenceRepository = InMemoryThemePreferenceRepository()
+    @ApplicationScope
+    fun provideApplicationScope(): CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     @Provides
-    fun provideObserveThemePreferenceUseCase(repository: ThemePreferenceRepository): ObserveThemePreferenceUseCase =
-        ObserveThemePreferenceUseCase(repository)
+    @Singleton
+    fun providePreferencesDataStore(
+        @ApplicationContext context: Context,
+        @ApplicationScope scope: CoroutineScope
+    ): DataStore<Preferences> = androidx.datastore.preferences.core.PreferenceDataStoreFactory.create(
+        corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() },
+        scope = scope,
+        produceFile = { context.preferencesDataStoreFile(PREFERENCES_FILE_NAME) }
+    )
 
     @Provides
-    fun provideSetThemePreferenceUseCase(repository: ThemePreferenceRepository): SetThemePreferenceUseCase =
-        SetThemePreferenceUseCase(repository)
+    @Singleton
+    fun provideThemePreferenceRepository(
+        dataStore: DataStore<Preferences>,
+        @ApplicationScope scope: CoroutineScope,
+        telemetryLogger: TelemetryLogger
+    ): ThemePreferenceRepository = DataStoreThemePreferenceRepository(
+        dataStore = dataStore,
+        scope = scope,
+        telemetryLogger = telemetryLogger
+    )
+
+    @Provides
+    @Singleton
+    fun provideThemePreferenceCoordinator(
+        repository: ThemePreferenceRepository,
+        engineGateway: EngineGateway,
+        @ApplicationScope scope: CoroutineScope
+    ): ThemePreferenceCoordinator = DefaultThemePreferenceCoordinator(
+        repository = repository,
+        engineGateway = engineGateway,
+        scope = scope
+    )
+
+    private const val PREFERENCES_FILE_NAME = "pandawave.preferences_pb"
 }
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+private annotation class ApplicationScope

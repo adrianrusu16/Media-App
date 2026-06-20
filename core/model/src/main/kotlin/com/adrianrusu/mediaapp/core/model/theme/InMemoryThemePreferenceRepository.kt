@@ -5,11 +5,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 class InMemoryThemePreferenceRepository : ThemePreferenceRepository {
-    private val mutablePreference = MutableStateFlow(PandaWaveThemePreference.SystemDefault)
+    private val mutableState = MutableStateFlow<ThemePreferenceState>(
+        ThemePreferenceState.Ready(PandaWaveThemePreference.SystemDefault)
+    )
 
-    override val preference: StateFlow<PandaWaveThemePreference> = mutablePreference.asStateFlow()
+    override val state: StateFlow<ThemePreferenceState> = mutableState.asStateFlow()
 
-    override fun setPreference(preference: PandaWaveThemePreference) {
-        mutablePreference.value = preference
+    override suspend fun setPreference(preference: PandaWaveThemePreference) {
+        mutableState.value = ThemePreferenceState.Ready(preference)
     }
 }

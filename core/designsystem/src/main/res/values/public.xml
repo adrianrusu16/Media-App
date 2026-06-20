@@ -2,6 +2,11 @@
 <resources>
     <public type="drawable" name="ic_pandawave_logo" />
     <public type="drawable" name="ic_panda_paw" />
+    <public type="drawable" name="mediaapp_ic_launcher_foreground" />
+    <public type="drawable" name="mediaapp_ic_launcher_monochrome" />
+    <public type="drawable" name="mediaapp_ic_splash_mark" />
+    <public type="color" name="mediaapp_launcher_background" />
+    <public type="color" name="mediaapp_splash_background" />
     <public type="color" name="mediaapp_color_brand_primary" />
     <public type="color" name="mediaapp_color_brand_on_primary" />
     <public type="color" name="mediaapp_color_brand_secondary" />
@@ -75,4 +80,5 @@
     <public type="integer" name="mediaapp_max_browse_columns_unrestricted" />
     <public type="integer" name="mediaapp_max_browse_columns_restricted" />
     <public type="integer" name="mediaapp_max_visible_actions_restricted" />
+    <public type="integer" name="mediaapp_splash_exit_animation_duration_millis" />
 </resources>

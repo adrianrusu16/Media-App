@@ -1,12 +1,14 @@
 package com.adrianrusu.mediaapp.feature.settings.presentation
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.adrianrusu.mediaapp.feature.settings.domain.DispatchSettingsIntentUseCase
 import com.adrianrusu.mediaapp.feature.settings.domain.ObserveSettingsStateUseCase
 import com.adrianrusu.mediaapp.feature.settings.domain.SettingsIntent
 import com.adrianrusu.mediaapp.feature.settings.domain.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.launch
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
@@ -17,11 +19,11 @@ class SettingsViewModel @Inject constructor(
     val state = observeState()
 
     init {
-        repository.start()
+        repository.start(viewModelScope)
     }
 
     fun onIntent(intent: SettingsIntent) {
-        dispatchIntent(intent)
+        viewModelScope.launch { dispatchIntent(intent) }
     }
 
     override fun onCleared() {

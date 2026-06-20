@@ -225,6 +225,8 @@ dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:telemetry-adapter"))
 
+    implementation(libs.kotlinx.serialization.json)
+
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.kotlin.test.junit5)
     testImplementation(libs.junit.jupiter)

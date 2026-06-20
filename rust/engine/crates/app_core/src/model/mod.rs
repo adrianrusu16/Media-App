@@ -5,4 +5,5 @@ pub mod error;
 pub mod event;
 pub mod platform_event;
 pub mod playback;
+pub mod preferences;
 pub mod snapshot;

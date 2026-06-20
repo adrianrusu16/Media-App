@@ -27,6 +27,20 @@ pub enum EngineCommandType {
     UpdateConfig {
         config: crate::model::config::EngineConfig,
     },
+    /// Hydrates preferences from Android's durable local cache.
+    HydrateThemePreference {
+        theme: crate::model::preferences::ThemePreference,
+    },
+    /// Applies an explicit local user selection.
+    SetThemePreference {
+        theme: crate::model::preferences::ThemePreference,
+    },
+    /// Applies an authenticated profile preference if its session and revision are current.
+    ApplyRemoteThemePreference {
+        theme: crate::model::preferences::ThemePreference,
+        user_id: String,
+        baseline_revision: u64,
+    },
     /// Voice-based search and play command.
     VoicePlay { query: String },
     /// Start a new voice interaction (ASR/NLU).
@@ -68,6 +82,12 @@ impl EngineCommandType {
     pub const SEEK_WIRE: &'static str = "seek";
     /// Wire value for UpdateConfig command.
     pub const UPDATE_CONFIG_WIRE: &'static str = "update_config";
+    /// Wire value for HydrateThemePreference command.
+    pub const HYDRATE_THEME_PREFERENCE_WIRE: &'static str = "hydrate_theme_preference";
+    /// Wire value for SetThemePreference command.
+    pub const SET_THEME_PREFERENCE_WIRE: &'static str = "set_theme_preference";
+    /// Wire value for ApplyRemoteThemePreference command.
+    pub const APPLY_REMOTE_THEME_PREFERENCE_WIRE: &'static str = "apply_remote_theme_preference";
     /// Wire value for VoicePlay command.
     pub const VOICE_PLAY_WIRE: &'static str = "voice_play";
     /// Wire value for StartVoiceInteraction command.
@@ -105,6 +125,17 @@ impl EngineCommandType {
             Self::UPDATE_CONFIG_WIRE => Self::UpdateConfig {
                 config: crate::model::config::EngineConfig::default(),
             },
+            Self::HYDRATE_THEME_PREFERENCE_WIRE => Self::HydrateThemePreference {
+                theme: crate::model::preferences::ThemePreference::SystemDefault,
+            },
+            Self::SET_THEME_PREFERENCE_WIRE => Self::SetThemePreference {
+                theme: crate::model::preferences::ThemePreference::SystemDefault,
+            },
+            Self::APPLY_REMOTE_THEME_PREFERENCE_WIRE => Self::ApplyRemoteThemePreference {
+                theme: crate::model::preferences::ThemePreference::SystemDefault,
+                user_id: String::new(),
+                baseline_revision: 0,
+            },
             Self::VOICE_PLAY_WIRE => Self::VoicePlay {
                 query: "".to_string(),
             },
@@ -136,6 +167,9 @@ impl EngineCommandType {
             Self::SetSpeed { .. } => Self::SET_SPEED_WIRE,
             Self::Seek { .. } => Self::SEEK_WIRE,
             Self::UpdateConfig { .. } => Self::UPDATE_CONFIG_WIRE,
+            Self::HydrateThemePreference { .. } => Self::HYDRATE_THEME_PREFERENCE_WIRE,
+            Self::SetThemePreference { .. } => Self::SET_THEME_PREFERENCE_WIRE,
+            Self::ApplyRemoteThemePreference { .. } => Self::APPLY_REMOTE_THEME_PREFERENCE_WIRE,
             Self::VoicePlay { .. } => Self::VOICE_PLAY_WIRE,
             Self::StartVoiceInteraction => Self::START_VOICE_INTERACTION_WIRE,
             Self::StopVoiceInteraction => Self::STOP_VOICE_INTERACTION_WIRE,
@@ -223,6 +257,32 @@ impl EngineCommand {
     /// Creates an UpdateConfig command.
     pub fn update_config(config: crate::model::config::EngineConfig) -> Self {
         Self::new(EngineCommandType::UpdateConfig { config }, None)
+    }
+
+    /// Creates a command to hydrate the locally cached theme.
+    pub fn hydrate_theme_preference(theme: crate::model::preferences::ThemePreference) -> Self {
+        Self::new(EngineCommandType::HydrateThemePreference { theme }, None)
+    }
+
+    /// Creates a command to apply an explicit local theme selection.
+    pub fn set_theme_preference(theme: crate::model::preferences::ThemePreference) -> Self {
+        Self::new(EngineCommandType::SetThemePreference { theme }, None)
+    }
+
+    /// Creates a command to apply a synchronized profile theme.
+    pub fn apply_remote_theme_preference(
+        theme: crate::model::preferences::ThemePreference,
+        user_id: String,
+        baseline_revision: u64,
+    ) -> Self {
+        Self::new(
+            EngineCommandType::ApplyRemoteThemePreference {
+                theme,
+                user_id,
+                baseline_revision,
+            },
+            None,
+        )
     }
 
     /// Creates a VoicePlay command.

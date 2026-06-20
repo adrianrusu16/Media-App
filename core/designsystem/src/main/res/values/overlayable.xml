@@ -12,6 +12,11 @@
             <item type="color" name="mediaapp_color_on_surface_variant" />
             <item type="color" name="mediaapp_color_error" />
             <item type="color" name="mediaapp_color_on_error" />
+            <item type="color" name="mediaapp_launcher_background" />
+            <item type="color" name="mediaapp_splash_background" />
+            <item type="drawable" name="mediaapp_ic_launcher_foreground" />
+            <item type="drawable" name="mediaapp_ic_launcher_monochrome" />
+            <item type="drawable" name="mediaapp_ic_splash_mark" />
             <item type="color" name="mediaapp_theme_bamboo_grove_light_color_brand_primary" />
             <item type="color" name="mediaapp_theme_bamboo_grove_light_color_brand_on_primary" />
             <item type="color" name="mediaapp_theme_bamboo_grove_light_color_brand_secondary" />
@@ -75,6 +80,7 @@
             <item type="integer" name="mediaapp_max_browse_columns_unrestricted" />
             <item type="integer" name="mediaapp_max_browse_columns_restricted" />
             <item type="integer" name="mediaapp_max_visible_actions_restricted" />
+            <item type="integer" name="mediaapp_splash_exit_animation_duration_millis" />
         </policy>
     </overlayable>
 </resources>

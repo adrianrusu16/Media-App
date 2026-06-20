@@ -26,7 +26,8 @@ data class EngineSnapshot(
     val canDispatch: Boolean = true,
     val controls: EnginePlayerControls = EnginePlayerControls.default(),
     val hasVoiceHypothesis: Boolean = false,
-    val browseResultsCount: Int = 0
+    val browseResultsCount: Int = 0,
+    val themePreference: EngineThemePreference = EngineThemePreference.uninitialized()
 ) : Parcelable {
     constructor(parcel: Parcel) : this(
         playbackState = parcel.readString().orEmpty(),
@@ -56,7 +57,13 @@ data class EngineSnapshot(
             showPlayIcon = parcel.readBooleanValue()
         ),
         hasVoiceHypothesis = parcel.readBooleanValue(),
-        browseResultsCount = parcel.readInt()
+        browseResultsCount = parcel.readInt(),
+        themePreference = EngineThemePreference(
+            themeId = parcel.readString() ?: EngineThemePreference.THEME_SYSTEM_DEFAULT,
+            source = parcel.readString() ?: EngineThemePreference.SOURCE_UNINITIALIZED,
+            revision = parcel.readLong(),
+            initialized = parcel.readBooleanValue()
+        )
     )
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
@@ -86,6 +93,10 @@ data class EngineSnapshot(
         parcel.writeBooleanValue(controls.showPlayIcon)
         parcel.writeBooleanValue(hasVoiceHypothesis)
         parcel.writeInt(browseResultsCount)
+        parcel.writeString(themePreference.themeId)
+        parcel.writeString(themePreference.source)
+        parcel.writeLong(themePreference.revision)
+        parcel.writeBooleanValue(themePreference.initialized)
     }
 
     override fun describeContents(): Int = 0

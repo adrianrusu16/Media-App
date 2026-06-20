@@ -1,11 +1,12 @@
 package com.adrianrusu.mediaapp.feature.settings.domain
 
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
 
 interface SettingsRepository : AutoCloseable {
     val settingsState: StateFlow<SettingsState>
 
-    fun start()
+    fun start(scope: CoroutineScope)
 
-    fun dispatch(intent: SettingsIntent)
+    suspend fun dispatch(intent: SettingsIntent)
 }

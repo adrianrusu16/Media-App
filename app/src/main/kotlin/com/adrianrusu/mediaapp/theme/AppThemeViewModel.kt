@@ -2,21 +2,24 @@ package com.adrianrusu.mediaapp.theme
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.adrianrusu.mediaapp.core.model.theme.ObserveThemePreferenceUseCase
 import com.adrianrusu.mediaapp.core.model.theme.PandaWaveThemePreference
-import com.adrianrusu.mediaapp.core.model.theme.SetThemePreferenceUseCase
+import com.adrianrusu.mediaapp.core.model.theme.ThemePreferenceState
+import com.adrianrusu.mediaapp.core.preferences.ThemePreferenceCoordinator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 @HiltViewModel
-class AppThemeViewModel @Inject constructor(
-    observeThemePreference: ObserveThemePreferenceUseCase,
-    private val setThemePreference: SetThemePreferenceUseCase
-) : ViewModel() {
-    val preference: StateFlow<PandaWaveThemePreference> = observeThemePreference()
+class AppThemeViewModel @Inject constructor(private val coordinator: ThemePreferenceCoordinator) : ViewModel() {
+    val preference: StateFlow<PandaWaveThemePreference> = coordinator.state
+        .map { state ->
+            (state as? ThemePreferenceState.Ready)?.preference
+                ?: PandaWaveThemePreference.SystemDefault
+        }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
@@ -24,6 +27,6 @@ class AppThemeViewModel @Inject constructor(
         )
 
     fun select(preference: PandaWaveThemePreference) {
-        setThemePreference(preference)
+        viewModelScope.launch { coordinator.select(preference) }
     }
 }

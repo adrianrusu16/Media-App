@@ -2,15 +2,33 @@ use std::ffi::c_char;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use futures_util::FutureExt;
-use panda_engine_core::{EngineCommand, EngineCommandType};
+use panda_engine_core::{EngineCommand, EngineCommandType, ThemePreference};
+use serde::Deserialize;
 
 use crate::engine_handle::remember_outcome;
 use crate::mappings::{command_from_ffi, platform_event_from_ffi};
 use crate::{
-    FFI_COMMAND_BROWSE, FFI_COMMAND_PLAY_MEDIA_BY_ID, FFI_COMMAND_PROCESS_VOICE,
-    FFI_COMMAND_SEARCH, FFI_COMMAND_SEEK, FFI_COMMAND_SET_SPEED, FFI_COMMAND_START_SESSION,
-    FFI_COMMAND_UNKNOWN, FfiEngineOutcome, PandaEngine,
+    FFI_COMMAND_APPLY_REMOTE_THEME_PREFERENCE, FFI_COMMAND_BROWSE,
+    FFI_COMMAND_HYDRATE_THEME_PREFERENCE, FFI_COMMAND_PLAY_MEDIA_BY_ID, FFI_COMMAND_PROCESS_VOICE,
+    FFI_COMMAND_SEARCH, FFI_COMMAND_SEEK, FFI_COMMAND_SET_SPEED, FFI_COMMAND_SET_THEME_PREFERENCE,
+    FFI_COMMAND_START_SESSION, FFI_COMMAND_UNKNOWN, FfiEngineOutcome, PandaEngine,
 };
+
+#[derive(Deserialize)]
+struct ThemePreferencePayload {
+    version: u32,
+    theme_id: String,
+    #[serde(default)]
+    user_id: Option<String>,
+    #[serde(default)]
+    baseline_revision: Option<u64>,
+}
+
+fn parse_theme_payload(payload: Option<&str>) -> Option<ThemePreferencePayload> {
+    let payload: ThemePreferencePayload = serde_json::from_str(payload?).ok()?;
+    (payload.version == 1 && ThemePreference::from_wire(&payload.theme_id).is_some())
+        .then_some(payload)
+}
 
 fn run_future_safely<T>(
     runtime: &tokio::runtime::Runtime,
@@ -111,6 +129,33 @@ pub unsafe extern "C" fn panda_engine_dispatch(
                     },
                     None,
                 ),
+                FFI_COMMAND_HYDRATE_THEME_PREFERENCE => parse_theme_payload(payload_str.as_deref())
+                    .and_then(|payload| ThemePreference::from_wire(&payload.theme_id))
+                    .map(EngineCommand::hydrate_theme_preference)
+                    .unwrap_or_else(|| EngineCommand::from_wire("invalid_theme_payload", None)),
+                FFI_COMMAND_SET_THEME_PREFERENCE => parse_theme_payload(payload_str.as_deref())
+                    .and_then(|payload| ThemePreference::from_wire(&payload.theme_id))
+                    .map(EngineCommand::set_theme_preference)
+                    .unwrap_or_else(|| EngineCommand::from_wire("invalid_theme_payload", None)),
+                FFI_COMMAND_APPLY_REMOTE_THEME_PREFERENCE => {
+                    let parsed = parse_theme_payload(payload_str.as_deref());
+                    match parsed.and_then(|payload| {
+                        Some((
+                            ThemePreference::from_wire(&payload.theme_id)?,
+                            payload.user_id?,
+                            payload.baseline_revision?,
+                        ))
+                    }) {
+                        Some((theme, user_id, baseline_revision)) => {
+                            EngineCommand::apply_remote_theme_preference(
+                                theme,
+                                user_id,
+                                baseline_revision,
+                            )
+                        }
+                        None => EngineCommand::from_wire("invalid_theme_payload", None),
+                    }
+                }
                 FFI_COMMAND_PROCESS_VOICE => return FfiEngineOutcome::invalid(),
                 _ => EngineCommand::new(command_from_ffi(command_type), payload_str),
             };

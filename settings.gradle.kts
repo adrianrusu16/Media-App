@@ -34,6 +34,7 @@ include(
     ":core:designsystem",
     ":core:ui",
     ":core:playback",
+    ":core:preferences",
     ":core:automotive",
     ":core:vehicle",
     ":core:carui",

@@ -27,6 +27,9 @@ data class EngineCommand(val type: String, val payload: String?) : Parcelable {
         const val TYPE_SET_SPEED = "set_speed"
         const val TYPE_SEEK = "seek"
         const val TYPE_PLAY_MEDIA_BY_ID = "play_media_by_id"
+        const val TYPE_HYDRATE_THEME_PREFERENCE = "hydrate_theme_preference"
+        const val TYPE_SET_THEME_PREFERENCE = "set_theme_preference"
+        const val TYPE_APPLY_REMOTE_THEME_PREFERENCE = "apply_remote_theme_preference"
 
         @JvmField
         val CREATOR: Parcelable.Creator<EngineCommand> =
