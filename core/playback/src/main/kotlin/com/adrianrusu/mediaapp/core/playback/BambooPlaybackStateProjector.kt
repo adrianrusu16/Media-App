@@ -5,13 +5,12 @@ import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineControlState
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlayerControls
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
-import com.adrianrusu.mediaapp.core.ui.playback.BambooPlaybackText
 
 internal object BambooPlaybackStateProjector {
     fun fromEngineSnapshot(current: BambooPlaybackState, snapshot: EngineSnapshot): BambooPlaybackState = current.copy(
         mediaId = snapshot.mediaId,
-        title = snapshot.title ?: titleFor(snapshot.playbackState),
-        artist = snapshot.artist ?: artistFor(snapshot.playbackState),
+        title = snapshot.title.orEmpty(),
+        artist = snapshot.artist.orEmpty(),
         album = snapshot.album,
         durationMillis = snapshot.durationMillis,
         artworkUri = snapshot.artworkUri,
@@ -46,18 +45,6 @@ internal object BambooPlaybackStateProjector {
         else -> BambooPlaybackStatus.Idle
     }
 
-    private fun titleFor(playbackState: String): String = when (playbackState) {
-        EngineSnapshot.PLAYBACK_PLAYING -> BambooPlaybackText.FALLBACK_PLAYING_TITLE
-        EngineSnapshot.PLAYBACK_PAUSED -> BambooPlaybackText.FALLBACK_PAUSED_TITLE
-        else -> BambooPlaybackText.FALLBACK_IDLE_TITLE
-    }
-
-    private fun artistFor(playbackState: String): String = when (playbackState) {
-        EngineSnapshot.PLAYBACK_PLAYING -> BambooPlaybackText.FALLBACK_PLAYING_SUBTITLE
-        EngineSnapshot.PLAYBACK_PAUSED -> BambooPlaybackText.FALLBACK_PAUSED_SUBTITLE
-        else -> BambooPlaybackText.FALLBACK_IDLE_SUBTITLE
-    }
-
     private fun EngineEvent.toConnectionUiState(current: BambooEngineConnectionUiState): BambooEngineConnectionUiState =
         when (type) {
             EngineEvent.TYPE_COMMAND_APPLIED,
@@ -77,23 +64,10 @@ internal object BambooPlaybackStateProjector {
             else -> current
         }
 
-    private fun AutomotiveUxRestrictions.toPlaybackRestrictionState(): BambooPlaybackRestrictionState {
-        val label = when (source) {
-            AutomotiveUxRestrictions.Source.AutomotivePlatform ->
-                if (isRestricted) "Driver-safe mode" else "Unrestricted"
-
-            AutomotiveUxRestrictions.Source.NotAutomotive ->
-                "Standard device"
-
-            AutomotiveUxRestrictions.Source.Unavailable ->
-                "Safety status unavailable"
-        }
-
-        return BambooPlaybackRestrictionState(
-            label = label,
+    private fun AutomotiveUxRestrictions.toPlaybackRestrictionState(): BambooPlaybackRestrictionState =
+        BambooPlaybackRestrictionState(
             isRestricted = isRestricted
         )
-    }
 
     private fun EnginePlayerControls.toPlaybackControls(): BambooPlaybackControls = BambooPlaybackControls(
         playPause = playPause.toPlaybackControlState(),

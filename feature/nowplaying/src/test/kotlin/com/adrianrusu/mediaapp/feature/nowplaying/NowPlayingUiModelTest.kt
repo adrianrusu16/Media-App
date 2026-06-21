@@ -16,10 +16,9 @@ class NowPlayingUiModelTest {
             playbackState = NowPlayingPlaybackState.Paused,
             engineConnection = BambooEngineConnectionUiState.Ready,
             restriction = NowPlayingRestrictionState(
-                label = "Driver-safe mode",
                 isRestricted = true
             )
-        ).toNowPlayingUiModel(volume = 45F)
+        ).toTestUiModel()
 
         assertTrue(model.controlsEnabled)
         assertTrue(model.isDriveRestricted)
@@ -30,7 +29,7 @@ class NowPlayingUiModelTest {
         val model = NowPlayingState(
             playbackState = NowPlayingPlaybackState.Paused,
             engineConnection = BambooEngineConnectionUiState.Ready
-        ).toNowPlayingUiModel(volume = 45F)
+        ).toTestUiModel()
 
         assertEquals(NowPlayingPrimaryControlIcon.PandaPaw, model.primaryControlIcon)
     }
@@ -40,7 +39,7 @@ class NowPlayingUiModelTest {
         val model = NowPlayingState(
             playbackState = NowPlayingPlaybackState.Playing,
             engineConnection = BambooEngineConnectionUiState.Ready
-        ).toNowPlayingUiModel(volume = 45F)
+        ).toTestUiModel()
 
         assertEquals(NowPlayingPrimaryControlIcon.Pause, model.primaryControlIcon)
     }
@@ -50,7 +49,7 @@ class NowPlayingUiModelTest {
         val model = NowPlayingState(
             playbackState = NowPlayingPlaybackState.Paused,
             engineConnection = BambooEngineConnectionUiState.Connecting
-        ).toNowPlayingUiModel(volume = 45F)
+        ).toTestUiModel()
 
         assertFalse(model.controlsEnabled)
         assertEquals("Controls unavailable", model.availabilityLabel)
@@ -62,3 +61,12 @@ class NowPlayingUiModelTest {
         assertEquals(100F, NowPlayingVolumeUiModel.from(120F).value)
     }
 }
+
+private fun NowPlayingState.toTestUiModel(): NowPlayingUiModel = toNowPlayingUiModel(
+    volume = 45F,
+    playLabel = "Play",
+    pauseLabel = "Pause",
+    controlsUnavailableLabel = "Controls unavailable",
+    fallbackTitle = "Nothing playing",
+    fallbackDetail = "Ready when you are"
+)

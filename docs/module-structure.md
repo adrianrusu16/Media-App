@@ -16,9 +16,11 @@ media_app/
     model/
       Kotlin DTOs and UI-facing models mapped from AIDL snapshots
     designsystem/
-      Compose theme, RRO-backed tokens, icons, typography, spacing
+      Compose theme, typed RRO-backed colors, typography, motion, geometry,
+      state selectors, and stable branded drawables
     ui/
-      Reusable Compose components, including the Bamboo mini-player
+      Reusable BambooUI navigation, discovery, preference-card, playback,
+      focus, feedback, and mini-player components
     playback/
       Shared Bamboo playback state, command gating, and engine/UX observation
     automotive/

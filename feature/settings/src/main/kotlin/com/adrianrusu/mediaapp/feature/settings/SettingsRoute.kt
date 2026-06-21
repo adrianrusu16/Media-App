@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.adrianrusu.mediaapp.core.designsystem.tokens.LocalPandaWaveDesignTokens
@@ -46,20 +47,20 @@ private fun SettingsScreen(state: SettingsState, onIntent: (SettingsIntent) -> U
         verticalArrangement = Arrangement.spacedBy(tokens.spacing.md)
     ) {
         SettingsSwitchRow(
-            title = "Diagnostics",
-            body = "Share redacted reliability events and playback health signals.",
+            title = stringResource(R.string.pandawave_settings_diagnostics_title),
+            body = stringResource(R.string.pandawave_settings_diagnostics_body),
             checked = state.diagnosticsEnabled,
             onCheckedChange = { onIntent(SettingsIntent.ToggleDiagnostics) }
         )
         SettingsSwitchRow(
-            title = "Personalization",
-            body = "Let the Rust engine use recent listening state to shape recommendations.",
+            title = stringResource(R.string.pandawave_settings_personalization_title),
+            body = stringResource(R.string.pandawave_settings_personalization_body),
             checked = state.personalizationEnabled,
             onCheckedChange = { onIntent(SettingsIntent.TogglePersonalization) }
         )
         SettingsSwitchRow(
-            title = "Explicit content",
-            body = "Allow content marked explicit when provider policy supports it.",
+            title = stringResource(R.string.pandawave_settings_explicit_title),
+            body = stringResource(R.string.pandawave_settings_explicit_body),
             checked = state.explicitContentAllowed,
             onCheckedChange = { onIntent(SettingsIntent.ToggleExplicitContent) }
         )
@@ -96,23 +97,23 @@ private fun ThemePreferenceCard(
     val options = listOf(
         ThemePreferenceOption(
             preference = PandaWaveThemePreference.SystemDefault,
-            label = "System"
+            label = stringResource(R.string.pandawave_settings_theme_system)
         ),
         ThemePreferenceOption(
             preference = PandaWaveThemePreference.BambooGroveLight,
-            label = "Bamboo Grove Light"
+            label = stringResource(R.string.pandawave_settings_theme_bamboo_grove_light)
         ),
         ThemePreferenceOption(
             preference = PandaWaveThemePreference.MoonlitBambooDark,
-            label = "Moonlit Bamboo Dark"
+            label = stringResource(R.string.pandawave_settings_theme_moonlit_bamboo_dark)
         ),
         ThemePreferenceOption(
             preference = PandaWaveThemePreference.ForestTechLight,
-            label = "Forest Tech Light"
+            label = stringResource(R.string.pandawave_settings_theme_forest_tech_light)
         ),
         ThemePreferenceOption(
             preference = PandaWaveThemePreference.ForestTechDark,
-            label = "Forest Tech Dark"
+            label = stringResource(R.string.pandawave_settings_theme_forest_tech_dark)
         )
     )
 
@@ -121,14 +122,14 @@ private fun ThemePreferenceCard(
             verticalArrangement = Arrangement.spacedBy(tokens.spacing.md)
         ) {
             BambooTitleBody(
-                title = "Theme",
-                body = selectedPreference.label
+                title = stringResource(R.string.pandawave_settings_theme_title),
+                body = selectedPreference.localizedLabel()
             )
             Column(verticalArrangement = Arrangement.spacedBy(tokens.spacing.sm)) {
                 options.forEach { option ->
                     BambooSelectableRow(
                         title = option.label,
-                        body = option.preference.description,
+                        body = option.preference.localizedDescription(),
                         selected = option.preference == selectedPreference,
                         enabled = true,
                         onClick = {
@@ -144,13 +145,17 @@ private fun ThemePreferenceCard(
 @Composable
 private fun PrivacyNoticeCard(acknowledged: Boolean, onAcknowledge: () -> Unit) {
     BambooActionCard(
-        title = "Privacy notice",
+        title = stringResource(R.string.pandawave_settings_privacy_title),
         body = if (acknowledged) {
-            "Acknowledged for this session."
+            stringResource(R.string.pandawave_settings_privacy_acknowledged)
         } else {
-            "Review data choices before enabling deeper account and provider sync."
+            stringResource(R.string.pandawave_settings_privacy_review)
         },
-        actionLabel = if (acknowledged) "Done" else "Acknowledge",
+        actionLabel = if (acknowledged) {
+            stringResource(R.string.pandawave_settings_done)
+        } else {
+            stringResource(R.string.pandawave_settings_acknowledge)
+        },
         actionEnabled = !acknowledged,
         onActionClick = onAcknowledge
     )
@@ -158,20 +163,37 @@ private fun PrivacyNoticeCard(acknowledged: Boolean, onAcknowledge: () -> Unit) 
 
 private data class ThemePreferenceOption(val preference: PandaWaveThemePreference, val label: String)
 
-private val PandaWaveThemePreference.label: String
-    get() = when (this) {
-        PandaWaveThemePreference.SystemDefault -> "Follow system appearance."
-        PandaWaveThemePreference.BambooGroveLight -> "Bamboo Grove Light"
-        PandaWaveThemePreference.MoonlitBambooDark -> "Moonlit Bamboo Dark"
-        PandaWaveThemePreference.ForestTechLight -> "Forest Tech Light"
-        PandaWaveThemePreference.ForestTechDark -> "Forest Tech Dark"
-    }
+@Composable
+private fun PandaWaveThemePreference.localizedLabel(): String = when (this) {
+    PandaWaveThemePreference.SystemDefault -> stringResource(R.string.pandawave_settings_theme_system_label)
 
-private val PandaWaveThemePreference.description: String
-    get() = when (this) {
-        PandaWaveThemePreference.SystemDefault -> "Use the vehicle or device appearance setting."
-        PandaWaveThemePreference.BambooGroveLight -> "Panda ivory surfaces with bamboo and bark accents."
-        PandaWaveThemePreference.MoonlitBambooDark -> "Charcoal surfaces with moonlit bamboo greens."
-        PandaWaveThemePreference.ForestTechLight -> "A brighter Forest Tech palette for daytime cabins."
-        PandaWaveThemePreference.ForestTechDark -> "The Stitch Forest Tech palette for low-glare driving."
-    }
+    PandaWaveThemePreference.BambooGroveLight ->
+        stringResource(R.string.pandawave_settings_theme_bamboo_grove_light)
+
+    PandaWaveThemePreference.MoonlitBambooDark ->
+        stringResource(R.string.pandawave_settings_theme_moonlit_bamboo_dark)
+
+    PandaWaveThemePreference.ForestTechLight ->
+        stringResource(R.string.pandawave_settings_theme_forest_tech_light)
+
+    PandaWaveThemePreference.ForestTechDark ->
+        stringResource(R.string.pandawave_settings_theme_forest_tech_dark)
+}
+
+@Composable
+private fun PandaWaveThemePreference.localizedDescription(): String = when (this) {
+    PandaWaveThemePreference.SystemDefault ->
+        stringResource(R.string.pandawave_settings_theme_system_description)
+
+    PandaWaveThemePreference.BambooGroveLight ->
+        stringResource(R.string.pandawave_settings_theme_bamboo_grove_light_description)
+
+    PandaWaveThemePreference.MoonlitBambooDark ->
+        stringResource(R.string.pandawave_settings_theme_moonlit_bamboo_dark_description)
+
+    PandaWaveThemePreference.ForestTechLight ->
+        stringResource(R.string.pandawave_settings_theme_forest_tech_light_description)
+
+    PandaWaveThemePreference.ForestTechDark ->
+        stringResource(R.string.pandawave_settings_theme_forest_tech_dark_description)
+}

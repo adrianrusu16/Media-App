@@ -23,7 +23,7 @@ class AppShellViewModel @Inject constructor(
         repository.start()
         telemetryLogger.info(
             name = "app_shell.started",
-            attributes = mapOf("screen" to state.value.selectedDestination.label)
+            attributes = mapOf("screen" to state.value.selectedDestination.name)
         )
     }
 

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:alpha="@fraction/pandawave_state_disabled_alpha" android:color="@color/pandawave_color_on_surface" android:state_enabled="false" />
+    <item android:alpha="@fraction/pandawave_state_pressed_alpha" android:color="@color/pandawave_color_on_primary_container" android:state_pressed="true" />
+    <item android:alpha="@fraction/pandawave_state_focus_alpha" android:color="@color/pandawave_color_primary" android:state_focused="true" />
+    <item android:color="@color/pandawave_color_on_primary" android:state_selected="true" />
+    <item android:color="@color/pandawave_color_on_surface" />
+</selector>

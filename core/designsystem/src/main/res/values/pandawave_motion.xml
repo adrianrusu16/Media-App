@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <integer name="pandawave_motion_duration_short_millis">120</integer>
+    <integer name="pandawave_motion_duration_medium_millis">220</integer>
+    <integer name="pandawave_motion_duration_long_millis">320</integer>
+    <integer name="pandawave_motion_easing_standard">0</integer>
+    <integer name="pandawave_motion_voice_cycle_millis">3000</integer>
+    <integer name="pandawave_motion_voice_activation_millis">650</integer>
+    <integer name="pandawave_splash_exit_animation_duration_millis">220</integer>
+</resources>

@@ -24,7 +24,6 @@ class InMemoryNowPlayingRepositoryTest {
                 playbackStatus = BambooPlaybackStatus.Playing,
                 engineConnection = BambooEngineConnectionUiState.Ready,
                 restriction = BambooPlaybackRestrictionState(
-                    label = "Driver-safe mode",
                     isRestricted = true
                 ),
                 updatedAtEpochMillis = 100L,
@@ -42,7 +41,6 @@ class InMemoryNowPlayingRepositoryTest {
         assertEquals("PandaWave", repository.state.value.artist)
         assertEquals(NowPlayingPlaybackState.Playing, repository.state.value.playbackState)
         assertEquals(BambooEngineConnectionUiState.Ready, repository.state.value.engineConnection)
-        assertEquals("Driver-safe mode", repository.state.value.restriction.label)
         assertTrue(repository.state.value.restriction.isRestricted)
         assertEquals(13_000L, repository.state.value.progressAt(nowMillis = 2_100L).positionMillis)
         assertEquals(0.325F, repository.state.value.progressAt(nowMillis = 2_100L).fraction)

@@ -1,6 +1,5 @@
 package com.adrianrusu.mediaapp.core.ui.miniplayer
 
-import com.adrianrusu.mediaapp.core.ui.playback.BambooPlaybackText
 import kotlin.math.max
 import kotlin.math.min
 
@@ -17,8 +16,8 @@ data class MiniPlayerState(
 
     companion object {
         val Empty = MiniPlayerState(
-            title = BambooPlaybackText.FALLBACK_IDLE_TITLE,
-            subtitle = BambooPlaybackText.FALLBACK_IDLE_SUBTITLE,
+            title = "",
+            subtitle = "",
             isPlaying = false
         )
     }

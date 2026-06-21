@@ -31,14 +31,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.adrianrusu.mediaapp.core.designsystem.R
+import com.adrianrusu.mediaapp.core.designsystem.R as DesignSystemR
 import com.adrianrusu.mediaapp.core.designsystem.tokens.LocalPandaWaveDesignTokens
 import com.adrianrusu.mediaapp.core.designsystem.tokens.cardResting
 import com.adrianrusu.mediaapp.core.designsystem.tokens.iconLarge
@@ -69,8 +70,10 @@ import com.adrianrusu.mediaapp.core.ui.components.BambooVoiceIndicator
 import com.adrianrusu.mediaapp.core.ui.focus.BambooRotaryColumn
 import com.adrianrusu.mediaapp.core.ui.focus.bambooBringIntoViewOnFocus
 import com.adrianrusu.mediaapp.core.ui.icons.PandaWaveIcons
-import com.adrianrusu.mediaapp.core.ui.playback.BambooPlaybackText
+import com.adrianrusu.mediaapp.core.ui.playback.BambooPlayPauseButton
+import com.adrianrusu.mediaapp.core.ui.playback.BambooPlaybackControlSize
 import com.adrianrusu.mediaapp.feature.nowplaying.domain.NowPlayingIntent
+import com.adrianrusu.mediaapp.feature.nowplaying.domain.NowPlayingPlaybackState
 import com.adrianrusu.mediaapp.feature.nowplaying.domain.NowPlayingState
 import com.adrianrusu.mediaapp.feature.nowplaying.presentation.NowPlayingViewModel
 import kotlin.time.Duration.Companion.milliseconds
@@ -104,7 +107,24 @@ private fun NowPlayingScreen(
         mutableFloatStateOf(DEFAULT_VOLUME_VALUE)
     }
     val progress = state.progressAt(nowMillis)
-    val uiModel = state.toNowPlayingUiModel(volume = volume)
+    val fallbackTitle = when (state.playbackState) {
+        NowPlayingPlaybackState.Playing -> stringResource(R.string.pandawave_now_playing_playing_title)
+        NowPlayingPlaybackState.Paused -> stringResource(R.string.pandawave_now_playing_paused_title)
+        NowPlayingPlaybackState.Idle -> stringResource(R.string.pandawave_now_playing_idle_title)
+    }
+    val fallbackDetail = when (state.playbackState) {
+        NowPlayingPlaybackState.Playing -> stringResource(R.string.pandawave_now_playing_playing_subtitle)
+        NowPlayingPlaybackState.Paused -> stringResource(R.string.pandawave_now_playing_paused_subtitle)
+        NowPlayingPlaybackState.Idle -> stringResource(R.string.pandawave_now_playing_idle_subtitle)
+    }
+    val uiModel = state.toNowPlayingUiModel(
+        volume = volume,
+        playLabel = stringResource(R.string.pandawave_now_playing_action_play),
+        pauseLabel = stringResource(R.string.pandawave_now_playing_action_pause),
+        controlsUnavailableLabel = stringResource(R.string.pandawave_now_playing_controls_unavailable),
+        fallbackTitle = fallbackTitle,
+        fallbackDetail = fallbackDetail
+    )
 
     LaunchedEffect(state.progressAnchor) {
         nowMillis = System.currentTimeMillis()
@@ -189,7 +209,7 @@ private fun NowPlayingArtworkPanel(
         modifier = Modifier
             .fillMaxWidth()
             .height(artworkHeight),
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        color = Color(tokens.colors.surfaceVariant),
         tonalElevation = tokens.elevation.cardResting,
         shape = MaterialTheme.shapes.medium
     ) {
@@ -199,13 +219,13 @@ private fun NowPlayingArtworkPanel(
         ) {
             Surface(
                 modifier = Modifier.size(artworkSize),
-                color = MaterialTheme.colorScheme.surface,
+                color = Color(tokens.colors.surface),
                 tonalElevation = tokens.elevation.cardResting,
                 shape = MaterialTheme.shapes.medium
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Image(
-                        painter = painterResource(id = R.drawable.ic_pandawave_logo),
+                        painter = painterResource(id = DesignSystemR.drawable.pandawave_ic_logo),
                         contentDescription = null,
                         modifier = Modifier.size(
                             tokens.sizing.touchTargetLg * if (isCompact) {
@@ -219,7 +239,7 @@ private fun NowPlayingArtworkPanel(
                         modifier = Modifier
                             .align(Alignment.BottomStart)
                             .fillMaxWidth(),
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = ARTWORK_TEXT_PANEL_ALPHA)
+                        color = Color(tokens.colors.surface).copy(alpha = ARTWORK_TEXT_PANEL_ALPHA)
                     ) {
                         Column(
                             modifier = Modifier.padding(
@@ -229,23 +249,22 @@ private fun NowPlayingArtworkPanel(
                         ) {
                             Text(
                                 text = title,
-                                color = MaterialTheme.colorScheme.onSurface,
+                                color = Color(tokens.colors.onSurface),
                                 style = if (isCompact) {
-                                    MaterialTheme.typography.titleLarge
+                                    tokens.typography.sectionTitle
                                 } else {
-                                    MaterialTheme.typography.headlineMedium
+                                    tokens.typography.display
                                 },
-                                fontWeight = FontWeight.SemiBold,
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis
                             )
                             Text(
                                 text = detailLabel,
-                                color = MaterialTheme.colorScheme.primary,
+                                color = Color(tokens.colors.primary),
                                 style = if (isCompact) {
-                                    MaterialTheme.typography.titleMedium
+                                    tokens.typography.sectionTitle
                                 } else {
-                                    MaterialTheme.typography.titleLarge
+                                    tokens.typography.sectionTitle
                                 },
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -253,8 +272,8 @@ private fun NowPlayingArtworkPanel(
                             if (showAvailability) {
                                 Text(
                                     text = availabilityLabel,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    style = MaterialTheme.typography.labelLarge
+                                    color = Color(tokens.colors.onSurfaceVariant),
+                                    style = tokens.typography.controlLabel
                                 )
                             }
                         }
@@ -277,8 +296,8 @@ private fun NowPlayingProgressRow(progress: BambooPlaybackProgress) {
         Text(
             modifier = Modifier.width(tokens.sizing.touchTargetMd),
             text = progress.positionMillis.toPlaybackTimeLabel(),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.labelLarge
+            color = Color(tokens.colors.onSurfaceVariant),
+            style = tokens.typography.controlLabel
         )
         LeafProgressTrack(
             progress = progress.fraction,
@@ -286,9 +305,10 @@ private fun NowPlayingProgressRow(progress: BambooPlaybackProgress) {
         )
         Text(
             modifier = Modifier.width(tokens.sizing.touchTargetMd),
-            text = progress.durationMillis?.toPlaybackTimeLabel() ?: UNKNOWN_PLAYBACK_TIME_LABEL,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.labelLarge
+            text = progress.durationMillis?.toPlaybackTimeLabel()
+                ?: stringResource(R.string.pandawave_now_playing_unknown_time),
+            color = Color(tokens.colors.onSurfaceVariant),
+            style = tokens.typography.controlLabel
         )
     }
 }
@@ -307,14 +327,14 @@ private fun LeafProgressTrack(progress: Float, modifier: Modifier = Modifier) {
                 .fillMaxWidth()
                 .height(tokens.components.progressTrackHeight)
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .background(Color(tokens.colors.surfaceVariant))
         )
         Box(
             modifier = Modifier
                 .fillMaxWidth(clampedProgress)
                 .height(tokens.components.progressTrackHeight)
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = PROGRESS_ACTIVE_ALPHA))
+                .background(Color(tokens.colors.primary).copy(alpha = PROGRESS_ACTIVE_ALPHA))
         )
         Box(
             modifier = Modifier
@@ -324,7 +344,7 @@ private fun LeafProgressTrack(progress: Float, modifier: Modifier = Modifier) {
         ) {
             Surface(
                 modifier = Modifier.size(tokens.components.progressThumbSize),
-                color = MaterialTheme.colorScheme.primary,
+                color = Color(tokens.colors.primary),
                 shape = CircleShape,
                 shadowElevation = tokens.elevation.cardResting
             ) {
@@ -332,7 +352,7 @@ private fun LeafProgressTrack(progress: Float, modifier: Modifier = Modifier) {
                     Icon(
                         imageVector = PandaWaveIcons.Nature,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimary,
+                        tint = Color(tokens.colors.onPrimary),
                         modifier = Modifier.size(tokens.components.iconSmall)
                     )
                 }
@@ -357,7 +377,7 @@ private fun NowPlayingControls(
     ) {
         SecondaryRoundAction(
             icon = PandaWaveIcons.Shuffle,
-            contentDescription = "Shuffle unavailable",
+            contentDescription = stringResource(R.string.pandawave_now_playing_shuffle_unavailable),
             enabled = false,
             onClick = {}
         )
@@ -367,7 +387,7 @@ private fun NowPlayingControls(
         ) {
             TransportRoundAction(
                 icon = PandaWaveIcons.SkipPrevious,
-                contentDescription = BambooPlaybackText.ACTION_SKIP_PREVIOUS,
+                contentDescription = stringResource(R.string.pandawave_now_playing_action_skip_previous),
                 enabled = uiModel.controlsEnabled,
                 onClick = onSkipPreviousClick
             )
@@ -377,14 +397,14 @@ private fun NowPlayingControls(
             )
             TransportRoundAction(
                 icon = PandaWaveIcons.SkipNext,
-                contentDescription = BambooPlaybackText.ACTION_SKIP_NEXT,
+                contentDescription = stringResource(R.string.pandawave_now_playing_action_skip_next),
                 enabled = uiModel.controlsEnabled,
                 onClick = onSkipNextClick
             )
         }
         SecondaryRoundAction(
             icon = PandaWaveIcons.Favorite,
-            contentDescription = "Favorite unavailable",
+            contentDescription = stringResource(R.string.pandawave_now_playing_favorite_unavailable),
             enabled = false,
             onClick = {}
         )
@@ -393,38 +413,15 @@ private fun NowPlayingControls(
 
 @Composable
 private fun PrimaryPlaybackButton(uiModel: NowPlayingUiModel, onClick: () -> Unit) {
-    val tokens = LocalPandaWaveDesignTokens.current
-
-    Surface(
-        modifier = Modifier.size(tokens.layout.nowPlayingPrimaryButton),
-        color = MaterialTheme.colorScheme.primary,
-        contentColor = MaterialTheme.colorScheme.onPrimary,
-        shape = CircleShape,
-        shadowElevation = tokens.elevation.cardResting
-    ) {
-        IconButton(
-            modifier = Modifier
-                .fillMaxSize()
-                .testTag("now-playing-play-pause")
-                .bambooBringIntoViewOnFocus(),
-            enabled = uiModel.controlsEnabled,
-            onClick = onClick
-        ) {
-            if (uiModel.primaryControlIcon == NowPlayingPrimaryControlIcon.PandaPaw) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_panda_paw),
-                    contentDescription = uiModel.primaryActionLabel,
-                    modifier = Modifier.size(tokens.components.iconLarge)
-                )
-            } else {
-                Icon(
-                    imageVector = PandaWaveIcons.Pause,
-                    contentDescription = uiModel.primaryActionLabel,
-                    modifier = Modifier.size(tokens.components.iconLarge)
-                )
-            }
-        }
-    }
+    BambooPlayPauseButton(
+        playing = uiModel.primaryControlIcon == NowPlayingPrimaryControlIcon.Pause,
+        enabled = uiModel.controlsEnabled,
+        size = BambooPlaybackControlSize.NowPlaying,
+        playContentDescription = uiModel.primaryActionLabel,
+        pauseContentDescription = uiModel.primaryActionLabel,
+        onClick = onClick,
+        modifier = Modifier.testTag("now-playing-play-pause")
+    )
 }
 
 @Composable
@@ -433,7 +430,7 @@ private fun TransportRoundAction(icon: ImageVector, contentDescription: String, 
 
     Surface(
         modifier = Modifier.size(tokens.components.nowPlayingSecondaryTransportSize),
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        color = Color(tokens.colors.surfaceVariant),
         shape = CircleShape,
         tonalElevation = tokens.elevation.cardResting
     ) {
@@ -459,7 +456,7 @@ private fun SecondaryRoundAction(icon: ImageVector, contentDescription: String, 
 
     Surface(
         modifier = Modifier.size(tokens.components.nowPlayingSecondaryTransportSize),
-        color = MaterialTheme.colorScheme.surface,
+        color = Color(tokens.colors.surface),
         shape = CircleShape,
         tonalElevation = tokens.elevation.cardResting
     ) {
@@ -496,7 +493,7 @@ private fun NowPlayingFooter(
     ) {
         QuickActionButton(
             icon = PandaWaveIcons.Queue,
-            label = "Library",
+            label = stringResource(R.string.pandawave_now_playing_library),
             enabled = true,
             onClick = onLibraryClick
         )
@@ -514,7 +511,7 @@ private fun QuickActionButton(icon: ImageVector, label: String, enabled: Boolean
     val tokens = LocalPandaWaveDesignTokens.current
 
     Surface(
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        color = Color(tokens.colors.surfaceVariant),
         shape = MaterialTheme.shapes.medium,
         tonalElevation = tokens.elevation.cardResting
     ) {
@@ -539,7 +536,7 @@ private fun QuickActionButton(icon: ImageVector, label: String, enabled: Boolean
                 )
                 Text(
                     text = label,
-                    style = MaterialTheme.typography.labelSmall,
+                    style = tokens.typography.metadata,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -558,7 +555,7 @@ private fun VolumeControl(
 
     Surface(
         modifier = modifier.heightIn(min = tokens.components.volumeControlHeight),
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        color = Color(tokens.colors.surfaceVariant),
         shape = CircleShape,
         tonalElevation = tokens.elevation.cardResting
     ) {
@@ -570,7 +567,7 @@ private fun VolumeControl(
             Icon(
                 imageVector = PandaWaveIcons.VolumeDown,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                tint = Color(tokens.colors.onSurfaceVariant)
             )
             Slider(
                 modifier = Modifier
@@ -583,8 +580,11 @@ private fun VolumeControl(
             )
             Icon(
                 imageVector = PandaWaveIcons.VolumeUp,
-                contentDescription = "Volume ${volume.value.toInt()} percent",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                contentDescription = stringResource(
+                    R.string.pandawave_now_playing_volume_percent,
+                    volume.value.toInt()
+                ),
+                tint = Color(tokens.colors.onSurfaceVariant)
             )
         }
     }
@@ -604,7 +604,6 @@ private const val MAX_VOLUME_VALUE = 100F
 private const val NOW_PLAYING_PROGRESS_TICK_MILLIS = 1_000L
 private const val MILLIS_PER_SECOND = 1_000L
 private const val SECONDS_PER_MINUTE = 60L
-private const val UNKNOWN_PLAYBACK_TIME_LABEL = "--:--"
 private const val MIN_PROGRESS_FRACTION = 0F
 private const val MAX_PROGRESS_FRACTION = 1F
 private const val COMPACT_LOGO_TOUCH_TARGET_MULTIPLIER = 2

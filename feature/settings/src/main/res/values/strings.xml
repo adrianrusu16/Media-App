@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pandawave_settings_diagnostics_title">Diagnostics</string>
+    <string name="pandawave_settings_diagnostics_body">Share redacted reliability events and playback health signals.</string>
+    <string name="pandawave_settings_personalization_title">Personalization</string>
+    <string name="pandawave_settings_personalization_body">Let the Rust engine use recent listening state to shape recommendations.</string>
+    <string name="pandawave_settings_explicit_title">Explicit content</string>
+    <string name="pandawave_settings_explicit_body">Allow content marked explicit when provider policy supports it.</string>
+    <string name="pandawave_settings_theme_title">Theme</string>
+    <string name="pandawave_settings_theme_system">System</string>
+    <string name="pandawave_settings_theme_system_label">Follow system appearance.</string>
+    <string name="pandawave_settings_theme_system_description">Use the vehicle or device appearance setting.</string>
+    <string name="pandawave_settings_theme_bamboo_grove_light">Bamboo Grove Light</string>
+    <string name="pandawave_settings_theme_bamboo_grove_light_description">Panda ivory surfaces with bamboo and bark accents.</string>
+    <string name="pandawave_settings_theme_moonlit_bamboo_dark">Moonlit Bamboo Dark</string>
+    <string name="pandawave_settings_theme_moonlit_bamboo_dark_description">Charcoal surfaces with moonlit bamboo greens.</string>
+    <string name="pandawave_settings_theme_forest_tech_light">Forest Tech Light</string>
+    <string name="pandawave_settings_theme_forest_tech_light_description">A brighter Forest Tech palette for daytime cabins.</string>
+    <string name="pandawave_settings_theme_forest_tech_dark">Forest Tech Dark</string>
+    <string name="pandawave_settings_theme_forest_tech_dark_description">The Stitch Forest Tech palette for low-glare driving.</string>
+    <string name="pandawave_settings_privacy_title">Privacy notice</string>
+    <string name="pandawave_settings_privacy_acknowledged">Acknowledged for this session.</string>
+    <string name="pandawave_settings_privacy_review">Review data choices before enabling deeper account and provider sync.</string>
+    <string name="pandawave_settings_done">Done</string>
+    <string name="pandawave_settings_acknowledge">Acknowledge</string>
+</resources>

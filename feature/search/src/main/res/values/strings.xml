@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pandawave_search_title">Search</string>
+    <string name="pandawave_search_subtitle">Type or use voice to find music, stations, and saved collections.</string>
+    <string name="pandawave_search_placeholder">Search PandaWave</string>
+    <string name="pandawave_search_browse_mood">Browse by mood</string>
+    <string name="pandawave_search_recent">Recent searches</string>
+    <string name="pandawave_search_chill_title">Chill</string>
+    <string name="pandawave_search_chill_description">Soft, slow, and easy.</string>
+    <string name="pandawave_search_focus_title">Focus</string>
+    <string name="pandawave_search_focus_description">Instrumental and low-distraction.</string>
+    <string name="pandawave_search_energy_title">High Energy</string>
+    <string name="pandawave_search_energy_description">Upbeat without clutter.</string>
+    <string name="pandawave_search_nature_title">Nature Sounds</string>
+    <string name="pandawave_search_nature_description">Rain, leaves, and open air.</string>
+    <string name="pandawave_search_green_tea_title">Green tea lo-fi</string>
+    <string name="pandawave_search_result_type">Search</string>
+    <string name="pandawave_search_green_tea_description">Last opened today</string>
+    <string name="pandawave_search_quiet_highway_title">Quiet highway</string>
+    <string name="pandawave_search_quiet_highway_description">Recently explored station</string>
+    <string name="pandawave_search_forest_rain_title">Forest rain</string>
+    <string name="pandawave_search_forest_rain_description">Nature category result</string>
+</resources>

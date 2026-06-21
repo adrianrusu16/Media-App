@@ -8,6 +8,7 @@ import androidx.compose.ui.unit.Dp
 
 data class PandaWaveDesignTokens(
     val colors: PandaWaveColorTokens,
+    val typography: PandaWaveTypographyTokens,
     val spacing: PandaWaveSpacingTokens,
     val shape: PandaWaveShapeTokens,
     val sizing: PandaWaveSizingTokens,
@@ -15,6 +16,7 @@ data class PandaWaveDesignTokens(
     val components: PandaWaveComponentTokens,
     val layout: PandaWaveLayoutTokens,
     val elevation: PandaWaveElevationTokens,
+    val motion: PandaWaveMotionTokens,
     val restrictions: PandaWaveRestrictionTokens
 )
 
@@ -97,6 +99,8 @@ data class PandaWaveLayoutTokens(
 )
 
 data class PandaWaveElevationTokens(val cardRestingPx: Int)
+
+data class PandaWaveMotionTokens(val voiceCycleMillis: Int, val voiceActivationMillis: Int)
 
 data class PandaWaveRestrictionTokens(
     val maxBrowseColumnsUnrestricted: Int,

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pandawave_home_greeting">Good drive</string>
+    <string name="pandawave_home_greeting_body">Forest-tuned mixes, quiet focus, and recent sounds are ready.</string>
+    <string name="pandawave_home_for_you">For You</string>
+    <string name="pandawave_home_recent">Recent</string>
+    <string name="pandawave_home_bamboo_beats_title">Bamboo Beats</string>
+    <string name="pandawave_home_bamboo_beats_subtitle">Fresh picks</string>
+    <string name="pandawave_home_bamboo_beats_description">Soft percussion and green-room synths for the road.</string>
+    <string name="pandawave_home_quiet_canopy_title">Quiet Canopy</string>
+    <string name="pandawave_home_quiet_canopy_subtitle">Focus mode</string>
+    <string name="pandawave_home_quiet_canopy_description">Warm ambient layers that stay out of your way.</string>
+    <string name="pandawave_home_forest_radio_title">Forest Radio</string>
+    <string name="pandawave_home_forest_radio_subtitle">Live station</string>
+    <string name="pandawave_home_forest_radio_description">A leafy stream of downtempo discoveries.</string>
+    <string name="pandawave_home_eucalyptus_dreams_title">Eucalyptus Dreams</string>
+    <string name="pandawave_home_album">Album</string>
+    <string name="pandawave_home_lush_instrumentals">Lush instrumentals</string>
+    <string name="pandawave_home_night_drive_title">Night Drive</string>
+    <string name="pandawave_home_playlist">Playlist</string>
+    <string name="pandawave_home_low_light_momentum">Low-light momentum</string>
+    <string name="pandawave_home_rainforest_echo_title">Rainforest Echo</string>
+    <string name="pandawave_home_station">Station</string>
+    <string name="pandawave_home_nature_textures">Nature textures</string>
+    <string name="pandawave_home_highland_mist_title">Highland Mist</string>
+    <string name="pandawave_home_mix">Mix</string>
+    <string name="pandawave_home_calm_acoustic_air">Calm acoustic air</string>
+</resources>

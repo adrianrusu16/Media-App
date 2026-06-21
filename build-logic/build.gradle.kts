@@ -16,5 +16,9 @@ gradlePlugin {
             id = "mediaapp.android.library"
             implementationClass = "com.adrianrusu.mediaapp.buildlogic.AndroidLibraryConventionPlugin"
         }
+        register("pandaWaveUiContract") {
+            id = "pandawave.ui-contract"
+            implementationClass = "com.adrianrusu.mediaapp.buildlogic.PandaWaveUiContractPlugin"
+        }
     }
 }

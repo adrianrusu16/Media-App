@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import com.adrianrusu.mediaapp.core.designsystem.tokens.LocalPandaWaveDesignTokens
 import com.adrianrusu.mediaapp.core.designsystem.tokens.md
 import com.adrianrusu.mediaapp.core.ui.components.BambooActionCard
@@ -22,20 +23,20 @@ fun ProfileRoute(onSettingsClick: () -> Unit, modifier: Modifier = Modifier) {
         FeatureOverviewScreen(
             items = listOf(
                 FeatureOverviewItem(
-                    title = "Account",
-                    body = "Sign-in and account details will live here."
+                    title = stringResource(R.string.pandawave_profile_account_title),
+                    body = stringResource(R.string.pandawave_profile_account_body)
                 ),
                 FeatureOverviewItem(
-                    title = "Session",
-                    body = "Manage active sessions and trusted devices."
+                    title = stringResource(R.string.pandawave_profile_session_title),
+                    body = stringResource(R.string.pandawave_profile_session_body)
                 )
             )
         )
         BambooActionCard(
             modifier = Modifier.testTag("profile-settings"),
-            title = "Preferences",
-            body = "Appearance, privacy, content, and diagnostics.",
-            actionLabel = "Open",
+            title = stringResource(R.string.pandawave_profile_preferences_title),
+            body = stringResource(R.string.pandawave_profile_preferences_body),
+            actionLabel = stringResource(R.string.pandawave_profile_open),
             actionEnabled = true,
             onActionClick = onSettingsClick
         )

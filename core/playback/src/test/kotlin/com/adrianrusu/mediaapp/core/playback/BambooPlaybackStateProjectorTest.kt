@@ -5,7 +5,6 @@ import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineControlState
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EnginePlayerControls
 import com.adrianrusu.mediaapp.core.rust.bridge.aidl.EngineSnapshot
-import com.adrianrusu.mediaapp.core.ui.playback.BambooPlaybackText
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -85,7 +84,7 @@ class BambooPlaybackStateProjectorTest {
     }
 
     @Test
-    fun `engine snapshot uses playback fallbacks when metadata is missing`() {
+    fun `engine snapshot keeps missing metadata empty for presentation localization`() {
         val snapshot = EngineSnapshot.idle(nowMillis = 1L).copy(
             playbackState = EngineSnapshot.PLAYBACK_PAUSED
         )
@@ -95,8 +94,8 @@ class BambooPlaybackStateProjectorTest {
             snapshot = snapshot
         )
 
-        assertEquals(BambooPlaybackText.FALLBACK_PAUSED_TITLE, state.title)
-        assertEquals(BambooPlaybackText.FALLBACK_PAUSED_SUBTITLE, state.artist)
+        assertEquals("", state.title)
+        assertEquals("", state.artist)
         assertEquals(BambooPlaybackStatus.Paused, state.playbackStatus)
     }
 
@@ -135,7 +134,6 @@ class BambooPlaybackStateProjectorTest {
             )
         )
 
-        assertEquals("Driver-safe mode", state.restriction.label)
         assertEquals(true, state.restriction.isRestricted)
     }
 }

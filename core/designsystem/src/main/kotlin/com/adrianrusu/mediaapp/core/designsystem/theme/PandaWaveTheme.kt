@@ -4,6 +4,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
+import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -66,6 +67,19 @@ fun PandaWaveTheme(
         large = RoundedCornerShape(tokens.shape.mediumCorner),
         extraLarge = RoundedCornerShape(tokens.shape.mediumCorner)
     )
+    val typography = Typography(
+        displayMedium = tokens.typography.display,
+        headlineMedium = tokens.typography.display,
+        titleLarge = tokens.typography.sectionTitle,
+        titleMedium = tokens.typography.sectionTitle,
+        titleSmall = tokens.typography.controlLabel,
+        bodyLarge = tokens.typography.body,
+        bodyMedium = tokens.typography.body,
+        bodySmall = tokens.typography.metadata,
+        labelLarge = tokens.typography.controlLabel,
+        labelMedium = tokens.typography.controlLabel,
+        labelSmall = tokens.typography.metadata
+    )
 
     CompositionLocalProvider(
         LocalPandaWaveDesignTokens provides tokens,
@@ -74,6 +88,7 @@ fun PandaWaveTheme(
         MaterialTheme(
             colorScheme = tokens.colors.toColorScheme(themeProfile.isDark),
             shapes = shapes,
+            typography = typography,
             content = content
         )
     }

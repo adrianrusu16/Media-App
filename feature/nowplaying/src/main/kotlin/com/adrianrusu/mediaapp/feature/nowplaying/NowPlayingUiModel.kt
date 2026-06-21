@@ -30,12 +30,20 @@ internal data class NowPlayingVolumeUiModel(val value: Float) {
     }
 }
 
-internal fun NowPlayingState.toNowPlayingUiModel(volume: Float): NowPlayingUiModel {
+internal fun NowPlayingState.toNowPlayingUiModel(
+    volume: Float,
+    playLabel: String,
+    pauseLabel: String,
+    controlsUnavailableLabel: String,
+    fallbackTitle: String,
+    fallbackDetail: String
+): NowPlayingUiModel {
     val controlsEnabled = engineConnection.status == BambooEngineConnectionStatus.Ready
+    val primaryActionLabel = if (isPlaying) pauseLabel else playLabel
 
     return NowPlayingUiModel(
-        title = title,
-        detailLabel = detailLabel,
+        title = title.ifBlank { fallbackTitle },
+        detailLabel = artist.ifBlank { fallbackDetail },
         controlsEnabled = controlsEnabled,
         isDriveRestricted = restriction.isRestricted,
         primaryActionLabel = primaryActionLabel,
@@ -47,7 +55,7 @@ internal fun NowPlayingState.toNowPlayingUiModel(volume: Float): NowPlayingUiMod
         availabilityLabel = if (controlsEnabled) {
             primaryActionLabel
         } else {
-            CONTROLS_UNAVAILABLE_LABEL
+            controlsUnavailableLabel
         },
         volume = NowPlayingVolumeUiModel.from(volume)
     )
@@ -55,4 +63,3 @@ internal fun NowPlayingState.toNowPlayingUiModel(volume: Float): NowPlayingUiMod
 
 private const val MIN_VOLUME_VALUE = 0F
 private const val MAX_VOLUME_VALUE = 100F
-private const val CONTROLS_UNAVAILABLE_LABEL = "Controls unavailable"

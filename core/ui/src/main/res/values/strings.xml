@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pandawave_action_open_now_playing">Open Now Playing</string>
+    <string name="pandawave_action_play">Play</string>
+    <string name="pandawave_action_pause">Pause</string>
+    <string name="pandawave_action_skip_next">Skip next</string>
+    <string name="pandawave_action_skip_previous">Skip previous</string>
+    <string name="pandawave_playback_nothing_playing">Nothing playing</string>
+    <string name="pandawave_playback_ready_when_you_are">Ready when you are</string>
+    <string name="pandawave_time_unknown">--:--</string>
+    <string name="pandawave_voice_prompt">Hey Panda…</string>
+</resources>

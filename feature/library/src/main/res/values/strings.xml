@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pandawave_library_title">Library</string>
+    <string name="pandawave_library_subtitle">Saved sounds, forest picks, and road-ready collections.</string>
+    <string name="pandawave_library_panda_picks">Panda Picks</string>
+    <string name="pandawave_library_filter_playlists">Playlists</string>
+    <string name="pandawave_library_filter_albums">Albums</string>
+    <string name="pandawave_library_filter_stations">Stations</string>
+    <string name="pandawave_library_filter_downloads">Downloads</string>
+    <string name="pandawave_library_bamboo_forest_title">Bamboo Forest Ambience</string>
+    <string name="pandawave_library_bamboo_forest_subtitle">Editorial pick</string>
+    <string name="pandawave_library_bamboo_forest_description">Layered field recordings and glassy pads.</string>
+    <string name="pandawave_library_lofi_title">Lo-Fi Green Tea</string>
+    <string name="pandawave_library_lofi_subtitle">Slow rhythm</string>
+    <string name="pandawave_library_lofi_description">A mellow catalog lane for work or late drives.</string>
+    <string name="pandawave_library_saved_road_mix_title">Saved Road Mix</string>
+    <string name="pandawave_library_track_count">42 tracks</string>
+    <string name="pandawave_library_saved_road_mix_description">Your current long-drive queue.</string>
+    <string name="pandawave_library_forest_focus_title">Forest Focus</string>
+    <string name="pandawave_library_playlist">Playlist</string>
+    <string name="pandawave_library_forest_focus_description">Soft instrumental focus with natural textures.</string>
+    <string name="pandawave_library_downloaded_calm_title">Downloaded Calm</string>
+    <string name="pandawave_library_offline">Offline</string>
+    <string name="pandawave_library_downloaded_calm_description">Available without a connection.</string>
+</resources>

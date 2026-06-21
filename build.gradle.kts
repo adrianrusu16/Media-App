@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.android.library) apply false
     alias(libs.plugins.spotless)
     alias(libs.plugins.detekt)
+    id("pandawave.ui-contract")
 }
 
 val detektCli by configurations.creating {
@@ -51,5 +52,5 @@ val detektSource = files(
 tasks.register("qualityCheck") {
     group = "verification"
     description = "Runs Kotlin formatting and static analysis checks."
-    dependsOn("spotlessCheck", "detekt")
+    dependsOn("spotlessCheck", "detekt", "verifyPandaWaveUiContract")
 }

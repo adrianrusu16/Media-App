@@ -67,20 +67,6 @@ internal class InMemorySettingsRepository(
 private fun ThemePreferenceCoordinator.currentPreference(): PandaWaveThemePreference =
     (state.value as? ThemePreferenceState.Ready)?.preference ?: PandaWaveThemePreference.SystemDefault
 
-private fun AutomotiveUxRestrictions.toSettingsRestrictionState(): SettingsRestrictionState {
-    val label = when (source) {
-        AutomotiveUxRestrictions.Source.AutomotivePlatform ->
-            if (isRestricted) "Parked required" else "Ready"
-
-        AutomotiveUxRestrictions.Source.NotAutomotive ->
-            "Standard device"
-
-        AutomotiveUxRestrictions.Source.Unavailable ->
-            "Safety status unavailable"
-    }
-
-    return SettingsRestrictionState(
-        label = label,
-        isRestricted = isRestricted
-    )
-}
+private fun AutomotiveUxRestrictions.toSettingsRestrictionState(): SettingsRestrictionState = SettingsRestrictionState(
+    isRestricted = isRestricted
+)

@@ -5,14 +5,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import com.adrianrusu.mediaapp.core.designsystem.tokens.LocalPandaWaveDesignTokens
 import com.adrianrusu.mediaapp.core.designsystem.tokens.lg
 import com.adrianrusu.mediaapp.core.designsystem.tokens.md
@@ -42,8 +43,8 @@ fun SearchRoute(modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.spacedBy(tokens.spacing.lg)
     ) {
         BambooSectionHeader(
-            title = "Search",
-            subtitle = "Type or use voice to find music, stations, and saved collections."
+            title = stringResource(R.string.pandawave_search_title),
+            subtitle = stringResource(R.string.pandawave_search_subtitle)
         )
 
         Column(verticalArrangement = Arrangement.spacedBy(tokens.spacing.md)) {
@@ -51,14 +52,14 @@ fun SearchRoute(modifier: Modifier = Modifier) {
                 modifier = Modifier.testTag("search-input"),
                 query = query,
                 onQueryChange = { query = it },
-                placeholder = "Search PandaWave",
+                placeholder = stringResource(R.string.pandawave_search_placeholder),
                 onVoiceClick = {}
             )
             BambooWaveform(active = query.isBlank())
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(tokens.spacing.md)) {
-            BambooSectionHeader(title = "Browse by mood")
+            BambooSectionHeader(title = stringResource(R.string.pandawave_search_browse_mood))
             BambooFocusableLazyRow(
                 horizontalArrangement = Arrangement.spacedBy(tokens.spacing.md),
                 contentPadding = PaddingValues(horizontal = tokens.spacing.md)
@@ -74,8 +75,8 @@ fun SearchRoute(modifier: Modifier = Modifier) {
                             else -> PandaWaveIcons.Equalizer
                         },
                         accentColor = when (category.id) {
-                            "energy" -> MaterialTheme.colorScheme.tertiary
-                            else -> MaterialTheme.colorScheme.primary
+                            "energy" -> Color(tokens.colors.secondary)
+                            else -> Color(tokens.colors.primary)
                         },
                         onClick = {}
                     )
@@ -84,13 +85,13 @@ fun SearchRoute(modifier: Modifier = Modifier) {
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(tokens.spacing.md)) {
-            BambooSectionHeader(title = "Recent searches")
+            BambooSectionHeader(title = stringResource(R.string.pandawave_search_recent))
             recent.forEach { item ->
                 BambooMediaListRow(
                     modifier = Modifier.testTag("search-recent-${item.id}"),
                     item = item,
                     icon = PandaWaveIcons.MusicLibrary,
-                    accentColor = MaterialTheme.colorScheme.secondary,
+                    accentColor = Color(tokens.colors.secondary),
                     onClick = {}
                 )
             }
@@ -98,49 +99,51 @@ fun SearchRoute(modifier: Modifier = Modifier) {
     }
 }
 
+@Composable
 private fun searchCategories(): List<BambooCategoryItem> = listOf(
     BambooCategoryItem(
         id = "chill",
-        title = "Chill",
-        description = "Soft, slow, and easy."
+        title = stringResource(R.string.pandawave_search_chill_title),
+        description = stringResource(R.string.pandawave_search_chill_description)
     ),
     BambooCategoryItem(
         id = "focus",
-        title = "Focus",
-        description = "Instrumental and low-distraction."
+        title = stringResource(R.string.pandawave_search_focus_title),
+        description = stringResource(R.string.pandawave_search_focus_description)
     ),
     BambooCategoryItem(
         id = "energy",
-        title = "High Energy",
-        description = "Upbeat without clutter."
+        title = stringResource(R.string.pandawave_search_energy_title),
+        description = stringResource(R.string.pandawave_search_energy_description)
     ),
     BambooCategoryItem(
         id = "nature",
-        title = "Nature Sounds",
-        description = "Rain, leaves, and open air."
+        title = stringResource(R.string.pandawave_search_nature_title),
+        description = stringResource(R.string.pandawave_search_nature_description)
     )
 )
 
+@Composable
 private fun searchRecentItems(): List<BambooMediaItem> = listOf(
     BambooMediaItem(
         id = "green-tea",
-        title = "Green tea lo-fi",
-        subtitle = "Search",
-        description = "Last opened today",
+        title = stringResource(R.string.pandawave_search_green_tea_title),
+        subtitle = stringResource(R.string.pandawave_search_result_type),
+        description = stringResource(R.string.pandawave_search_green_tea_description),
         action = BambooMediaAction.Unavailable
     ),
     BambooMediaItem(
         id = "quiet-highway",
-        title = "Quiet highway",
-        subtitle = "Search",
-        description = "Recently explored station",
+        title = stringResource(R.string.pandawave_search_quiet_highway_title),
+        subtitle = stringResource(R.string.pandawave_search_result_type),
+        description = stringResource(R.string.pandawave_search_quiet_highway_description),
         action = BambooMediaAction.Unavailable
     ),
     BambooMediaItem(
         id = "forest-rain",
-        title = "Forest rain",
-        subtitle = "Search",
-        description = "Nature category result",
+        title = stringResource(R.string.pandawave_search_forest_rain_title),
+        subtitle = stringResource(R.string.pandawave_search_result_type),
+        description = stringResource(R.string.pandawave_search_forest_rain_description),
         action = BambooMediaAction.Unavailable
     )
 )

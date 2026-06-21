@@ -11,10 +11,9 @@ data class SettingsState(
     val restriction: SettingsRestrictionState = SettingsRestrictionState.Unavailable
 )
 
-data class SettingsRestrictionState(val label: String, val isRestricted: Boolean) {
+data class SettingsRestrictionState(val isRestricted: Boolean) {
     companion object {
         val Unavailable = SettingsRestrictionState(
-            label = "Safety status unavailable",
             isRestricted = false
         )
     }

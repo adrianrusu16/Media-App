@@ -22,7 +22,6 @@ class SettingsReducerTest {
         val restricted = SettingsState(
             personalizationEnabled = false,
             restriction = SettingsRestrictionState(
-                label = "Parked required",
                 isRestricted = true
             )
         )
@@ -40,7 +39,6 @@ class SettingsReducerTest {
         val restricted = SettingsState(
             privacyNoticeAcknowledged = false,
             restriction = SettingsRestrictionState(
-                label = "Parked required",
                 isRestricted = true
             )
         )

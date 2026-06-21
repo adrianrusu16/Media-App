@@ -68,6 +68,5 @@ private fun BambooPlaybackStatus.toNowPlayingPlaybackState(): NowPlayingPlayback
 
 private fun BambooPlaybackRestrictionState.toNowPlayingRestrictionState(): NowPlayingRestrictionState =
     NowPlayingRestrictionState(
-        label = label,
         isRestricted = isRestricted
     )

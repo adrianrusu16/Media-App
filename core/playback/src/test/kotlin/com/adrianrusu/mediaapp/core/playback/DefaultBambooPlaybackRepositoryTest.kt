@@ -52,7 +52,7 @@ class DefaultBambooPlaybackRepositoryTest {
         assertEquals("audio/mpeg", repository.state.value.mimeType)
         assertEquals(BambooPlaybackStatus.Paused, repository.state.value.playbackStatus)
         assertEquals(BambooEngineConnectionUiState.Ready, repository.state.value.engineConnection)
-        assertEquals("Standard device", repository.state.value.restriction.label)
+        assertFalse(repository.state.value.restriction.isRestricted)
     }
 
     @Test

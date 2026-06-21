@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="pandawave_color_primary">@color/pandawave_theme_moonlit_bamboo_dark_primary</color>
+    <color name="pandawave_color_on_primary">@color/pandawave_theme_moonlit_bamboo_dark_on_primary</color>
+    <color name="pandawave_color_primary_container">@color/pandawave_theme_moonlit_bamboo_dark_primary_container</color>
+    <color name="pandawave_color_on_primary_container">@color/pandawave_theme_moonlit_bamboo_dark_on_primary_container</color>
+    <color name="pandawave_color_secondary">@color/pandawave_theme_moonlit_bamboo_dark_secondary</color>
+    <color name="pandawave_color_on_secondary">@color/pandawave_theme_moonlit_bamboo_dark_on_secondary</color>
+    <color name="pandawave_color_secondary_container">@color/pandawave_theme_moonlit_bamboo_dark_secondary_container</color>
+    <color name="pandawave_color_on_secondary_container">@color/pandawave_theme_moonlit_bamboo_dark_on_secondary_container</color>
+    <color name="pandawave_color_surface">@color/pandawave_theme_moonlit_bamboo_dark_surface</color>
+    <color name="pandawave_color_surface_container">@color/pandawave_theme_moonlit_bamboo_dark_surface_container</color>
+    <color name="pandawave_color_surface_container_high">@color/pandawave_theme_moonlit_bamboo_dark_surface_container_high</color>
+    <color name="pandawave_color_on_surface">@color/pandawave_theme_moonlit_bamboo_dark_on_surface</color>
+    <color name="pandawave_color_on_surface_variant">@color/pandawave_theme_moonlit_bamboo_dark_on_surface_variant</color>
+    <color name="pandawave_color_outline">@color/pandawave_theme_moonlit_bamboo_dark_outline</color>
+    <color name="pandawave_color_error">@color/pandawave_theme_moonlit_bamboo_dark_error</color>
+    <color name="pandawave_color_on_error">@color/pandawave_theme_moonlit_bamboo_dark_on_error</color>
+</resources>

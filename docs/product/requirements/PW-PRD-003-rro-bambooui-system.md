@@ -1,6 +1,6 @@
 # PW-PRD-003: RRO-Backed BambooUI System
 
-**Status:** Approved
+**Status:** In verification
 **Owners:** Product, Design, Engineering
 **Last updated:** 2026-06-21
 **Related:** `PW-PRD-001-adaptive-app-shell.md`,
@@ -260,28 +260,28 @@ enforcement checks, documentation, tests, and emulator QA land together.
 
 ## Acceptance Criteria
 
-- [ ] Every stable production UI value is resource-backed and represented by a
+- [x] Every stable production UI value is resource-backed and represented by a
   typed semantic token.
-- [ ] Every public resource uses a final `pandawave_*` name.
-- [ ] No public compatibility aliases retain the `mediaapp_*` resource prefix.
-- [ ] Every public token is type-consistent across the base app and reference
+- [x] Every public resource uses a final `pandawave_*` name.
+- [x] No public compatibility aliases retain the `mediaapp_*` resource prefix.
+- [x] Every public token is type-consistent across the base app and reference
   overlay contract.
-- [ ] All user-visible and accessibility text is an internal Android resource.
-- [ ] Home and Library reuse the same media section and tile implementations.
-- [ ] Profile and Settings reuse the same preference component family.
+- [x] All user-visible and accessibility text is an internal Android resource.
+- [x] Home and Library reuse the same media section and tile implementations.
+- [x] Profile and Settings reuse the same preference component family.
 - [ ] Now Playing and the mini-player reuse the same playback-control
   primitives.
 - [ ] Every shared component supports its applicable loading, empty, error,
   focused, pressed, selected, disabled, and unavailable states.
 - [ ] No screen-specific duplicate remains for a component covered by a
   BambooUI family.
-- [ ] CI rejects new hardcoded production UI values, text literals, and legacy
+- [x] CI rejects new hardcoded production UI values, text literals, and legacy
   resource names.
-- [ ] The reference RRO builds, installs, and visibly overrides every supported
+- [x] The reference RRO builds, installs, and visibly overrides every supported
   token family.
 - [ ] Base and overlaid UI pass accessibility, DPAD, rotary, pseudo-locale,
   large-font, adaptive-layout, and screenshot verification.
-- [ ] Full Android and Rust verification remains green.
+- [x] Full Android and Rust verification remains green.
 
 ## Dependencies
 

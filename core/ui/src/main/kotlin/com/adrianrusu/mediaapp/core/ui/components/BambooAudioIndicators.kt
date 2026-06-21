@@ -27,7 +27,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.lerp as lerpColor
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import com.adrianrusu.mediaapp.core.designsystem.tokens.LocalPandaWaveDesignTokens
 import com.adrianrusu.mediaapp.core.designsystem.tokens.md
 import com.adrianrusu.mediaapp.core.designsystem.tokens.sm
@@ -37,14 +37,14 @@ import com.adrianrusu.mediaapp.core.designsystem.tokens.voiceBarWidth
 import com.adrianrusu.mediaapp.core.designsystem.tokens.voiceIndicatorBarsHeight
 import com.adrianrusu.mediaapp.core.designsystem.tokens.voiceIndicatorBarsWidth
 import com.adrianrusu.mediaapp.core.designsystem.tokens.voiceIndicatorBorderWidth
-import com.adrianrusu.mediaapp.core.ui.playback.BambooPlaybackText
+import com.adrianrusu.mediaapp.core.ui.R
 import kotlin.math.PI
 import kotlin.math.sin
 
 @Composable
 fun BambooVoiceIndicator(
     modifier: Modifier = Modifier,
-    text: String = BambooPlaybackText.HEY_PANDA,
+    text: String = stringResource(R.string.pandawave_voice_prompt),
     isActive: Boolean = true
 ) {
     val tokens = LocalPandaWaveDesignTokens.current
@@ -74,7 +74,6 @@ fun BambooVoiceIndicator(
             text = text,
             color = MaterialTheme.colorScheme.onSurface,
             style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
             maxLines = 1
         )
     }
@@ -95,7 +94,7 @@ private fun BambooVoiceBars(modifier: Modifier = Modifier, isActive: Boolean, ba
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
             animation = tween(
-                durationMillis = 3000,
+                durationMillis = tokens.motion.voiceCycleMillis,
                 easing = LinearEasing
             ),
             repeatMode = RepeatMode.Restart
@@ -106,7 +105,7 @@ private fun BambooVoiceBars(modifier: Modifier = Modifier, isActive: Boolean, ba
     val activeLevel by animateFloatAsState(
         targetValue = if (isActive) 1f else 0f,
         animationSpec = tween(
-            durationMillis = 650,
+            durationMillis = tokens.motion.voiceActivationMillis,
             easing = LinearEasing
         ),
         label = "activeLevel"

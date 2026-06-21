@@ -14,10 +14,10 @@ The app owns its default brand themes in `:core:designsystem`:
 | Forest Tech Light | Named resources in `values` | Daytime Forest Tech surfaces, bamboo green emphasis, cockpit-neutral grays |
 | Forest Tech Dark | Named resources in `values` | Stitch Forest Tech deep charcoal, bright bamboo green, panda-white text |
 
-The legacy `mediaapp_color_*` resources still exist as compatibility aliases for
-the default light/night pair, but Compose now loads a specific named palette
-from the active `PandaWaveThemeId`. That keeps Android system light/dark as a
-mode input rather than the whole theme system.
+Every public token uses its final `pandawave_*` name. No legacy resource aliases
+remain. Compose loads a specific named palette from the active
+`PandaWaveThemeId`, while `values` and `values-night` aliases supply Android
+platform themes with the default light/dark pair.
 
 These named themes are the app's canonical experience. Future user-selectable
 themes should map settings or profile preferences to app theme ids, then sync
@@ -68,14 +68,23 @@ to stable resource names.
 
 | Group | Resource types | Usage |
 | --- | --- | --- |
-| Brand colors | `color` | Compose color scheme, media controls, high-emphasis states |
-| Surface colors | `color` | App background, mini-player, list surfaces |
+| Theme and semantic colors | `color` | Four named palettes, Compose color scheme, surfaces, and emphasis roles |
+| Component state colors | `color` selectors | Enabled, disabled, focused, pressed, selected, and checked states |
 | Spacing | `dimen` | Shared layout rhythm across screens |
-| Shape | `dimen` | Small and medium corners, mini-player height |
-| Sizing | `dimen` | Touch targets and fixed interactive affordances |
+| Shape and geometry | `dimen` | Corners, rail, media, preference, mini-player, and playback bounds |
+| Typography | `dimen`, `integer` | Semantic text sizes, line heights, and weights |
+| Motion and opacity | `integer`, `fraction` | Durations, easing selection, and interaction alpha |
+| Sizing | `dimen` | Touch targets, icons, focus treatment, and adaptive thresholds |
 | Elevation | `dimen` | Shared surface elevation levels |
 | Restrictions | `integer` | UX-restricted browse density and action limits |
 | Brand startup | `color`, `drawable`, `integer` | Adaptive icon layers, splash mark, splash surface, exit timing |
 
 Compose reads these resources through `ResourceDesignTokenProvider`, so runtime
 resource overlays can affect the app without code changes.
+
+User-facing strings remain internal to `:core:ui` or their owning feature
+module. They are intentionally absent from `public.xml` and `overlayable.xml`.
+
+`PandaWaveResourceContractTest` verifies that the public, overlayable, base, and
+reference-overlay resource sets agree. `verifyPandaWaveUiContract` runs from
+`qualityCheck` and rejects legacy resource names and production UI literals.

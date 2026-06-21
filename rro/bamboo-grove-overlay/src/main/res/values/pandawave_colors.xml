@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="pandawave_theme_bamboo_grove_light_primary">#3F6046</color>
+    <color name="pandawave_theme_bamboo_grove_light_on_primary">#FFFFFF</color>
+    <color name="pandawave_theme_bamboo_grove_light_primary_container">#CCE8CF</color>
+    <color name="pandawave_theme_bamboo_grove_light_on_primary_container">#0B2111</color>
+    <color name="pandawave_theme_bamboo_grove_light_secondary">#5A4A2C</color>
+    <color name="pandawave_theme_bamboo_grove_light_on_secondary">#FFFFFF</color>
+    <color name="pandawave_theme_bamboo_grove_light_secondary_container">#EEDDB8</color>
+    <color name="pandawave_theme_bamboo_grove_light_on_secondary_container">#211A0B</color>
+    <color name="pandawave_theme_bamboo_grove_light_surface">#F8F6EF</color>
+    <color name="pandawave_theme_bamboo_grove_light_surface_container">#EEECE2</color>
+    <color name="pandawave_theme_bamboo_grove_light_surface_container_high">#E5E3D9</color>
+    <color name="pandawave_theme_bamboo_grove_light_on_surface">#171E1B</color>
+    <color name="pandawave_theme_bamboo_grove_light_on_surface_variant">#405041</color>
+    <color name="pandawave_theme_bamboo_grove_light_outline">#707A70</color>
+    <color name="pandawave_theme_bamboo_grove_light_error">#BA1A1A</color>
+    <color name="pandawave_theme_bamboo_grove_light_on_error">#FFFFFF</color>
+
+    <color name="pandawave_theme_moonlit_bamboo_dark_primary">#B8CEAA</color>
+    <color name="pandawave_theme_moonlit_bamboo_dark_on_primary">#1D2A20</color>
+    <color name="pandawave_theme_moonlit_bamboo_dark_primary_container">#344638</color>
+    <color name="pandawave_theme_moonlit_bamboo_dark_on_primary_container">#CBDDC1</color>
+    <color name="pandawave_theme_moonlit_bamboo_dark_secondary">#D0C986</color>
+    <color name="pandawave_theme_moonlit_bamboo_dark_on_secondary">#2E2D12</color>
+    <color name="pandawave_theme_moonlit_bamboo_dark_secondary_container">#474620</color>
+    <color name="pandawave_theme_moonlit_bamboo_dark_on_secondary_container">#DDD994</color>
+    <color name="pandawave_theme_moonlit_bamboo_dark_surface">#0F1712</color>
+    <color name="pandawave_theme_moonlit_bamboo_dark_surface_container">#1B231F</color>
+    <color name="pandawave_theme_moonlit_bamboo_dark_surface_container_high">#26332A</color>
+    <color name="pandawave_theme_moonlit_bamboo_dark_on_surface">#ECE8DC</color>
+    <color name="pandawave_theme_moonlit_bamboo_dark_on_surface_variant">#C2CCBB</color>
+    <color name="pandawave_theme_moonlit_bamboo_dark_outline">#8C9788</color>
+    <color name="pandawave_theme_moonlit_bamboo_dark_error">#FFB4AB</color>
+    <color name="pandawave_theme_moonlit_bamboo_dark_on_error">#690005</color>
+
+    <color name="pandawave_theme_forest_tech_light_primary">#356F29</color>
+    <color name="pandawave_theme_forest_tech_light_on_primary">#FFFFFF</color>
+    <color name="pandawave_theme_forest_tech_light_primary_container">#B5F29E</color>
+    <color name="pandawave_theme_forest_tech_light_on_primary_container">#072100</color>
+    <color name="pandawave_theme_forest_tech_light_secondary">#4D4F4F</color>
+    <color name="pandawave_theme_forest_tech_light_on_secondary">#FFFFFF</color>
+    <color name="pandawave_theme_forest_tech_light_secondary_container">#E0E3E3</color>
+    <color name="pandawave_theme_forest_tech_light_on_secondary_container">#191C1C</color>
+    <color name="pandawave_theme_forest_tech_light_surface">#F6F8F0</color>
+    <color name="pandawave_theme_forest_tech_light_surface_container">#ECEFE7</color>
+    <color name="pandawave_theme_forest_tech_light_surface_container_high">#E2E6DD</color>
+    <color name="pandawave_theme_forest_tech_light_on_surface">#172018</color>
+    <color name="pandawave_theme_forest_tech_light_on_surface_variant">#424D3D</color>
+    <color name="pandawave_theme_forest_tech_light_outline">#72796E</color>
+    <color name="pandawave_theme_forest_tech_light_error">#BA1A1A</color>
+    <color name="pandawave_theme_forest_tech_light_on_error">#FFFFFF</color>
+
+    <color name="pandawave_theme_forest_tech_dark_primary">#9FE18A</color>
+    <color name="pandawave_theme_forest_tech_dark_on_primary">#043900</color>
+    <color name="pandawave_theme_forest_tech_dark_primary_container">#1C4F17</color>
+    <color name="pandawave_theme_forest_tech_dark_on_primary_container">#B4F49E</color>
+    <color name="pandawave_theme_forest_tech_dark_secondary">#C6C6C7</color>
+    <color name="pandawave_theme_forest_tech_dark_on_secondary">#2F3131</color>
+    <color name="pandawave_theme_forest_tech_dark_secondary_container">#454747</color>
+    <color name="pandawave_theme_forest_tech_dark_on_secondary_container">#E2E2E3</color>
+    <color name="pandawave_theme_forest_tech_dark_surface">#131313</color>
+    <color name="pandawave_theme_forest_tech_dark_surface_container">#1C1B1B</color>
+    <color name="pandawave_theme_forest_tech_dark_surface_container_high">#272626</color>
+    <color name="pandawave_theme_forest_tech_dark_on_surface">#E5E2E1</color>
+    <color name="pandawave_theme_forest_tech_dark_on_surface_variant">#C1C9B9</color>
+    <color name="pandawave_theme_forest_tech_dark_outline">#8B9385</color>
+    <color name="pandawave_theme_forest_tech_dark_error">#FFB4AB</color>
+    <color name="pandawave_theme_forest_tech_dark_on_error">#690005</color>
+
+    <color name="pandawave_color_primary">@color/pandawave_theme_bamboo_grove_light_primary</color>
+    <color name="pandawave_color_on_primary">@color/pandawave_theme_bamboo_grove_light_on_primary</color>
+    <color name="pandawave_color_primary_container">@color/pandawave_theme_bamboo_grove_light_primary_container</color>
+    <color name="pandawave_color_on_primary_container">@color/pandawave_theme_bamboo_grove_light_on_primary_container</color>
+    <color name="pandawave_color_secondary">@color/pandawave_theme_bamboo_grove_light_secondary</color>
+    <color name="pandawave_color_on_secondary">@color/pandawave_theme_bamboo_grove_light_on_secondary</color>
+    <color name="pandawave_color_secondary_container">@color/pandawave_theme_bamboo_grove_light_secondary_container</color>
+    <color name="pandawave_color_on_secondary_container">@color/pandawave_theme_bamboo_grove_light_on_secondary_container</color>
+    <color name="pandawave_color_surface">@color/pandawave_theme_bamboo_grove_light_surface</color>
+    <color name="pandawave_color_surface_container">@color/pandawave_theme_bamboo_grove_light_surface_container</color>
+    <color name="pandawave_color_surface_container_high">@color/pandawave_theme_bamboo_grove_light_surface_container_high</color>
+    <color name="pandawave_color_on_surface">@color/pandawave_theme_bamboo_grove_light_on_surface</color>
+    <color name="pandawave_color_on_surface_variant">@color/pandawave_theme_bamboo_grove_light_on_surface_variant</color>
+    <color name="pandawave_color_outline">@color/pandawave_theme_bamboo_grove_light_outline</color>
+    <color name="pandawave_color_error">@color/pandawave_theme_bamboo_grove_light_error</color>
+    <color name="pandawave_color_on_error">@color/pandawave_theme_bamboo_grove_light_on_error</color>
+    <color name="pandawave_launcher_background">#93D87E</color>
+    <color name="pandawave_splash_background">#131313</color>
+
+    <item name="pandawave_state_disabled_alpha" type="fraction">38%</item>
+    <item name="pandawave_state_pressed_alpha" type="fraction">88%</item>
+    <item name="pandawave_state_focus_alpha" type="fraction">100%</item>
+</resources>

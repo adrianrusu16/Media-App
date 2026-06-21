@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pandawave_profile_account_title">Account</string>
+    <string name="pandawave_profile_account_body">Sign-in and account details will live here.</string>
+    <string name="pandawave_profile_session_title">Session</string>
+    <string name="pandawave_profile_session_body">Manage active sessions and trusted devices.</string>
+    <string name="pandawave_profile_preferences_title">Preferences</string>
+    <string name="pandawave_profile_preferences_body">Appearance, privacy, content, and diagnostics.</string>
+    <string name="pandawave_profile_open">Open</string>
+</resources>

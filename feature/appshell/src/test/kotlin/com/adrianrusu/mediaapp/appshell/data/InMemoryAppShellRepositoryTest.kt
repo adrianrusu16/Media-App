@@ -25,7 +25,6 @@ class InMemoryAppShellRepositoryTest {
                 playbackStatus = BambooPlaybackStatus.Playing,
                 engineConnection = BambooEngineConnectionUiState.Ready,
                 restriction = BambooPlaybackRestrictionState(
-                    label = "Driver-safe mode",
                     isRestricted = true
                 ),
                 updatedAtEpochMillis = 100L,
@@ -54,13 +53,11 @@ class InMemoryAppShellRepositoryTest {
             playbackStatus = BambooPlaybackStatus.Playing,
             engineConnection = BambooEngineConnectionUiState.Ready,
             restriction = BambooPlaybackRestrictionState(
-                label = "Parked",
                 isRestricted = false
             )
         )
         val restrictedPlayback = unrestrictedPlayback.copy(
             restriction = BambooPlaybackRestrictionState(
-                label = "Driver-safe mode",
                 isRestricted = true
             )
         )

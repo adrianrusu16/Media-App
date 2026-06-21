@@ -33,7 +33,7 @@ class MainActivity : ComponentActivity() {
                 .scaleY(1.04F)
                 .setDuration(
                     resources.getInteger(
-                        DesignSystemR.integer.mediaapp_splash_exit_animation_duration_millis
+                        DesignSystemR.integer.pandawave_splash_exit_animation_duration_millis
                     ).toLong()
                 )
                 .withEndAction(provider::remove)

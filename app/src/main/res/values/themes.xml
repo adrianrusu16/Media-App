@@ -1,18 +1,18 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <style name="Theme.PandaWave" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-        <item name="colorPrimary">@color/mediaapp_color_brand_primary</item>
-        <item name="colorPrimaryVariant">@color/mediaapp_color_brand_primary</item>
-        <item name="colorOnPrimary">@color/mediaapp_color_brand_on_primary</item>
-        <item name="colorSecondary">@color/mediaapp_color_brand_secondary</item>
-        <item name="colorSecondaryVariant">@color/mediaapp_color_brand_secondary</item>
-        <item name="colorOnSecondary">@color/mediaapp_color_brand_on_secondary</item>
+        <item name="colorPrimary">@color/pandawave_color_primary</item>
+        <item name="colorPrimaryVariant">@color/pandawave_color_primary_container</item>
+        <item name="colorOnPrimary">@color/pandawave_color_on_primary</item>
+        <item name="colorSecondary">@color/pandawave_color_secondary</item>
+        <item name="colorSecondaryVariant">@color/pandawave_color_secondary_container</item>
+        <item name="colorOnSecondary">@color/pandawave_color_on_secondary</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>
 
     <style name="Theme.PandaWave.Starting" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">@color/mediaapp_splash_background</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/mediaapp_ic_splash_mark</item>
+        <item name="windowSplashScreenBackground">@color/pandawave_splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/pandawave_ic_splash_mark</item>
         <item name="postSplashScreenTheme">@style/Theme.PandaWave</item>
     </style>
 </resources>

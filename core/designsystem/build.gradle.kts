@@ -9,6 +9,10 @@ android {
     }
 }
 
+tasks.withType<Test>().configureEach {
+    systemProperty("pandawave.rootDir", rootProject.projectDir.absolutePath)
+}
+
 dependencies {
     implementation(project(":core:model"))
 
