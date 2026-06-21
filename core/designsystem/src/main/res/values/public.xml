@@ -175,6 +175,7 @@
     <public type="dimen" name="pandawave_voice_indicator_bars_width" />
     <public type="dimen" name="pandawave_voice_indicator_border_width" />
     <public type="dimen" name="pandawave_volume_control_height" />
+    <public type="dimen" name="pandawave_volume_control_max_width" />
     <public type="dimen" name="pandawave_waveform_bar_width" />
     <public type="dimen" name="pandawave_waveform_height" />
     <public type="drawable" name="pandawave_ic_launcher_foreground" />

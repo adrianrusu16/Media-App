@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -42,7 +43,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.adrianrusu.mediaapp.core.designsystem.R as DesignSystemR
 import com.adrianrusu.mediaapp.core.designsystem.tokens.LocalPandaWaveDesignTokens
 import com.adrianrusu.mediaapp.core.designsystem.tokens.cardResting
-import com.adrianrusu.mediaapp.core.designsystem.tokens.iconLarge
 import com.adrianrusu.mediaapp.core.designsystem.tokens.iconMedium
 import com.adrianrusu.mediaapp.core.designsystem.tokens.iconSmall
 import com.adrianrusu.mediaapp.core.designsystem.tokens.lg
@@ -51,7 +51,6 @@ import com.adrianrusu.mediaapp.core.designsystem.tokens.nowPlayingArtworkCompact
 import com.adrianrusu.mediaapp.core.designsystem.tokens.nowPlayingArtworkStandard
 import com.adrianrusu.mediaapp.core.designsystem.tokens.nowPlayingCompactHeightThreshold
 import com.adrianrusu.mediaapp.core.designsystem.tokens.nowPlayingFooterHeight
-import com.adrianrusu.mediaapp.core.designsystem.tokens.nowPlayingPrimaryButton
 import com.adrianrusu.mediaapp.core.designsystem.tokens.nowPlayingQuickActionHeight
 import com.adrianrusu.mediaapp.core.designsystem.tokens.nowPlayingQuickActionWidth
 import com.adrianrusu.mediaapp.core.designsystem.tokens.nowPlayingScrollHeightThreshold
@@ -63,7 +62,7 @@ import com.adrianrusu.mediaapp.core.designsystem.tokens.sm
 import com.adrianrusu.mediaapp.core.designsystem.tokens.touchTargetLg
 import com.adrianrusu.mediaapp.core.designsystem.tokens.touchTargetMd
 import com.adrianrusu.mediaapp.core.designsystem.tokens.volumeControlHeight
-import com.adrianrusu.mediaapp.core.designsystem.tokens.xl
+import com.adrianrusu.mediaapp.core.designsystem.tokens.volumeControlMaxWidth
 import com.adrianrusu.mediaapp.core.designsystem.tokens.xs
 import com.adrianrusu.mediaapp.core.playback.BambooPlaybackProgress
 import com.adrianrusu.mediaapp.core.ui.components.BambooVoiceIndicator
@@ -497,11 +496,19 @@ private fun NowPlayingFooter(
             enabled = true,
             onClick = onLibraryClick
         )
-        VolumeControl(
-            modifier = Modifier.weight(0.5f),
-            volume = volume,
-            onVolumeChange = onVolumeChange
-        )
+        Box(
+            modifier = Modifier.weight(1f),
+            contentAlignment = Alignment.Center
+        ) {
+            VolumeControl(
+                modifier = Modifier
+                    .widthIn(max = tokens.components.volumeControlMaxWidth)
+                    .fillMaxWidth()
+                    .heightIn(min = tokens.components.volumeControlHeight),
+                volume = volume,
+                onVolumeChange = onVolumeChange
+            )
+        }
         BambooVoiceIndicator()
     }
 }
@@ -554,7 +561,7 @@ private fun VolumeControl(
     val tokens = LocalPandaWaveDesignTokens.current
 
     Surface(
-        modifier = modifier.heightIn(min = tokens.components.volumeControlHeight),
+        modifier = modifier,
         color = Color(tokens.colors.surfaceVariant),
         shape = CircleShape,
         tonalElevation = tokens.elevation.cardResting

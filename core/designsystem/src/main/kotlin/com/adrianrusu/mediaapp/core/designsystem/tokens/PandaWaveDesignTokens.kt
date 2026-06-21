@@ -71,6 +71,7 @@ data class PandaWaveComponentTokens(
     val progressTrackHeightPx: Int,
     val progressThumbSizePx: Int,
     val volumeControlHeightPx: Int,
+    val volumeControlMaxWidthPx: Int,
     val waveformHeightPx: Int,
     val waveformBarWidthPx: Int,
     val voiceIndicatorBorderWidthPx: Int,
@@ -234,6 +235,9 @@ val PandaWaveComponentTokens.progressThumbSize: Dp
 
 val PandaWaveComponentTokens.volumeControlHeight: Dp
     @Composable get() = volumeControlHeightPx.toDp()
+
+val PandaWaveComponentTokens.volumeControlMaxWidth: Dp
+    @Composable get() = volumeControlMaxWidthPx.toDp()
 
 val PandaWaveComponentTokens.waveformHeight: Dp
     @Composable get() = waveformHeightPx.toDp()

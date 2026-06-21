@@ -35,6 +35,18 @@ class PandaWaveResourceContractTest {
     }
 
     @Test
+    fun `volume control maximum width is part of the overlay contract`() {
+        val maximumWidth = ResourceEntry(
+            type = "dimen",
+            name = "pandawave_volume_control_max_width"
+        )
+
+        assertTrue(maximumWidth in publicEntries())
+        assertTrue(maximumWidth in overlayableEntries())
+        assertTrue(maximumWidth in resourceDefinitions(overlayRes))
+    }
+
+    @Test
     fun `component color resources expose every required interaction state`() {
         requiredSelectorStates.forEach { (resourceName, requiredStates) ->
             val selector = baseRes.resolve("color/$resourceName.xml")

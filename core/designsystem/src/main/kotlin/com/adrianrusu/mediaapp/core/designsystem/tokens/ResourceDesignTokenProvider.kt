@@ -107,6 +107,7 @@ class ResourceDesignTokenProvider(context: Context) {
             progressTrackHeightPx = dimension(R.dimen.pandawave_progress_track_height),
             progressThumbSizePx = dimension(R.dimen.pandawave_progress_thumb_size),
             volumeControlHeightPx = dimension(R.dimen.pandawave_volume_control_height),
+            volumeControlMaxWidthPx = dimension(R.dimen.pandawave_volume_control_max_width),
             waveformHeightPx = dimension(R.dimen.pandawave_waveform_height),
             waveformBarWidthPx = dimension(R.dimen.pandawave_waveform_bar_width),
             voiceIndicatorBorderWidthPx = dimension(R.dimen.pandawave_voice_indicator_border_width),
