@@ -96,7 +96,8 @@ Run the Android app verification from the project root:
 .\gradlew.bat --no-configuration-cache :app:assembleDebug
 ```
 
-Android native packaging and smoke-test commands live in
+The app build compiles and packages PandaEngine for every supported Android ABI
+by default. Android native packaging and smoke-test commands live in
 [android-platform-integration.md](android-platform-integration.md).
 
 Run Rust verification from `rust/engine` after Rust is installed:

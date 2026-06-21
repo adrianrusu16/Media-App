@@ -17,6 +17,8 @@ jobs:
     name: Android validation
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      PANDA_ENGINE_ANDROID_NDK_VERSION: 30.0.14904198
 
     steps:
       - name: Checkout
@@ -34,7 +36,12 @@ jobs:
       - name: Install Android SDK packages
         run: |
           yes | sdkmanager --licenses
-          sdkmanager "platform-tools" "platforms;android-36.1"
+          sdkmanager "platform-tools" "platforms;android-36.1" "ndk;$PANDA_ENGINE_ANDROID_NDK_VERSION"
+
+      - name: Set up Rust for Android
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android, armv7-linux-androideabi, i686-linux-android, x86_64-linux-android
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6

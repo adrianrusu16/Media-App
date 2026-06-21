@@ -109,40 +109,42 @@ bridging, and telemetry hooks.
 native binding and `System.loadLibrary("panda_engine_ffi")`.
 
 The Gradle native lane builds and syncs `panda_engine_ffi` into generated
-`jniLibs`:
+`jniLibs`. Normal Android builds depend on this lane by default, so a runnable
+APK cannot silently package a stale native engine:
+
+```powershell
+.\gradlew.bat --no-configuration-cache :app:assembleDebug --console=plain
+```
+
+Build and sync the native libraries directly with:
 
 ```powershell
 .\gradlew.bat --no-configuration-cache :core:rust-bridge:syncPandaEngineAndroidJniLibs --console=plain
 ```
 
-To include the generated native libraries during a normal Android build, enable
-the native build property:
-
-```powershell
-.\gradlew.bat --no-configuration-cache "-PpandaEngine.buildNative=true" :app:assembleDebug --console=plain
-```
-
 Compile the native Android smoke test with:
 
 ```powershell
-.\gradlew.bat --no-configuration-cache "-PpandaEngine.buildNative=true" :core:rust-bridge:assembleDebugAndroidTest --console=plain
+.\gradlew.bat --no-configuration-cache :core:rust-bridge:assembleDebugAndroidTest --console=plain
 ```
 
 Run it on a connected device or emulator with:
 
 ```powershell
-.\gradlew.bat --no-configuration-cache "-PpandaEngine.buildNative=true" :core:rust-bridge:connectedDebugAndroidTest --console=plain
+.\gradlew.bat --no-configuration-cache :core:rust-bridge:connectedDebugAndroidTest --console=plain
 ```
 
 Required local toolchain:
 
 - Android NDK installed in the configured Android SDK, `ANDROID_NDK_HOME`, or
-  `ANDROID_NDK_ROOT`.
+  `ANDROID_NDK_ROOT`. The repository pins the supported version through
+  `pandaEngine.androidNdkVersion` in `gradle.properties`.
 - Rust Android targets:
   `aarch64-linux-android`, `armv7-linux-androideabi`, `i686-linux-android`,
   and `x86_64-linux-android`.
 - Cargo available on `PATH`, or `CARGO` pointing at the cargo executable.
 
-The regular Android build does not silently synthesize native libraries. When
-the native lane is enabled and the toolchain is incomplete, Gradle fails with a
-hard prerequisite error.
+When the native toolchain is incomplete, Gradle fails with a hard prerequisite
+error. Kotlin-only checks may explicitly opt out with
+`-PpandaEngine.buildNative=false`; artifacts produced in that mode are not
+runtime-validation artifacts and must not be shipped.

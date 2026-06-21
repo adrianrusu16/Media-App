@@ -12,13 +12,14 @@ data class PandaEngineAndroidTarget(val abi: String, val rustTarget: String, val
 
 val pandaEngineAndroidApi = 33
 val pandaEngineLibraryName = "libpanda_engine_ffi.so"
+val pandaEngineAndroidNdkVersion = providers.gradleProperty("pandaEngine.androidNdkVersion").get()
 val pandaEngineGeneratedJniLibsDir = layout.buildDirectory.dir("generated/panda-engine/jniLibs")
 val cargoExecutable = providers.environmentVariable("CARGO").orElse("cargo")
 val rustcExecutable = providers.environmentVariable("RUSTC").orElse("rustc")
 val pandaEngineBuildNative =
     providers.gradleProperty("pandaEngine.buildNative")
         .map(String::toBoolean)
-        .orElse(false)
+        .orElse(true)
 
 val pandaEngineAndroidTargets =
     mapOf(
@@ -49,9 +50,13 @@ val pandaEngineAndroidTargets =
     )
 
 android {
-    sourceSets {
-        getByName("main") {
-            jniLibs.directories.add(pandaEngineGeneratedJniLibsDir.get().asFile.absolutePath)
+    ndkVersion = pandaEngineAndroidNdkVersion
+
+    if (pandaEngineBuildNative.get()) {
+        sourceSets {
+            getByName("main") {
+                jniLibs.directories.add(pandaEngineGeneratedJniLibsDir.get().asFile.absolutePath)
+            }
         }
     }
 }
@@ -65,6 +70,14 @@ fun findAndroidNdkDirectory(): File? {
         .firstOrNull()
         ?.let { return it }
 
+    listOfNotNull(
+        System.getenv("ANDROID_SDK_ROOT"),
+        System.getenv("ANDROID_HOME")
+    ).map(::File)
+        .map { it.resolve("ndk/$pandaEngineAndroidNdkVersion") }
+        .firstOrNull { it.resolve("toolchains/llvm/prebuilt").isDirectory }
+        ?.let { return it }
+
     val localPropertiesFile = rootProject.file("local.properties")
     if (!localPropertiesFile.isFile) return null
 
@@ -73,10 +86,12 @@ fun findAndroidNdkDirectory(): File? {
     val sdkDirectory = localProperties.getProperty("sdk.dir")?.let(::File) ?: return null
     if (!sdkDirectory.isDirectory) return null
 
-    val legacyNdkDirectory = sdkDirectory.resolve("ndk-bundle")
-    if (legacyNdkDirectory.isDirectory) return legacyNdkDirectory
+    val versionedNdkDirectory = sdkDirectory.resolve("ndk/$pandaEngineAndroidNdkVersion")
+    if (versionedNdkDirectory.resolve("toolchains/llvm/prebuilt").isDirectory) {
+        return versionedNdkDirectory
+    }
 
-    return resolveAndroidNdkDirectory(sdkDirectory.resolve("ndk"))
+    return null
 }
 
 fun resolveAndroidNdkDirectory(candidate: File): File? {
@@ -174,8 +189,9 @@ val buildPandaEngineAndroidTargetTasks =
                 val ndkDirectory =
                     findAndroidNdkDirectory()
                         ?: throw GradleException(
-                            "Android NDK is required to build PandaEngine native libraries. " +
-                                "Install it through Android Studio or set ANDROID_NDK_HOME."
+                            "Android NDK $pandaEngineAndroidNdkVersion is required to build " +
+                                "PandaEngine native libraries. Install it through Android Studio " +
+                                "or set ANDROID_NDK_HOME."
                         )
                 val linker = target.linkerExecutable(ndkDirectory)
                 if (!linker.isFile) {
@@ -232,4 +248,5 @@ dependencies {
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
     androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.test.runner)
 }

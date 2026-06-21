@@ -9,7 +9,7 @@
 
         <provider
             android:name=".engine.PandaWaveAudioContentProvider"
-            android:authorities="com.adrianrusu.mediaapp.audio"
+            android:authorities="${applicationId}.audio"
             android:exported="false" />
     </application>
 
