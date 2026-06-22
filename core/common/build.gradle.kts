@@ -1,3 +1,3 @@
 plugins {
-    id("mediaapp.android.library")
+    id("pandawave.android.library")
 }

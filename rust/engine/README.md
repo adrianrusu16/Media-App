@@ -14,14 +14,14 @@ From `engine/`:
 
 ```powershell
 # 1) Fast confidence check
-cargo check -p media_app_core -p panda_engine_ffi
+cargo check -p panda_engine_core -p panda_engine_ffi
 
 # 2) Run focused tests for the most touched boundaries
-cargo test -p media_app_core core::core_tests -- --nocapture
+cargo test -p panda_engine_core core::core_tests -- --nocapture
 cargo test -p panda_engine_ffi -- --nocapture
 
 # 3) Run full app_core suite before larger merges
-cargo test -p media_app_core -- --nocapture
+cargo test -p panda_engine_core -- --nocapture
 ```
 
 If you are changing architecture/module boundaries, also run `cargo test --workspace`.
@@ -116,12 +116,12 @@ cargo llvm-cov
 
 ```powershell
 # Fast (inner-loop): compile + critical boundaries
-cargo check -p media_app_core -p panda_engine_ffi
-cargo test -p media_app_core core::core_tests -- --nocapture
+cargo check -p panda_engine_core -p panda_engine_ffi
+cargo test -p panda_engine_core core::core_tests -- --nocapture
 cargo test -p panda_engine_ffi -- --nocapture
 
 # Refactor-safe (when touching data/networking/middleware)
-cargo test -p media_app_core -- --nocapture
+cargo test -p panda_engine_core -- --nocapture
 cargo test -p panda_engine_ffi -- --nocapture
 
 # Full gate (pre-merge / release hardening)
@@ -134,15 +134,15 @@ cargo fmt --check
 
 ```powershell
 # Core only
-cargo test -p media_app_core core::core_tests -- --nocapture
+cargo test -p panda_engine_core core::core_tests -- --nocapture
 
 # Networking retry wrappers
-cargo test -p media_app_core retrying_backend_client -- --nocapture
-cargo test -p media_app_core retrying_audio_source_client -- --nocapture
+cargo test -p panda_engine_core retrying_backend_client -- --nocapture
+cargo test -p panda_engine_core retrying_audio_source_client -- --nocapture
 
 # FFI boundary
 cargo test -p panda_engine_ffi -- --nocapture
-cargo check -p media_app_core -p panda_engine_ffi
+cargo check -p panda_engine_core -p panda_engine_ffi
 ```
 
 ## Architecture Highlights
@@ -340,7 +340,7 @@ To make app assembly build and package the native library:
 
 - **`cargo test --workspace` reports 0 tests**:
   - Confirm you are in `rust/engine` and running against the intended workspace root.
-  - Run targeted crates explicitly (`-p media_app_core`, `-p panda_engine_ffi`) to verify expected suites.
+  - Run targeted crates explicitly (`-p panda_engine_core`, `-p panda_engine_ffi`) to verify expected suites.
 - **FFI tests pass but Android integration fails**:
   - Re-check observer lifecycle (`create` -> `set_observer` -> `dispatch` -> `destroy`).
   - Verify payload/event constants used on Android still match `ffi::constants`.

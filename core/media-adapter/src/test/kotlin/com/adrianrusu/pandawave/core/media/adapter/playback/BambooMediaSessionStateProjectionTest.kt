@@ -1,0 +1,69 @@
+package com.adrianrusu.pandawave.core.media.adapter.playback
+
+import com.adrianrusu.pandawave.core.playback.BambooPlaybackState
+import com.adrianrusu.pandawave.core.playback.BambooPlaybackStatus
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+
+class BambooMediaSessionStateProjectionTest {
+    @Test
+    fun `playing state maps to playable media item`() {
+        val parsedUris = mutableListOf<String>()
+        val projection = BambooPlaybackState(
+            mediaId = "track-1",
+            title = "Bamboo Drive",
+            artist = "PandaWave",
+            album = "Canopy Sessions",
+            durationMillis = 222_000L,
+            artworkUri = "content://pandawave/art/track-1",
+            sourceUri = "https://cdn.pandawave.test/audio/track-1.mp3",
+            mimeType = "audio/mpeg",
+            playbackStatus = BambooPlaybackStatus.Playing,
+            positionMillis = 9_000L
+        ).toMediaSessionStateProjection(
+            uriParser = BambooUriParser { value ->
+                parsedUris += value
+                null
+            }
+        )
+
+        assertEquals("track-1", projection.mediaItem.mediaId)
+        assertEquals("Bamboo Drive", projection.mediaItem.mediaMetadata.title)
+        assertEquals("PandaWave", projection.mediaItem.mediaMetadata.artist)
+        assertEquals("Canopy Sessions", projection.mediaItem.mediaMetadata.albumTitle)
+        assertEquals(222_000L, projection.mediaItem.mediaMetadata.durationMs)
+        assertEquals(
+            listOf(
+                "https://cdn.pandawave.test/audio/track-1.mp3",
+                "content://pandawave/art/track-1"
+            ),
+            parsedUris
+        )
+        assertEquals(false, projection.mediaItem.mediaMetadata.isBrowsable)
+        assertEquals(true, projection.mediaItem.mediaMetadata.isPlayable)
+        assertTrue(projection.playWhenReady)
+        assertEquals(9_000L, projection.positionMillis)
+    }
+
+    @Test
+    fun `idle state uses stable fallback media id`() {
+        val projection = BambooPlaybackState(
+            mediaId = null,
+            playbackStatus = BambooPlaybackStatus.Idle
+        ).toMediaSessionStateProjection()
+
+        assertEquals("pandawave.playback.current", projection.mediaItem.mediaId)
+        assertFalse(projection.playWhenReady)
+    }
+
+    @Test
+    fun `negative playback position is clamped for media3`() {
+        val projection = BambooPlaybackState(
+            positionMillis = -1L
+        ).toMediaSessionStateProjection()
+
+        assertEquals(0L, projection.positionMillis)
+    }
+}

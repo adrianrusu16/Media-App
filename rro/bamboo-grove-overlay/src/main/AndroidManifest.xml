@@ -4,5 +4,5 @@
         android:isStatic="true"
         android:priority="1"
         android:targetName="PandaWaveDesignTokens"
-        android:targetPackage="com.adrianrusu.mediaapp" />
+        android:targetPackage="com.adrianrusu.pandawave" />
 </manifest>

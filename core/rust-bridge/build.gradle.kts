@@ -5,7 +5,7 @@ import org.gradle.api.tasks.Exec
 import org.gradle.api.tasks.Sync
 
 plugins {
-    id("mediaapp.android.library")
+    id("pandawave.android.library")
 }
 
 data class PandaEngineAndroidTarget(val abi: String, val rustTarget: String, val linkerPrefix: String)

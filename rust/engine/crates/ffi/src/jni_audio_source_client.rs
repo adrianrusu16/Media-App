@@ -192,7 +192,7 @@ struct JniAudioSourceResolverMethod;
 
 impl JniAudioSourceResolverMethod {
     const RESOLVE: &'static str = "resolve";
-    const RESOLVE_SIGNATURE: &'static str = "(Ljava/lang/String;)Lcom/adrianrusu/mediaapp/core/rust/bridge/engine/EnginePlaybackSource;";
+    const RESOLVE_SIGNATURE: &'static str = "(Ljava/lang/String;)Lcom/adrianrusu/pandawave/core/rust/bridge/engine/EnginePlaybackSource;";
     const GET_SOURCE_ID: &'static str = "getSourceId";
     const GET_URI: &'static str = "getUri";
     const GET_MIME_TYPE: &'static str = "getMimeType";

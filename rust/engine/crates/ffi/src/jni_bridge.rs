@@ -29,7 +29,7 @@ use crate::{
 };
 
 #[unsafe(no_mangle)]
-pub extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeCreate(
+pub extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeCreate(
     _env: JNIEnv,
     _class: JClass,
     now_epoch_millis: jlong,
@@ -38,7 +38,7 @@ pub extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_nati
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_00024Companion_nativeCreate(
+pub extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_00024Companion_nativeCreate(
     _env: JNIEnv,
     _this: JObject,
     now_epoch_millis: jlong,
@@ -51,7 +51,7 @@ fn create_engine_handle(now_epoch_millis: jlong) -> jlong {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeSnapshot(
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeSnapshot(
     mut env: JNIEnv,
     _this: JObject,
     handle: jlong,
@@ -61,7 +61,7 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeDispatch(
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeDispatch(
     mut env: JNIEnv,
     _this: JObject,
     handle: jlong,
@@ -83,7 +83,7 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeDispatchPlatformEvent(
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeDispatchPlatformEvent(
     mut env: JNIEnv,
     _this: JObject,
     handle: jlong,
@@ -105,7 +105,7 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeDestroy(
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeDestroy(
     _env: JNIEnv,
     _this: JObject,
     handle: jlong,
@@ -114,7 +114,7 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeSetAudioSourceResolver(
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeSetAudioSourceResolver(
     mut env: JNIEnv,
     _this: JObject,
     handle: jlong,
@@ -134,7 +134,7 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeCurrentMediaId(
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeCurrentMediaId(
     mut env: JNIEnv,
     _this: JObject,
     handle: jlong,
@@ -144,7 +144,7 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeCurrentTitle(
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeCurrentTitle(
     mut env: JNIEnv,
     _this: JObject,
     handle: jlong,
@@ -154,7 +154,7 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeCurrentArtist(
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeCurrentArtist(
     mut env: JNIEnv,
     _this: JObject,
     handle: jlong,
@@ -164,7 +164,7 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeCurrentAlbum(
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeCurrentAlbum(
     mut env: JNIEnv,
     _this: JObject,
     handle: jlong,
@@ -174,7 +174,7 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeCurrentArtworkUri(
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeCurrentArtworkUri(
     mut env: JNIEnv,
     _this: JObject,
     handle: jlong,
@@ -184,7 +184,7 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeCurrentSourceUri(
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeCurrentSourceUri(
     mut env: JNIEnv,
     _this: JObject,
     handle: jlong,
@@ -194,7 +194,7 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeCurrentMimeType(
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeCurrentMimeType(
     mut env: JNIEnv,
     _this: JObject,
     handle: jlong,
@@ -204,7 +204,7 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeCurrentUserId(
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeCurrentUserId(
     mut env: JNIEnv,
     _this: JObject,
     handle: jlong,
@@ -214,7 +214,7 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeEffectCount(
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeEffectCount(
     _env: JNIEnv,
     _this: JObject,
     handle: jlong,
@@ -223,7 +223,7 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeEffectType(
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeEffectType(
     _env: JNIEnv,
     _this: JObject,
     handle: jlong,
@@ -233,7 +233,7 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeEffectMediaId(
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeEffectMediaId(
     mut env: JNIEnv,
     _this: JObject,
     handle: jlong,
@@ -245,7 +245,7 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeEffectNotifyMessage(
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeEffectNotifyMessage(
     mut env: JNIEnv,
     _this: JObject,
     handle: jlong,
@@ -258,7 +258,7 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeEffectPositionMillis(
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeEffectPositionMillis(
     _env: JNIEnv,
     _this: JObject,
     handle: jlong,
@@ -268,7 +268,7 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeEffectSpeed(
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeEffectSpeed(
     _env: JNIEnv,
     _this: JObject,
     handle: jlong,
@@ -278,7 +278,7 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeSearchResultId(
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeSearchResultId(
     mut env: JNIEnv,
     _this: JObject,
     handle: jlong,
@@ -290,7 +290,7 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeSearchResultTitle(
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeSearchResultTitle(
     mut env: JNIEnv,
     _this: JObject,
     handle: jlong,
@@ -303,7 +303,7 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeSearchResultArtist(
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeSearchResultArtist(
     mut env: JNIEnv,
     _this: JObject,
     handle: jlong,
@@ -316,7 +316,7 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeSearchResultAlbum(
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeSearchResultAlbum(
     mut env: JNIEnv,
     _this: JObject,
     handle: jlong,
@@ -329,7 +329,7 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeSearchResultArtworkUri(
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeSearchResultArtworkUri(
     mut env: JNIEnv,
     _this: JObject,
     handle: jlong,
@@ -342,7 +342,7 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeSearchResultSourceUri(
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeSearchResultSourceUri(
     mut env: JNIEnv,
     _this: JObject,
     handle: jlong,
@@ -355,7 +355,7 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeSearchResultMimeType(
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeSearchResultMimeType(
     mut env: JNIEnv,
     _this: JObject,
     handle: jlong,
@@ -368,7 +368,7 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeSearchResultItemType(
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeSearchResultItemType(
     _env: JNIEnv,
     _this: JObject,
     handle: jlong,
@@ -380,7 +380,7 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeBrowseResultId(
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeBrowseResultId(
     mut env: JNIEnv,
     _this: JObject,
     handle: jlong,
@@ -392,7 +392,7 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeBrowseResultTitle(
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeBrowseResultTitle(
     mut env: JNIEnv,
     _this: JObject,
     handle: jlong,
@@ -405,7 +405,7 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeBrowseResultArtist(
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeBrowseResultArtist(
     mut env: JNIEnv,
     _this: JObject,
     handle: jlong,
@@ -418,7 +418,7 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeBrowseResultAlbum(
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeBrowseResultAlbum(
     mut env: JNIEnv,
     _this: JObject,
     handle: jlong,
@@ -431,7 +431,7 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeBrowseResultArtworkUri(
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeBrowseResultArtworkUri(
     mut env: JNIEnv,
     _this: JObject,
     handle: jlong,
@@ -444,7 +444,7 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeBrowseResultSourceUri(
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeBrowseResultSourceUri(
     mut env: JNIEnv,
     _this: JObject,
     handle: jlong,
@@ -457,7 +457,7 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeBrowseResultMimeType(
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeBrowseResultMimeType(
     mut env: JNIEnv,
     _this: JObject,
     handle: jlong,
@@ -470,7 +470,7 @@ pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engi
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_mediaapp_core_rust_bridge_engine_native_PandaEngine_nativeBrowseResultItemType(
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeBrowseResultItemType(
     _env: JNIEnv,
     _this: JObject,
     handle: jlong,

@@ -1,0 +1,29 @@
+package com.adrianrusu.pandawave.feature.nowplaying.domain
+
+import com.adrianrusu.pandawave.core.playback.BambooEngineConnectionStatus
+import com.adrianrusu.pandawave.core.playback.BambooEngineConnectionUiState
+import com.adrianrusu.pandawave.core.playback.BambooPlaybackProgress
+import com.adrianrusu.pandawave.core.playback.BambooPlaybackProgressAnchor
+import com.adrianrusu.pandawave.core.playback.BambooPlaybackProgressProjector
+
+data class NowPlayingState(
+    val mediaId: String? = null,
+    val title: String = "",
+    val artist: String = "",
+    val playbackState: NowPlayingPlaybackState = NowPlayingPlaybackState.Idle,
+    val engineConnection: BambooEngineConnectionUiState = BambooEngineConnectionUiState.Connecting,
+    val restriction: NowPlayingRestrictionState = NowPlayingRestrictionState.Unavailable,
+    val updatedAtEpochMillis: Long = 0L,
+    val progressAnchor: BambooPlaybackProgressAnchor = BambooPlaybackProgressAnchor()
+) {
+    val isPlaying: Boolean
+        get() = playbackState == NowPlayingPlaybackState.Playing
+
+    val canDispatchEngineCommands: Boolean
+        get() = engineConnection.status == BambooEngineConnectionStatus.Ready
+
+    fun progressAt(nowMillis: Long): BambooPlaybackProgress = BambooPlaybackProgressProjector.fromAnchor(
+        anchor = progressAnchor,
+        nowMillis = nowMillis
+    )
+}

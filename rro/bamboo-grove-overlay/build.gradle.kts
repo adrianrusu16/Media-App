@@ -1,11 +1,11 @@
 plugins {
-    id("mediaapp.android.application")
+    id("pandawave.android.application")
 }
 
 android {
-    namespace = "com.adrianrusu.mediaapp.rro.bamboogrove"
+    namespace = "com.adrianrusu.pandawave.rro.bamboogrove"
 
     defaultConfig {
-        applicationId = "com.adrianrusu.mediaapp.rro.bamboogrove"
+        applicationId = "com.adrianrusu.pandawave.rro.bamboogrove"
     }
 }

@@ -7,7 +7,7 @@ and secure platform services.
 ## Current Milestone
 
 The repository now contains a Rust workspace at `rust/engine` with
-`media_app_core` and `panda_engine_ffi`. PandaEngine owns the source-of-truth
+`panda_engine_core` and `panda_engine_ffi`. PandaEngine owns the source-of-truth
 runtime model:
 
 - `EngineCommand`
@@ -27,7 +27,7 @@ generated `jniLibs` lane used to package Rust Android builds.
 
 The next binding layer is also scaffolded:
 
-- `panda_engine_ffi` exposes a small C ABI over `media_app_core`.
+- `panda_engine_ffi` exposes a small C ABI over `panda_engine_core`.
 - `PandaEngine` defines the Kotlin wrapper shape for the future JNI/native
   library.
 - `MediaEngineService` depends on the `RustEngine` interface and uses the

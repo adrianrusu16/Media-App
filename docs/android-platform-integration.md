@@ -89,7 +89,7 @@ native host via JNI; the current production resolver maps engine track IDs to
 the stable PandaWave content-URI contract:
 
 ```text
-content://com.adrianrusu.mediaapp.audio/audio/{trackId}
+content://com.adrianrusu.pandawave.audio/audio/{trackId}
 ```
 
 Canopy/Jade-backed stores should serve those URIs through

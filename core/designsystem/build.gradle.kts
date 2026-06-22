@@ -1,5 +1,5 @@
 plugins {
-    id("mediaapp.android.library")
+    id("pandawave.android.library")
     alias(libs.plugins.kotlin.compose)
 }
 

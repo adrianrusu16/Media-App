@@ -75,7 +75,7 @@ sequenceDiagram
 ## Integration Milestones
 
 1. **FFI Facade**
-   Expose `media_app_core` through a compact C ABI with explicit ownership,
+   Expose `panda_engine_core` through a compact C ABI with explicit ownership,
    stable discriminants, ABI-safe structs, and panic containment.
 
 2. **JNI Shim**

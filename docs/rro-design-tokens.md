@@ -29,7 +29,7 @@ public token contract rather than the primary user preference system.
 ## Sample Overlay
 
 `:rro:bamboo-grove-overlay` is a buildable sample overlay APK that targets
-`com.adrianrusu.mediaapp` and `PandaWaveDesignTokens`. It mirrors the app-owned
+`com.adrianrusu.pandawave` and `PandaWaveDesignTokens`. It mirrors the app-owned
 Bamboo Grove palette with a slightly deeper forest treatment, and exists to
 prove the overlay contract for AAOS/OEM integration.
 
@@ -56,7 +56,7 @@ RRO packages should target the app package and the overlayable group:
 
 ```xml
 <overlay
-    android:targetPackage="com.adrianrusu.mediaapp"
+    android:targetPackage="com.adrianrusu.pandawave"
     android:targetName="PandaWaveDesignTokens"
     android:isStatic="true" />
 ```
