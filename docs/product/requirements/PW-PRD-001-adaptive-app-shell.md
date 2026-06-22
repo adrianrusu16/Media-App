@@ -2,7 +2,7 @@
 
 **Status:** Approved
 **Owners:** Product, Design, Engineering
-**Last updated:** 2026-06-19
+**Last updated:** 2026-06-22
 **Related:** `docs/rro-design-tokens.md`, `docs/android-platform-integration.md`
 
 ## Problem
@@ -37,6 +37,10 @@ PandaWave currently spends limited automotive display space on an app header and
 - `PR-NAV-07`: The mini-player shall not be shown while Now Playing is open.
 - `PR-NAV-08`: Back navigation from Now Playing shall return to the previously selected primary destination.
 - `PR-NAV-09`: Profile shall be the top-level destination for user preferences. Settings shall not be a separate rail destination and may be presented within Profile or as a nested Profile screen.
+- `PR-NAV-10`: Back navigation from Profile Preferences shall return to Profile, then Home.
+- `PR-NAV-11`: Back navigation from Library, Search, or Profile shall return directly to Home without restoring another primary destination.
+- `PR-NAV-12`: Back navigation from Home shall move the PandaWave task to the background without finishing its activity or stopping playback.
+- `PR-NAV-13`: Typed destinations and one saveable back stack shall be the source of truth for UI navigation. Playback repositories and PandaEngine shall not own UI navigation history.
 
 ### Driving Restrictions
 
@@ -97,6 +101,11 @@ PandaWave currently spends limited automotive display space on an app header and
 - [ ] Each selected primary rail destination uses the active color and a vertical indicator; Now Playing leaves the logo and rail visually unchanged.
 - [ ] Logo and mini-player surface navigation open Now Playing, while each transport button performs only playback.
 - [ ] Back from Now Playing returns to the previous primary destination.
+- [ ] Back from Profile Preferences returns to Profile, then Home.
+- [ ] Back from Library, Search, or Profile returns directly to Home.
+- [ ] Back from Home backgrounds the PandaWave task without finishing its activity or stopping playback.
+- [ ] Repeated rail selection does not create duplicate navigation entries.
+- [ ] The typed navigation stack survives Android saved-state restoration.
 - [ ] Now Playing requires no vertical scrolling on the reference PandaEmulator surface.
 - [ ] The play button silhouette visually matches the approved reference and the pause state uses two bars.
 - [ ] Media controls remain enabled under a simulated driving restriction when the engine is ready.
