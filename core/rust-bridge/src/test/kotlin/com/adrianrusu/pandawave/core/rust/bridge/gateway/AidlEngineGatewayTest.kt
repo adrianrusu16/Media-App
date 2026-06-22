@@ -8,6 +8,7 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.pandawave.core.telemetry.TelemetryEvent
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
+import com.adrianrusu.pandawave.core.telemetry.TelemetryModule
 import com.adrianrusu.pandawave.core.telemetry.TelemetrySink
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -435,6 +436,7 @@ class AidlEngineGatewayTest {
         assertEquals(EngineEvent.TYPE_COMMAND_APPLIED, event.attributes["event_type"])
         assertEquals("true", event.attributes["message_present"])
         assertFalse(event.attributes.containsKey("message"))
+        assertEquals(TelemetryModule.RustBridge, event.module)
     }
 }
 

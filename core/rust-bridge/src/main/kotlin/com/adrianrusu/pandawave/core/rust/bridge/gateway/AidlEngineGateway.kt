@@ -8,16 +8,18 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.pandawave.core.rust.bridge.engine.EngineDispatchResult
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
+import com.adrianrusu.pandawave.core.telemetry.TelemetryModule
 
 /**
  * Engine gateway backed by the AIDL media engine service.
  */
 class AidlEngineGateway(
     private val connection: EngineServiceConnection,
-    private val telemetryLogger: TelemetryLogger? = null,
+    telemetryLogger: TelemetryLogger? = null,
     private val clock: () -> Long = System::currentTimeMillis
 ) : EngineGateway,
     AutoCloseable {
+    private val telemetryLogger = telemetryLogger?.forModule(TelemetryModule.RustBridge)
     private var latestSnapshot: EngineSnapshot? = null
     private var isClosed = false
     private var isDrainingPendingCommands = false

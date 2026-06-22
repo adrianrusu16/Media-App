@@ -6,6 +6,7 @@ import com.adrianrusu.pandawave.appshell.domain.AppShellRepository
 import com.adrianrusu.pandawave.appshell.domain.DispatchAppShellIntentUseCase
 import com.adrianrusu.pandawave.appshell.domain.ObserveAppShellStateUseCase
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
+import com.adrianrusu.pandawave.core.telemetry.TelemetryModule
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
@@ -14,14 +15,15 @@ class AppShellViewModel @Inject constructor(
     private val repository: AppShellRepository,
     observeState: ObserveAppShellStateUseCase,
     private val dispatchIntent: DispatchAppShellIntentUseCase,
-    private val telemetryLogger: TelemetryLogger
+    telemetryLogger: TelemetryLogger
 ) : ViewModel() {
+    private val logger = telemetryLogger.forModule(TelemetryModule.AppShell)
 
     val state = observeState()
 
     init {
         repository.start()
-        telemetryLogger.info(name = "app_shell.started")
+        logger.info(name = AppShellTelemetryEvents.STARTED)
     }
 
     fun onIntent(intent: AppShellIntent) {
@@ -32,4 +34,8 @@ class AppShellViewModel @Inject constructor(
         repository.close()
         super.onCleared()
     }
+}
+
+internal object AppShellTelemetryEvents {
+    const val STARTED = "app_shell.started"
 }

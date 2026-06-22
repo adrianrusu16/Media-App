@@ -4,12 +4,16 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.adrianrusu.pandawave.core.model.theme.PandaWaveThemePreference
 import com.adrianrusu.pandawave.core.model.theme.ThemePreferenceState
+import com.adrianrusu.pandawave.core.telemetry.TelemetryEvent
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
+import com.adrianrusu.pandawave.core.telemetry.TelemetryModule
 import com.adrianrusu.pandawave.core.telemetry.TelemetrySink
 import java.io.File
+import java.io.IOException
 import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -18,6 +22,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.runTest
@@ -71,6 +76,24 @@ class DataStoreThemePreferenceRepositoryTest {
         scope.cancel()
     }
 
+    @Test
+    fun `read failure records a preferences breadcrumb without blocking fallback`() = runTest {
+        val telemetrySink = RecordingTelemetrySink()
+        val scope = repositoryScope(testScheduler)
+        val repository = DataStoreThemePreferenceRepository(
+            dataStore = FailingPreferencesDataStore(),
+            scope = scope,
+            telemetryLogger = TelemetryLogger(telemetrySink)
+        )
+
+        assertEquals(
+            PandaWaveThemePreference.SystemDefault,
+            repository.state.filterIsInstance<ThemePreferenceState.Ready>().first().preference
+        )
+        assertEquals(TelemetryModule.Preferences, telemetrySink.events.single().module)
+        scope.cancel()
+    }
+
     private fun repositoryScope(scheduler: TestCoroutineScheduler): CoroutineScope = CoroutineScope(
         SupervisorJob() + StandardTestDispatcher(scheduler)
     )
@@ -89,4 +112,21 @@ class DataStoreThemePreferenceRepositoryTest {
         )
 
     private fun telemetryLogger(): TelemetryLogger = TelemetryLogger(TelemetrySink { })
+}
+
+private class FailingPreferencesDataStore : DataStore<Preferences> {
+    override val data = flow<Preferences> {
+        throw IOException("read failed")
+    }
+
+    override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences =
+        transform(emptyPreferences())
+}
+
+private class RecordingTelemetrySink : TelemetrySink {
+    val events = mutableListOf<TelemetryEvent>()
+
+    override fun record(event: TelemetryEvent) {
+        events += event
+    }
 }

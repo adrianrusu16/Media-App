@@ -7,6 +7,7 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.engine.EngineDispatchResult
 import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineGateway
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
+import com.adrianrusu.pandawave.core.telemetry.TelemetryModule
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,8 +16,9 @@ import kotlinx.coroutines.flow.update
 class DefaultBambooPlaybackRepository(
     private val engine: EngineGateway,
     private val uxRestrictionObserver: AutomotiveUxRestrictionObserver,
-    private val telemetryLogger: TelemetryLogger
+    telemetryLogger: TelemetryLogger
 ) : BambooPlaybackRepository {
+    private val telemetryLogger = telemetryLogger.forModule(TelemetryModule.Playback)
     private val mutableState = MutableStateFlow(BambooPlaybackState())
     private val listeners = mutableSetOf<(BambooPlaybackState) -> Unit>()
     private val effectListeners = mutableSetOf<(List<EngineEffect>) -> Unit>()

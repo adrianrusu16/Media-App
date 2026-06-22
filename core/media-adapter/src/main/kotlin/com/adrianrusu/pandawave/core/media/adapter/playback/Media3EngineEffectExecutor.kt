@@ -5,6 +5,7 @@ import androidx.media3.common.Player
 import com.adrianrusu.pandawave.core.media.adapter.playback.focus.BambooAudioFocusController
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
+import com.adrianrusu.pandawave.core.telemetry.TelemetryModule
 
 fun interface BambooPlaybackEffectExecutor {
     fun execute(effects: List<EngineEffect>)
@@ -17,9 +18,11 @@ internal object NoOpBambooPlaybackEffectExecutor : BambooPlaybackEffectExecutor 
 internal class Media3EngineEffectExecutor(
     private val player: Media3EffectPlayer,
     private val audioFocusController: BambooAudioFocusController,
-    private val telemetryLogger: TelemetryLogger,
+    telemetryLogger: TelemetryLogger,
     private val currentProjection: () -> BambooMediaSessionStateProjection? = { null }
 ) : BambooPlaybackEffectExecutor {
+    private val telemetryLogger = telemetryLogger.forModule(TelemetryModule.Media3)
+
     override fun execute(effects: List<EngineEffect>) {
         effects.forEach(::execute)
     }
@@ -97,7 +100,7 @@ internal class Media3EngineEffectExecutor(
             name = Media3EffectTelemetryEvents.EFFECT_IGNORED,
             attributes = mapOf(
                 Media3EffectTelemetryAttributes.EFFECT_TYPE to effect.type,
-                Media3EffectTelemetryAttributes.MEDIA_ID to effect.mediaId.orEmpty(),
+                Media3EffectTelemetryAttributes.MEDIA_ID_PRESENT to (effect.mediaId != null).toString(),
                 Media3EffectTelemetryAttributes.REASON to Media3EffectTelemetryValues.STALE_PROJECTION
             )
         )
@@ -170,7 +173,7 @@ internal object Media3EffectTelemetryEvents {
 
 internal object Media3EffectTelemetryAttributes {
     const val EFFECT_TYPE = "effect_type"
-    const val MEDIA_ID = "media_id"
+    const val MEDIA_ID_PRESENT = "media_id_present"
     const val REASON = "reason"
 }
 

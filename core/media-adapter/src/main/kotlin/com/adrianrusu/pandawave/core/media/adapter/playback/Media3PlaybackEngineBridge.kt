@@ -7,16 +7,18 @@ import com.adrianrusu.pandawave.core.playback.BambooPlaybackTelemetryAttributes
 import com.adrianrusu.pandawave.core.playback.telemetryName
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
+import com.adrianrusu.pandawave.core.telemetry.TelemetryModule
 
 /**
  * Projects Media3 playback requests into the shared Bamboo playback source of truth.
  */
 class Media3PlaybackEngineBridge(
     private val playbackRepository: BambooPlaybackRepository,
-    private val telemetryLogger: TelemetryLogger,
+    telemetryLogger: TelemetryLogger,
     private val effectExecutor: BambooPlaybackEffectExecutor = NoOpBambooPlaybackEffectExecutor
 ) : Player.Listener,
     AutoCloseable {
+    private val telemetryLogger = telemetryLogger.forModule(TelemetryModule.Media3)
     private var platformProjectionDepth = 0
     private var effectSubscription: AutoCloseable? = null
 
@@ -150,7 +152,7 @@ class Media3PlaybackEngineBridge(
             name = Media3PlaybackTelemetryEvents.CATALOG_COMMAND_DISPATCHED,
             attributes = mapOf(
                 BambooPlaybackTelemetryAttributes.INTENT to intent.telemetryName,
-                Media3PlaybackTelemetryAttributes.CATALOG_PARENT_ID to parentId
+                Media3PlaybackTelemetryAttributes.CATALOG_PARENT_ID_PRESENT to parentId.isNotBlank().toString()
             )
         )
         playbackRepository.dispatch(intent)
@@ -162,7 +164,7 @@ class Media3PlaybackEngineBridge(
             name = Media3PlaybackTelemetryEvents.CATALOG_COMMAND_DISPATCHED,
             attributes = mapOf(
                 BambooPlaybackTelemetryAttributes.INTENT to intent.telemetryName,
-                Media3PlaybackTelemetryAttributes.CATALOG_QUERY to query
+                Media3PlaybackTelemetryAttributes.CATALOG_QUERY_LENGTH to query.length.toString()
             )
         )
         playbackRepository.dispatch(intent)
@@ -179,7 +181,7 @@ class Media3PlaybackEngineBridge(
             name = Media3PlaybackTelemetryEvents.CATALOG_COMMAND_DISPATCHED,
             attributes = mapOf(
                 BambooPlaybackTelemetryAttributes.INTENT to intent.telemetryName,
-                Media3PlaybackTelemetryAttributes.MEDIA_ID to normalizedMediaId
+                Media3PlaybackTelemetryAttributes.MEDIA_ID_PRESENT to "true"
             )
         )
         playbackRepository.dispatch(intent)
@@ -202,9 +204,9 @@ internal object Media3PlaybackTelemetryEvents {
 }
 
 internal object Media3PlaybackTelemetryAttributes {
-    const val CATALOG_PARENT_ID = "catalog_parent_id"
-    const val CATALOG_QUERY = "catalog_query"
-    const val MEDIA_ID = "media_id"
+    const val CATALOG_PARENT_ID_PRESENT = "catalog_parent_id_present"
+    const val CATALOG_QUERY_LENGTH = "catalog_query_length"
+    const val MEDIA_ID_PRESENT = "media_id_present"
     const val PLAY_WHEN_READY = "play_when_ready"
     const val PLAYER_COMMAND = "player_command"
     const val POSITION_MILLIS = "position_millis"

@@ -6,9 +6,11 @@ import com.adrianrusu.pandawave.core.media.adapter.playback.focus.BambooAudioFoc
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.telemetry.TelemetryEvent
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
+import com.adrianrusu.pandawave.core.telemetry.TelemetryModule
 import com.adrianrusu.pandawave.core.telemetry.TelemetrySink
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 
 class Media3EngineEffectExecutorTest {
     @Test
@@ -135,6 +137,12 @@ class Media3EngineEffectExecutorTest {
             Media3EffectTelemetryValues.STALE_PROJECTION,
             telemetrySink.events.last().attributes[Media3EffectTelemetryAttributes.REASON]
         )
+        assertEquals(TelemetryModule.Media3, telemetrySink.events.last().module)
+        assertEquals(
+            "true",
+            telemetrySink.events.last().attributes[Media3EffectTelemetryAttributes.MEDIA_ID_PRESENT]
+        )
+        assertFalse(telemetrySink.events.last().attributes.values.contains("track-1"))
     }
 
     @Test

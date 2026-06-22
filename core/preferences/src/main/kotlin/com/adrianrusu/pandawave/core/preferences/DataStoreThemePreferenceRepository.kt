@@ -9,6 +9,7 @@ import com.adrianrusu.pandawave.core.model.theme.PandaWaveThemePreference
 import com.adrianrusu.pandawave.core.model.theme.ThemePreferenceRepository
 import com.adrianrusu.pandawave.core.model.theme.ThemePreferenceState
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
+import com.adrianrusu.pandawave.core.telemetry.TelemetryModule
 import java.io.IOException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
@@ -19,13 +20,15 @@ import kotlinx.coroutines.flow.stateIn
 class DataStoreThemePreferenceRepository(
     private val dataStore: DataStore<Preferences>,
     scope: CoroutineScope,
-    private val telemetryLogger: TelemetryLogger
+    telemetryLogger: TelemetryLogger
 ) : ThemePreferenceRepository {
+    private val logger = telemetryLogger.forModule(TelemetryModule.Preferences)
+
     override val state = dataStore.data
         .catch { error ->
             if (error !is IOException) throw error
 
-            telemetryLogger.error(
+            logger.error(
                 name = EVENT_THEME_PREFERENCE_READ_FAILED,
                 throwable = error
             )

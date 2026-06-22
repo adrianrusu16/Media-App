@@ -13,6 +13,7 @@ import com.adrianrusu.pandawave.core.rust.bridge.engine.EngineDispatchResult
 import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineGateway
 import com.adrianrusu.pandawave.core.telemetry.TelemetryEvent
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
+import com.adrianrusu.pandawave.core.telemetry.TelemetryModule
 import com.adrianrusu.pandawave.core.telemetry.TelemetrySink
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -387,6 +388,10 @@ class DefaultBambooPlaybackRepositoryTest {
         assertEquals(
             EngineCommand.TYPE_SKIP_NEXT,
             telemetrySink.events[3].attributes[BambooPlaybackTelemetryAttributes.COMMAND_TYPE]
+        )
+        assertEquals(
+            setOf(TelemetryModule.Playback),
+            telemetrySink.events.mapTo(mutableSetOf()) { it.module }
         )
     }
 }

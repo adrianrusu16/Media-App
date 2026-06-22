@@ -9,6 +9,7 @@ import com.adrianrusu.pandawave.core.playback.BambooPlaybackTelemetryAttributes
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.telemetry.TelemetryEvent
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
+import com.adrianrusu.pandawave.core.telemetry.TelemetryModule
 import com.adrianrusu.pandawave.core.telemetry.TelemetrySink
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -185,6 +186,42 @@ class Media3PlaybackEngineBridgeTest {
         assertEquals(
             Player.COMMAND_SEEK_FORWARD.toString(),
             telemetrySink.events[3].attributes[Media3PlaybackTelemetryAttributes.PLAYER_COMMAND]
+        )
+        assertEquals(
+            setOf(TelemetryModule.Media3),
+            telemetrySink.events.mapTo(mutableSetOf()) { it.module }
+        )
+    }
+
+    @Test
+    fun `catalog telemetry records shape without user supplied identifiers`() {
+        val telemetrySink = RecordingTelemetrySink()
+        val bridge = Media3PlaybackEngineBridge(
+            RecordingPlaybackRepository(),
+            testTelemetryLogger(telemetrySink)
+        )
+
+        bridge.dispatchCatalogBrowse("private-parent")
+        bridge.dispatchCatalogSearch("secret query")
+        bridge.dispatchCatalogPlay("private-media-id")
+
+        assertEquals(
+            "true",
+            telemetrySink.events[0].attributes[Media3PlaybackTelemetryAttributes.CATALOG_PARENT_ID_PRESENT]
+        )
+        assertEquals(
+            "12",
+            telemetrySink.events[1].attributes[Media3PlaybackTelemetryAttributes.CATALOG_QUERY_LENGTH]
+        )
+        assertEquals(
+            "true",
+            telemetrySink.events[2].attributes[Media3PlaybackTelemetryAttributes.MEDIA_ID_PRESENT]
+        )
+        assertEquals(
+            emptySet(),
+            telemetrySink.events
+                .flatMap { it.attributes.values }
+                .intersect(setOf("private-parent", "secret query", "private-media-id"))
         )
     }
 }
