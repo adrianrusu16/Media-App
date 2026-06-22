@@ -1,6 +1,7 @@
 package com.adrianrusu.pandawave.core.telemetry.sinks
 
 import com.adrianrusu.pandawave.core.telemetry.TelemetryEvent
+import com.adrianrusu.pandawave.core.telemetry.TelemetryModule
 import com.adrianrusu.pandawave.core.telemetry.TelemetrySeverity
 import com.adrianrusu.pandawave.core.telemetry.TelemetrySink
 import kotlin.test.Test
@@ -13,6 +14,7 @@ class CompositeTelemetrySinkTest {
         val second = RecordingTelemetrySink()
         val event = TelemetryEvent(
             name = "app.started",
+            module = TelemetryModule.App,
             severity = TelemetrySeverity.Info,
             timestampEpochMillis = 1L
         )
