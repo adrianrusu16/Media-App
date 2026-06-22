@@ -31,8 +31,8 @@ import com.adrianrusu.pandawave.appshell.navigation.PandaWaveNavigator
 import com.adrianrusu.pandawave.appshell.navigation.PreferencesDestination
 import com.adrianrusu.pandawave.appshell.navigation.ProfileDestination
 import com.adrianrusu.pandawave.appshell.navigation.SearchDestination
-import com.adrianrusu.pandawave.appshell.navigation.primaryDestinations
 import com.adrianrusu.pandawave.appshell.navigation.navigationId
+import com.adrianrusu.pandawave.appshell.navigation.primaryDestinations
 import com.adrianrusu.pandawave.appshell.navigation.selectedRailDestination
 import com.adrianrusu.pandawave.appshell.navigation.shouldShowMiniPlayer
 import com.adrianrusu.pandawave.core.designsystem.R as DesignSystemR
@@ -137,10 +137,7 @@ private fun PandaWaveDestination.localizedLabel(): String = when (this) {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun AppShellContent(
-    backStack: List<androidx.navigation3.runtime.NavKey>,
-    navigator: PandaWaveNavigator
-) {
+private fun AppShellContent(backStack: List<androidx.navigation3.runtime.NavKey>, navigator: PandaWaveNavigator) {
     val tokens = LocalPandaWaveDesignTokens.current
 
     Box(

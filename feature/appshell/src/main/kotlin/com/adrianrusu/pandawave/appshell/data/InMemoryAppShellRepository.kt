@@ -30,9 +30,7 @@ internal class InMemoryAppShellRepository(private val playbackRepository: Bamboo
     override fun dispatch(intent: AppShellIntent) {
         when (intent) {
             AppShellIntent.TogglePlayback -> playbackRepository.dispatch(BambooPlaybackIntent.TogglePlayback)
-
             AppShellIntent.SkipPrevious -> playbackRepository.dispatch(BambooPlaybackIntent.SkipPrevious)
-
             AppShellIntent.SkipNext -> playbackRepository.dispatch(BambooPlaybackIntent.SkipNext)
         }
     }
