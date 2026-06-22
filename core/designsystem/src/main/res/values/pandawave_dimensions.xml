@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <dimen name="pandawave_spacing_xs">4dp</dimen>
-    <dimen name="pandawave_spacing_sm">8dp</dimen>
-    <dimen name="pandawave_spacing_md">16dp</dimen>
-    <dimen name="pandawave_spacing_lg">24dp</dimen>
-    <dimen name="pandawave_spacing_xl">32dp</dimen>
+    <dimen name="pandawave_spacing_xs">6dp</dimen>
+    <dimen name="pandawave_spacing_sm">12dp</dimen>
+    <dimen name="pandawave_spacing_md">20dp</dimen>
+    <dimen name="pandawave_spacing_lg">28dp</dimen>
+    <dimen name="pandawave_spacing_xl">36dp</dimen>
     <dimen name="pandawave_shape_corner_sm">4dp</dimen>
     <dimen name="pandawave_shape_corner_md">8dp</dimen>
     <dimen name="pandawave_miniplayer_height">96dp</dimen>
@@ -23,7 +23,7 @@
     <dimen name="pandawave_navigation_item_spacing">6dp</dimen>
     <dimen name="pandawave_navigation_selected_indicator_width">4dp</dimen>
     <dimen name="pandawave_navigation_selected_indicator_height">48dp</dimen>
-    <dimen name="pandawave_navigation_selected_indicator_inset">8dp</dimen>
+    <dimen name="pandawave_navigation_selected_indicator_inset">14dp</dimen>
     <dimen name="pandawave_navigation_selected_indicator_corner">2dp</dimen>
     <dimen name="pandawave_media_section_spacing">16dp</dimen>
     <dimen name="pandawave_media_carousel_spacing">16dp</dimen>
@@ -56,7 +56,7 @@
     <dimen name="pandawave_progress_track_height">8dp</dimen>
     <dimen name="pandawave_progress_thumb_size">32dp</dimen>
     <dimen name="pandawave_volume_control_height">48dp</dimen>
-    <dimen name="pandawave_volume_control_max_width">650dp</dimen>
+    <dimen name="pandawave_volume_control_max_width">450dp</dimen>
     <dimen name="pandawave_waveform_height">44dp</dimen>
     <dimen name="pandawave_waveform_bar_width">6dp</dimen>
     <dimen name="pandawave_voice_indicator_border_width">1dp</dimen>

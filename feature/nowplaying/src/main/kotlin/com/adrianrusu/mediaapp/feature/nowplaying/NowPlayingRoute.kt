@@ -490,26 +490,35 @@ private fun NowPlayingFooter(
         horizontalArrangement = Arrangement.spacedBy(tokens.spacing.lg),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        QuickActionButton(
-            icon = PandaWaveIcons.Queue,
-            label = stringResource(R.string.pandawave_now_playing_library),
-            enabled = true,
-            onClick = onLibraryClick
-        )
         Box(
             modifier = Modifier.weight(1f),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            QuickActionButton(
+                icon = PandaWaveIcons.Queue,
+                label = stringResource(R.string.pandawave_now_playing_library),
+                enabled = true,
+                onClick = onLibraryClick
+            )
+        }
+        Box(
+            modifier = Modifier.weight(2f),
             contentAlignment = Alignment.Center
         ) {
             VolumeControl(
                 modifier = Modifier
-                    .widthIn(max = tokens.components.volumeControlMaxWidth)
-                    .fillMaxWidth()
+                    .width(tokens.components.volumeControlMaxWidth)
                     .heightIn(min = tokens.components.volumeControlHeight),
                 volume = volume,
                 onVolumeChange = onVolumeChange
             )
         }
-        BambooVoiceIndicator()
+        Box(
+            modifier = Modifier.weight(1f),
+            contentAlignment = Alignment.CenterEnd
+        ) {
+            BambooVoiceIndicator()
+        }
     }
 }
 
