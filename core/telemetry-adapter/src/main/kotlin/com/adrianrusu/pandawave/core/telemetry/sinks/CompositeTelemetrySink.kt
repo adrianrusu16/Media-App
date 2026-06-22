@@ -6,7 +6,9 @@ import com.adrianrusu.pandawave.core.telemetry.TelemetrySink
 class CompositeTelemetrySink(private val sinks: List<TelemetrySink>) : TelemetrySink {
     override fun record(event: TelemetryEvent) {
         sinks.forEach { sink ->
-            sink.record(event)
+            runCatching {
+                sink.record(event)
+            }
         }
     }
 }

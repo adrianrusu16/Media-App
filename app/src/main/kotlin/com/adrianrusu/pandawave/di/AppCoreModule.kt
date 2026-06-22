@@ -1,6 +1,7 @@
 package com.adrianrusu.pandawave.di
 
 import android.content.Context
+import android.content.pm.ApplicationInfo
 import androidx.datastore.core.DataStore
 import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.Preferences
@@ -17,9 +18,13 @@ import com.adrianrusu.pandawave.core.rust.bridge.gateway.AidlEngineGateway
 import com.adrianrusu.pandawave.core.rust.bridge.gateway.AndroidEngineServiceConnection
 import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineGateway
 import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineServiceConnection
+import com.adrianrusu.pandawave.core.telemetry.TelemetryBreadcrumbStore
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
+import com.adrianrusu.pandawave.core.telemetry.TelemetryPolicy
 import com.adrianrusu.pandawave.core.telemetry.TelemetrySink
 import com.adrianrusu.pandawave.core.telemetry.sinks.AndroidLogTelemetrySink
+import com.adrianrusu.pandawave.core.telemetry.sinks.CompositeTelemetrySink
+import com.adrianrusu.pandawave.core.telemetry.sinks.InMemoryBreadcrumbTelemetrySink
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -61,11 +66,41 @@ object AppCoreModule {
 
     @Provides
     @Singleton
-    fun provideTelemetrySink(): TelemetrySink = AndroidLogTelemetrySink()
+    fun provideBreadcrumbSink(): InMemoryBreadcrumbTelemetrySink = InMemoryBreadcrumbTelemetrySink()
 
     @Provides
     @Singleton
-    fun provideTelemetryLogger(sink: TelemetrySink): TelemetryLogger = TelemetryLogger(sink = sink)
+    fun provideTelemetryBreadcrumbStore(sink: InMemoryBreadcrumbTelemetrySink): TelemetryBreadcrumbStore = sink
+
+    @Provides
+    @Singleton
+    fun provideTelemetrySink(breadcrumbSink: InMemoryBreadcrumbTelemetrySink): TelemetrySink = CompositeTelemetrySink(
+        sinks = listOf(
+            AndroidLogTelemetrySink(),
+            breadcrumbSink
+        )
+    )
+
+    @Provides
+    @Singleton
+    @AppDebuggable
+    fun provideAppDebuggable(@ApplicationContext context: Context): Boolean =
+        context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
+
+    @Provides
+    @Singleton
+    fun provideTelemetryPolicy(@AppDebuggable isDebuggable: Boolean): TelemetryPolicy = if (isDebuggable) {
+        TelemetryPolicy.developer()
+    } else {
+        TelemetryPolicy.production()
+    }
+
+    @Provides
+    @Singleton
+    fun provideTelemetryLogger(sink: TelemetrySink, policy: TelemetryPolicy): TelemetryLogger = TelemetryLogger(
+        sink = sink,
+        policy = policy
+    )
 
     @Provides
     @Singleton
@@ -113,3 +148,7 @@ object AppCoreModule {
 @Qualifier
 @Retention(AnnotationRetention.BINARY)
 private annotation class ApplicationScope
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+private annotation class AppDebuggable

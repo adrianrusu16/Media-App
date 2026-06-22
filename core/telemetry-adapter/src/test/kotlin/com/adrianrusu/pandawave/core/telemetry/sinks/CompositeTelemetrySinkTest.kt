@@ -24,6 +24,22 @@ class CompositeTelemetrySinkTest {
         assertEquals(listOf(event), first.events)
         assertEquals(listOf(event), second.events)
     }
+
+    @Test
+    fun `failing sink does not block remaining sinks`() {
+        val recording = RecordingTelemetrySink()
+        val event = TelemetryEvent(
+            name = "app.started",
+            module = TelemetryModule.App,
+            severity = TelemetrySeverity.Info,
+            timestampEpochMillis = 1L
+        )
+        val failing = TelemetrySink { error("sink unavailable") }
+
+        CompositeTelemetrySink(listOf(failing, recording)).record(event)
+
+        assertEquals(listOf(event), recording.events)
+    }
 }
 
 private class RecordingTelemetrySink : TelemetrySink {
