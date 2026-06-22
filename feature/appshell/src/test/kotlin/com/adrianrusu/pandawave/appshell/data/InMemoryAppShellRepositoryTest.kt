@@ -1,7 +1,7 @@
 package com.adrianrusu.pandawave.appshell.data
 
-import com.adrianrusu.pandawave.appshell.domain.AppDestination
 import com.adrianrusu.pandawave.appshell.domain.AppShellIntent
+import com.adrianrusu.pandawave.appshell.domain.AppShellState
 import com.adrianrusu.pandawave.core.playback.BambooEngineConnectionUiState
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackIntent
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
@@ -11,7 +11,6 @@ import com.adrianrusu.pandawave.core.playback.BambooPlaybackStatus
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class InMemoryAppShellRepositoryTest {
@@ -98,13 +97,12 @@ class InMemoryAppShellRepositoryTest {
     }
 
     @Test
-    fun `now playing destination hides mini player`() {
+    fun `shell starts with playback projection only`() {
         val repository = InMemoryAppShellRepository(playbackRepository = RecordingPlaybackRepository())
 
         repository.start()
-        repository.dispatch(AppShellIntent.OpenNowPlaying)
 
-        assertFalse(repository.state.value.shouldShowMiniPlayer)
+        assertEquals(AppShellState(), repository.state.value)
     }
 }
 

@@ -53,7 +53,8 @@ class MainActivity : ComponentActivity() {
             ) {
                 AppShellScreen(
                     state = state.value,
-                    onIntent = viewModel::onIntent
+                    onIntent = viewModel::onIntent,
+                    onMoveTaskToBack = { moveTaskToBack(true) }
                 )
             }
         }

@@ -48,5 +48,6 @@ dependencies {
     testRuntimeOnly(libs.junit.platform.launcher)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.test.core)
+    androidTestImplementation(project(":core:model"))
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

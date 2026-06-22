@@ -9,15 +9,32 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import com.adrianrusu.pandawave.appshell.domain.AppDestination
+import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
+import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.runtime.rememberNavBackStack
+import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
+import androidx.navigation3.ui.NavDisplay
 import com.adrianrusu.pandawave.appshell.domain.AppShellIntent
 import com.adrianrusu.pandawave.appshell.domain.AppShellState
+import com.adrianrusu.pandawave.appshell.navigation.HomeDestination
+import com.adrianrusu.pandawave.appshell.navigation.LibraryDestination
+import com.adrianrusu.pandawave.appshell.navigation.NowPlayingDestination
+import com.adrianrusu.pandawave.appshell.navigation.PandaWaveDestination
+import com.adrianrusu.pandawave.appshell.navigation.PandaWaveNavigator
+import com.adrianrusu.pandawave.appshell.navigation.PreferencesDestination
+import com.adrianrusu.pandawave.appshell.navigation.ProfileDestination
+import com.adrianrusu.pandawave.appshell.navigation.SearchDestination
+import com.adrianrusu.pandawave.appshell.navigation.primaryDestinations
+import com.adrianrusu.pandawave.appshell.navigation.navigationId
+import com.adrianrusu.pandawave.appshell.navigation.selectedRailDestination
+import com.adrianrusu.pandawave.appshell.navigation.shouldShowMiniPlayer
 import com.adrianrusu.pandawave.core.designsystem.R as DesignSystemR
 import com.adrianrusu.pandawave.core.designsystem.tokens.LocalPandaWaveDesignTokens
 import com.adrianrusu.pandawave.core.designsystem.tokens.appContentPadding
@@ -35,15 +52,22 @@ import com.adrianrusu.pandawave.feature.settings.SettingsRoute
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun AppShellScreen(state: AppShellState, onIntent: (AppShellIntent) -> Unit, modifier: Modifier = Modifier) {
-    BackHandler(enabled = !state.selectedDestination.isPrimary) {
-        onIntent(AppShellIntent.NavigateBack)
-    }
+fun AppShellScreen(
+    state: AppShellState,
+    onIntent: (AppShellIntent) -> Unit,
+    onMoveTaskToBack: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val backStack = rememberNavBackStack(HomeDestination)
+    val navigator = remember(backStack) { PandaWaveNavigator(backStack) }
+    val currentDestination = navigator.currentDestination
+
+    BackHandler(enabled = navigator.isAtRoot, onBack = onMoveTaskToBack)
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
         bottomBar = {
-            if (state.shouldShowMiniPlayer) {
+            if (currentDestination.shouldShowMiniPlayer) {
                 BambooMiniPlayer(
                     modifier = Modifier
                         .focusRestorer()
@@ -51,9 +75,7 @@ fun AppShellScreen(state: AppShellState, onIntent: (AppShellIntent) -> Unit, mod
                         .testTag("mini-player-zone"),
                     state = state.miniPlayer,
                     controlsEnabled = state.canDispatchEngineCommands,
-                    onClick = {
-                        onIntent(AppShellIntent.OpenNowPlaying)
-                    },
+                    onClick = navigator::openNowPlaying,
                     onSkipPreviousClick = {
                         onIntent(AppShellIntent.SkipPrevious)
                     },
@@ -72,48 +94,53 @@ fun AppShellScreen(state: AppShellState, onIntent: (AppShellIntent) -> Unit, mod
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            val navigationItems = state.destinations.map { destination ->
+            val navigationItems = primaryDestinations.map { destination ->
                 BambooNavigationItemModel(
-                    id = destination.name,
+                    id = destination.navigationId,
                     label = destination.localizedLabel(),
                     icon = destination.icon,
-                    selected = destination == state.selectedRailDestination,
+                    selected = destination == currentDestination.selectedRailDestination,
                     showLabel = true
                 )
             }
             BambooNavigationRail(
                 items = navigationItems,
                 logo = painterResource(DesignSystemR.drawable.pandawave_ic_logo),
-                logoContentDescription = stringResource(R.string.pandawave_navigation_open_now_playing),
-                onLogoClick = { onIntent(AppShellIntent.OpenNowPlaying) },
+                logoContentDescription = stringResource(
+                    R.string.pandawave_navigation_open_now_playing
+                ),
+                onLogoClick = navigator::openNowPlaying,
                 onItemClick = { destinationId ->
-                    AppDestination.entries
-                        .firstOrNull { it.name == destinationId }
-                        ?.let { onIntent(AppShellIntent.SelectDestination(it)) }
+                    primaryDestinations
+                        .firstOrNull { it.navigationId == destinationId }
+                        ?.let(navigator::selectPrimary)
                 },
-                bottomItemId = AppDestination.Profile.name
+                bottomItemId = ProfileDestination.navigationId
             )
             AppShellContent(
-                state = state,
-                onIntent = onIntent
+                backStack = backStack,
+                navigator = navigator
             )
         }
     }
 }
 
 @Composable
-private fun AppDestination.localizedLabel(): String = when (this) {
-    AppDestination.Home -> stringResource(R.string.pandawave_navigation_home)
-    AppDestination.Library -> stringResource(R.string.pandawave_navigation_library)
-    AppDestination.Search -> stringResource(R.string.pandawave_navigation_search)
-    AppDestination.Profile -> stringResource(R.string.pandawave_navigation_profile)
-    AppDestination.NowPlaying -> stringResource(R.string.pandawave_navigation_now_playing)
-    AppDestination.ProfileSettings -> stringResource(R.string.pandawave_navigation_settings)
+private fun PandaWaveDestination.localizedLabel(): String = when (this) {
+    HomeDestination -> stringResource(R.string.pandawave_navigation_home)
+    LibraryDestination -> stringResource(R.string.pandawave_navigation_library)
+    SearchDestination -> stringResource(R.string.pandawave_navigation_search)
+    ProfileDestination -> stringResource(R.string.pandawave_navigation_profile)
+    NowPlayingDestination -> stringResource(R.string.pandawave_navigation_now_playing)
+    PreferencesDestination -> stringResource(R.string.pandawave_navigation_settings)
 }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun AppShellContent(state: AppShellState, onIntent: (AppShellIntent) -> Unit) {
+private fun AppShellContent(
+    backStack: List<androidx.navigation3.runtime.NavKey>,
+    navigator: PandaWaveNavigator
+) {
     val tokens = LocalPandaWaveDesignTokens.current
 
     Box(
@@ -124,51 +151,51 @@ private fun AppShellContent(state: AppShellState, onIntent: (AppShellIntent) -> 
             .testTag("destination-content-zone")
             .padding(tokens.layout.appContentPadding)
     ) {
-        DestinationContent(
-            destination = state.selectedDestination,
-            onIntent = onIntent,
-            modifier = Modifier.fillMaxSize()
+        NavDisplay(
+            backStack = backStack,
+            onBack = { navigator.pop() },
+            entryDecorators = listOf(
+                rememberSaveableStateHolderNavEntryDecorator(),
+                rememberViewModelStoreNavEntryDecorator()
+            ),
+            entryProvider = entryProvider {
+                entry<HomeDestination> {
+                    HomeRoute(modifier = Modifier.fillMaxSize())
+                }
+                entry<LibraryDestination> {
+                    LibraryRoute(modifier = Modifier.fillMaxSize())
+                }
+                entry<SearchDestination> {
+                    SearchRoute(modifier = Modifier.fillMaxSize())
+                }
+                entry<ProfileDestination> {
+                    ProfileRoute(
+                        modifier = Modifier.fillMaxSize(),
+                        onSettingsClick = navigator::openPreferences
+                    )
+                }
+                entry<PreferencesDestination> {
+                    SettingsRoute(modifier = Modifier.fillMaxSize())
+                }
+                entry<NowPlayingDestination> {
+                    NowPlayingRoute(
+                        modifier = Modifier.fillMaxSize(),
+                        onLibraryClick = {
+                            navigator.selectPrimary(LibraryDestination)
+                        }
+                    )
+                }
+            }
         )
     }
 }
 
-private val AppDestination.icon: ImageVector
+private val PandaWaveDestination.icon: ImageVector
     get() = when (this) {
-        AppDestination.Home -> PandaWaveIcons.Home
-        AppDestination.Library -> PandaWaveIcons.Library
-        AppDestination.NowPlaying -> PandaWaveIcons.NowPlaying
-        AppDestination.Search -> PandaWaveIcons.Search
-        AppDestination.ProfileSettings -> PandaWaveIcons.Settings
-        AppDestination.Profile -> PandaWaveIcons.Profile
+        HomeDestination -> PandaWaveIcons.Home
+        LibraryDestination -> PandaWaveIcons.Library
+        SearchDestination -> PandaWaveIcons.Search
+        ProfileDestination -> PandaWaveIcons.Profile
+        NowPlayingDestination -> PandaWaveIcons.NowPlaying
+        PreferencesDestination -> PandaWaveIcons.Settings
     }
-
-@Composable
-private fun DestinationContent(
-    destination: AppDestination,
-    onIntent: (AppShellIntent) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    when (destination) {
-        AppDestination.Home -> HomeRoute(modifier = modifier)
-
-        AppDestination.Library -> LibraryRoute(modifier = modifier)
-
-        AppDestination.NowPlaying -> NowPlayingRoute(
-            modifier = modifier,
-            onLibraryClick = {
-                onIntent(AppShellIntent.SelectDestination(AppDestination.Library))
-            }
-        )
-
-        AppDestination.Search -> SearchRoute(modifier = modifier)
-
-        AppDestination.ProfileSettings -> SettingsRoute(modifier = modifier)
-
-        AppDestination.Profile -> ProfileRoute(
-            modifier = modifier,
-            onSettingsClick = {
-                onIntent(AppShellIntent.OpenProfileSettings)
-            }
-        )
-    }
-}

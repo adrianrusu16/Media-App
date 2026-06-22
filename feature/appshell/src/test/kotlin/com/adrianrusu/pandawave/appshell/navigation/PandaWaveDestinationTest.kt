@@ -21,6 +21,14 @@ class PandaWaveDestinationTest {
     }
 
     @Test
+    fun `primary destinations expose unique stable navigation ids`() {
+        assertEquals(
+            listOf("home", "library", "search", "profile"),
+            primaryDestinations.map(PandaWaveDestination::navigationId)
+        )
+    }
+
+    @Test
     fun `preferences keeps profile selected in the rail`() {
         assertEquals(ProfileDestination, PreferencesDestination.selectedRailDestination)
     }

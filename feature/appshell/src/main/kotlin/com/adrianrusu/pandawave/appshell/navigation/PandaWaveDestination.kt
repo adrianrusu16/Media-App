@@ -30,6 +30,16 @@ val primaryDestinations: List<PandaWaveDestination> = listOf(
     ProfileDestination
 )
 
+val PandaWaveDestination.navigationId: String
+    get() = when (this) {
+        HomeDestination -> "home"
+        LibraryDestination -> "library"
+        SearchDestination -> "search"
+        ProfileDestination -> "profile"
+        PreferencesDestination -> "preferences"
+        NowPlayingDestination -> "now-playing"
+    }
+
 val PandaWaveDestination.selectedRailDestination: PandaWaveDestination?
     get() = when (this) {
         PreferencesDestination -> ProfileDestination

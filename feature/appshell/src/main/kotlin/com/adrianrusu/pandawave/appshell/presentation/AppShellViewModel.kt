@@ -21,10 +21,7 @@ class AppShellViewModel @Inject constructor(
 
     init {
         repository.start()
-        telemetryLogger.info(
-            name = "app_shell.started",
-            attributes = mapOf("screen" to state.value.selectedDestination.name)
-        )
+        telemetryLogger.info(name = "app_shell.started")
     }
 
     fun onIntent(intent: AppShellIntent) {

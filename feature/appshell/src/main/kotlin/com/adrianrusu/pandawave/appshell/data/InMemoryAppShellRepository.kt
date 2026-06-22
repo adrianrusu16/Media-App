@@ -1,7 +1,6 @@
 package com.adrianrusu.pandawave.appshell.data
 
 import com.adrianrusu.pandawave.appshell.domain.AppShellIntent
-import com.adrianrusu.pandawave.appshell.domain.AppShellReducer
 import com.adrianrusu.pandawave.appshell.domain.AppShellRepository
 import com.adrianrusu.pandawave.appshell.domain.AppShellState
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackIntent
@@ -12,7 +11,6 @@ import com.adrianrusu.pandawave.core.ui.miniplayer.MiniPlayerState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 
 internal class InMemoryAppShellRepository(private val playbackRepository: BambooPlaybackRepository) :
     AppShellRepository {
@@ -24,9 +22,7 @@ internal class InMemoryAppShellRepository(private val playbackRepository: Bamboo
     override fun start() {
         playbackSubscription?.close()
         playbackSubscription = playbackRepository.observe { playback ->
-            mutableState.update { current ->
-                current.withPlaybackState(playback)
-            }
+            mutableState.value = mutableState.value.withPlaybackState(playback)
         }
         playbackRepository.start()
     }
@@ -38,15 +34,6 @@ internal class InMemoryAppShellRepository(private val playbackRepository: Bamboo
             AppShellIntent.SkipPrevious -> playbackRepository.dispatch(BambooPlaybackIntent.SkipPrevious)
 
             AppShellIntent.SkipNext -> playbackRepository.dispatch(BambooPlaybackIntent.SkipNext)
-
-            is AppShellIntent.SelectDestination,
-            AppShellIntent.OpenNowPlaying,
-            AppShellIntent.OpenProfileSettings,
-            AppShellIntent.NavigateBack -> {
-                mutableState.update { current ->
-                    AppShellReducer.reduce(current, intent)
-                }
-            }
         }
     }
 
