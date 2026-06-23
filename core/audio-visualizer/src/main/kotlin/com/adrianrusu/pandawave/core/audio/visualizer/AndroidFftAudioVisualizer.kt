@@ -2,13 +2,12 @@ package com.adrianrusu.pandawave.core.audio.visualizer
 
 import android.media.audiofx.Visualizer
 import com.adrianrusu.pandawave.core.audio.visualizer.AmbientVisualizerAvailability.Reason
-import kotlin.math.ln
-import kotlin.math.sqrt
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 class AndroidFftAudioVisualizer : AmbientAudioVisualizer {
+    private val processor = AndroidFftProcessor(targetBands = TARGET_BAND_COUNT)
     private val mutableAmplitudes = MutableStateFlow(FloatArray(0))
     override val amplitudes: StateFlow<FloatArray> = mutableAmplitudes.asStateFlow()
 
@@ -39,7 +38,7 @@ class AndroidFftAudioVisualizer : AmbientAudioVisualizer {
         try {
             visualizer = Visualizer(audioSessionId).apply {
                 captureSize = chooseCaptureSize()
-                setDataCaptureListener(
+                val listenerStatus = setDataCaptureListener(
                     object : Visualizer.OnDataCaptureListener {
                         override fun onWaveFormDataCapture(
                             visualizer: Visualizer?,
@@ -49,17 +48,17 @@ class AndroidFftAudioVisualizer : AmbientAudioVisualizer {
 
                         override fun onFftDataCapture(visualizer: Visualizer?, fft: ByteArray?, samplingRate: Int) {
                             if (fft != null) {
-                                mutableAmplitudes.value = fftToAmplitudes(
-                                    fft = fft,
-                                    targetBands = TARGET_BAND_COUNT
-                                )
+                                mutableAmplitudes.value = processor.process(fft)
                             }
                         }
                     },
-                    Visualizer.getMaxCaptureRate() / CAPTURE_RATE_DIVISOR,
+                    (Visualizer.getMaxCaptureRate() / CAPTURE_RATE_DIVISOR).coerceAtLeast(1),
                     false,
                     true
                 )
+                check(listenerStatus == Visualizer.SUCCESS) {
+                    "Visualizer rejected FFT capture listener: $listenerStatus"
+                }
                 if (startRequested) enabled = true
             }
             mutableAvailability.value = AmbientVisualizerAvailability.Ready
@@ -69,8 +68,10 @@ class AndroidFftAudioVisualizer : AmbientAudioVisualizer {
             failAttachment(Reason.Unsupported)
         } catch (error: IllegalArgumentException) {
             failAttachment(Reason.InvalidSession)
-        } catch (error: RuntimeException) {
+        } catch (error: IllegalStateException) {
             failAttachment(Reason.InitializationFailed)
+        } catch (error: RuntimeException) {
+            failAttachment(Reason.RuntimeFailed)
         }
     }
 
@@ -137,43 +138,3 @@ class AndroidFftAudioVisualizer : AmbientAudioVisualizer {
         const val PREFERRED_CAPTURE_SIZE = 1024
     }
 }
-
-private fun fftToAmplitudes(fft: ByteArray, targetBands: Int): FloatArray {
-    if (fft.isEmpty() || targetBands <= 0) return FloatArray(0)
-
-    val magnitudes = FloatArray(fft.size / 2)
-    for (index in magnitudes.indices) {
-        val realIndex = index * 2
-        val imaginaryIndex = realIndex + 1
-        if (imaginaryIndex >= fft.size) break
-
-        val real = fft[realIndex].toFloat()
-        val imaginary = fft[imaginaryIndex].toFloat()
-        val magnitude = sqrt(real * real + imaginary * imaginary)
-        magnitudes[index] = ln(1f + magnitude) / ln(128f)
-    }
-
-    return magnitudes.resampleTo(targetBands)
-}
-
-private fun FloatArray.resampleTo(targetSize: Int): FloatArray {
-    if (isEmpty() || targetSize <= 0) return FloatArray(0)
-    if (targetSize == 1) return floatArrayOf(first().coerceIn(0f, 1f))
-    if (size == targetSize) return this
-
-    return FloatArray(targetSize) { index ->
-        val sourcePosition = index * (lastIndex.toFloat() / (targetSize - 1))
-        val leftIndex = sourcePosition.toInt().coerceIn(0, lastIndex)
-        val rightIndex = (leftIndex + 1).coerceIn(0, lastIndex)
-        val fraction = sourcePosition - leftIndex
-
-        lerpFloat(
-            start = this[leftIndex],
-            end = this[rightIndex],
-            fraction = fraction
-        ).coerceIn(0f, 1f)
-    }
-}
-
-private fun lerpFloat(start: Float, end: Float, fraction: Float): Float =
-    start + (end - start) * fraction.coerceIn(0f, 1f)
