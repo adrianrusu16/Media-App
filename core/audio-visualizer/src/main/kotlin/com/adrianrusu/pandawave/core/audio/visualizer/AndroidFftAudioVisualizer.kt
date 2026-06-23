@@ -81,6 +81,14 @@ class AndroidFftAudioVisualizer : AmbientAudioVisualizer {
         setEnabled(enabled = true)
     }
 
+    override fun detachFromAudioSession() {
+        if (closed) return
+        releaseVisualizer()
+        attachedAudioSessionId = null
+        mutableAmplitudes.value = FloatArray(0)
+        mutableAvailability.value = AmbientVisualizerAvailability.Unavailable(Reason.InvalidSession)
+    }
+
     override fun stop() {
         if (!startRequested) return
         startRequested = false

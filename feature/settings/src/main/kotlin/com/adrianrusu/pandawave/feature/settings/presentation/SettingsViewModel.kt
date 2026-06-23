@@ -2,6 +2,7 @@ package com.adrianrusu.pandawave.feature.settings.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.adrianrusu.pandawave.core.audio.visualizer.VisualizerPermissionRepository
 import com.adrianrusu.pandawave.feature.settings.domain.DispatchSettingsIntentUseCase
 import com.adrianrusu.pandawave.feature.settings.domain.ObserveSettingsStateUseCase
 import com.adrianrusu.pandawave.feature.settings.domain.SettingsIntent
@@ -14,7 +15,8 @@ import kotlinx.coroutines.launch
 class SettingsViewModel @Inject constructor(
     private val repository: SettingsRepository,
     observeState: ObserveSettingsStateUseCase,
-    private val dispatchIntent: DispatchSettingsIntentUseCase
+    private val dispatchIntent: DispatchSettingsIntentUseCase,
+    private val visualizerPermissionRepository: VisualizerPermissionRepository
 ) : ViewModel() {
     val state = observeState()
 
@@ -24,6 +26,14 @@ class SettingsViewModel @Inject constructor(
 
     fun onIntent(intent: SettingsIntent) {
         viewModelScope.launch { dispatchIntent(intent) }
+    }
+
+    fun onVisualizerPermissionSnapshot(shouldShowRationale: Boolean) {
+        visualizerPermissionRepository.refresh(shouldShowRationale)
+    }
+
+    fun onVisualizerPermissionResult(granted: Boolean, shouldShowRationale: Boolean) {
+        visualizerPermissionRepository.onRequestResult(granted, shouldShowRationale)
     }
 
     override fun onCleared() {

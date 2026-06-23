@@ -3,6 +3,8 @@ package com.adrianrusu.pandawave.feature.nowplaying.presentation
 import com.adrianrusu.pandawave.core.audio.visualizer.AmbientAudioVisualizer
 import com.adrianrusu.pandawave.core.audio.visualizer.AmbientVisualizerAvailability
 import com.adrianrusu.pandawave.core.audio.visualizer.AudioSessionRepository
+import com.adrianrusu.pandawave.core.audio.visualizer.VisualizerPermissionRepository
+import com.adrianrusu.pandawave.core.audio.visualizer.VisualizerPermissionState
 import com.adrianrusu.pandawave.core.preferences.AmbientModePreferenceRepository
 import com.adrianrusu.pandawave.core.preferences.AmbientModePreferenceState
 import com.adrianrusu.pandawave.core.preferences.AmbientModePreferences
@@ -62,6 +64,7 @@ class NowPlayingViewModelTest {
             dispatchIntent = DispatchNowPlayingIntentUseCase(repository),
             audioSessionRepository = RecordingAudioSessionRepository(),
             visualizer = visualizer,
+            visualizerPermissionRepository = RecordingVisualizerPermissionRepository(),
             ambientModePreferenceRepository = RecordingAmbientModePreferenceRepository(),
             interactionTracker = UserInteractionTracker(),
             clock = clock
@@ -87,6 +90,41 @@ class NowPlayingViewModelTest {
         assertIs<AmbientModeState.WaitingForInactivity>(viewModel.ambientModeState.value)
         assertEquals(1, visualizer.stopCount)
         assertEquals(listOf<NowPlayingIntent>(NowPlayingIntent.SkipNext), repository.intents)
+    }
+
+    @Test
+    fun `denied permission enters static ambient without starting visualization`() = runTest(dispatcher) {
+        val repository = RecordingNowPlayingRepository(
+            NowPlayingState(
+                mediaId = "track-1",
+                playbackState = NowPlayingPlaybackState.Playing,
+                ambientSafetyPermitted = true
+            )
+        )
+        val visualizer = RecordingAmbientAudioVisualizer()
+        val viewModel = NowPlayingViewModel(
+            observeState = ObserveNowPlayingStateUseCase(repository),
+            repository = repository,
+            dispatchIntent = DispatchNowPlayingIntentUseCase(repository),
+            audioSessionRepository = RecordingAudioSessionRepository(),
+            visualizer = visualizer,
+            visualizerPermissionRepository = RecordingVisualizerPermissionRepository(
+                VisualizerPermissionState.Denied(canRequest = true)
+            ),
+            ambientModePreferenceRepository = RecordingAmbientModePreferenceRepository(),
+            interactionTracker = UserInteractionTracker(),
+            clock = MutableMonotonicClock(nowMillis = 1_000L)
+        )
+
+        viewModel.onRouteVisibilityChanged(true)
+        viewModel.onLifecycleResumedChanged(true)
+        runCurrent()
+        advanceTimeBy(5_000L)
+        runCurrent()
+
+        assertEquals(AmbientModeState.AmbientStatic, viewModel.ambientModeState.value)
+        assertEquals(0, visualizer.startCount)
+        assertEquals(emptyList(), visualizer.attachedAudioSessions)
     }
 }
 
@@ -122,6 +160,16 @@ private class RecordingAudioSessionRepository : AudioSessionRepository {
     override val audioSessionId: StateFlow<Int?> = MutableStateFlow(42)
 }
 
+private class RecordingVisualizerPermissionRepository(
+    initialState: VisualizerPermissionState = VisualizerPermissionState.Granted
+) : VisualizerPermissionRepository {
+    override val state = MutableStateFlow(initialState)
+
+    override fun refresh(shouldShowRationale: Boolean) = Unit
+
+    override fun onRequestResult(granted: Boolean, shouldShowRationale: Boolean) = Unit
+}
+
 private class RecordingAmbientAudioVisualizer : AmbientAudioVisualizer {
     override val amplitudes = MutableStateFlow(FloatArray(0))
     override val availability = MutableStateFlow<AmbientVisualizerAvailability>(
@@ -130,8 +178,13 @@ private class RecordingAmbientAudioVisualizer : AmbientAudioVisualizer {
 
     var startCount = 0
     var stopCount = 0
+    val attachedAudioSessions = mutableListOf<Int>()
 
-    override fun attachToAudioSession(audioSessionId: Int) = Unit
+    override fun attachToAudioSession(audioSessionId: Int) {
+        attachedAudioSessions += audioSessionId
+    }
+
+    override fun detachFromAudioSession() = Unit
 
     override fun start() {
         startCount += 1

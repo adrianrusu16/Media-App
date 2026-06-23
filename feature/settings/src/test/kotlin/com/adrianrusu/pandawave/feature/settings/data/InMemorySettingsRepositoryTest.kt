@@ -1,5 +1,7 @@
 package com.adrianrusu.pandawave.feature.settings.data
 
+import com.adrianrusu.pandawave.core.audio.visualizer.VisualizerPermissionRepository
+import com.adrianrusu.pandawave.core.audio.visualizer.VisualizerPermissionState
 import com.adrianrusu.pandawave.core.model.theme.PandaWaveThemePreference
 import com.adrianrusu.pandawave.core.model.theme.ThemePreferenceState
 import com.adrianrusu.pandawave.core.playback.BambooDrivingState
@@ -101,6 +103,21 @@ class InMemorySettingsRepositoryTest {
     }
 
     @Test
+    fun `projects visualizer permission from repository`() = runTest {
+        val permission = RecordingVisualizerPermissionRepository()
+        val repository = createRepository(visualizerPermissionRepository = permission)
+        repository.start(backgroundScope)
+
+        permission.emit(VisualizerPermissionState.Denied(canRequest = false))
+        runCurrent()
+
+        assertEquals(
+            VisualizerPermissionState.Denied(canRequest = false),
+            repository.settingsState.value.visualizerPermissionState
+        )
+    }
+
+    @Test
     fun `ambient enablement intent persists without speculative state`() = runTest {
         val ambientPreferences = RecordingAmbientModePreferenceRepository()
         val repository = createRepository(ambientModePreferenceRepository = ambientPreferences)
@@ -125,12 +142,27 @@ class InMemorySettingsRepositoryTest {
     private fun createRepository(
         playbackRepository: BambooPlaybackRepository = RecordingPlaybackRepository(),
         themePreferenceCoordinator: ThemePreferenceCoordinator = RecordingThemePreferenceCoordinator(),
-        ambientModePreferenceRepository: AmbientModePreferenceRepository = RecordingAmbientModePreferenceRepository()
+        ambientModePreferenceRepository: AmbientModePreferenceRepository = RecordingAmbientModePreferenceRepository(),
+        visualizerPermissionRepository: VisualizerPermissionRepository = RecordingVisualizerPermissionRepository()
     ): InMemorySettingsRepository = InMemorySettingsRepository(
         playbackRepository = playbackRepository,
         themePreferenceCoordinator = themePreferenceCoordinator,
-        ambientModePreferenceRepository = ambientModePreferenceRepository
+        ambientModePreferenceRepository = ambientModePreferenceRepository,
+        visualizerPermissionRepository = visualizerPermissionRepository
     )
+}
+
+private class RecordingVisualizerPermissionRepository : VisualizerPermissionRepository {
+    private val mutableState = MutableStateFlow<VisualizerPermissionState>(VisualizerPermissionState.Unknown)
+    override val state: StateFlow<VisualizerPermissionState> = mutableState
+
+    override fun refresh(shouldShowRationale: Boolean) = Unit
+
+    override fun onRequestResult(granted: Boolean, shouldShowRationale: Boolean) = Unit
+
+    fun emit(state: VisualizerPermissionState) {
+        mutableState.value = state
+    }
 }
 
 private class RecordingThemePreferenceCoordinator : ThemePreferenceCoordinator {

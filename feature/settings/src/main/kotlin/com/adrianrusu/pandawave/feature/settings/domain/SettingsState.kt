@@ -1,5 +1,6 @@
 package com.adrianrusu.pandawave.feature.settings.domain
 
+import com.adrianrusu.pandawave.core.audio.visualizer.VisualizerPermissionState
 import com.adrianrusu.pandawave.core.model.theme.PandaWaveThemePreference
 
 data class SettingsState(
@@ -10,6 +11,7 @@ data class SettingsState(
     val themePreference: PandaWaveThemePreference = PandaWaveThemePreference.SystemDefault,
     val ambientModeEnabled: Boolean = true,
     val ambientTimeoutSeconds: Int = 15,
+    val visualizerPermissionState: VisualizerPermissionState = VisualizerPermissionState.Unknown,
     val restriction: SettingsRestrictionState = SettingsRestrictionState.Unavailable
 )
 

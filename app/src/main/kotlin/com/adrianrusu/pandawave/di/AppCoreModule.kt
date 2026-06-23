@@ -10,6 +10,7 @@ import androidx.datastore.preferences.preferencesDataStoreFile
 import com.adrianrusu.pandawave.core.audio.visualizer.AudioSessionRepository
 import com.adrianrusu.pandawave.core.audio.visualizer.InMemoryAudioSessionRepository
 import com.adrianrusu.pandawave.core.audio.visualizer.MutableAudioSessionRepository
+import com.adrianrusu.pandawave.core.audio.visualizer.VisualizerPermissionRepository
 import com.adrianrusu.pandawave.core.automotive.driving.PlatformAutomotiveDrivingStateObserver
 import com.adrianrusu.pandawave.core.automotive.ux.PlatformAutomotiveUxRestrictionObserver
 import com.adrianrusu.pandawave.core.model.theme.ThemePreferenceRepository
@@ -34,6 +35,7 @@ import com.adrianrusu.pandawave.core.telemetry.sinks.InMemoryBreadcrumbTelemetry
 import com.adrianrusu.pandawave.core.ui.interaction.MonotonicClock
 import com.adrianrusu.pandawave.core.ui.interaction.SystemMonotonicClock
 import com.adrianrusu.pandawave.core.ui.interaction.UserInteractionTracker
+import com.adrianrusu.pandawave.permission.DataStoreVisualizerPermissionRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -48,6 +50,18 @@ import kotlinx.coroutines.SupervisorJob
 @Module
 @InstallIn(SingletonComponent::class)
 object AppCoreModule {
+    @Provides
+    @Singleton
+    fun provideVisualizerPermissionRepository(
+        @ApplicationContext context: Context,
+        dataStore: DataStore<Preferences>,
+        @ApplicationScope scope: CoroutineScope
+    ): VisualizerPermissionRepository = DataStoreVisualizerPermissionRepository(
+        context = context,
+        dataStore = dataStore,
+        scope = scope
+    )
+
     @Provides
     @Singleton
     fun provideMonotonicClock(): MonotonicClock = SystemMonotonicClock()

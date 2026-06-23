@@ -1,5 +1,6 @@
 package com.adrianrusu.pandawave.feature.settings.di
 
+import com.adrianrusu.pandawave.core.audio.visualizer.VisualizerPermissionRepository
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
 import com.adrianrusu.pandawave.core.preferences.AmbientModePreferenceRepository
 import com.adrianrusu.pandawave.core.preferences.ThemePreferenceCoordinator
@@ -21,11 +22,13 @@ object SettingsModule {
     fun provideSettingsRepository(
         playbackRepository: BambooPlaybackRepository,
         themePreferenceCoordinator: ThemePreferenceCoordinator,
-        ambientModePreferenceRepository: AmbientModePreferenceRepository
+        ambientModePreferenceRepository: AmbientModePreferenceRepository,
+        visualizerPermissionRepository: VisualizerPermissionRepository
     ): SettingsRepository = InMemorySettingsRepository(
         playbackRepository = playbackRepository,
         themePreferenceCoordinator = themePreferenceCoordinator,
-        ambientModePreferenceRepository = ambientModePreferenceRepository
+        ambientModePreferenceRepository = ambientModePreferenceRepository,
+        visualizerPermissionRepository = visualizerPermissionRepository
     )
 
     @Provides

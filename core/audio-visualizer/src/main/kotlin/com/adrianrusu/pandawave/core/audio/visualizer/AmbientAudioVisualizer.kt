@@ -22,6 +22,8 @@ interface AmbientAudioVisualizer : AutoCloseable {
 
     fun attachToAudioSession(audioSessionId: Int)
 
+    fun detachFromAudioSession()
+
     fun start()
 
     fun stop()

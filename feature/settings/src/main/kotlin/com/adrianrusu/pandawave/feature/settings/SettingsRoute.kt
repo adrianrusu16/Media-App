@@ -1,19 +1,36 @@
 package com.adrianrusu.pandawave.feature.settings
 
+import android.Manifest
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Slider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.adrianrusu.pandawave.core.audio.visualizer.VisualizerPermissionAction
+import com.adrianrusu.pandawave.core.audio.visualizer.VisualizerPermissionState
+import com.adrianrusu.pandawave.core.audio.visualizer.recommendedAction
 import com.adrianrusu.pandawave.core.designsystem.tokens.LocalPandaWaveDesignTokens
 import com.adrianrusu.pandawave.core.designsystem.tokens.md
 import com.adrianrusu.pandawave.core.designsystem.tokens.sm
@@ -34,16 +51,49 @@ import kotlin.math.roundToInt
 fun SettingsRoute(modifier: Modifier = Modifier) {
     val viewModel: SettingsViewModel = hiltViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val activity = context.findActivity()
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        viewModel.onVisualizerPermissionResult(
+            granted = granted,
+            shouldShowRationale = activity.shouldShowVisualizerPermissionRationale()
+        )
+    }
+
+    DisposableEffect(viewModel, lifecycleOwner, activity) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.onVisualizerPermissionSnapshot(activity.shouldShowVisualizerPermissionRationale())
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        viewModel.onVisualizerPermissionSnapshot(activity.shouldShowVisualizerPermissionRationale())
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     SettingsScreen(
         state = state,
         onIntent = viewModel::onIntent,
+        onRequestVisualizerPermission = {
+            viewModel.onIntent(SettingsIntent.RequestVisualizerPermission)
+            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        },
+        onOpenVisualizerPermissionSettings = {
+            context.openApplicationPermissionSettings()
+        },
         modifier = modifier
     )
 }
 
 @Composable
-private fun SettingsScreen(state: SettingsState, onIntent: (SettingsIntent) -> Unit, modifier: Modifier = Modifier) {
+private fun SettingsScreen(
+    state: SettingsState,
+    onIntent: (SettingsIntent) -> Unit,
+    onRequestVisualizerPermission: () -> Unit,
+    onOpenVisualizerPermissionSettings: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     val tokens = LocalPandaWaveDesignTokens.current
 
     BambooRotaryColumn(
@@ -80,6 +130,12 @@ private fun SettingsScreen(state: SettingsState, onIntent: (SettingsIntent) -> U
                 onIntent(SettingsIntent.SetAmbientTimeoutSeconds(timeoutSeconds))
             }
         )
+        VisualizerPermissionPreference(
+            state = state.visualizerPermissionState,
+            actionEnabled = !state.restriction.isRestricted,
+            onRequestPermission = onRequestVisualizerPermission,
+            onOpenSettings = onOpenVisualizerPermissionSettings
+        )
         ThemePreferenceCard(
             selectedPreference = state.themePreference,
             onPreferenceSelected = { preference ->
@@ -91,6 +147,63 @@ private fun SettingsScreen(state: SettingsState, onIntent: (SettingsIntent) -> U
             onAcknowledge = { onIntent(SettingsIntent.AcknowledgePrivacyNotice) }
         )
     }
+}
+
+@Composable
+private fun VisualizerPermissionPreference(
+    state: VisualizerPermissionState,
+    actionEnabled: Boolean,
+    onRequestPermission: () -> Unit,
+    onOpenSettings: () -> Unit
+) {
+    when (state.recommendedAction) {
+        VisualizerPermissionAction.Request -> BambooActionCard(
+            title = stringResource(R.string.pandawave_settings_visualizer_permission_title),
+            body = stringResource(R.string.pandawave_settings_visualizer_permission_denied),
+            actionLabel = stringResource(R.string.pandawave_settings_visualizer_permission_enable),
+            actionEnabled = actionEnabled,
+            onActionClick = onRequestPermission
+        )
+
+        VisualizerPermissionAction.OpenSettings -> BambooActionCard(
+            title = stringResource(R.string.pandawave_settings_visualizer_permission_title),
+            body = stringResource(R.string.pandawave_settings_visualizer_permission_blocked),
+            actionLabel = stringResource(R.string.pandawave_settings_visualizer_permission_open_settings),
+            actionEnabled = actionEnabled,
+            onActionClick = onOpenSettings
+        )
+
+        VisualizerPermissionAction.None -> BambooCard {
+            BambooTitleBody(
+                title = stringResource(R.string.pandawave_settings_visualizer_permission_title),
+                body = stringResource(
+                    if (state == VisualizerPermissionState.Granted) {
+                        R.string.pandawave_settings_visualizer_permission_granted
+                    } else {
+                        R.string.pandawave_settings_visualizer_permission_checking
+                    }
+                )
+            )
+        }
+    }
+}
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
+
+private fun Activity?.shouldShowVisualizerPermissionRationale(): Boolean =
+    this?.shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO) == true
+
+private fun Context.openApplicationPermissionSettings() {
+    startActivity(
+        Intent(
+            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+            Uri.fromParts("package", packageName, null)
+        ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    )
 }
 
 @Composable

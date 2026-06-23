@@ -10,6 +10,13 @@
     <string name="pandawave_settings_ambient_body">Show artwork and music visualization after a period of inactivity while safely parked.</string>
     <string name="pandawave_settings_ambient_timeout_title">Ambient mode delay</string>
     <string name="pandawave_settings_ambient_timeout_body">%1$d seconds of inactivity</string>
+    <string name="pandawave_settings_visualizer_permission_title">Music visualization</string>
+    <string name="pandawave_settings_visualizer_permission_granted">Audio visualization permission is enabled.</string>
+    <string name="pandawave_settings_visualizer_permission_checking">Checking audio visualization permission.</string>
+    <string name="pandawave_settings_visualizer_permission_denied">Allow audio analysis to animate the parked Now Playing visualizer. PandaWave does not store captured audio.</string>
+    <string name="pandawave_settings_visualizer_permission_blocked">Audio visualization permission is blocked. Enable it from the PandaWave app permissions.</string>
+    <string name="pandawave_settings_visualizer_permission_enable">Enable</string>
+    <string name="pandawave_settings_visualizer_permission_open_settings">Open app settings</string>
     <string name="pandawave_settings_theme_title">Theme</string>
     <string name="pandawave_settings_theme_system">System</string>
     <string name="pandawave_settings_theme_system_label">Follow system appearance.</string>

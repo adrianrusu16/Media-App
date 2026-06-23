@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.adrianrusu.pandawave.core.audio.visualizer.AmbientAudioVisualizer
 import com.adrianrusu.pandawave.core.audio.visualizer.AmbientVisualizerAvailability
 import com.adrianrusu.pandawave.core.audio.visualizer.AudioSessionRepository
+import com.adrianrusu.pandawave.core.audio.visualizer.VisualizerPermissionRepository
+import com.adrianrusu.pandawave.core.audio.visualizer.VisualizerPermissionState
 import com.adrianrusu.pandawave.core.preferences.AmbientModePreferenceRepository
 import com.adrianrusu.pandawave.core.preferences.AmbientModePreferenceState
 import com.adrianrusu.pandawave.core.ui.interaction.MonotonicClock
@@ -24,11 +26,12 @@ import javax.inject.Inject
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.drop
-import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 @HiltViewModel
@@ -38,6 +41,7 @@ class NowPlayingViewModel @Inject constructor(
     private val dispatchIntent: DispatchNowPlayingIntentUseCase,
     audioSessionRepository: AudioSessionRepository,
     private val visualizer: AmbientAudioVisualizer,
+    private val visualizerPermissionRepository: VisualizerPermissionRepository,
     ambientModePreferenceRepository: AmbientModePreferenceRepository,
     private val interactionTracker: UserInteractionTracker,
     private val clock: MonotonicClock
@@ -49,8 +53,24 @@ class NowPlayingViewModel @Inject constructor(
     private val mutableAmbientTransition = MutableStateFlow(AmbientModeTransition.Immediate)
     private var timeoutJob: Job? = null
 
+    private val playbackState = observeState()
     val amplitudes = visualizer.amplitudes
-    val state = observeState()
+    val state = combine(
+        playbackState,
+        ambientModePreferenceRepository.state,
+        visualizerPermissionRepository.state
+    ) { nowPlaying, preferenceState, permissionState ->
+        val preferences = (preferenceState as? AmbientModePreferenceState.Ready)?.preferences
+        nowPlaying.copy(
+            ambientModeEnabled = preferences?.enabled == true,
+            ambientTimeoutSeconds = preferences?.timeoutSeconds ?: DEFAULT_AMBIENT_TIMEOUT_SECONDS,
+            visualizerPermissionState = permissionState
+        )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(STATE_STOP_TIMEOUT_MILLIS),
+        initialValue = playbackState.value
+    )
     val ambientModeState: StateFlow<AmbientModeState> = mutableAmbientModeState.asStateFlow()
     val ambientTransition: StateFlow<AmbientModeTransition> = mutableAmbientTransition.asStateFlow()
 
@@ -58,30 +78,39 @@ class NowPlayingViewModel @Inject constructor(
         repository.start()
 
         viewModelScope.launch {
-            audioSessionRepository.audioSessionId
-                .filterNotNull()
-                .collect { audioSessionId ->
-                    visualizer.attachToAudioSession(audioSessionId)
+            var attachedSessionId: Int? = null
+            combine(
+                audioSessionRepository.audioSessionId,
+                visualizerPermissionRepository.state
+            ) { audioSessionId, permissionState ->
+                audioSessionId.takeIf { permissionState == VisualizerPermissionState.Granted }
+            }.collect { permittedSessionId ->
+                if (permittedSessionId != null) {
+                    visualizer.attachToAudioSession(permittedSessionId)
+                    attachedSessionId = permittedSessionId
+                } else if (attachedSessionId != null) {
+                    visualizer.detachFromAudioSession()
+                    attachedSessionId = null
                 }
+            }
         }
 
         viewModelScope.launch {
             combine(
                 state,
-                ambientModePreferenceRepository.state,
                 visualizer.availability,
                 routeVisible,
                 lifecycleResumed
-            ) { nowPlaying, preferenceState, visualizerAvailability, isRouteVisible, isLifecycleResumed ->
-                val preferences = (preferenceState as? AmbientModePreferenceState.Ready)?.preferences
+            ) { nowPlaying, visualizerAvailability, isRouteVisible, isLifecycleResumed ->
                 AmbientEligibility(
                     routeVisible = isRouteVisible,
                     lifecycleResumed = isLifecycleResumed,
                     safetyPermitted = nowPlaying.ambientSafetyPermitted,
-                    preferenceEnabled = preferences?.enabled == true,
+                    preferenceEnabled = nowPlaying.ambientModeEnabled,
                     isPlaying = nowPlaying.isPlaying,
-                    timeoutMillis = (preferences?.timeoutSeconds ?: 15) * MILLIS_PER_SECOND,
-                    visualizerAvailable = visualizerAvailability == AmbientVisualizerAvailability.Ready
+                    timeoutMillis = nowPlaying.ambientTimeoutSeconds * MILLIS_PER_SECOND,
+                    visualizerAvailable = nowPlaying.visualizerPermissionState == VisualizerPermissionState.Granted &&
+                        visualizerAvailability == AmbientVisualizerAvailability.Ready
                 )
             }.collect { eligibility ->
                 reduce(
@@ -118,6 +147,14 @@ class NowPlayingViewModel @Inject constructor(
 
     fun onUserInteraction() {
         interactionTracker.recordInteraction()
+    }
+
+    fun onVisualizerPermissionSnapshot(shouldShowRationale: Boolean) {
+        visualizerPermissionRepository.refresh(shouldShowRationale)
+    }
+
+    fun onVisualizerPermissionResult(granted: Boolean, shouldShowRationale: Boolean) {
+        visualizerPermissionRepository.onRequestResult(granted, shouldShowRationale)
     }
 
     fun onIntent(intent: NowPlayingIntent) {
@@ -164,6 +201,8 @@ class NowPlayingViewModel @Inject constructor(
     }
 
     private companion object {
+        const val DEFAULT_AMBIENT_TIMEOUT_SECONDS = 15
         const val MILLIS_PER_SECOND = 1_000L
+        const val STATE_STOP_TIMEOUT_MILLIS = 5_000L
     }
 }

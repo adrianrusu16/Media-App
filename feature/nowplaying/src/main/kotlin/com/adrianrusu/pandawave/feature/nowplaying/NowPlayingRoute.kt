@@ -1,5 +1,11 @@
 package com.adrianrusu.pandawave.feature.nowplaying
 
+import android.Manifest
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -21,6 +27,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -34,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -43,6 +51,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.adrianrusu.pandawave.core.audio.visualizer.VisualizerPermissionAction
+import com.adrianrusu.pandawave.core.audio.visualizer.recommendedAction
 import com.adrianrusu.pandawave.core.designsystem.R as DesignSystemR
 import com.adrianrusu.pandawave.core.designsystem.tokens.LocalPandaWaveDesignTokens
 import com.adrianrusu.pandawave.core.designsystem.tokens.cardResting
@@ -89,11 +99,21 @@ fun NowPlayingRoute(modifier: Modifier = Modifier, onLibraryClick: () -> Unit = 
     val state by viewModel.state.collectAsStateWithLifecycle()
     val ambientModeState by viewModel.ambientModeState.collectAsStateWithLifecycle()
     val lifecycleOwner = LocalLifecycleOwner.current
+    val activity = LocalContext.current.findActivity()
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        viewModel.onVisualizerPermissionResult(
+            granted = granted,
+            shouldShowRationale = activity.shouldShowVisualizerPermissionRationale()
+        )
+    }
 
     DisposableEffect(viewModel, lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_RESUME -> viewModel.onLifecycleResumedChanged(true)
+                Lifecycle.Event.ON_RESUME -> {
+                    viewModel.onLifecycleResumedChanged(true)
+                    viewModel.onVisualizerPermissionSnapshot(activity.shouldShowVisualizerPermissionRationale())
+                }
 
                 Lifecycle.Event.ON_PAUSE,
                 Lifecycle.Event.ON_STOP,
@@ -107,6 +127,7 @@ fun NowPlayingRoute(modifier: Modifier = Modifier, onLibraryClick: () -> Unit = 
         viewModel.onLifecycleResumedChanged(
             lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
         )
+        viewModel.onVisualizerPermissionSnapshot(activity.shouldShowVisualizerPermissionRationale())
 
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
@@ -121,6 +142,9 @@ fun NowPlayingRoute(modifier: Modifier = Modifier, onLibraryClick: () -> Unit = 
         ambientModeState = ambientModeState,
         onIntent = viewModel::onIntent,
         viewModel = viewModel,
+        onRequestVisualizerPermission = {
+            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        },
         onLibraryClick = onLibraryClick
     )
 }
@@ -132,6 +156,7 @@ private fun NowPlayingScreen(
     ambientModeState: AmbientModeState,
     viewModel: NowPlayingViewModel,
     onIntent: (NowPlayingIntent) -> Unit,
+    onRequestVisualizerPermission: () -> Unit,
     onLibraryClick: () -> Unit
 ) {
     val isAmbientVisible = ambientModeState == AmbientModeState.AmbientStatic ||
@@ -148,6 +173,7 @@ private fun NowPlayingScreen(
         NowPlayingInteractiveScreen(
             state = state,
             onIntent = onIntent,
+            onRequestVisualizerPermission = onRequestVisualizerPermission,
             onLibraryClick = onLibraryClick,
             modifier = modifier
         )
@@ -170,6 +196,7 @@ private fun NowPlayingAmbientRoute(modifier: Modifier, viewModel: NowPlayingView
 private fun NowPlayingInteractiveScreen(
     state: NowPlayingState,
     onIntent: (NowPlayingIntent) -> Unit,
+    onRequestVisualizerPermission: () -> Unit,
     onLibraryClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -199,6 +226,9 @@ private fun NowPlayingInteractiveScreen(
         fallbackTitle = fallbackTitle,
         fallbackDetail = fallbackDetail
     )
+    val showVisualizerPermissionAction = state.ambientSafetyPermitted &&
+        state.ambientModeEnabled &&
+        state.visualizerPermissionState.recommendedAction == VisualizerPermissionAction.Request
 
     LaunchedEffect(state.progressAnchor) {
         nowMillis = System.currentTimeMillis()
@@ -240,7 +270,10 @@ private fun NowPlayingInteractiveScreen(
                 } else {
                     tokens.layout.nowPlayingArtworkStandard
                 },
-                isCompact = isCompact
+                isCompact = isCompact,
+                onEnableVisualizerClick = onRequestVisualizerPermission.takeIf {
+                    showVisualizerPermissionAction
+                }
             )
             NowPlayingProgressRow(progress = progress)
             NowPlayingControls(
@@ -286,7 +319,8 @@ private fun NowPlayingArtworkPanel(
     availabilityLabel: String,
     showAvailability: Boolean,
     artworkHeight: androidx.compose.ui.unit.Dp,
-    isCompact: Boolean
+    isCompact: Boolean,
+    onEnableVisualizerClick: (() -> Unit)?
 ) {
     val tokens = LocalPandaWaveDesignTokens.current
     val panelPadding = if (isCompact) tokens.spacing.sm else tokens.spacing.lg
@@ -363,6 +397,14 @@ private fun NowPlayingArtworkPanel(
                                     style = tokens.typography.controlLabel
                                 )
                             }
+                            if (onEnableVisualizerClick != null) {
+                                TextButton(
+                                    modifier = Modifier.testTag("enable-music-visualization"),
+                                    onClick = onEnableVisualizerClick
+                                ) {
+                                    Text(text = stringResource(R.string.pandawave_now_playing_enable_visualization))
+                                }
+                            }
                         }
                     }
                 }
@@ -370,6 +412,15 @@ private fun NowPlayingArtworkPanel(
         }
     }
 }
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
+
+private fun Activity?.shouldShowVisualizerPermissionRationale(): Boolean =
+    this?.shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO) == true
 
 @Composable
 private fun NowPlayingProgressRow(progress: BambooPlaybackProgress) {

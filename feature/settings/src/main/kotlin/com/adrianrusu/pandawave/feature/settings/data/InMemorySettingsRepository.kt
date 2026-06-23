@@ -1,5 +1,7 @@
 package com.adrianrusu.pandawave.feature.settings.data
 
+import com.adrianrusu.pandawave.core.audio.visualizer.VisualizerPermissionRepository
+import com.adrianrusu.pandawave.core.audio.visualizer.VisualizerPermissionState
 import com.adrianrusu.pandawave.core.model.theme.PandaWaveThemePreference
 import com.adrianrusu.pandawave.core.model.theme.ThemePreferenceState
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
@@ -25,13 +27,15 @@ import kotlinx.coroutines.launch
 internal class InMemorySettingsRepository(
     private val playbackRepository: BambooPlaybackRepository,
     private val themePreferenceCoordinator: ThemePreferenceCoordinator,
-    private val ambientModePreferenceRepository: AmbientModePreferenceRepository
+    private val ambientModePreferenceRepository: AmbientModePreferenceRepository,
+    private val visualizerPermissionRepository: VisualizerPermissionRepository
 ) : SettingsRepository {
     private val _settingsState = MutableStateFlow(
         SettingsState(
             themePreference = themePreferenceCoordinator.currentPreference(),
             ambientModeEnabled = ambientModePreferenceRepository.currentPreferences().enabled,
             ambientTimeoutSeconds = ambientModePreferenceRepository.currentPreferences().timeoutSeconds,
+            visualizerPermissionState = visualizerPermissionRepository.state.value,
             restriction = playbackRepository.state.value.toSettingsRestrictionState()
         )
     )
@@ -46,9 +50,10 @@ internal class InMemorySettingsRepository(
             combine(
                 themePreferenceCoordinator.state,
                 ambientModePreferenceRepository.state,
-                playbackRepository.state
-            ) { themeState, ambientState, playbackState ->
-                SettingsProjection(themeState, ambientState, playbackState)
+                playbackRepository.state,
+                visualizerPermissionRepository.state
+            ) { themeState, ambientState, playbackState, permissionState ->
+                SettingsProjection(themeState, ambientState, playbackState, permissionState)
             }.collect { projection ->
                 val current = _settingsState.value
                 val ambientPreferences = projection.ambientState.readyPreferencesOr(current)
@@ -56,6 +61,7 @@ internal class InMemorySettingsRepository(
                     themePreference = projection.themeState.readyPreferenceOr(current.themePreference),
                     ambientModeEnabled = ambientPreferences.enabled,
                     ambientTimeoutSeconds = ambientPreferences.timeoutSeconds,
+                    visualizerPermissionState = projection.permissionState,
                     restriction = projection.playbackState.toSettingsRestrictionState()
                 )
             }
@@ -93,7 +99,8 @@ internal class InMemorySettingsRepository(
 private data class SettingsProjection(
     val themeState: ThemePreferenceState,
     val ambientState: AmbientModePreferenceState,
-    val playbackState: BambooPlaybackState
+    val playbackState: BambooPlaybackState,
+    val permissionState: VisualizerPermissionState
 )
 
 private fun ThemePreferenceCoordinator.currentPreference(): PandaWaveThemePreference =
