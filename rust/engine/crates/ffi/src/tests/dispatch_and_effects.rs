@@ -79,6 +79,28 @@ fn null_snapshot_returns_invalid_marker() {
 }
 
 #[test]
+fn platform_event_payload_updates_driving_state_through_ffi() {
+    let engine = panda_engine_create(1_000);
+    let payload = CString::new("parked").unwrap();
+
+    let outcome = unsafe {
+        panda_engine_dispatch_platform_event(
+            engine,
+            FFI_PLATFORM_EVENT_VEHICLE_DRIVING_STATE_CHANGED,
+            payload.as_ptr(),
+            1_100,
+        )
+    };
+
+    assert_eq!(FFI_DRIVING_PARKED, outcome.snapshot.driving_state);
+    assert_eq!(FFI_PLAYBACK_IDLE, outcome.snapshot.playback_state);
+
+    unsafe {
+        panda_engine_destroy(engine);
+    }
+}
+
+#[test]
 fn dispatch_play_emits_effects_in_ffi() {
     let engine = panda_engine_create(1000);
     unsafe { panda_engine_dispatch(engine, FFI_COMMAND_START_SESSION, ptr::null(), 500) };

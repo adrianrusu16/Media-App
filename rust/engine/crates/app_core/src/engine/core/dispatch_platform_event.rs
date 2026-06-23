@@ -1,4 +1,5 @@
 use super::*;
+use crate::model::playback::{DrivingState, RestrictionState};
 
 impl Engine {
     pub(super) async fn dispatch_platform_event_impl(
@@ -24,6 +25,24 @@ impl Engine {
             .snapshot
             .clone()
             .with_playback_state(next_playback_state, now_epoch_millis);
+
+        match event.event_type {
+            EnginePlatformEventType::VehicleDrivingStateChanged => {
+                next_snapshot.driving_state = event
+                    .payload
+                    .as_deref()
+                    .map(DrivingState::from_wire)
+                    .unwrap_or_default();
+            }
+            EnginePlatformEventType::UxRestrictionsChanged => {
+                next_snapshot.restriction_state = event
+                    .payload
+                    .as_deref()
+                    .map(RestrictionState::from_wire)
+                    .unwrap_or_default();
+            }
+            _ => {}
+        }
 
         if prev_playback_state != PlaybackState::Playing
             && next_playback_state == PlaybackState::Playing

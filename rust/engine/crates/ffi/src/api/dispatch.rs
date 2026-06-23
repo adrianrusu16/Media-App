@@ -1,4 +1,4 @@
-use std::ffi::c_char;
+use std::ffi::{CStr, c_char};
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use futures_util::FutureExt;
@@ -206,23 +206,31 @@ pub unsafe extern "C" fn panda_engine_process_audio_raw(
 #[unsafe(no_mangle)]
 /// # Safety
 /// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
-/// - `_payload` may be null; if non-null, it must point to a valid NUL-terminated C string.
+/// - `payload` may be null; if non-null, it must point to a valid NUL-terminated C string.
 /// - The caller must ensure no concurrent mutable access to the same engine instance.
 pub unsafe extern "C" fn panda_engine_dispatch_platform_event(
     engine: *mut PandaEngine,
     event_type: i32,
-    _payload: *const c_char,
+    payload: *const c_char,
     now_epoch_millis: u64,
 ) -> FfiEngineOutcome {
     let engine = unsafe { engine.as_mut() };
     match engine {
         Some(engine) => {
+            let payload = if payload.is_null() {
+                None
+            } else {
+                unsafe { CStr::from_ptr(payload) }
+                    .to_str()
+                    .ok()
+                    .map(str::to_owned)
+            };
             let outcome = match run_future_safely(
                 &engine.runtime,
                 engine.engine.dispatch_platform_event(
                     panda_engine_core::EnginePlatformEvent::new(
                         platform_event_from_ffi(event_type),
-                        None,
+                        payload,
                     ),
                     now_epoch_millis,
                 ),

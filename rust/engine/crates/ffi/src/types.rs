@@ -3,8 +3,8 @@ use std::ffi::c_char;
 use panda_engine_core::{EngineOutcome, EngineSnapshot};
 
 use crate::mappings::{
-    event_to_ffi, playback_to_ffi, preference_source_to_ffi, restriction_to_ffi,
-    theme_preference_to_ffi,
+    driving_state_to_ffi, event_to_ffi, playback_to_ffi, preference_source_to_ffi,
+    restriction_to_ffi, theme_preference_to_ffi,
 };
 use crate::{
     FFI_COMMAND_UNKNOWN, FFI_ERROR_AUTHENTICATION, FFI_ERROR_MEDIA_SKIPPED, FFI_ERROR_NETWORK,
@@ -65,6 +65,7 @@ pub struct FfiEngineSnapshot {
     pub controls: FfiPlayerControls,
     pub has_voice_hypothesis: bool,
     pub browse_results_count: usize,
+    pub driving_state: i32,
 }
 
 /// C-compatible representation of the engine outcome.
@@ -116,6 +117,7 @@ impl FfiEngineSnapshot {
             },
             has_voice_hypothesis: false,
             browse_results_count: 0,
+            driving_state: FFI_COMMAND_UNKNOWN,
         }
     }
 }
@@ -187,6 +189,7 @@ impl From<&EngineSnapshot> for FfiEngineSnapshot {
             },
             has_voice_hypothesis: snapshot.voice_hypothesis.is_some(),
             browse_results_count: snapshot.browse_results.len(),
+            driving_state: driving_state_to_ffi(snapshot.driving_state),
         }
     }
 }

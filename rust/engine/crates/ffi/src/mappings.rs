@@ -1,5 +1,5 @@
 use panda_engine_core::{
-    EngineCommandType, EngineEffect, EngineEventType, MediaItemType, PlaybackState,
+    DrivingState, EngineCommandType, EngineEffect, EngineEventType, MediaItemType, PlaybackState,
     PreferenceSource, RestrictionState, ThemePreference,
 };
 
@@ -75,6 +75,9 @@ pub(crate) fn platform_event_from_ffi(
         FFI_PLATFORM_EVENT_AUDIO_FOCUS_CHANGED => EnginePlatformEventType::AudioFocusChanged,
         FFI_PLATFORM_EVENT_MEDIA_LOADED => EnginePlatformEventType::MediaLoaded,
         FFI_PLATFORM_EVENT_MEDIA_ERROR => EnginePlatformEventType::MediaError,
+        FFI_PLATFORM_EVENT_VEHICLE_DRIVING_STATE_CHANGED => {
+            EnginePlatformEventType::VehicleDrivingStateChanged
+        }
         _ => EnginePlatformEventType::Unknown(event_type.to_string()),
     }
 }
@@ -92,6 +95,17 @@ pub(crate) fn playback_to_ffi(playback_state: PlaybackState) -> i32 {
 pub(crate) fn restriction_to_ffi(restriction_state: RestrictionState) -> i32 {
     match restriction_state {
         RestrictionState::Unknown => FFI_RESTRICTION_UNKNOWN,
+        RestrictionState::Unrestricted => FFI_RESTRICTION_UNRESTRICTED,
+        RestrictionState::Restricted => FFI_RESTRICTION_RESTRICTED,
+    }
+}
+
+pub(crate) fn driving_state_to_ffi(driving_state: DrivingState) -> i32 {
+    match driving_state {
+        DrivingState::Unknown => FFI_DRIVING_UNKNOWN,
+        DrivingState::Parked => FFI_DRIVING_PARKED,
+        DrivingState::Idling => FFI_DRIVING_IDLING,
+        DrivingState::Moving => FFI_DRIVING_MOVING,
     }
 }
 

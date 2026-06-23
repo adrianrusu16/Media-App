@@ -522,7 +522,7 @@ fn snapshot_to_jlong_array(env: &mut JNIEnv, snapshot: FfiEngineSnapshot) -> jlo
     array.into_raw()
 }
 
-fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 29] {
+fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 30] {
     [
         snapshot.playback_state as jlong,
         snapshot.restriction_state as jlong,
@@ -553,6 +553,7 @@ fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 29] {
         snapshot.preference_source as jlong,
         snapshot.preference_revision as jlong,
         bool_to_jlong(snapshot.preference_initialized),
+        snapshot.driving_state as jlong,
     ]
 }
 
@@ -564,8 +565,8 @@ fn bool_to_jlong(value: bool) -> jlong {
 mod tests {
     use super::*;
     use crate::{
-        FFI_ERROR_NETWORK, FFI_PLAYBACK_PLAYING, FFI_RESTRICTION_UNKNOWN, FfiControlState,
-        FfiPlayerControls,
+        FFI_DRIVING_PARKED, FFI_ERROR_NETWORK, FFI_PLAYBACK_PLAYING, FFI_RESTRICTION_UNKNOWN,
+        FfiControlState, FfiPlayerControls,
     };
 
     #[test]
@@ -583,6 +584,7 @@ mod tests {
             preference_source: 3,
             preference_revision: 8,
             preference_initialized: true,
+            driving_state: FFI_DRIVING_PARKED,
             search_results_count: 3,
             playback_speed: 1.25,
             position_millis: 9_000,
@@ -608,7 +610,6 @@ mod tests {
             },
             has_voice_hypothesis: true,
             browse_results_count: 5,
-            ..FfiEngineSnapshot::invalid()
         };
 
         assert_eq!(
@@ -642,6 +643,7 @@ mod tests {
                 3,
                 8,
                 1,
+                FFI_DRIVING_PARKED as jlong,
             ],
             snapshot_to_jlong_values(snapshot)
         );

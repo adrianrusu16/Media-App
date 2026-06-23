@@ -132,3 +132,53 @@ async fn audio_focus_loss_pauses_playing_engine() {
 
     assert_eq!(PlaybackState::Paused, outcome.snapshot.playback_state);
 }
+
+#[tokio::test]
+async fn platform_safety_events_update_snapshot_without_changing_playback() {
+    use crate::model::playback::{DrivingState, RestrictionState};
+
+    let mut engine = Engine::new(1);
+    let parked = EnginePlatformEvent::new(
+        EnginePlatformEventType::VehicleDrivingStateChanged,
+        Some(DrivingState::PARKED_WIRE.to_owned()),
+    );
+
+    let parked_outcome = engine.dispatch_platform_event(parked, 2).await;
+
+    assert_eq!(DrivingState::Parked, parked_outcome.snapshot.driving_state);
+    assert_eq!(PlaybackState::Idle, parked_outcome.snapshot.playback_state);
+
+    let restricted = EnginePlatformEvent::new(
+        EnginePlatformEventType::UxRestrictionsChanged,
+        Some(RestrictionState::RESTRICTED_WIRE.to_owned()),
+    );
+
+    let restricted_outcome = engine.dispatch_platform_event(restricted, 3).await;
+
+    assert_eq!(
+        RestrictionState::Restricted,
+        restricted_outcome.snapshot.restriction_state
+    );
+    assert_eq!(
+        PlaybackState::Idle,
+        restricted_outcome.snapshot.playback_state
+    );
+}
+
+#[tokio::test]
+async fn unknown_vehicle_payload_fails_closed_to_unknown() {
+    use crate::model::playback::DrivingState;
+
+    let mut engine = Engine::new(1);
+    let outcome = engine
+        .dispatch_platform_event(
+            EnginePlatformEvent::new(
+                EnginePlatformEventType::VehicleDrivingStateChanged,
+                Some("future-state".to_owned()),
+            ),
+            2,
+        )
+        .await;
+
+    assert_eq!(DrivingState::Unknown, outcome.snapshot.driving_state);
+}

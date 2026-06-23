@@ -1,7 +1,7 @@
 use crate::data::repository::MediaItem;
 use crate::data::session::MediaSession;
 use crate::model::error::EngineError;
-use crate::model::playback::{PlaybackState, PlayerControls, RestrictionState};
+use crate::model::playback::{DrivingState, PlaybackState, PlayerControls, RestrictionState};
 use crate::model::preferences::ThemePreferenceState;
 
 use serde::{Deserialize, Serialize};
@@ -39,6 +39,9 @@ pub struct EngineSnapshot {
     pub theme_preference: ThemePreferenceState,
     /// Current restrictions applied to the media (e.g., UX restrictions).
     pub restriction_state: RestrictionState,
+    /// Current vehicle motion state reported by the platform.
+    #[serde(default)]
+    pub driving_state: DrivingState,
     /// Unix timestamp in milliseconds when this snapshot was created/updated.
     pub updated_at_epoch_millis: u64,
     /// Unix timestamp in milliseconds for the last playback-progress baseline.
