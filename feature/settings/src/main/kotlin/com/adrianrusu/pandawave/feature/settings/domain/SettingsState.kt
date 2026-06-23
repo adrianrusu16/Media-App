@@ -8,13 +8,15 @@ data class SettingsState(
     val explicitContentAllowed: Boolean = false,
     val privacyNoticeAcknowledged: Boolean = false,
     val themePreference: PandaWaveThemePreference = PandaWaveThemePreference.SystemDefault,
+    val ambientModeEnabled: Boolean = true,
+    val ambientTimeoutSeconds: Int = 15,
     val restriction: SettingsRestrictionState = SettingsRestrictionState.Unavailable
 )
 
 data class SettingsRestrictionState(val isRestricted: Boolean) {
     companion object {
         val Unavailable = SettingsRestrictionState(
-            isRestricted = false
+            isRestricted = true
         )
     }
 }

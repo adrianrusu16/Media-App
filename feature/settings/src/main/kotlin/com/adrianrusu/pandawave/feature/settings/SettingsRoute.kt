@@ -3,8 +3,12 @@ package com.adrianrusu.pandawave.feature.settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.Slider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -20,9 +24,11 @@ import com.adrianrusu.pandawave.core.ui.components.BambooSelectableRow
 import com.adrianrusu.pandawave.core.ui.components.BambooSwitchRow
 import com.adrianrusu.pandawave.core.ui.components.BambooTitleBody
 import com.adrianrusu.pandawave.core.ui.focus.BambooRotaryColumn
+import com.adrianrusu.pandawave.core.ui.focus.bambooBringIntoViewOnFocus
 import com.adrianrusu.pandawave.feature.settings.domain.SettingsIntent
 import com.adrianrusu.pandawave.feature.settings.domain.SettingsState
 import com.adrianrusu.pandawave.feature.settings.presentation.SettingsViewModel
+import kotlin.math.roundToInt
 
 @Composable
 fun SettingsRoute(modifier: Modifier = Modifier) {
@@ -64,6 +70,16 @@ private fun SettingsScreen(state: SettingsState, onIntent: (SettingsIntent) -> U
             checked = state.explicitContentAllowed,
             onCheckedChange = { onIntent(SettingsIntent.ToggleExplicitContent) }
         )
+        AmbientModePreferences(
+            enabled = state.ambientModeEnabled,
+            timeoutSeconds = state.ambientTimeoutSeconds,
+            onEnabledChange = { enabled ->
+                onIntent(SettingsIntent.SetAmbientModeEnabled(enabled))
+            },
+            onTimeoutChange = { timeoutSeconds ->
+                onIntent(SettingsIntent.SetAmbientTimeoutSeconds(timeoutSeconds))
+            }
+        )
         ThemePreferenceCard(
             selectedPreference = state.themePreference,
             onPreferenceSelected = { preference ->
@@ -86,6 +102,49 @@ private fun SettingsSwitchRow(title: String, body: String, checked: Boolean, onC
         enabled = true,
         onCheckedChange = { onCheckedChange() }
     )
+}
+
+@Composable
+private fun AmbientModePreferences(
+    enabled: Boolean,
+    timeoutSeconds: Int,
+    onEnabledChange: (Boolean) -> Unit,
+    onTimeoutChange: (Int) -> Unit
+) {
+    var pendingTimeout by remember(timeoutSeconds) {
+        mutableFloatStateOf(timeoutSeconds.toFloat())
+    }
+
+    BambooSwitchRow(
+        title = stringResource(R.string.pandawave_settings_ambient_title),
+        body = stringResource(R.string.pandawave_settings_ambient_body),
+        checked = enabled,
+        enabled = true,
+        onCheckedChange = onEnabledChange
+    )
+    BambooCard {
+        BambooTitleBody(
+            title = stringResource(R.string.pandawave_settings_ambient_timeout_title),
+            body = stringResource(
+                R.string.pandawave_settings_ambient_timeout_body,
+                pendingTimeout.roundToInt()
+            )
+        )
+        Slider(
+            value = pendingTimeout,
+            onValueChange = { pendingTimeout = it },
+            modifier = Modifier
+                .fillMaxWidth()
+                .bambooBringIntoViewOnFocus()
+                .testTag("ambient-timeout-slider"),
+            enabled = enabled,
+            valueRange = 5f..60f,
+            steps = 10,
+            onValueChangeFinished = {
+                onTimeoutChange(pendingTimeout.roundToInt())
+            }
+        )
+    }
 }
 
 @Composable

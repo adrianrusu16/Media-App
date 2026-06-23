@@ -1,9 +1,12 @@
 package com.adrianrusu.pandawave.feature.settings.data
 
-import com.adrianrusu.pandawave.core.automotive.ux.AutomotiveUxRestrictionObserver
-import com.adrianrusu.pandawave.core.automotive.ux.AutomotiveUxRestrictions
 import com.adrianrusu.pandawave.core.model.theme.PandaWaveThemePreference
 import com.adrianrusu.pandawave.core.model.theme.ThemePreferenceState
+import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
+import com.adrianrusu.pandawave.core.playback.BambooPlaybackState
+import com.adrianrusu.pandawave.core.preferences.AmbientModePreferenceRepository
+import com.adrianrusu.pandawave.core.preferences.AmbientModePreferenceState
+import com.adrianrusu.pandawave.core.preferences.AmbientModePreferences
 import com.adrianrusu.pandawave.core.preferences.ThemePreferenceCoordinator
 import com.adrianrusu.pandawave.feature.settings.domain.SettingsIntent
 import com.adrianrusu.pandawave.feature.settings.domain.SettingsReducer
@@ -16,39 +19,63 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.filterIsInstance
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 internal class InMemorySettingsRepository(
-    private val uxRestrictionObserver: AutomotiveUxRestrictionObserver,
-    private val themePreferenceCoordinator: ThemePreferenceCoordinator
+    private val playbackRepository: BambooPlaybackRepository,
+    private val themePreferenceCoordinator: ThemePreferenceCoordinator,
+    private val ambientModePreferenceRepository: AmbientModePreferenceRepository
 ) : SettingsRepository {
     private val _settingsState = MutableStateFlow(
-        SettingsState(themePreference = themePreferenceCoordinator.currentPreference())
+        SettingsState(
+            themePreference = themePreferenceCoordinator.currentPreference(),
+            ambientModeEnabled = ambientModePreferenceRepository.currentPreferences().enabled,
+            ambientTimeoutSeconds = ambientModePreferenceRepository.currentPreferences().timeoutSeconds,
+            restriction = playbackRepository.state.value.toSettingsRestrictionState()
+        )
     )
-    private var themePreferenceJob: Job? = null
+    private var projectionJob: Job? = null
 
     override val settingsState: StateFlow<SettingsState> = _settingsState.asStateFlow()
 
     override fun start(scope: CoroutineScope) {
-        if (themePreferenceJob != null) return
+        if (projectionJob != null) return
 
-        uxRestrictionObserver.start { restrictions ->
-            _settingsState.update { current ->
-                current.copy(restriction = restrictions.toSettingsRestrictionState())
+        projectionJob = scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            combine(
+                themePreferenceCoordinator.state,
+                ambientModePreferenceRepository.state,
+                playbackRepository.state
+            ) { themeState, ambientState, playbackState ->
+                SettingsProjection(themeState, ambientState, playbackState)
+            }.collect { projection ->
+                val current = _settingsState.value
+                val ambientPreferences = projection.ambientState.readyPreferencesOr(current)
+                _settingsState.value = current.copy(
+                    themePreference = projection.themeState.readyPreferenceOr(current.themePreference),
+                    ambientModeEnabled = ambientPreferences.enabled,
+                    ambientTimeoutSeconds = ambientPreferences.timeoutSeconds,
+                    restriction = projection.playbackState.toSettingsRestrictionState()
+                )
             }
-        }
-        themePreferenceJob = scope.launch(start = CoroutineStart.UNDISPATCHED) {
-            themePreferenceCoordinator.state
-                .filterIsInstance<ThemePreferenceState.Ready>()
-                .collect { ready ->
-                    _settingsState.update { current -> current.copy(themePreference = ready.preference) }
-                }
         }
     }
 
     override suspend fun dispatch(intent: SettingsIntent) {
+        when (intent) {
+            is SettingsIntent.SetAmbientModeEnabled -> ambientModePreferenceRepository.setEnabled(intent.enabled)
+
+            is SettingsIntent.SetAmbientTimeoutSeconds ->
+                ambientModePreferenceRepository.setTimeoutSeconds(intent.timeoutSeconds)
+
+            SettingsIntent.RequestVisualizerPermission -> Unit
+
+            else -> reduceLocalState(intent)
+        }
+    }
+
+    private suspend fun reduceLocalState(intent: SettingsIntent) {
         val current = _settingsState.value
         val next = SettingsReducer.reduce(current, intent)
         if (next.themePreference != current.themePreference) {
@@ -58,15 +85,32 @@ internal class InMemorySettingsRepository(
     }
 
     override fun close() {
-        themePreferenceJob?.cancel()
-        themePreferenceJob = null
-        uxRestrictionObserver.close()
+        projectionJob?.cancel()
+        projectionJob = null
     }
 }
+
+private data class SettingsProjection(
+    val themeState: ThemePreferenceState,
+    val ambientState: AmbientModePreferenceState,
+    val playbackState: BambooPlaybackState
+)
 
 private fun ThemePreferenceCoordinator.currentPreference(): PandaWaveThemePreference =
     (state.value as? ThemePreferenceState.Ready)?.preference ?: PandaWaveThemePreference.SystemDefault
 
-private fun AutomotiveUxRestrictions.toSettingsRestrictionState(): SettingsRestrictionState = SettingsRestrictionState(
-    isRestricted = isRestricted
+private fun ThemePreferenceState.readyPreferenceOr(fallback: PandaWaveThemePreference): PandaWaveThemePreference =
+    (this as? ThemePreferenceState.Ready)?.preference ?: fallback
+
+private fun AmbientModePreferenceRepository.currentPreferences(): AmbientModePreferences =
+    (state.value as? AmbientModePreferenceState.Ready)?.preferences ?: AmbientModePreferences()
+
+private fun AmbientModePreferenceState.readyPreferencesOr(fallback: SettingsState): AmbientModePreferences =
+    (this as? AmbientModePreferenceState.Ready)?.preferences ?: AmbientModePreferences(
+        enabled = fallback.ambientModeEnabled,
+        timeoutSeconds = fallback.ambientTimeoutSeconds
+    )
+
+private fun BambooPlaybackState.toSettingsRestrictionState(): SettingsRestrictionState = SettingsRestrictionState(
+    isRestricted = !vehicleSafety.ambientPermitted
 )

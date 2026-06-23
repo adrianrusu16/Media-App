@@ -6,6 +6,10 @@
     <string name="pandawave_settings_personalization_body">Let the Rust engine use recent listening state to shape recommendations.</string>
     <string name="pandawave_settings_explicit_title">Explicit content</string>
     <string name="pandawave_settings_explicit_body">Allow content marked explicit when provider policy supports it.</string>
+    <string name="pandawave_settings_ambient_title">Ambient Now Playing</string>
+    <string name="pandawave_settings_ambient_body">Show artwork and music visualization after a period of inactivity while safely parked.</string>
+    <string name="pandawave_settings_ambient_timeout_title">Ambient mode delay</string>
+    <string name="pandawave_settings_ambient_timeout_body">%1$d seconds of inactivity</string>
     <string name="pandawave_settings_theme_title">Theme</string>
     <string name="pandawave_settings_theme_system">System</string>
     <string name="pandawave_settings_theme_system_label">Follow system appearance.</string>

@@ -15,6 +15,8 @@ import com.adrianrusu.pandawave.core.automotive.ux.PlatformAutomotiveUxRestricti
 import com.adrianrusu.pandawave.core.model.theme.ThemePreferenceRepository
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
 import com.adrianrusu.pandawave.core.playback.DefaultBambooPlaybackRepository
+import com.adrianrusu.pandawave.core.preferences.AmbientModePreferenceRepository
+import com.adrianrusu.pandawave.core.preferences.DataStoreAmbientModePreferenceRepository
 import com.adrianrusu.pandawave.core.preferences.DataStoreThemePreferenceRepository
 import com.adrianrusu.pandawave.core.preferences.DefaultThemePreferenceCoordinator
 import com.adrianrusu.pandawave.core.preferences.ThemePreferenceCoordinator
@@ -143,6 +145,18 @@ object AppCoreModule {
         @ApplicationScope scope: CoroutineScope,
         telemetryLogger: TelemetryLogger
     ): ThemePreferenceRepository = DataStoreThemePreferenceRepository(
+        dataStore = dataStore,
+        scope = scope,
+        telemetryLogger = telemetryLogger
+    )
+
+    @Provides
+    @Singleton
+    fun provideAmbientModePreferenceRepository(
+        dataStore: DataStore<Preferences>,
+        @ApplicationScope scope: CoroutineScope,
+        telemetryLogger: TelemetryLogger
+    ): AmbientModePreferenceRepository = DataStoreAmbientModePreferenceRepository(
         dataStore = dataStore,
         scope = scope,
         telemetryLogger = telemetryLogger

@@ -60,4 +60,21 @@ class SettingsReducerTest {
 
         assertEquals(PandaWaveThemePreference.ForestTechDark, result.themePreference)
     }
+
+    @Test
+    fun `ambient persistence intents do not speculate over repository state`() {
+        val state = SettingsState(
+            ambientModeEnabled = true,
+            ambientTimeoutSeconds = 15
+        )
+
+        assertEquals(
+            state,
+            SettingsReducer.reduce(state, SettingsIntent.SetAmbientModeEnabled(false))
+        )
+        assertEquals(
+            state,
+            SettingsReducer.reduce(state, SettingsIntent.SetAmbientTimeoutSeconds(45))
+        )
+    }
 }

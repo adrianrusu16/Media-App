@@ -16,5 +16,9 @@ internal object SettingsReducer {
 
         is SettingsIntent.SelectThemePreference ->
             state.copy(themePreference = intent.preference)
+
+        is SettingsIntent.SetAmbientModeEnabled,
+        is SettingsIntent.SetAmbientTimeoutSeconds,
+        SettingsIntent.RequestVisualizerPermission -> state
     }
 }

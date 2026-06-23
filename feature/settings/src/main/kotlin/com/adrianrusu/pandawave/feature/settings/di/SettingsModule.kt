@@ -1,7 +1,7 @@
 package com.adrianrusu.pandawave.feature.settings.di
 
-import android.content.Context
-import com.adrianrusu.pandawave.core.automotive.ux.PlatformAutomotiveUxRestrictionObserver
+import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
+import com.adrianrusu.pandawave.core.preferences.AmbientModePreferenceRepository
 import com.adrianrusu.pandawave.core.preferences.ThemePreferenceCoordinator
 import com.adrianrusu.pandawave.feature.settings.data.InMemorySettingsRepository
 import com.adrianrusu.pandawave.feature.settings.domain.DispatchSettingsIntentUseCase
@@ -11,7 +11,6 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.components.ViewModelComponent
-import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.android.scopes.ViewModelScoped
 
 @Module
@@ -20,11 +19,13 @@ object SettingsModule {
     @Provides
     @ViewModelScoped
     fun provideSettingsRepository(
-        @ApplicationContext context: Context,
-        themePreferenceCoordinator: ThemePreferenceCoordinator
+        playbackRepository: BambooPlaybackRepository,
+        themePreferenceCoordinator: ThemePreferenceCoordinator,
+        ambientModePreferenceRepository: AmbientModePreferenceRepository
     ): SettingsRepository = InMemorySettingsRepository(
-        uxRestrictionObserver = PlatformAutomotiveUxRestrictionObserver(context),
-        themePreferenceCoordinator = themePreferenceCoordinator
+        playbackRepository = playbackRepository,
+        themePreferenceCoordinator = themePreferenceCoordinator,
+        ambientModePreferenceRepository = ambientModePreferenceRepository
     )
 
     @Provides
