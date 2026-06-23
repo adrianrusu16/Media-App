@@ -7,6 +7,9 @@ import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.preferencesDataStoreFile
+import com.adrianrusu.pandawave.core.audio.visualizer.AudioSessionRepository
+import com.adrianrusu.pandawave.core.audio.visualizer.InMemoryAudioSessionRepository
+import com.adrianrusu.pandawave.core.audio.visualizer.MutableAudioSessionRepository
 import com.adrianrusu.pandawave.core.automotive.ux.PlatformAutomotiveUxRestrictionObserver
 import com.adrianrusu.pandawave.core.model.theme.ThemePreferenceRepository
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
@@ -39,6 +42,19 @@ import kotlinx.coroutines.SupervisorJob
 @Module
 @InstallIn(SingletonComponent::class)
 object AppCoreModule {
+    @Provides
+    @Singleton
+    fun provideMutableAudioSessionRepository(): InMemoryAudioSessionRepository = InMemoryAudioSessionRepository()
+
+    @Provides
+    @Singleton
+    fun provideAudioSessionRepository(repository: InMemoryAudioSessionRepository): AudioSessionRepository = repository
+
+    @Provides
+    @Singleton
+    fun provideAudioSessionPublisher(repository: InMemoryAudioSessionRepository): MutableAudioSessionRepository =
+        repository
+
     @Provides
     @Singleton
     fun provideEngineServiceConnection(@ApplicationContext context: Context): EngineServiceConnection =

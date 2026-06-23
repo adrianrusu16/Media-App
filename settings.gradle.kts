@@ -36,6 +36,7 @@ include(
     ":core:playback",
     ":core:preferences",
     ":core:automotive",
+    ":core:audio-visualizer",
     ":core:vehicle",
     ":core:carui",
     ":core:media-adapter",

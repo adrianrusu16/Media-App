@@ -3,6 +3,7 @@ package com.adrianrusu.pandawave.core.media.adapter.playback
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
+import com.adrianrusu.pandawave.core.audio.visualizer.MutableAudioSessionRepository
 import com.adrianrusu.pandawave.core.media.adapter.playback.focus.BambooAudioFocusHandler
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
 import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineGateway
@@ -28,17 +29,25 @@ class BambooMediaLibraryService : MediaLibraryService() {
     @Inject
     lateinit var telemetryLogger: TelemetryLogger
 
+    @Inject
+    lateinit var audioSessionRepository: MutableAudioSessionRepository
+
     private var player: ExoPlayer? = null
     private var session: MediaLibrarySession? = null
     private var engineBridge: Media3PlaybackEngineBridge? = null
     private var stateProjector: BambooMediaSessionStateProjector? = null
     private var commandAvailabilityProjector: BambooMediaSessionCommandAvailabilityProjector? = null
     private var audioFocusHandler: BambooAudioFocusHandler? = null
+    private var audioSessionObserver: ExoPlayerAudioSessionObserver? = null
 
     override fun onCreate() {
         super.onCreate()
 
         val exoPlayer = ExoPlayer.Builder(this).build()
+        val exoPlayerAudioSessionObserver = ExoPlayerAudioSessionObserver(
+            player = exoPlayer,
+            repository = audioSessionRepository
+        ).also(ExoPlayerAudioSessionObserver::start)
         lateinit var playbackEngineBridge: Media3PlaybackEngineBridge
         val focusHandler = BambooAudioFocusHandler(
             context = this,
@@ -97,6 +106,7 @@ class BambooMediaLibraryService : MediaLibraryService() {
         stateProjector = playbackStateProjector
         commandAvailabilityProjector = mediaCommandAvailabilityProjector
         audioFocusHandler = focusHandler
+        audioSessionObserver = exoPlayerAudioSessionObserver
 
         playbackEngineBridge.bootstrap()
         playbackStateProjector.start()
@@ -120,6 +130,8 @@ class BambooMediaLibraryService : MediaLibraryService() {
         engineBridge = null
         session?.release()
         session = null
+        audioSessionObserver?.stop()
+        audioSessionObserver = null
         player?.release()
         player = null
 

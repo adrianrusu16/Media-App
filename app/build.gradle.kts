@@ -12,6 +12,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":core:audio-visualizer"))
     implementation(project(":core:automotive"))
     implementation(project(":core:designsystem"))
     implementation(project(":core:media-adapter"))
