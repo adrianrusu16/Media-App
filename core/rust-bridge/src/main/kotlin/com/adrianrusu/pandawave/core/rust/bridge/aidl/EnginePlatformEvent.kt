@@ -22,9 +22,17 @@ data class EnginePlatformEvent(val type: String, val payload: String?) : Parcela
         const val TYPE_SUSPEND_TO_RAM = "suspend_to_ram"
         const val TYPE_RESUME_FROM_RAM = "resume_from_ram"
         const val TYPE_UX_RESTRICTIONS_CHANGED = "ux_restrictions_changed"
+        const val TYPE_VEHICLE_DRIVING_STATE_CHANGED = "vehicle_driving_state_changed"
         const val TYPE_AUDIO_FOCUS_CHANGED = "audio_focus_changed"
         const val TYPE_MEDIA_LOADED = "media_loaded"
         const val TYPE_MEDIA_ERROR = "media_error"
+
+        const val PAYLOAD_UNKNOWN = "unknown"
+        const val PAYLOAD_UNRESTRICTED = "unrestricted"
+        const val PAYLOAD_RESTRICTED = "restricted"
+        const val PAYLOAD_PARKED = "parked"
+        const val PAYLOAD_IDLING = "idling"
+        const val PAYLOAD_MOVING = "moving"
 
         @JvmField
         val CREATOR: Parcelable.Creator<EnginePlatformEvent> =

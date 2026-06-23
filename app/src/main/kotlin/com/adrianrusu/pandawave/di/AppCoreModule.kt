@@ -10,6 +10,7 @@ import androidx.datastore.preferences.preferencesDataStoreFile
 import com.adrianrusu.pandawave.core.audio.visualizer.AudioSessionRepository
 import com.adrianrusu.pandawave.core.audio.visualizer.InMemoryAudioSessionRepository
 import com.adrianrusu.pandawave.core.audio.visualizer.MutableAudioSessionRepository
+import com.adrianrusu.pandawave.core.automotive.driving.PlatformAutomotiveDrivingStateObserver
 import com.adrianrusu.pandawave.core.automotive.ux.PlatformAutomotiveUxRestrictionObserver
 import com.adrianrusu.pandawave.core.model.theme.ThemePreferenceRepository
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
@@ -77,6 +78,7 @@ object AppCoreModule {
     ): BambooPlaybackRepository = DefaultBambooPlaybackRepository(
         engine = engine,
         uxRestrictionObserver = PlatformAutomotiveUxRestrictionObserver(context),
+        drivingStateObserver = PlatformAutomotiveDrivingStateObserver(context),
         telemetryLogger = telemetryLogger
     )
 

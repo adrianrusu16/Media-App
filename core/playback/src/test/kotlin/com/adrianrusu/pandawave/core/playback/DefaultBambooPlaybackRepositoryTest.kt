@@ -1,5 +1,7 @@
 package com.adrianrusu.pandawave.core.playback
 
+import com.adrianrusu.pandawave.core.automotive.driving.AutomotiveDrivingState
+import com.adrianrusu.pandawave.core.automotive.driving.AutomotiveDrivingStateObserver
 import com.adrianrusu.pandawave.core.automotive.ux.AutomotiveUxRestrictionObserver
 import com.adrianrusu.pandawave.core.automotive.ux.AutomotiveUxRestrictions
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
@@ -21,6 +23,43 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class DefaultBambooPlaybackRepositoryTest {
+    @Test
+    fun `safety events bypass readiness and remain unknown until engine confirmation`() {
+        val engine = RecordingEngineGateway(
+            initialSnapshot = EngineSnapshot.idle(nowMillis = 1L),
+            dispatchEventType = EngineEvent.TYPE_COMMAND_QUEUED,
+            platformDispatchEventType = EngineEvent.TYPE_PLATFORM_EVENT_QUEUED
+        )
+        val repository = DefaultBambooPlaybackRepository(
+            engine = engine,
+            uxRestrictionObserver = FakeUxRestrictionObserver(
+                AutomotiveUxRestrictions.unrestricted(AutomotiveUxRestrictions.Source.AutomotivePlatform)
+            ),
+            telemetryLogger = testTelemetryLogger(),
+            drivingStateObserver = FakeDrivingStateObserver(AutomotiveDrivingState.Parked)
+        )
+
+        repository.start()
+
+        assertEquals(
+            listOf(
+                EnginePlatformEvent.TYPE_UX_RESTRICTIONS_CHANGED,
+                EnginePlatformEvent.TYPE_VEHICLE_DRIVING_STATE_CHANGED
+            ),
+            engine.platformEvents.map { it.type }
+        )
+        assertFalse(repository.state.value.vehicleSafety.ambientPermitted)
+
+        engine.pushSnapshot(
+            EngineSnapshot.idle(nowMillis = 2L).copy(
+                restrictionState = EngineSnapshot.RESTRICTION_UNRESTRICTED,
+                drivingState = EngineSnapshot.DRIVING_PARKED
+            )
+        )
+
+        assertTrue(repository.state.value.vehicleSafety.ambientPermitted)
+    }
+
     @Test
     fun `start bootstraps engine snapshot and restriction state`() {
         val repository = DefaultBambooPlaybackRepository(
@@ -364,6 +403,9 @@ class DefaultBambooPlaybackRepositoryTest {
         engine.pushEvent(EngineEvent(type = EngineEvent.TYPE_SERVICE_CONNECTED, message = null))
         repository.dispatch(BambooPlaybackIntent.SkipNext)
 
+        val intentEvents = telemetrySink.events.filterNot { event ->
+            event.name == PlaybackTelemetryEvents.PLATFORM_EVENT_DISPATCHED
+        }
         assertEquals(
             listOf(
                 PlaybackTelemetryEvents.INTENT_RECEIVED,
@@ -371,23 +413,23 @@ class DefaultBambooPlaybackRepositoryTest {
                 PlaybackTelemetryEvents.INTENT_RECEIVED,
                 PlaybackTelemetryEvents.ENGINE_COMMAND_DISPATCHED
             ),
-            telemetrySink.events.map { it.name }
+            intentEvents.map { it.name }
         )
         assertEquals(
             BambooPlaybackIntentNames.PLAY,
-            telemetrySink.events[0].attributes[BambooPlaybackTelemetryAttributes.INTENT]
+            intentEvents[0].attributes[BambooPlaybackTelemetryAttributes.INTENT]
         )
         assertEquals(
             BambooEngineConnectionStatus.Connecting.name,
-            telemetrySink.events[1].attributes[BambooPlaybackTelemetryAttributes.ENGINE_STATUS]
+            intentEvents[1].attributes[BambooPlaybackTelemetryAttributes.ENGINE_STATUS]
         )
         assertEquals(
             BambooPlaybackIntentNames.SKIP_NEXT,
-            telemetrySink.events[3].attributes[BambooPlaybackTelemetryAttributes.INTENT]
+            intentEvents[3].attributes[BambooPlaybackTelemetryAttributes.INTENT]
         )
         assertEquals(
             EngineCommand.TYPE_SKIP_NEXT,
-            telemetrySink.events[3].attributes[BambooPlaybackTelemetryAttributes.COMMAND_TYPE]
+            intentEvents[3].attributes[BambooPlaybackTelemetryAttributes.COMMAND_TYPE]
         )
         assertEquals(
             setOf(TelemetryModule.Playback),
@@ -411,15 +453,32 @@ private class FakeUxRestrictionObserver(private val restrictions: AutomotiveUxRe
     }
 }
 
+private class FakeDrivingStateObserver(private val drivingState: AutomotiveDrivingState) :
+    AutomotiveDrivingStateObserver {
+    override fun current(): AutomotiveDrivingState = drivingState
+
+    override fun start(onChanged: (AutomotiveDrivingState) -> Unit) {
+        onChanged(drivingState)
+    }
+
+    override fun close() = Unit
+}
+
 private class RecordingEngineGateway(
     initialSnapshot: EngineSnapshot,
-    private val dispatchEventType: String = EngineEvent.TYPE_COMMAND_APPLIED
+    private val dispatchEventType: String = EngineEvent.TYPE_COMMAND_APPLIED,
+    private val platformDispatchEventType: String = if (dispatchEventType == EngineEvent.TYPE_COMMAND_QUEUED) {
+        EngineEvent.TYPE_PLATFORM_EVENT_QUEUED
+    } else {
+        EngineEvent.TYPE_PLATFORM_EVENT_APPLIED
+    }
 ) : EngineGateway {
     private var currentSnapshot = initialSnapshot
     private val snapshotListeners = mutableSetOf<(EngineSnapshot) -> Unit>()
     private val eventListeners = mutableSetOf<(EngineEvent) -> Unit>()
 
     val commands = mutableListOf<EngineCommand>()
+    val platformEvents = mutableListOf<EnginePlatformEvent>()
 
     override fun snapshot(): EngineSnapshot = currentSnapshot
 
@@ -453,13 +512,29 @@ private class RecordingEngineGateway(
         )
     }
 
-    override fun dispatchPlatformEvent(event: EnginePlatformEvent): EngineDispatchResult = EngineDispatchResult(
-        snapshot = currentSnapshot,
-        event = EngineEvent(
-            type = EngineEvent.TYPE_PLATFORM_EVENT_APPLIED,
-            message = event.type
+    override fun dispatchPlatformEvent(event: EnginePlatformEvent): EngineDispatchResult {
+        platformEvents += event
+        if (platformDispatchEventType == EngineEvent.TYPE_PLATFORM_EVENT_APPLIED) {
+            currentSnapshot = when (event.type) {
+                EnginePlatformEvent.TYPE_UX_RESTRICTIONS_CHANGED -> currentSnapshot.copy(
+                    restrictionState = event.payload ?: EngineSnapshot.RESTRICTION_UNKNOWN
+                )
+
+                EnginePlatformEvent.TYPE_VEHICLE_DRIVING_STATE_CHANGED -> currentSnapshot.copy(
+                    drivingState = event.payload ?: EngineSnapshot.DRIVING_UNKNOWN
+                )
+
+                else -> currentSnapshot
+            }
+        }
+        return EngineDispatchResult(
+            snapshot = currentSnapshot,
+            event = EngineEvent(
+                type = platformDispatchEventType,
+                message = event.type
+            )
         )
-    )
+    }
 
     override fun observeSnapshots(listener: (EngineSnapshot) -> Unit): AutoCloseable {
         snapshotListeners += listener

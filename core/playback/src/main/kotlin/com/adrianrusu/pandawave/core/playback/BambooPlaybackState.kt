@@ -12,6 +12,7 @@ data class BambooPlaybackState(
     val playbackStatus: BambooPlaybackStatus = BambooPlaybackStatus.Idle,
     val engineConnection: BambooEngineConnectionUiState = BambooEngineConnectionUiState.Connecting,
     val restriction: BambooPlaybackRestrictionState = BambooPlaybackRestrictionState.Unavailable,
+    val vehicleSafety: BambooVehicleSafetyState = BambooVehicleSafetyState.Unknown,
     val updatedAtEpochMillis: Long = 0L,
     val positionMillis: Long = 0L,
     val playbackSpeed: Float = 1F,
@@ -29,6 +30,35 @@ data class BambooPlaybackState(
 
     val canDispatchEngineCommands: Boolean
         get() = engineConnection.status == BambooEngineConnectionStatus.Ready && canDispatch
+}
+
+enum class BambooDrivingState {
+    Unknown,
+    Parked,
+    Idling,
+    Moving
+}
+
+enum class BambooRestrictionState {
+    Unknown,
+    Unrestricted,
+    Restricted
+}
+
+data class BambooVehicleSafetyState(
+    val drivingState: BambooDrivingState,
+    val restrictionState: BambooRestrictionState
+) {
+    val ambientPermitted: Boolean
+        get() = drivingState == BambooDrivingState.Parked &&
+            restrictionState == BambooRestrictionState.Unrestricted
+
+    companion object {
+        val Unknown = BambooVehicleSafetyState(
+            drivingState = BambooDrivingState.Unknown,
+            restrictionState = BambooRestrictionState.Unknown
+        )
+    }
 }
 
 enum class BambooPlaybackStatus {

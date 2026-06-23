@@ -1,9 +1,13 @@
 package com.adrianrusu.pandawave.core.playback
 
+import com.adrianrusu.pandawave.core.automotive.driving.AutomotiveDrivingState
+import com.adrianrusu.pandawave.core.automotive.driving.AutomotiveDrivingStateObserver
 import com.adrianrusu.pandawave.core.automotive.ux.AutomotiveUxRestrictionObserver
+import com.adrianrusu.pandawave.core.automotive.ux.AutomotiveUxRestrictions
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommandPayloads
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.pandawave.core.rust.bridge.engine.EngineDispatchResult
 import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineGateway
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
@@ -16,7 +20,8 @@ import kotlinx.coroutines.flow.update
 class DefaultBambooPlaybackRepository(
     private val engine: EngineGateway,
     private val uxRestrictionObserver: AutomotiveUxRestrictionObserver,
-    telemetryLogger: TelemetryLogger
+    telemetryLogger: TelemetryLogger,
+    private val drivingStateObserver: AutomotiveDrivingStateObserver = AutomotiveDrivingStateObserver.Unavailable
 ) : BambooPlaybackRepository {
     private val telemetryLogger = telemetryLogger.forModule(TelemetryModule.Playback)
     private val mutableState = MutableStateFlow(BambooPlaybackState())
@@ -55,12 +60,20 @@ class DefaultBambooPlaybackRepository(
         bootstrapEngine()
 
         uxRestrictionObserver.start { restrictions ->
-            updateState { current ->
-                BambooPlaybackStateProjector.fromUxRestrictions(
-                    current = current,
-                    restrictions = restrictions
+            dispatchPlatformEvent(
+                BambooPlaybackIntent.PlatformEvent(
+                    type = EnginePlatformEvent.TYPE_UX_RESTRICTIONS_CHANGED,
+                    payload = restrictions.toEnginePayload()
                 )
-            }
+            )
+        }
+        drivingStateObserver.start { drivingState ->
+            dispatchPlatformEvent(
+                BambooPlaybackIntent.PlatformEvent(
+                    type = EnginePlatformEvent.TYPE_VEHICLE_DRIVING_STATE_CHANGED,
+                    payload = drivingState.toEnginePayload()
+                )
+            )
         }
     }
 
@@ -166,6 +179,7 @@ class DefaultBambooPlaybackRepository(
         engineEventSubscription = null
         effectListeners.clear()
         uxRestrictionObserver.close()
+        drivingStateObserver.close()
     }
 
     private fun bootstrapEngine() {
@@ -244,11 +258,6 @@ class DefaultBambooPlaybackRepository(
     }
 
     private fun dispatchPlatformEvent(intent: BambooPlaybackIntent.PlatformEvent) {
-        if (!state.value.canDispatchEngineCommands) {
-            logBlockedIntent(intent)
-            return
-        }
-
         telemetryLogger.info(
             name = PlaybackTelemetryEvents.PLATFORM_EVENT_DISPATCHED,
             attributes = mapOf(
@@ -301,6 +310,22 @@ class DefaultBambooPlaybackRepository(
             )
         )
     }
+}
+
+private fun AutomotiveUxRestrictions.toEnginePayload(): String = when {
+    source != AutomotiveUxRestrictions.Source.AutomotivePlatform -> EnginePlatformEvent.PAYLOAD_UNKNOWN
+
+    requiresDistractionOptimization || activeRestrictions != AutomotiveUxRestrictions.NO_RESTRICTIONS ->
+        EnginePlatformEvent.PAYLOAD_RESTRICTED
+
+    else -> EnginePlatformEvent.PAYLOAD_UNRESTRICTED
+}
+
+private fun AutomotiveDrivingState.toEnginePayload(): String = when (this) {
+    AutomotiveDrivingState.Parked -> EnginePlatformEvent.PAYLOAD_PARKED
+    AutomotiveDrivingState.Idling -> EnginePlatformEvent.PAYLOAD_IDLING
+    AutomotiveDrivingState.Moving -> EnginePlatformEvent.PAYLOAD_MOVING
+    AutomotiveDrivingState.Unknown -> EnginePlatformEvent.PAYLOAD_UNKNOWN
 }
 
 internal object PlaybackTelemetryEvents {

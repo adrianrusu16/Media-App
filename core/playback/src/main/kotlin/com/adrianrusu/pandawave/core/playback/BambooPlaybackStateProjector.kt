@@ -1,6 +1,5 @@
 package com.adrianrusu.pandawave.core.playback
 
-import com.adrianrusu.pandawave.core.automotive.ux.AutomotiveUxRestrictions
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineControlState
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlayerControls
@@ -27,17 +26,19 @@ internal object BambooPlaybackStateProjector {
         browseResultsCount = snapshot.browseResultsCount,
         isBusy = snapshot.isBusy,
         canDispatch = snapshot.canDispatch,
-        controls = snapshot.controls.toPlaybackControls()
+        controls = snapshot.controls.toPlaybackControls(),
+        restriction = BambooPlaybackRestrictionState(
+            isRestricted = snapshot.restrictionState == EngineSnapshot.RESTRICTION_RESTRICTED
+        ),
+        vehicleSafety = BambooVehicleSafetyState(
+            drivingState = snapshot.drivingState.toDrivingState(),
+            restrictionState = snapshot.restrictionState.toRestrictionState()
+        )
     )
 
     fun fromEngineEvent(current: BambooPlaybackState, event: EngineEvent): BambooPlaybackState = current.copy(
         engineConnection = event.toConnectionUiState(current = current.engineConnection)
     )
-
-    fun fromUxRestrictions(current: BambooPlaybackState, restrictions: AutomotiveUxRestrictions): BambooPlaybackState =
-        current.copy(
-            restriction = restrictions.toPlaybackRestrictionState()
-        )
 
     private fun String.toPlaybackStatus(): BambooPlaybackStatus = when (this) {
         EngineSnapshot.PLAYBACK_PLAYING -> BambooPlaybackStatus.Playing
@@ -64,10 +65,18 @@ internal object BambooPlaybackStateProjector {
             else -> current
         }
 
-    private fun AutomotiveUxRestrictions.toPlaybackRestrictionState(): BambooPlaybackRestrictionState =
-        BambooPlaybackRestrictionState(
-            isRestricted = isRestricted
-        )
+    private fun String.toDrivingState(): BambooDrivingState = when (this) {
+        EngineSnapshot.DRIVING_PARKED -> BambooDrivingState.Parked
+        EngineSnapshot.DRIVING_IDLING -> BambooDrivingState.Idling
+        EngineSnapshot.DRIVING_MOVING -> BambooDrivingState.Moving
+        else -> BambooDrivingState.Unknown
+    }
+
+    private fun String.toRestrictionState(): BambooRestrictionState = when (this) {
+        EngineSnapshot.RESTRICTION_UNRESTRICTED -> BambooRestrictionState.Unrestricted
+        EngineSnapshot.RESTRICTION_RESTRICTED -> BambooRestrictionState.Restricted
+        else -> BambooRestrictionState.Unknown
+    }
 
     private fun EnginePlayerControls.toPlaybackControls(): BambooPlaybackControls = BambooPlaybackControls(
         playPause = playPause.toPlaybackControlState(),

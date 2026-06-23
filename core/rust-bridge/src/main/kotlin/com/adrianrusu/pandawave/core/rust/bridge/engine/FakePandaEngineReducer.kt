@@ -99,8 +99,27 @@ internal object FakePandaEngineReducer {
             EnginePlatformEvent.TYPE_APP_FOREGROUNDED,
             EnginePlatformEvent.TYPE_APP_BACKGROUNDED,
             EnginePlatformEvent.TYPE_SUSPEND_TO_RAM,
-            EnginePlatformEvent.TYPE_RESUME_FROM_RAM,
-            EnginePlatformEvent.TYPE_UX_RESTRICTIONS_CHANGED -> current.copy(updatedAtEpochMillis = nowMillis)
+            EnginePlatformEvent.TYPE_RESUME_FROM_RAM
+            -> current.copy(updatedAtEpochMillis = nowMillis)
+
+            EnginePlatformEvent.TYPE_UX_RESTRICTIONS_CHANGED -> current.copy(
+                restrictionState = when (event.payload) {
+                    EnginePlatformEvent.PAYLOAD_UNRESTRICTED -> EngineSnapshot.RESTRICTION_UNRESTRICTED
+                    EnginePlatformEvent.PAYLOAD_RESTRICTED -> EngineSnapshot.RESTRICTION_RESTRICTED
+                    else -> EngineSnapshot.RESTRICTION_UNKNOWN
+                },
+                updatedAtEpochMillis = nowMillis
+            )
+
+            EnginePlatformEvent.TYPE_VEHICLE_DRIVING_STATE_CHANGED -> current.copy(
+                drivingState = when (event.payload) {
+                    EnginePlatformEvent.PAYLOAD_PARKED -> EngineSnapshot.DRIVING_PARKED
+                    EnginePlatformEvent.PAYLOAD_IDLING -> EngineSnapshot.DRIVING_IDLING
+                    EnginePlatformEvent.PAYLOAD_MOVING -> EngineSnapshot.DRIVING_MOVING
+                    else -> EngineSnapshot.DRIVING_UNKNOWN
+                },
+                updatedAtEpochMillis = nowMillis
+            )
 
             else -> current.copy(updatedAtEpochMillis = nowMillis)
         }

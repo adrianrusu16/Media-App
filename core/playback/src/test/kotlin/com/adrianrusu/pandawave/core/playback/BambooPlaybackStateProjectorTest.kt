@@ -1,14 +1,38 @@
 package com.adrianrusu.pandawave.core.playback
 
-import com.adrianrusu.pandawave.core.automotive.ux.AutomotiveUxRestrictions
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineControlState
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlayerControls
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class BambooPlaybackStateProjectorTest {
+    @Test
+    fun `ambient safety is false unless engine reports parked and unrestricted`() {
+        assertFalse(BambooVehicleSafetyState.Unknown.ambientPermitted)
+        assertFalse(
+            BambooVehicleSafetyState(
+                drivingState = BambooDrivingState.Parked,
+                restrictionState = BambooRestrictionState.Unknown
+            ).ambientPermitted
+        )
+        assertFalse(
+            BambooVehicleSafetyState(
+                drivingState = BambooDrivingState.Moving,
+                restrictionState = BambooRestrictionState.Unrestricted
+            ).ambientPermitted
+        )
+        assertTrue(
+            BambooVehicleSafetyState(
+                drivingState = BambooDrivingState.Parked,
+                restrictionState = BambooRestrictionState.Unrestricted
+            ).ambientPermitted
+        )
+    }
+
     @Test
     fun `engine snapshot projects now playing metadata`() {
         val snapshot = EngineSnapshot(
@@ -121,19 +145,16 @@ class BambooPlaybackStateProjectorTest {
     }
 
     @Test
-    fun `ux restrictions project driver safe state`() {
-        val state = BambooPlaybackStateProjector.fromUxRestrictions(
+    fun `engine safety snapshot projects driver restriction state`() {
+        val state = BambooPlaybackStateProjector.fromEngineSnapshot(
             current = BambooPlaybackState(),
-            restrictions = AutomotiveUxRestrictions(
-                source = AutomotiveUxRestrictions.Source.AutomotivePlatform,
-                requiresDistractionOptimization = true,
-                activeRestrictions = AutomotiveUxRestrictions.NO_RESTRICTIONS,
-                maxContentDepth = 1,
-                maxCumulativeContentItems = 1,
-                maxRestrictedStringLength = 24
+            snapshot = EngineSnapshot.idle(nowMillis = 1L).copy(
+                restrictionState = EngineSnapshot.RESTRICTION_RESTRICTED,
+                drivingState = EngineSnapshot.DRIVING_PARKED
             )
         )
 
         assertEquals(true, state.restriction.isRestricted)
+        assertFalse(state.vehicleSafety.ambientPermitted)
     }
 }

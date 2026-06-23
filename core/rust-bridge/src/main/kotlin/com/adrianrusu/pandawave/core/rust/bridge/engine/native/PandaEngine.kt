@@ -283,6 +283,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         private const val PLATFORM_EVENT_AUDIO_FOCUS_CHANGED = 5
         private const val PLATFORM_EVENT_MEDIA_LOADED = 6
         private const val PLATFORM_EVENT_MEDIA_ERROR = 7
+        private const val PLATFORM_EVENT_VEHICLE_DRIVING_STATE_CHANGED = 8
         private const val PLATFORM_EVENT_UNKNOWN = -1
 
         private const val EFFECT_PLAY = 0
@@ -330,6 +331,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             EnginePlatformEvent.TYPE_AUDIO_FOCUS_CHANGED -> PLATFORM_EVENT_AUDIO_FOCUS_CHANGED
             EnginePlatformEvent.TYPE_MEDIA_LOADED -> PLATFORM_EVENT_MEDIA_LOADED
             EnginePlatformEvent.TYPE_MEDIA_ERROR -> PLATFORM_EVENT_MEDIA_ERROR
+            EnginePlatformEvent.TYPE_VEHICLE_DRIVING_STATE_CHANGED -> PLATFORM_EVENT_VEHICLE_DRIVING_STATE_CHANGED
             else -> PLATFORM_EVENT_UNKNOWN
         }
 
@@ -376,6 +378,7 @@ internal object PandaEngineNativeSnapshotMapper {
                 restrictionState = restrictionStateFromNative(
                     nativeValues[SNAPSHOT_RESTRICTION_INDEX].toInt()
                 ),
+                drivingState = drivingStateFromNative(nativeValues[SNAPSHOT_DRIVING_STATE_INDEX].toInt()),
                 updatedAtEpochMillis = nativeValues[SNAPSHOT_UPDATED_AT_INDEX],
                 hasActiveSession = nativeValues[SNAPSHOT_HAS_ACTIVE_SESSION_INDEX].toBoolean(),
                 hasError = nativeValues[SNAPSHOT_HAS_ERROR_INDEX].toBoolean(),
@@ -429,7 +432,16 @@ internal object PandaEngineNativeSnapshotMapper {
 
     private fun restrictionStateFromNative(value: Int): String = when (value) {
         RESTRICTION_UNKNOWN -> EngineSnapshot.RESTRICTION_UNKNOWN
+        RESTRICTION_UNRESTRICTED -> EngineSnapshot.RESTRICTION_UNRESTRICTED
+        RESTRICTION_RESTRICTED -> EngineSnapshot.RESTRICTION_RESTRICTED
         else -> EngineSnapshot.RESTRICTION_UNKNOWN
+    }
+
+    private fun drivingStateFromNative(value: Int): String = when (value) {
+        DRIVING_PARKED -> EngineSnapshot.DRIVING_PARKED
+        DRIVING_IDLING -> EngineSnapshot.DRIVING_IDLING
+        DRIVING_MOVING -> EngineSnapshot.DRIVING_MOVING
+        else -> EngineSnapshot.DRIVING_UNKNOWN
     }
 
     private fun errorTypeFromNative(value: Int): String = when (value) {
@@ -466,6 +478,12 @@ internal object PandaEngineNativeSnapshotMapper {
     private const val PLAYBACK_ERROR = 4
 
     private const val RESTRICTION_UNKNOWN = 0
+    private const val RESTRICTION_UNRESTRICTED = 1
+    private const val RESTRICTION_RESTRICTED = 2
+
+    private const val DRIVING_PARKED = 1
+    private const val DRIVING_IDLING = 2
+    private const val DRIVING_MOVING = 3
 
     private const val ERROR_NONE = 0
     private const val ERROR_NOT_FOUND = 1
@@ -483,7 +501,7 @@ internal object PandaEngineNativeSnapshotMapper {
     private const val PREFERENCE_SOURCE_LOCAL_USER = 2
     private const val PREFERENCE_SOURCE_REMOTE_PROFILE = 3
 
-    private const val SNAPSHOT_VALUE_COUNT = 29
+    private const val SNAPSHOT_VALUE_COUNT = 30
     private const val SNAPSHOT_PLAYBACK_INDEX = 0
     private const val SNAPSHOT_RESTRICTION_INDEX = 1
     private const val SNAPSHOT_UPDATED_AT_INDEX = 2
@@ -513,4 +531,5 @@ internal object PandaEngineNativeSnapshotMapper {
     private const val SNAPSHOT_PREFERENCE_SOURCE_INDEX = 26
     private const val SNAPSHOT_PREFERENCE_REVISION_INDEX = 27
     private const val SNAPSHOT_PREFERENCE_INITIALIZED_INDEX = 28
+    private const val SNAPSHOT_DRIVING_STATE_INDEX = 29
 }

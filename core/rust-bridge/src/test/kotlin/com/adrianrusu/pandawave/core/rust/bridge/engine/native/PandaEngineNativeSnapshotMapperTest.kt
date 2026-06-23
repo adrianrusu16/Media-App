@@ -39,7 +39,8 @@ class PandaEngineNativeSnapshotMapperTest {
                 THEME_FOREST_TECH_DARK.toLong(),
                 PREFERENCE_SOURCE_REMOTE_PROFILE.toLong(),
                 8L,
-                true.toLong()
+                true.toLong(),
+                DRIVING_PARKED.toLong()
             )
         )
         val snapshot = projection.snapshot
@@ -73,6 +74,7 @@ class PandaEngineNativeSnapshotMapperTest {
         assertEquals("remote_profile", snapshot.themePreference.source)
         assertEquals(8L, snapshot.themePreference.revision)
         assertTrue(snapshot.themePreference.initialized)
+        assertEquals(EngineSnapshot.DRIVING_PARKED, snapshot.drivingState)
     }
 
     @Test
@@ -93,5 +95,6 @@ class PandaEngineNativeSnapshotMapperTest {
         const val ERROR_NETWORK = 2
         const val THEME_FOREST_TECH_DARK = 4
         const val PREFERENCE_SOURCE_REMOTE_PROFILE = 3
+        const val DRIVING_PARKED = 1
     }
 }

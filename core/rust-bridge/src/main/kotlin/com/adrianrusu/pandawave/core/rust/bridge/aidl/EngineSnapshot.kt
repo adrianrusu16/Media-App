@@ -27,7 +27,8 @@ data class EngineSnapshot(
     val controls: EnginePlayerControls = EnginePlayerControls.default(),
     val hasVoiceHypothesis: Boolean = false,
     val browseResultsCount: Int = 0,
-    val themePreference: EngineThemePreference = EngineThemePreference.uninitialized()
+    val themePreference: EngineThemePreference = EngineThemePreference.uninitialized(),
+    val drivingState: String = DRIVING_UNKNOWN
 ) : Parcelable {
     constructor(parcel: Parcel) : this(
         playbackState = parcel.readString().orEmpty(),
@@ -63,7 +64,8 @@ data class EngineSnapshot(
             source = parcel.readString() ?: EngineThemePreference.SOURCE_UNINITIALIZED,
             revision = parcel.readLong(),
             initialized = parcel.readBooleanValue()
-        )
+        ),
+        drivingState = parcel.readString() ?: DRIVING_UNKNOWN
     )
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
@@ -97,6 +99,7 @@ data class EngineSnapshot(
         parcel.writeString(themePreference.source)
         parcel.writeLong(themePreference.revision)
         parcel.writeBooleanValue(themePreference.initialized)
+        parcel.writeString(drivingState)
     }
 
     override fun describeContents(): Int = 0
@@ -108,6 +111,12 @@ data class EngineSnapshot(
         const val PLAYBACK_BUFFERING = "buffering"
         const val PLAYBACK_ERROR = "error"
         const val RESTRICTION_UNKNOWN = "unknown"
+        const val RESTRICTION_UNRESTRICTED = "unrestricted"
+        const val RESTRICTION_RESTRICTED = "restricted"
+        const val DRIVING_UNKNOWN = "unknown"
+        const val DRIVING_PARKED = "parked"
+        const val DRIVING_IDLING = "idling"
+        const val DRIVING_MOVING = "moving"
         const val ERROR_NONE = "none"
         const val ERROR_NOT_FOUND = "not_found"
         const val ERROR_NETWORK = "network"
