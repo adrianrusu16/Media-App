@@ -15,6 +15,7 @@ dependencies {
     implementation(project(":core:audio-visualizer"))
     implementation(project(":core:designsystem"))
     implementation(project(":core:playback"))
+    implementation(project(":core:preferences"))
     implementation(project(":core:ui"))
 
     implementation(platform(libs.androidx.compose.bom))
@@ -31,6 +32,7 @@ dependencies {
 
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.kotlin.test.junit5)
+    testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
 }

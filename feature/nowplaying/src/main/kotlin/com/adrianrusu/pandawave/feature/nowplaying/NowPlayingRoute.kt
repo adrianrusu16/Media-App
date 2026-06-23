@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -23,6 +22,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -39,6 +39,9 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.adrianrusu.pandawave.core.designsystem.R as DesignSystemR
 import com.adrianrusu.pandawave.core.designsystem.tokens.LocalPandaWaveDesignTokens
@@ -65,7 +68,8 @@ import com.adrianrusu.pandawave.core.designsystem.tokens.volumeControlHeight
 import com.adrianrusu.pandawave.core.designsystem.tokens.volumeControlMaxWidth
 import com.adrianrusu.pandawave.core.designsystem.tokens.xs
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackProgress
-import com.adrianrusu.pandawave.core.ui.components.BambooVoiceIndicator
+import com.adrianrusu.pandawave.core.ui.audio.visualizer.BambooAmbientVisualizer
+import com.adrianrusu.pandawave.core.ui.audio.visualizer.BambooVoiceIndicator
 import com.adrianrusu.pandawave.core.ui.focus.BambooRotaryColumn
 import com.adrianrusu.pandawave.core.ui.focus.bambooBringIntoViewOnFocus
 import com.adrianrusu.pandawave.core.ui.icons.PandaWaveIcons
@@ -74,6 +78,7 @@ import com.adrianrusu.pandawave.core.ui.playback.BambooPlaybackControlSize
 import com.adrianrusu.pandawave.feature.nowplaying.domain.NowPlayingIntent
 import com.adrianrusu.pandawave.feature.nowplaying.domain.NowPlayingPlaybackState
 import com.adrianrusu.pandawave.feature.nowplaying.domain.NowPlayingState
+import com.adrianrusu.pandawave.feature.nowplaying.domain.ambient.AmbientModeState
 import com.adrianrusu.pandawave.feature.nowplaying.presentation.NowPlayingViewModel
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.delay
@@ -82,17 +87,87 @@ import kotlinx.coroutines.delay
 fun NowPlayingRoute(modifier: Modifier = Modifier, onLibraryClick: () -> Unit = {}) {
     val viewModel: NowPlayingViewModel = hiltViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val ambientModeState by viewModel.ambientModeState.collectAsStateWithLifecycle()
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    DisposableEffect(viewModel, lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> viewModel.onLifecycleResumedChanged(true)
+
+                Lifecycle.Event.ON_PAUSE,
+                Lifecycle.Event.ON_STOP,
+                Lifecycle.Event.ON_DESTROY -> viewModel.onLifecycleResumedChanged(false)
+
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        viewModel.onRouteVisibilityChanged(true)
+        viewModel.onLifecycleResumedChanged(
+            lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
+        )
+
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            viewModel.onLifecycleResumedChanged(false)
+            viewModel.onRouteVisibilityChanged(false)
+        }
+    }
 
     NowPlayingScreen(
+        modifier = modifier,
         state = state,
+        ambientModeState = ambientModeState,
         onIntent = viewModel::onIntent,
-        onLibraryClick = onLibraryClick,
-        modifier = modifier
+        viewModel = viewModel,
+        onLibraryClick = onLibraryClick
     )
 }
 
 @Composable
 private fun NowPlayingScreen(
+    modifier: Modifier = Modifier,
+    state: NowPlayingState,
+    ambientModeState: AmbientModeState,
+    viewModel: NowPlayingViewModel,
+    onIntent: (NowPlayingIntent) -> Unit,
+    onLibraryClick: () -> Unit
+) {
+    val isAmbientVisible = ambientModeState == AmbientModeState.AmbientStatic ||
+        ambientModeState == AmbientModeState.AmbientVisualizing
+
+    if (isAmbientVisible) {
+        NowPlayingAmbientRoute(
+            modifier = modifier,
+            viewModel = viewModel,
+            title = state.title,
+            artist = state.artist
+        )
+    } else {
+        NowPlayingInteractiveScreen(
+            state = state,
+            onIntent = onIntent,
+            onLibraryClick = onLibraryClick,
+            modifier = modifier
+        )
+    }
+}
+
+@Composable
+private fun NowPlayingAmbientRoute(modifier: Modifier, viewModel: NowPlayingViewModel, title: String, artist: String) {
+    val amplitudes by viewModel.amplitudes.collectAsStateWithLifecycle()
+
+    NowPlayingAmbientScreen(
+        amplitudes = amplitudes,
+        title = title,
+        artist = artist,
+        modifier = modifier
+    )
+}
+
+@Composable
+private fun NowPlayingInteractiveScreen(
     state: NowPlayingState,
     onIntent: (NowPlayingIntent) -> Unit,
     onLibraryClick: () -> Unit,
@@ -188,6 +263,19 @@ private fun NowPlayingScreen(
                 onLibraryClick = onLibraryClick
             )
         }
+    }
+}
+
+@Composable
+fun NowPlayingAmbientScreen(modifier: Modifier = Modifier, amplitudes: FloatArray, title: String, artist: String) {
+    Box(modifier = modifier) {
+        BambooAmbientVisualizer(
+            amplitudes = amplitudes,
+            modifier = Modifier.matchParentSize(),
+            intensity = 0.85f
+        )
+
+        // Album art, title, artist, controls, etc.
     }
 }
 

@@ -13,6 +13,7 @@ data class NowPlayingState(
     val playbackState: NowPlayingPlaybackState = NowPlayingPlaybackState.Idle,
     val engineConnection: BambooEngineConnectionUiState = BambooEngineConnectionUiState.Connecting,
     val restriction: NowPlayingRestrictionState = NowPlayingRestrictionState.Unavailable,
+    val ambientSafetyPermitted: Boolean = false,
     val updatedAtEpochMillis: Long = 0L,
     val progressAnchor: BambooPlaybackProgressAnchor = BambooPlaybackProgressAnchor()
 ) {

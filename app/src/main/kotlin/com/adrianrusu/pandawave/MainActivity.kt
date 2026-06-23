@@ -1,6 +1,8 @@
 package com.adrianrusu.pandawave
 
 import android.os.Bundle
+import android.view.InputDevice
+import android.view.MotionEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -12,6 +14,7 @@ import com.adrianrusu.pandawave.appshell.presentation.AppShellScreen
 import com.adrianrusu.pandawave.appshell.presentation.AppShellViewModel
 import com.adrianrusu.pandawave.core.designsystem.R as DesignSystemR
 import com.adrianrusu.pandawave.core.designsystem.theme.PandaWaveTheme
+import com.adrianrusu.pandawave.core.ui.interaction.UserInteractionTracker
 import com.adrianrusu.pandawave.theme.AppThemeViewModel
 import com.adrianrusu.pandawave.theme.ThemeStartupGate
 import dagger.hilt.android.AndroidEntryPoint
@@ -21,6 +24,9 @@ import javax.inject.Inject
 class MainActivity : ComponentActivity() {
     @Inject
     lateinit var themeStartupGate: ThemeStartupGate
+
+    @Inject
+    lateinit var userInteractionTracker: UserInteractionTracker
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
@@ -58,5 +64,17 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
+    }
+
+    override fun onUserInteraction() {
+        userInteractionTracker.recordInteraction()
+        super.onUserInteraction()
+    }
+
+    override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
+        if (event.isFromSource(InputDevice.SOURCE_ROTARY_ENCODER)) {
+            userInteractionTracker.recordInteraction()
+        }
+        return super.dispatchGenericMotionEvent(event)
     }
 }

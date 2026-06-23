@@ -21,6 +21,7 @@ dependencies {
     implementation(project(":core:preferences"))
     implementation(project(":core:rust-bridge"))
     implementation(project(":core:telemetry-adapter"))
+    implementation(project(":core:ui"))
     implementation(project(":feature:appshell"))
 
     implementation(platform(libs.androidx.compose.bom))

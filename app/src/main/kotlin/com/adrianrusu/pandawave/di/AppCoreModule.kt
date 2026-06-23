@@ -31,6 +31,9 @@ import com.adrianrusu.pandawave.core.telemetry.TelemetrySink
 import com.adrianrusu.pandawave.core.telemetry.sinks.AndroidLogTelemetrySink
 import com.adrianrusu.pandawave.core.telemetry.sinks.CompositeTelemetrySink
 import com.adrianrusu.pandawave.core.telemetry.sinks.InMemoryBreadcrumbTelemetrySink
+import com.adrianrusu.pandawave.core.ui.interaction.MonotonicClock
+import com.adrianrusu.pandawave.core.ui.interaction.SystemMonotonicClock
+import com.adrianrusu.pandawave.core.ui.interaction.UserInteractionTracker
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -45,6 +48,14 @@ import kotlinx.coroutines.SupervisorJob
 @Module
 @InstallIn(SingletonComponent::class)
 object AppCoreModule {
+    @Provides
+    @Singleton
+    fun provideMonotonicClock(): MonotonicClock = SystemMonotonicClock()
+
+    @Provides
+    @Singleton
+    fun provideUserInteractionTracker(): UserInteractionTracker = UserInteractionTracker()
+
     @Provides
     @Singleton
     fun provideMutableAudioSessionRepository(): InMemoryAudioSessionRepository = InMemoryAudioSessionRepository()

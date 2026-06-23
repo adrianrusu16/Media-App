@@ -1,11 +1,14 @@
 package com.adrianrusu.pandawave.feature.nowplaying.data
 
+import com.adrianrusu.pandawave.core.playback.BambooDrivingState
 import com.adrianrusu.pandawave.core.playback.BambooEngineConnectionUiState
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackIntent
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackRestrictionState
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackState
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackStatus
+import com.adrianrusu.pandawave.core.playback.BambooRestrictionState
+import com.adrianrusu.pandawave.core.playback.BambooVehicleSafetyState
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.feature.nowplaying.domain.NowPlayingIntent
 import com.adrianrusu.pandawave.feature.nowplaying.domain.NowPlayingPlaybackState
@@ -26,6 +29,10 @@ class InMemoryNowPlayingRepositoryTest {
                 restriction = BambooPlaybackRestrictionState(
                     isRestricted = true
                 ),
+                vehicleSafety = BambooVehicleSafetyState(
+                    drivingState = BambooDrivingState.Parked,
+                    restrictionState = BambooRestrictionState.Unrestricted
+                ),
                 updatedAtEpochMillis = 100L,
                 positionMillis = 10_000L,
                 durationMillis = 40_000L,
@@ -42,6 +49,7 @@ class InMemoryNowPlayingRepositoryTest {
         assertEquals(NowPlayingPlaybackState.Playing, repository.state.value.playbackState)
         assertEquals(BambooEngineConnectionUiState.Ready, repository.state.value.engineConnection)
         assertTrue(repository.state.value.restriction.isRestricted)
+        assertTrue(repository.state.value.ambientSafetyPermitted)
         assertEquals(13_000L, repository.state.value.progressAt(nowMillis = 2_100L).positionMillis)
         assertEquals(0.325F, repository.state.value.progressAt(nowMillis = 2_100L).fraction)
     }
