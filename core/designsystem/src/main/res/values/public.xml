@@ -1,5 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <public type="color" name="pandawave_ambient_visualizer_active" />
+    <public type="color" name="pandawave_ambient_visualizer_idle" />
+    <public type="dimen" name="pandawave_ambient_artwork_min_size" />
+    <public type="dimen" name="pandawave_ambient_artwork_max_size" />
+    <public type="dimen" name="pandawave_ambient_visualizer_height" />
+    <public type="dimen" name="pandawave_ambient_visualizer_bar_width" />
+    <public type="dimen" name="pandawave_ambient_visualizer_bar_gap" />
+    <public type="dimen" name="pandawave_ambient_visualizer_bar_radius" />
+    <public type="dimen" name="pandawave_ambient_visualizer_min_bar_height" />
+    <public type="dimen" name="pandawave_ambient_visualizer_max_bar_height" />
+    <public type="integer" name="pandawave_ambient_entry_duration_millis" />
+    <public type="integer" name="pandawave_ambient_exit_duration_millis" />
     <public type="color" name="pandawave_button_colors" />
     <public type="color" name="pandawave_color_error" />
     <public type="color" name="pandawave_color_on_error" />

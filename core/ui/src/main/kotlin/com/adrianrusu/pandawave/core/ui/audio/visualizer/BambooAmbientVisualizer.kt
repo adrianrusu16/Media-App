@@ -8,28 +8,42 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp as lerpColor
-import androidx.compose.ui.unit.dp
+import com.adrianrusu.pandawave.core.designsystem.tokens.LocalPandaWaveDesignTokens
+import com.adrianrusu.pandawave.core.designsystem.tokens.ambientVisualizerBarGap
+import com.adrianrusu.pandawave.core.designsystem.tokens.ambientVisualizerBarRadius
+import com.adrianrusu.pandawave.core.designsystem.tokens.ambientVisualizerBarWidth
+import com.adrianrusu.pandawave.core.designsystem.tokens.ambientVisualizerMaxBarHeight
+import com.adrianrusu.pandawave.core.designsystem.tokens.ambientVisualizerMinBarHeight
 
 @Composable
 fun BambooAmbientVisualizer(
     amplitudes: FloatArray,
     modifier: Modifier = Modifier,
-    activeColor: Color = Color(0xFF8FE388),
-    idleColor: Color = Color(0xFF2A3A28),
+    activeColor: Color? = null,
+    idleColor: Color? = null,
     intensity: Float = 1f
 ) {
+    val tokens = LocalPandaWaveDesignTokens.current
+    val resolvedActiveColor = activeColor ?: Color(tokens.colors.ambientVisualizerActive)
+    val resolvedIdleColor = idleColor ?: Color(tokens.colors.ambientVisualizerIdle)
+    val barWidthToken = tokens.components.ambientVisualizerBarWidth
+    val gapToken = tokens.components.ambientVisualizerBarGap
+    val radiusToken = tokens.components.ambientVisualizerBarRadius
+    val minHeightToken = tokens.components.ambientVisualizerMinBarHeight
+    val maxHeightToken = tokens.components.ambientVisualizerMaxBarHeight
+
     Canvas(modifier = modifier) {
-        val barWidth = 6.dp.toPx()
-        val gap = 4.dp.toPx()
+        val barWidth = barWidthToken.toPx()
+        val gap = gapToken.toPx()
         val barCount = ((size.width + gap) / (barWidth + gap)).toInt().coerceAtLeast(0)
         if (barCount == 0) return@Canvas
 
         val resampledAmplitudes = resampleAmplitudes(amplitudes, barCount)
         val totalWidth = barCount * barWidth + (barCount - 1) * gap
         val startX = (size.width - totalWidth) / 2f
-        val radius = barWidth / 2f
-        val minHeight = size.height * 0.08f
-        val maxHeight = size.height * 0.92f
+        val radius = radiusToken.toPx()
+        val minHeight = minHeightToken.toPx().coerceAtMost(size.height)
+        val maxHeight = maxHeightToken.toPx().coerceIn(minHeight, size.height)
 
         resampledAmplitudes.forEachIndexed { index, amplitude ->
             val shapedAmplitude = amplitude * amplitude * 0.35f + amplitude * 0.65f
@@ -46,8 +60,8 @@ fun BambooAmbientVisualizer(
                 fraction = shapedAmplitude
             )
             val color = lerpColor(
-                start = idleColor.copy(alpha = 0.45f),
-                stop = activeColor.copy(alpha = activeAlpha),
+                start = resolvedIdleColor.copy(alpha = 0.45f),
+                stop = resolvedActiveColor.copy(alpha = activeAlpha),
                 fraction = shapedAmplitude
             )
 

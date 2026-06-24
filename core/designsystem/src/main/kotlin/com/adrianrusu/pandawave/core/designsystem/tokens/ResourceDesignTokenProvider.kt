@@ -23,6 +23,8 @@ class ResourceDesignTokenProvider(context: Context) {
             onSurface = color(themeId.colorResources.onSurface),
             surfaceVariant = color(themeId.colorResources.surfaceVariant),
             onSurfaceVariant = color(themeId.colorResources.onSurfaceVariant),
+            ambientVisualizerActive = color(R.color.pandawave_ambient_visualizer_active),
+            ambientVisualizerIdle = color(R.color.pandawave_ambient_visualizer_idle),
             error = color(themeId.colorResources.error),
             onError = color(themeId.colorResources.onError)
         ),
@@ -116,6 +118,16 @@ class ResourceDesignTokenProvider(context: Context) {
             voiceBarWidthPx = dimension(R.dimen.pandawave_voice_bar_width),
             voiceBarGapPx = dimension(R.dimen.pandawave_voice_bar_gap),
             voiceBarIdleHeightPx = dimension(R.dimen.pandawave_voice_bar_idle_height),
+            ambientArtworkMinSizePx = dimension(R.dimen.pandawave_ambient_artwork_min_size),
+            ambientArtworkMaxSizePx = dimension(R.dimen.pandawave_ambient_artwork_max_size),
+            ambientVisualizerHeightPx = dimension(R.dimen.pandawave_ambient_visualizer_height),
+            ambientVisualizerBarWidthPx = dimension(R.dimen.pandawave_ambient_visualizer_bar_width),
+            ambientVisualizerBarGapPx = dimension(R.dimen.pandawave_ambient_visualizer_bar_gap),
+            ambientVisualizerBarRadiusPx = dimension(R.dimen.pandawave_ambient_visualizer_bar_radius),
+            ambientVisualizerMinBarHeightPx =
+                dimension(R.dimen.pandawave_ambient_visualizer_min_bar_height),
+            ambientVisualizerMaxBarHeightPx =
+                dimension(R.dimen.pandawave_ambient_visualizer_max_bar_height),
             nowPlayingSecondaryTransportSizePx =
                 dimension(R.dimen.pandawave_now_playing_secondary_transport_size),
             nowPlayingTransportSpacingPx =
@@ -145,7 +157,9 @@ class ResourceDesignTokenProvider(context: Context) {
         motion = PandaWaveMotionTokens(
             voiceCycleMillis = resources.getInteger(R.integer.pandawave_motion_voice_cycle_millis),
             voiceActivationMillis =
-                resources.getInteger(R.integer.pandawave_motion_voice_activation_millis)
+                resources.getInteger(R.integer.pandawave_motion_voice_activation_millis),
+            ambientEntryMillis = resources.getInteger(R.integer.pandawave_ambient_entry_duration_millis),
+            ambientExitMillis = resources.getInteger(R.integer.pandawave_ambient_exit_duration_millis)
         ),
         restrictions = PandaWaveRestrictionTokens(
             maxBrowseColumnsUnrestricted =

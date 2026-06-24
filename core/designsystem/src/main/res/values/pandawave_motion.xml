@@ -7,4 +7,6 @@
     <integer name="pandawave_motion_voice_cycle_millis">3000</integer>
     <integer name="pandawave_motion_voice_activation_millis">650</integer>
     <integer name="pandawave_splash_exit_animation_duration_millis">220</integer>
+    <integer name="pandawave_ambient_entry_duration_millis">350</integer>
+    <integer name="pandawave_ambient_exit_duration_millis">200</integer>
 </resources>

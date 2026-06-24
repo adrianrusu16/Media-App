@@ -9,7 +9,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -61,13 +64,18 @@ fun AppShellScreen(
     val backStack = rememberNavBackStack(HomeDestination)
     val navigator = remember(backStack) { PandaWaveNavigator(backStack) }
     val currentDestination = navigator.currentDestination
+    var ambientVisible by remember { mutableStateOf(false) }
+    val chrome = resolveAppShellChrome(
+        currentDestination = currentDestination,
+        ambientVisible = ambientVisible
+    )
 
     BackHandler(enabled = navigator.isAtRoot, onBack = onMoveTaskToBack)
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
         bottomBar = {
-            if (currentDestination.shouldShowMiniPlayer) {
+            if (chrome.showMiniPlayer) {
                 BambooMiniPlayer(
                     modifier = Modifier
                         .focusRestorer()
@@ -103,23 +111,29 @@ fun AppShellScreen(
                     showLabel = true
                 )
             }
-            BambooNavigationRail(
-                items = navigationItems,
-                logo = painterResource(DesignSystemR.drawable.pandawave_ic_logo),
-                logoContentDescription = stringResource(
-                    R.string.pandawave_navigation_open_now_playing
-                ),
-                onLogoClick = navigator::openNowPlaying,
-                onItemClick = { destinationId ->
-                    primaryDestinations
-                        .firstOrNull { it.navigationId == destinationId }
-                        ?.let(navigator::selectPrimary)
-                },
-                bottomItemId = ProfileDestination.navigationId
-            )
+            if (chrome.showNavigationRail) {
+                BambooNavigationRail(
+                    items = navigationItems,
+                    logo = painterResource(DesignSystemR.drawable.pandawave_ic_logo),
+                    logoContentDescription = stringResource(
+                        R.string.pandawave_navigation_open_now_playing
+                    ),
+                    onLogoClick = navigator::openNowPlaying,
+                    onItemClick = { destinationId ->
+                        primaryDestinations
+                            .firstOrNull { it.navigationId == destinationId }
+                            ?.let(navigator::selectPrimary)
+                    },
+                    bottomItemId = ProfileDestination.navigationId
+                )
+            }
             AppShellContent(
                 backStack = backStack,
-                navigator = navigator
+                navigator = navigator,
+                applyContentPadding = chrome.applyContentPadding,
+                onAmbientVisibilityChanged = { visible ->
+                    ambientVisible = visible && currentDestination == NowPlayingDestination
+                }
             )
         }
     }
@@ -137,7 +151,12 @@ private fun PandaWaveDestination.localizedLabel(): String = when (this) {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun AppShellContent(backStack: List<androidx.navigation3.runtime.NavKey>, navigator: PandaWaveNavigator) {
+private fun AppShellContent(
+    backStack: List<androidx.navigation3.runtime.NavKey>,
+    navigator: PandaWaveNavigator,
+    applyContentPadding: Boolean,
+    onAmbientVisibilityChanged: (Boolean) -> Unit
+) {
     val tokens = LocalPandaWaveDesignTokens.current
 
     Box(
@@ -146,7 +165,13 @@ private fun AppShellContent(backStack: List<androidx.navigation3.runtime.NavKey>
             .focusRestorer()
             .focusGroup()
             .testTag("destination-content-zone")
-            .padding(tokens.layout.appContentPadding)
+            .then(
+                if (applyContentPadding) {
+                    Modifier.padding(tokens.layout.appContentPadding)
+                } else {
+                    Modifier
+                }
+            )
     ) {
         NavDisplay(
             backStack = backStack,
@@ -177,6 +202,7 @@ private fun AppShellContent(backStack: List<androidx.navigation3.runtime.NavKey>
                 entry<NowPlayingDestination> {
                     NowPlayingRoute(
                         modifier = Modifier.fillMaxSize(),
+                        onAmbientVisibilityChanged = onAmbientVisibilityChanged,
                         onLibraryClick = {
                             navigator.selectPrimary(LibraryDestination)
                         }

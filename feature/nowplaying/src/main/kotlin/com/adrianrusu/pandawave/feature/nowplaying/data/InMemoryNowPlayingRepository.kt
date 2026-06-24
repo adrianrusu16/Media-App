@@ -51,6 +51,7 @@ internal class InMemoryNowPlayingRepository(private val playbackRepository: Bamb
 
 internal fun NowPlayingState.withPlaybackState(playback: BambooPlaybackState): NowPlayingState = copy(
     mediaId = playback.mediaId,
+    artworkUri = playback.artworkUri,
     title = playback.title,
     artist = playback.artist,
     playbackState = playback.playbackStatus.toNowPlayingPlaybackState(),

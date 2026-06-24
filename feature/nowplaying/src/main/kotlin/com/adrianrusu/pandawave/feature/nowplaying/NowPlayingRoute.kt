@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.ContextWrapper
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -39,6 +41,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -78,7 +82,6 @@ import com.adrianrusu.pandawave.core.designsystem.tokens.volumeControlHeight
 import com.adrianrusu.pandawave.core.designsystem.tokens.volumeControlMaxWidth
 import com.adrianrusu.pandawave.core.designsystem.tokens.xs
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackProgress
-import com.adrianrusu.pandawave.core.ui.audio.visualizer.BambooAmbientVisualizer
 import com.adrianrusu.pandawave.core.ui.audio.visualizer.BambooVoiceIndicator
 import com.adrianrusu.pandawave.core.ui.focus.BambooRotaryColumn
 import com.adrianrusu.pandawave.core.ui.focus.bambooBringIntoViewOnFocus
@@ -89,15 +92,23 @@ import com.adrianrusu.pandawave.feature.nowplaying.domain.NowPlayingIntent
 import com.adrianrusu.pandawave.feature.nowplaying.domain.NowPlayingPlaybackState
 import com.adrianrusu.pandawave.feature.nowplaying.domain.NowPlayingState
 import com.adrianrusu.pandawave.feature.nowplaying.domain.ambient.AmbientModeState
+import com.adrianrusu.pandawave.feature.nowplaying.domain.ambient.AmbientModeTransition
 import com.adrianrusu.pandawave.feature.nowplaying.presentation.NowPlayingViewModel
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.delay
 
 @Composable
-fun NowPlayingRoute(modifier: Modifier = Modifier, onLibraryClick: () -> Unit = {}) {
+fun NowPlayingRoute(
+    modifier: Modifier = Modifier,
+    onAmbientVisibilityChanged: (Boolean) -> Unit = {},
+    onLibraryClick: () -> Unit = {}
+) {
     val viewModel: NowPlayingViewModel = hiltViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val ambientModeState by viewModel.ambientModeState.collectAsStateWithLifecycle()
+    val ambientTransition by viewModel.ambientTransition.collectAsStateWithLifecycle()
+    val ambientVisible = ambientModeState == AmbientModeState.AmbientStatic ||
+        ambientModeState == AmbientModeState.AmbientVisualizing
     val lifecycleOwner = LocalLifecycleOwner.current
     val activity = LocalContext.current.findActivity()
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -105,6 +116,10 @@ fun NowPlayingRoute(modifier: Modifier = Modifier, onLibraryClick: () -> Unit = 
             granted = granted,
             shouldShowRationale = activity.shouldShowVisualizerPermissionRationale()
         )
+    }
+
+    LaunchedEffect(ambientVisible) {
+        onAmbientVisibilityChanged(ambientVisible)
     }
 
     DisposableEffect(viewModel, lifecycleOwner) {
@@ -133,6 +148,7 @@ fun NowPlayingRoute(modifier: Modifier = Modifier, onLibraryClick: () -> Unit = 
             lifecycleOwner.lifecycle.removeObserver(observer)
             viewModel.onLifecycleResumedChanged(false)
             viewModel.onRouteVisibilityChanged(false)
+            onAmbientVisibilityChanged(false)
         }
     }
 
@@ -140,6 +156,7 @@ fun NowPlayingRoute(modifier: Modifier = Modifier, onLibraryClick: () -> Unit = 
         modifier = modifier,
         state = state,
         ambientModeState = ambientModeState,
+        ambientTransition = ambientTransition,
         onIntent = viewModel::onIntent,
         viewModel = viewModel,
         onRequestVisualizerPermission = {
@@ -154,6 +171,7 @@ private fun NowPlayingScreen(
     modifier: Modifier = Modifier,
     state: NowPlayingState,
     ambientModeState: AmbientModeState,
+    ambientTransition: AmbientModeTransition,
     viewModel: NowPlayingViewModel,
     onIntent: (NowPlayingIntent) -> Unit,
     onRequestVisualizerPermission: () -> Unit,
@@ -161,33 +179,54 @@ private fun NowPlayingScreen(
 ) {
     val isAmbientVisible = ambientModeState == AmbientModeState.AmbientStatic ||
         ambientModeState == AmbientModeState.AmbientVisualizing
+    val tokens = LocalPandaWaveDesignTokens.current
+    val playPauseFocusRequester = remember { FocusRequester() }
+    val transitionMillis = when {
+        ambientTransition == AmbientModeTransition.Immediate -> 0
+        isAmbientVisible -> tokens.motion.ambientEntryMillis
+        else -> tokens.motion.ambientExitMillis
+    }
 
-    if (isAmbientVisible) {
-        NowPlayingAmbientRoute(
-            modifier = modifier,
-            viewModel = viewModel,
-            title = state.title,
-            artist = state.artist
-        )
-    } else {
-        NowPlayingInteractiveScreen(
-            state = state,
-            onIntent = onIntent,
-            onRequestVisualizerPermission = onRequestVisualizerPermission,
-            onLibraryClick = onLibraryClick,
-            modifier = modifier
-        )
+    LaunchedEffect(isAmbientVisible) {
+        if (!isAmbientVisible) {
+            playPauseFocusRequester.requestFocus()
+        }
+    }
+
+    Crossfade(
+        targetState = isAmbientVisible,
+        animationSpec = tween(durationMillis = transitionMillis),
+        label = "ambient-now-playing-transition"
+    ) { showAmbient ->
+        if (showAmbient) {
+            NowPlayingAmbientRoute(
+                modifier = modifier,
+                viewModel = viewModel,
+                state = state
+            )
+        } else {
+            NowPlayingInteractiveScreen(
+                state = state,
+                onIntent = onIntent,
+                playPauseFocusRequester = playPauseFocusRequester,
+                onRequestVisualizerPermission = onRequestVisualizerPermission,
+                onLibraryClick = onLibraryClick,
+                modifier = modifier
+            )
+        }
     }
 }
 
 @Composable
-private fun NowPlayingAmbientRoute(modifier: Modifier, viewModel: NowPlayingViewModel, title: String, artist: String) {
+private fun NowPlayingAmbientRoute(modifier: Modifier, viewModel: NowPlayingViewModel, state: NowPlayingState) {
     val amplitudes by viewModel.amplitudes.collectAsStateWithLifecycle()
 
     NowPlayingAmbientScreen(
         amplitudes = amplitudes,
-        title = title,
-        artist = artist,
+        artworkUri = state.artworkUri,
+        title = state.title,
+        artist = state.artist,
+        onShowPlaybackControls = viewModel::onUserInteraction,
         modifier = modifier
     )
 }
@@ -196,6 +235,7 @@ private fun NowPlayingAmbientRoute(modifier: Modifier, viewModel: NowPlayingView
 private fun NowPlayingInteractiveScreen(
     state: NowPlayingState,
     onIntent: (NowPlayingIntent) -> Unit,
+    playPauseFocusRequester: FocusRequester,
     onRequestVisualizerPermission: () -> Unit,
     onLibraryClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -278,6 +318,7 @@ private fun NowPlayingInteractiveScreen(
             NowPlayingProgressRow(progress = progress)
             NowPlayingControls(
                 uiModel = uiModel,
+                playPauseFocusRequester = playPauseFocusRequester,
                 onSkipPreviousClick = {
                     onIntent(NowPlayingIntent.SkipPrevious)
                 },
@@ -296,19 +337,6 @@ private fun NowPlayingInteractiveScreen(
                 onLibraryClick = onLibraryClick
             )
         }
-    }
-}
-
-@Composable
-fun NowPlayingAmbientScreen(modifier: Modifier = Modifier, amplitudes: FloatArray, title: String, artist: String) {
-    Box(modifier = modifier) {
-        BambooAmbientVisualizer(
-            amplitudes = amplitudes,
-            modifier = Modifier.matchParentSize(),
-            intensity = 0.85f
-        )
-
-        // Album art, title, artist, controls, etc.
     }
 }
 
@@ -502,6 +530,7 @@ private fun LeafProgressTrack(progress: Float, modifier: Modifier = Modifier) {
 @Composable
 private fun NowPlayingControls(
     uiModel: NowPlayingUiModel,
+    playPauseFocusRequester: FocusRequester,
     onSkipPreviousClick: () -> Unit,
     onPlayPauseClick: () -> Unit,
     onSkipNextClick: () -> Unit
@@ -531,6 +560,7 @@ private fun NowPlayingControls(
             )
             PrimaryPlaybackButton(
                 uiModel = uiModel,
+                modifier = Modifier.focusRequester(playPauseFocusRequester),
                 onClick = onPlayPauseClick
             )
             TransportRoundAction(
@@ -550,15 +580,15 @@ private fun NowPlayingControls(
 }
 
 @Composable
-private fun PrimaryPlaybackButton(uiModel: NowPlayingUiModel, onClick: () -> Unit) {
+private fun PrimaryPlaybackButton(uiModel: NowPlayingUiModel, modifier: Modifier = Modifier, onClick: () -> Unit) {
     BambooPlayPauseButton(
+        modifier = modifier.testTag("now-playing-play-pause"),
         playing = uiModel.primaryControlIcon == NowPlayingPrimaryControlIcon.Pause,
         enabled = uiModel.controlsEnabled,
         size = BambooPlaybackControlSize.NowPlaying,
         playContentDescription = uiModel.primaryActionLabel,
         pauseContentDescription = uiModel.primaryActionLabel,
-        onClick = onClick,
-        modifier = Modifier.testTag("now-playing-play-pause")
+        onClick = onClick
     )
 }
 

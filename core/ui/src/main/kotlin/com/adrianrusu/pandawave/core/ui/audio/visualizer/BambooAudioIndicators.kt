@@ -1,4 +1,4 @@
-package com.adrianrusu.pandawave.core.ui.components
+package com.adrianrusu.pandawave.core.ui.audio.visualizer
 
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -39,7 +39,6 @@ import com.adrianrusu.pandawave.core.designsystem.tokens.voiceIndicatorBarsWidth
 import com.adrianrusu.pandawave.core.designsystem.tokens.voiceIndicatorBorderWidth
 import com.adrianrusu.pandawave.core.ui.R
 import kotlin.math.PI
-import kotlin.math.sin
 
 @Composable
 fun BambooVoiceIndicator(
@@ -205,10 +204,5 @@ private fun idleEnvelope(progress: Float): Float = when {
 
     else -> 0f
 }
-
-private fun normalizedSin(value: Float): Float = ((sin(value) + 1f) / 2f)
-
-private fun lerpFloat(start: Float, end: Float, fraction: Float): Float =
-    start + (end - start) * fraction.coerceIn(0f, 1f)
 
 private const val IDLE_COLOR_ALPHA = 0.28f

@@ -86,6 +86,8 @@
     <color name="pandawave_color_on_error">@color/pandawave_theme_bamboo_grove_light_on_error</color>
     <color name="pandawave_launcher_background">#93D87E</color>
     <color name="pandawave_splash_background">#131313</color>
+    <color name="pandawave_ambient_visualizer_active">#93D87E</color>
+    <color name="pandawave_ambient_visualizer_idle">#2A3A28</color>
 
     <item name="pandawave_state_disabled_alpha" type="fraction">38%</item>
     <item name="pandawave_state_pressed_alpha" type="fraction">88%</item>

@@ -29,6 +29,8 @@ data class PandaWaveColorTokens(
     @param:ColorInt val onSurface: Int,
     @param:ColorInt val surfaceVariant: Int,
     @param:ColorInt val onSurfaceVariant: Int,
+    @param:ColorInt val ambientVisualizerActive: Int,
+    @param:ColorInt val ambientVisualizerIdle: Int,
     @param:ColorInt val error: Int,
     @param:ColorInt val onError: Int
 )
@@ -80,6 +82,14 @@ data class PandaWaveComponentTokens(
     val voiceBarWidthPx: Int,
     val voiceBarGapPx: Int,
     val voiceBarIdleHeightPx: Int,
+    val ambientArtworkMinSizePx: Int,
+    val ambientArtworkMaxSizePx: Int,
+    val ambientVisualizerHeightPx: Int,
+    val ambientVisualizerBarWidthPx: Int,
+    val ambientVisualizerBarGapPx: Int,
+    val ambientVisualizerBarRadiusPx: Int,
+    val ambientVisualizerMinBarHeightPx: Int,
+    val ambientVisualizerMaxBarHeightPx: Int,
     val nowPlayingSecondaryTransportSizePx: Int,
     val nowPlayingTransportSpacingPx: Int,
     val nowPlayingFooterHeightPx: Int,
@@ -101,7 +111,12 @@ data class PandaWaveLayoutTokens(
 
 data class PandaWaveElevationTokens(val cardRestingPx: Int)
 
-data class PandaWaveMotionTokens(val voiceCycleMillis: Int, val voiceActivationMillis: Int)
+data class PandaWaveMotionTokens(
+    val voiceCycleMillis: Int,
+    val voiceActivationMillis: Int,
+    val ambientEntryMillis: Int,
+    val ambientExitMillis: Int
+)
 
 data class PandaWaveRestrictionTokens(
     val maxBrowseColumnsUnrestricted: Int,
@@ -151,6 +166,30 @@ val PandaWaveFocusTokens.outlinePadding: Dp
 
 val PandaWaveComponentTokens.iconSmall: Dp
     @Composable get() = iconSmallPx.toDp()
+
+val PandaWaveComponentTokens.ambientArtworkMinSize: Dp
+    @Composable get() = ambientArtworkMinSizePx.toDp()
+
+val PandaWaveComponentTokens.ambientArtworkMaxSize: Dp
+    @Composable get() = ambientArtworkMaxSizePx.toDp()
+
+val PandaWaveComponentTokens.ambientVisualizerHeight: Dp
+    @Composable get() = ambientVisualizerHeightPx.toDp()
+
+val PandaWaveComponentTokens.ambientVisualizerBarWidth: Dp
+    @Composable get() = ambientVisualizerBarWidthPx.toDp()
+
+val PandaWaveComponentTokens.ambientVisualizerBarGap: Dp
+    @Composable get() = ambientVisualizerBarGapPx.toDp()
+
+val PandaWaveComponentTokens.ambientVisualizerBarRadius: Dp
+    @Composable get() = ambientVisualizerBarRadiusPx.toDp()
+
+val PandaWaveComponentTokens.ambientVisualizerMinBarHeight: Dp
+    @Composable get() = ambientVisualizerMinBarHeightPx.toDp()
+
+val PandaWaveComponentTokens.ambientVisualizerMaxBarHeight: Dp
+    @Composable get() = ambientVisualizerMaxBarHeightPx.toDp()
 
 val PandaWaveComponentTokens.iconMedium: Dp
     @Composable get() = iconMediumPx.toDp()

@@ -126,6 +126,42 @@ class NowPlayingViewModelTest {
         assertEquals(0, visualizer.startCount)
         assertEquals(emptyList(), visualizer.attachedAudioSessions)
     }
+
+    @Test
+    fun `ambient wake exits without dispatching a playback intent`() = runTest(dispatcher) {
+        val repository = RecordingNowPlayingRepository(
+            NowPlayingState(
+                mediaId = "track-1",
+                playbackState = NowPlayingPlaybackState.Playing,
+                ambientSafetyPermitted = true
+            )
+        )
+        val viewModel = NowPlayingViewModel(
+            observeState = ObserveNowPlayingStateUseCase(repository),
+            repository = repository,
+            dispatchIntent = DispatchNowPlayingIntentUseCase(repository),
+            audioSessionRepository = RecordingAudioSessionRepository(),
+            visualizer = RecordingAmbientAudioVisualizer(),
+            visualizerPermissionRepository = RecordingVisualizerPermissionRepository(),
+            ambientModePreferenceRepository = RecordingAmbientModePreferenceRepository(),
+            interactionTracker = UserInteractionTracker(),
+            clock = MutableMonotonicClock(nowMillis = 1_000L)
+        )
+
+        viewModel.onRouteVisibilityChanged(true)
+        viewModel.onLifecycleResumedChanged(true)
+        runCurrent()
+        advanceTimeBy(5_000L)
+        runCurrent()
+
+        assertEquals(AmbientModeState.AmbientVisualizing, viewModel.ambientModeState.value)
+
+        viewModel.onUserInteraction()
+        runCurrent()
+
+        assertIs<AmbientModeState.WaitingForInactivity>(viewModel.ambientModeState.value)
+        assertEquals(emptyList(), repository.intents)
+    }
 }
 
 private class RecordingNowPlayingRepository(initialState: NowPlayingState) : NowPlayingRepository {

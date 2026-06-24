@@ -2,6 +2,18 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android">
     <overlayable name="PandaWaveDesignTokens">
         <policy type="public">
+            <item type="color" name="pandawave_ambient_visualizer_active" />
+            <item type="color" name="pandawave_ambient_visualizer_idle" />
+            <item type="dimen" name="pandawave_ambient_artwork_min_size" />
+            <item type="dimen" name="pandawave_ambient_artwork_max_size" />
+            <item type="dimen" name="pandawave_ambient_visualizer_height" />
+            <item type="dimen" name="pandawave_ambient_visualizer_bar_width" />
+            <item type="dimen" name="pandawave_ambient_visualizer_bar_gap" />
+            <item type="dimen" name="pandawave_ambient_visualizer_bar_radius" />
+            <item type="dimen" name="pandawave_ambient_visualizer_min_bar_height" />
+            <item type="dimen" name="pandawave_ambient_visualizer_max_bar_height" />
+            <item type="integer" name="pandawave_ambient_entry_duration_millis" />
+            <item type="integer" name="pandawave_ambient_exit_duration_millis" />
             <item type="color" name="pandawave_button_colors" />
             <item type="color" name="pandawave_color_error" />
             <item type="color" name="pandawave_color_on_error" />

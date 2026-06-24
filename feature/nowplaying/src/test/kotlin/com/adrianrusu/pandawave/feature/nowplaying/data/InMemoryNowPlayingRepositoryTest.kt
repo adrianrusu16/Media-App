@@ -22,6 +22,7 @@ class InMemoryNowPlayingRepositoryTest {
         val playback = RecordingPlaybackRepository(
             initialState = BambooPlaybackState(
                 mediaId = "track-1",
+                artworkUri = "content://pandawave/art/track-1",
                 title = "Quiet Cabin",
                 artist = "PandaWave",
                 playbackStatus = BambooPlaybackStatus.Playing,
@@ -44,6 +45,7 @@ class InMemoryNowPlayingRepositoryTest {
         repository.start()
 
         assertEquals("track-1", repository.state.value.mediaId)
+        assertEquals("content://pandawave/art/track-1", repository.state.value.artworkUri)
         assertEquals("Quiet Cabin", repository.state.value.title)
         assertEquals("PandaWave", repository.state.value.artist)
         assertEquals(NowPlayingPlaybackState.Playing, repository.state.value.playbackState)
