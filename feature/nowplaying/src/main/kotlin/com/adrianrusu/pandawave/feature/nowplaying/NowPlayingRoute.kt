@@ -196,7 +196,7 @@ private fun NowPlayingScreen(
     Crossfade(
         targetState = isAmbientVisible,
         animationSpec = tween(durationMillis = transitionMillis),
-        label = "ambient-now-playing-transition"
+        label = AMBIENT_TRANSITION_LABEL
     ) { showAmbient ->
         if (showAmbient) {
             NowPlayingAmbientRoute(
@@ -795,3 +795,4 @@ private const val COMPACT_LOGO_TOUCH_TARGET_MULTIPLIER = 2
 private const val STANDARD_LOGO_TOUCH_TARGET_MULTIPLIER = 3
 private const val ARTWORK_TEXT_PANEL_ALPHA = 0.84F
 private const val PROGRESS_ACTIVE_ALPHA = 0.58F
+private const val AMBIENT_TRANSITION_LABEL = "ambient-now-playing-transition"

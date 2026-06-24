@@ -4,6 +4,9 @@
         <policy type="public">
             <item type="color" name="pandawave_ambient_visualizer_active" />
             <item type="color" name="pandawave_ambient_visualizer_idle" />
+            <item type="fraction" name="pandawave_ambient_visualizer_idle_alpha" />
+            <item type="fraction" name="pandawave_ambient_visualizer_active_min_alpha" />
+            <item type="fraction" name="pandawave_ambient_visualizer_active_max_alpha" />
             <item type="dimen" name="pandawave_ambient_artwork_min_size" />
             <item type="dimen" name="pandawave_ambient_artwork_max_size" />
             <item type="dimen" name="pandawave_ambient_visualizer_height" />

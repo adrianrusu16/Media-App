@@ -31,6 +31,9 @@ data class PandaWaveColorTokens(
     @param:ColorInt val onSurfaceVariant: Int,
     @param:ColorInt val ambientVisualizerActive: Int,
     @param:ColorInt val ambientVisualizerIdle: Int,
+    val ambientVisualizerIdleAlpha: Float,
+    val ambientVisualizerActiveMinAlpha: Float,
+    val ambientVisualizerActiveMaxAlpha: Float,
     @param:ColorInt val error: Int,
     @param:ColorInt val onError: Int
 )

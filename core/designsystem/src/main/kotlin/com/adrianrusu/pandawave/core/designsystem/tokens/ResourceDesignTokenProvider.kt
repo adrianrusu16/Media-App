@@ -25,6 +25,12 @@ class ResourceDesignTokenProvider(context: Context) {
             onSurfaceVariant = color(themeId.colorResources.onSurfaceVariant),
             ambientVisualizerActive = color(R.color.pandawave_ambient_visualizer_active),
             ambientVisualizerIdle = color(R.color.pandawave_ambient_visualizer_idle),
+            ambientVisualizerIdleAlpha =
+                fraction(R.fraction.pandawave_ambient_visualizer_idle_alpha),
+            ambientVisualizerActiveMinAlpha =
+                fraction(R.fraction.pandawave_ambient_visualizer_active_min_alpha),
+            ambientVisualizerActiveMaxAlpha =
+                fraction(R.fraction.pandawave_ambient_visualizer_active_max_alpha),
             error = color(themeId.colorResources.error),
             onError = color(themeId.colorResources.onError)
         ),
@@ -175,6 +181,8 @@ class ResourceDesignTokenProvider(context: Context) {
 
     private fun dimension(id: Int): Int = resources.getDimensionPixelSize(id)
 
+    private fun fraction(id: Int): Float = resources.getFraction(id, FRACTION_BASE, FRACTION_BASE)
+
     private fun textStyle(size: Int, lineHeight: Int, weight: Int): TextStyle {
         val scaledDensity = resources.displayMetrics.density * resources.configuration.fontScale
         return TextStyle(
@@ -182,6 +190,10 @@ class ResourceDesignTokenProvider(context: Context) {
             lineHeight = (resources.getDimension(lineHeight) / scaledDensity).sp,
             fontWeight = FontWeight(resources.getInteger(weight))
         )
+    }
+
+    private companion object {
+        const val FRACTION_BASE = 1
     }
 }
 

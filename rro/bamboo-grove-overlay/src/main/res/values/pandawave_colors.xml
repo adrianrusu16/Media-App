@@ -88,6 +88,9 @@
     <color name="pandawave_splash_background">#131313</color>
     <color name="pandawave_ambient_visualizer_active">#9FE18A</color>
     <color name="pandawave_ambient_visualizer_idle">#26332A</color>
+    <item name="pandawave_ambient_visualizer_idle_alpha" type="fraction">45%</item>
+    <item name="pandawave_ambient_visualizer_active_min_alpha" type="fraction">35%</item>
+    <item name="pandawave_ambient_visualizer_active_max_alpha" type="fraction">95%</item>
 
     <item name="pandawave_state_disabled_alpha" type="fraction">38%</item>
     <item name="pandawave_state_pressed_alpha" type="fraction">88%</item>

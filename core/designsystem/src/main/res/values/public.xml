@@ -2,6 +2,9 @@
 <resources>
     <public type="color" name="pandawave_ambient_visualizer_active" />
     <public type="color" name="pandawave_ambient_visualizer_idle" />
+    <public type="fraction" name="pandawave_ambient_visualizer_idle_alpha" />
+    <public type="fraction" name="pandawave_ambient_visualizer_active_min_alpha" />
+    <public type="fraction" name="pandawave_ambient_visualizer_active_max_alpha" />
     <public type="dimen" name="pandawave_ambient_artwork_min_size" />
     <public type="dimen" name="pandawave_ambient_artwork_max_size" />
     <public type="dimen" name="pandawave_ambient_visualizer_height" />

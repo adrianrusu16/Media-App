@@ -31,6 +31,9 @@ fun BambooAmbientVisualizer(
     val radiusToken = tokens.components.ambientVisualizerBarRadius
     val minHeightToken = tokens.components.ambientVisualizerMinBarHeight
     val maxHeightToken = tokens.components.ambientVisualizerMaxBarHeight
+    val idleAlpha = tokens.colors.ambientVisualizerIdleAlpha
+    val activeMinAlpha = tokens.colors.ambientVisualizerActiveMinAlpha
+    val activeMaxAlpha = tokens.colors.ambientVisualizerActiveMaxAlpha
 
     Canvas(modifier = modifier) {
         val barWidth = barWidthToken.toPx()
@@ -55,12 +58,12 @@ fun BambooAmbientVisualizer(
             val left = startX + index * (barWidth + gap)
             val top = (size.height - barHeight) / 2f
             val activeAlpha = lerpFloat(
-                start = 0.35f,
-                end = 0.95f,
+                start = activeMinAlpha,
+                end = activeMaxAlpha,
                 fraction = shapedAmplitude
             )
             val color = lerpColor(
-                start = resolvedIdleColor.copy(alpha = 0.45f),
+                start = resolvedIdleColor.copy(alpha = idleAlpha),
                 stop = resolvedActiveColor.copy(alpha = activeAlpha),
                 fraction = shapedAmplitude
             )
