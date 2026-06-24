@@ -7,6 +7,7 @@ enum class TelemetryModule(tagSuffix: String) {
     AppShell("AppShell"),
     Playback("Playback"),
     Media3("Media3"),
+    Ambient("Ambient"),
     RustBridge("RustBridge"),
     Preferences("Preferences"),
     Automotive("Automotive");

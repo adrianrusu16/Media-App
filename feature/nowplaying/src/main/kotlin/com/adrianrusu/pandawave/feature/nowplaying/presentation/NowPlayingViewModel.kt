@@ -7,8 +7,11 @@ import com.adrianrusu.pandawave.core.audio.visualizer.AmbientVisualizerAvailabil
 import com.adrianrusu.pandawave.core.audio.visualizer.AudioSessionRepository
 import com.adrianrusu.pandawave.core.audio.visualizer.VisualizerPermissionRepository
 import com.adrianrusu.pandawave.core.audio.visualizer.VisualizerPermissionState
+import com.adrianrusu.pandawave.core.playback.BambooEngineConnectionStatus
 import com.adrianrusu.pandawave.core.preferences.AmbientModePreferenceRepository
 import com.adrianrusu.pandawave.core.preferences.AmbientModePreferenceState
+import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
+import com.adrianrusu.pandawave.core.telemetry.TelemetryModule
 import com.adrianrusu.pandawave.core.ui.interaction.MonotonicClock
 import com.adrianrusu.pandawave.core.ui.interaction.UserInteractionTracker
 import com.adrianrusu.pandawave.feature.nowplaying.domain.DispatchNowPlayingIntentUseCase
@@ -44,8 +47,10 @@ class NowPlayingViewModel @Inject constructor(
     private val visualizerPermissionRepository: VisualizerPermissionRepository,
     ambientModePreferenceRepository: AmbientModePreferenceRepository,
     private val interactionTracker: UserInteractionTracker,
-    private val clock: MonotonicClock
+    private val clock: MonotonicClock,
+    telemetryLogger: TelemetryLogger
 ) : ViewModel() {
+    private val logger = telemetryLogger.forModule(TelemetryModule.Ambient)
     private val reducer = AmbientModeReducer()
     private val routeVisible = MutableStateFlow(false)
     private val lifecycleResumed = MutableStateFlow(false)
@@ -170,13 +175,60 @@ class NowPlayingViewModel @Inject constructor(
     }
 
     private fun reduce(input: AmbientModeInput) {
+        val previousState = mutableAmbientModeState.value
         val reduction = reducer.reduce(
-            state = mutableAmbientModeState.value,
+            state = previousState,
             input = input
         )
         mutableAmbientModeState.value = reduction.state
         mutableAmbientTransition.value = reduction.transition
         reduction.effects.forEach(::handleEffect)
+        logCommittedTransition(
+            previousState = previousState,
+            currentState = reduction.state,
+            input = input
+        )
+    }
+
+    private fun logCommittedTransition(
+        previousState: AmbientModeState,
+        currentState: AmbientModeState,
+        input: AmbientModeInput
+    ) {
+        if (previousState == currentState) return
+
+        when {
+            !previousState.isAmbientPresentation && currentState.isAmbientPresentation -> logger.info(
+                name = AmbientTelemetryEvents.ENTERED,
+                attributes = mapOf(AmbientTelemetryAttributes.MODE to currentState.telemetryMode)
+            )
+
+            previousState.isAmbientPresentation && !currentState.isAmbientPresentation -> {
+                val reason = AmbientTelemetryExitReasons.from(input)
+                val attributes = mapOf(AmbientTelemetryAttributes.REASON to reason)
+                if (
+                    reason == AmbientTelemetryExitReasons.SAFETY_LOST &&
+                    state.value.engineConnection.status == BambooEngineConnectionStatus.Unavailable
+                ) {
+                    logger.warning(name = AmbientTelemetryEvents.EXITED, attributes = attributes)
+                } else {
+                    logger.info(name = AmbientTelemetryEvents.EXITED, attributes = attributes)
+                }
+            }
+
+            previousState == AmbientModeState.AmbientVisualizing &&
+                currentState == AmbientModeState.AmbientStatic -> {
+                val unavailable = visualizer.availability.value as? AmbientVisualizerAvailability.Unavailable
+                    ?: return
+                logger.warning(
+                    name = AmbientTelemetryEvents.VISUALIZER_UNAVAILABLE,
+                    attributes = mapOf(
+                        AmbientTelemetryAttributes.REASON to
+                            AmbientTelemetryVisualizerReasons.from(unavailable.reason)
+                    )
+                )
+            }
+        }
     }
 
     private fun handleEffect(effect: AmbientModeEffect) {
