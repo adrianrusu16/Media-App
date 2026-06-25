@@ -37,7 +37,7 @@ class PlatformAutomotiveDrivingStateObserver(context: Context, private val handl
                     speedMetersPerSecond = null
                 }
             }
-            onChanged?.invoke(AutomotiveDrivingState.Unknown)
+            onChanged?.invoke(projectState())
         }
     }
 
@@ -45,17 +45,15 @@ class PlatformAutomotiveDrivingStateObserver(context: Context, private val handl
         if (!applicationContext.packageManager.hasSystemFeature(PackageManager.FEATURE_AUTOMOTIVE)) {
             return AutomotiveDrivingState.Unknown
         }
-        return runCatching {
-            val propertyManager = manager ?: connectManager()
-            gearSelection = propertyManager.getIntProperty(VehiclePropertyIds.GEAR_SELECTION, GLOBAL_AREA_ID)
-            speedMetersPerSecond =
-                propertyManager.getFloatProperty(VehiclePropertyIds.PERF_VEHICLE_SPEED, GLOBAL_AREA_ID)
-            projectState()
-        }.getOrElse {
-            gearSelection = null
-            speedMetersPerSecond = null
-            AutomotiveDrivingState.Unknown
-        }
+        val propertyManager = runCatching { manager ?: connectManager() }.getOrNull()
+            ?: return AutomotiveDrivingState.Unknown
+        gearSelection = runCatching {
+            propertyManager.getIntProperty(VehiclePropertyIds.GEAR_SELECTION, GLOBAL_AREA_ID)
+        }.getOrNull()
+        speedMetersPerSecond = runCatching {
+            propertyManager.getFloatProperty(VehiclePropertyIds.PERF_VEHICLE_SPEED, GLOBAL_AREA_ID)
+        }.getOrNull()
+        return projectState()
     }
 
     override fun start(onChanged: (AutomotiveDrivingState) -> Unit) {
@@ -73,17 +71,20 @@ class PlatformAutomotiveDrivingStateObserver(context: Context, private val handl
             return
         }
 
-        val registered = runCatching {
+        val gearRegistered = runCatching {
             propertyManager.subscribePropertyEvents(
                 VehiclePropertyIds.GEAR_SELECTION,
                 callback
-            ) && propertyManager.subscribePropertyEvents(
+            )
+        }.getOrDefault(false)
+        runCatching {
+            propertyManager.subscribePropertyEvents(
                 VehiclePropertyIds.PERF_VEHICLE_SPEED,
                 callback
             )
-        }.getOrDefault(false)
+        }
 
-        onChanged(if (registered) current() else AutomotiveDrivingState.Unknown)
+        onChanged(if (gearRegistered) current() else AutomotiveDrivingState.Unknown)
     }
 
     override fun close() {

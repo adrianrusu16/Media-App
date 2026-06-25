@@ -14,5 +14,6 @@
         <item name="windowSplashScreenBackground">@color/pandawave_splash_background</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/pandawave_ic_splash_mark</item>
         <item name="postSplashScreenTheme">@style/Theme.PandaWave</item>
+        <item name="android:windowSplashScreenBehavior">icon_preferred</item>
     </style>
 </resources>

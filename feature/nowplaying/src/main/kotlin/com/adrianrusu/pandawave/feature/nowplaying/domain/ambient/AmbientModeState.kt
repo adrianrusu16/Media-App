@@ -7,7 +7,7 @@ sealed interface AmbientModeState {
 
     data class WaitingForInactivity(val deadlineMillis: Long, val token: Long) : AmbientModeState
 
-    data object AmbientStatic : AmbientModeState
+    data object AmbientSleeping : AmbientModeState
 
     data object AmbientVisualizing : AmbientModeState
 }
@@ -15,17 +15,26 @@ sealed interface AmbientModeState {
 data class AmbientEligibility(
     val routeVisible: Boolean = false,
     val lifecycleResumed: Boolean = false,
-    val safetyPermitted: Boolean = false,
+    val isParked: Boolean = false,
+    val isUxUnrestricted: Boolean = false,
     val preferenceEnabled: Boolean = false,
+    val permissionGranted: Boolean = false,
     val isPlaying: Boolean = false,
     val timeoutMillis: Long = DEFAULT_TIMEOUT_MILLIS,
-    val visualizerAvailable: Boolean = false
+    val realVisualizerReady: Boolean = false
 ) {
     val presentationVisible: Boolean
         get() = routeVisible && lifecycleResumed
 
     val ambientPermitted: Boolean
-        get() = presentationVisible && safetyPermitted && preferenceEnabled && isPlaying
+        get() = presentationVisible &&
+            isParked &&
+            isUxUnrestricted &&
+            preferenceEnabled &&
+            permissionGranted
+
+    val hasUsableAmplitudeSource: Boolean
+        get() = !isPlaying || realVisualizerReady
 
     private companion object {
         const val DEFAULT_TIMEOUT_MILLIS = 15_000L

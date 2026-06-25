@@ -16,7 +16,7 @@ internal object AmbientTelemetryAttributes {
 }
 
 internal object AmbientTelemetryModes {
-    const val STATIC = "static"
+    const val SLEEPING = "sleeping"
     const val VISUALIZING = "visualizing"
 }
 
@@ -34,9 +34,8 @@ internal object AmbientTelemetryExitReasons {
         is AmbientModeInput.EligibilityChanged -> with(input.eligibility) {
             when {
                 !presentationVisible -> ROUTE_HIDDEN
-                !safetyPermitted -> SAFETY_LOST
+                !isParked || !isUxUnrestricted || !permissionGranted -> SAFETY_LOST
                 !preferenceEnabled -> DISABLED
-                !isPlaying -> PLAYBACK_INACTIVE
                 else -> STATE_CHANGED
             }
         }
@@ -62,10 +61,10 @@ internal object AmbientTelemetryVisualizerReasons {
 }
 
 internal val AmbientModeState.isAmbientPresentation: Boolean
-    get() = this == AmbientModeState.AmbientStatic || this == AmbientModeState.AmbientVisualizing
+    get() = this == AmbientModeState.AmbientSleeping || this == AmbientModeState.AmbientVisualizing
 
 internal val AmbientModeState.telemetryMode: String
     get() = when (this) {
         AmbientModeState.AmbientVisualizing -> AmbientTelemetryModes.VISUALIZING
-        else -> AmbientTelemetryModes.STATIC
+        else -> AmbientTelemetryModes.SLEEPING
     }

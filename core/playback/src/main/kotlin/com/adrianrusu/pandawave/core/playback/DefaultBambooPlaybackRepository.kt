@@ -24,11 +24,13 @@ class DefaultBambooPlaybackRepository(
     private val drivingStateObserver: AutomotiveDrivingStateObserver = AutomotiveDrivingStateObserver.Unavailable
 ) : BambooPlaybackRepository {
     private val telemetryLogger = telemetryLogger.forModule(TelemetryModule.Playback)
+    private val automotiveTelemetryLogger = telemetryLogger.forModule(TelemetryModule.Automotive)
     private val mutableState = MutableStateFlow(BambooPlaybackState())
     private val listeners = mutableSetOf<(BambooPlaybackState) -> Unit>()
     private val effectListeners = mutableSetOf<(List<EngineEffect>) -> Unit>()
     private var engineSnapshotSubscription: AutoCloseable? = null
     private var engineEventSubscription: AutoCloseable? = null
+    private var lastDrivingState = AutomotiveDrivingState.Unknown
     private var startCount = 0
 
     override val state: StateFlow<BambooPlaybackState> = mutableState.asStateFlow()
@@ -68,6 +70,12 @@ class DefaultBambooPlaybackRepository(
             )
         }
         drivingStateObserver.start { drivingState ->
+            if (drivingState == lastDrivingState) {
+                return@start
+            }
+            val previousState = lastDrivingState
+            lastDrivingState = drivingState
+            logDrivingStateChanged(previousState = previousState, currentState = drivingState)
             dispatchPlatformEvent(
                 BambooPlaybackIntent.PlatformEvent(
                     type = EnginePlatformEvent.TYPE_VEHICLE_DRIVING_STATE_CHANGED,
@@ -180,6 +188,7 @@ class DefaultBambooPlaybackRepository(
         effectListeners.clear()
         uxRestrictionObserver.close()
         drivingStateObserver.close()
+        lastDrivingState = AutomotiveDrivingState.Unknown
     }
 
     private fun bootstrapEngine() {
@@ -267,7 +276,7 @@ class DefaultBambooPlaybackRepository(
         )
 
         val result = engine.dispatchPlatformEvent(
-            com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent(
+            EnginePlatformEvent(
                 type = intent.type,
                 payload = intent.payload
             )
@@ -310,6 +319,24 @@ class DefaultBambooPlaybackRepository(
             )
         )
     }
+
+    private fun logDrivingStateChanged(previousState: AutomotiveDrivingState, currentState: AutomotiveDrivingState) {
+        val attributes = mapOf(
+            AutomotiveTelemetryAttributes.PREVIOUS_STATE to previousState.name,
+            AutomotiveTelemetryAttributes.CURRENT_STATE to currentState.name
+        )
+        if (currentState == AutomotiveDrivingState.Unknown) {
+            automotiveTelemetryLogger.warning(
+                name = AutomotiveTelemetryEvents.DRIVING_STATE_CHANGED,
+                attributes = attributes
+            )
+        } else {
+            automotiveTelemetryLogger.info(
+                name = AutomotiveTelemetryEvents.DRIVING_STATE_CHANGED,
+                attributes = attributes
+            )
+        }
+    }
 }
 
 private fun AutomotiveUxRestrictions.toEnginePayload(): String = when {
@@ -334,6 +361,15 @@ internal object PlaybackTelemetryEvents {
     const val ENGINE_COMMAND_DISPATCHED = "playback.engine.command.dispatched"
     const val PLATFORM_EVENT_DISPATCHED = "playback.platform_event.dispatched"
     const val ENGINE_SNAPSHOT_REQUESTED = "playback.engine.snapshot.requested"
+}
+
+internal object AutomotiveTelemetryEvents {
+    const val DRIVING_STATE_CHANGED = "automotive.driving_state.changed"
+}
+
+internal object AutomotiveTelemetryAttributes {
+    const val PREVIOUS_STATE = "previous_state"
+    const val CURRENT_STATE = "current_state"
 }
 
 private fun BambooPlaybackState.fromEngineResult(result: EngineDispatchResult): BambooPlaybackState =

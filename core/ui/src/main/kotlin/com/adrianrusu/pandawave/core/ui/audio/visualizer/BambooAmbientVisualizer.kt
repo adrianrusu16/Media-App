@@ -17,8 +17,8 @@ import com.adrianrusu.pandawave.core.designsystem.tokens.ambientVisualizerMinBar
 
 @Composable
 fun BambooAmbientVisualizer(
-    amplitudes: FloatArray,
     modifier: Modifier = Modifier,
+    amplitudes: FloatArray,
     activeColor: Color? = null,
     idleColor: Color? = null,
     intensity: Float = 1f

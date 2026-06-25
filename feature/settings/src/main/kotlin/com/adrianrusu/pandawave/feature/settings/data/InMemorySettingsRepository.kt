@@ -75,8 +75,6 @@ internal class InMemorySettingsRepository(
             is SettingsIntent.SetAmbientTimeoutSeconds ->
                 ambientModePreferenceRepository.setTimeoutSeconds(intent.timeoutSeconds)
 
-            SettingsIntent.RequestVisualizerPermission -> Unit
-
             else -> reduceLocalState(intent)
         }
     }
@@ -119,5 +117,5 @@ private fun AmbientModePreferenceState.readyPreferencesOr(fallback: SettingsStat
     )
 
 private fun BambooPlaybackState.toSettingsRestrictionState(): SettingsRestrictionState = SettingsRestrictionState(
-    isRestricted = !vehicleSafety.ambientPermitted
+    isRestricted = !vehicleSafety.isUxUnrestricted
 )

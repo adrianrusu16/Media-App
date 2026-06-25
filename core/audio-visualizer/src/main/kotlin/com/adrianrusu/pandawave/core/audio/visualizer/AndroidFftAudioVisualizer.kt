@@ -63,15 +63,15 @@ class AndroidFftAudioVisualizer : AmbientAudioVisualizer {
             }
             mutableAvailability.value = AmbientVisualizerAvailability.Ready
         } catch (error: SecurityException) {
-            failAttachment(Reason.PermissionDenied)
+            failAttachment(Reason.PermissionDenied, error)
         } catch (error: UnsupportedOperationException) {
-            failAttachment(Reason.Unsupported)
+            failAttachment(Reason.Unsupported, error)
         } catch (error: IllegalArgumentException) {
-            failAttachment(Reason.InvalidSession)
+            failAttachment(Reason.InvalidSession, error)
         } catch (error: IllegalStateException) {
-            failAttachment(Reason.InitializationFailed)
+            failAttachment(Reason.InitializationFailed, error)
         } catch (error: RuntimeException) {
-            failAttachment(Reason.RuntimeFailed)
+            failAttachment(Reason.RuntimeFailed, error)
         }
     }
 
@@ -115,7 +115,7 @@ class AndroidFftAudioVisualizer : AmbientAudioVisualizer {
         }
     }
 
-    private fun failAttachment(reason: Reason) {
+    private fun failAttachment(reason: Reason, error: RuntimeException) {
         releaseVisualizer()
         attachedAudioSessionId = null
         mutableAvailability.value = AmbientVisualizerAvailability.Unavailable(reason)
@@ -124,12 +124,12 @@ class AndroidFftAudioVisualizer : AmbientAudioVisualizer {
     private fun releaseVisualizer() {
         try {
             visualizer?.enabled = false
-        } catch (error: RuntimeException) {
+        } catch (_: RuntimeException) {
             mutableAvailability.value = AmbientVisualizerAvailability.Unavailable(Reason.RuntimeFailed)
         }
         try {
             visualizer?.release()
-        } catch (error: RuntimeException) {
+        } catch (_: RuntimeException) {
             mutableAvailability.value = AmbientVisualizerAvailability.Unavailable(Reason.RuntimeFailed)
         }
         visualizer = null

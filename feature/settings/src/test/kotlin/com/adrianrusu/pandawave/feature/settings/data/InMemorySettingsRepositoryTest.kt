@@ -67,6 +67,23 @@ class InMemorySettingsRepositoryTest {
     }
 
     @Test
+    fun `settings restriction follows ux state without depending on driving state`() = runTest {
+        val playback = RecordingPlaybackRepository()
+        val repository = createRepository(playbackRepository = playback)
+        repository.start(backgroundScope)
+
+        playback.emitSafety(
+            BambooVehicleSafetyState(
+                drivingState = BambooDrivingState.Moving,
+                restrictionState = BambooRestrictionState.Unrestricted
+            )
+        )
+        runCurrent()
+
+        assertFalse(repository.settingsState.value.restriction.isRestricted)
+    }
+
+    @Test
     fun `dispatches theme preference through coordinator`() = runTest {
         val coordinator = RecordingThemePreferenceCoordinator()
         val repository = createRepository(themePreferenceCoordinator = coordinator)
@@ -155,6 +172,8 @@ class InMemorySettingsRepositoryTest {
 private class RecordingVisualizerPermissionRepository : VisualizerPermissionRepository {
     private val mutableState = MutableStateFlow<VisualizerPermissionState>(VisualizerPermissionState.Unknown)
     override val state: StateFlow<VisualizerPermissionState> = mutableState
+
+    override suspend fun markRequestLaunched() = Unit
 
     override fun refresh(shouldShowRationale: Boolean) = Unit
 

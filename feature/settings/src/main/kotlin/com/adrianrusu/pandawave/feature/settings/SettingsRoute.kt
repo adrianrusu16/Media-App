@@ -7,8 +7,6 @@ import android.content.ContextWrapper
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -54,13 +52,6 @@ fun SettingsRoute(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val activity = context.findActivity()
     val lifecycleOwner = LocalLifecycleOwner.current
-    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        viewModel.onVisualizerPermissionResult(
-            granted = granted,
-            shouldShowRationale = activity.shouldShowVisualizerPermissionRationale()
-        )
-    }
-
     DisposableEffect(viewModel, lifecycleOwner, activity) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
@@ -75,10 +66,6 @@ fun SettingsRoute(modifier: Modifier = Modifier) {
     SettingsScreen(
         state = state,
         onIntent = viewModel::onIntent,
-        onRequestVisualizerPermission = {
-            viewModel.onIntent(SettingsIntent.RequestVisualizerPermission)
-            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-        },
         onOpenVisualizerPermissionSettings = {
             context.openApplicationPermissionSettings()
         },
@@ -90,7 +77,6 @@ fun SettingsRoute(modifier: Modifier = Modifier) {
 private fun SettingsScreen(
     state: SettingsState,
     onIntent: (SettingsIntent) -> Unit,
-    onRequestVisualizerPermission: () -> Unit,
     onOpenVisualizerPermissionSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -133,7 +119,6 @@ private fun SettingsScreen(
         VisualizerPermissionPreference(
             state = state.visualizerPermissionState,
             actionEnabled = !state.restriction.isRestricted,
-            onRequestPermission = onRequestVisualizerPermission,
             onOpenSettings = onOpenVisualizerPermissionSettings
         )
         ThemePreferenceCard(
@@ -153,17 +138,15 @@ private fun SettingsScreen(
 private fun VisualizerPermissionPreference(
     state: VisualizerPermissionState,
     actionEnabled: Boolean,
-    onRequestPermission: () -> Unit,
     onOpenSettings: () -> Unit
 ) {
     when (state.recommendedAction) {
-        VisualizerPermissionAction.Request -> BambooActionCard(
-            title = stringResource(R.string.pandawave_settings_visualizer_permission_title),
-            body = stringResource(R.string.pandawave_settings_visualizer_permission_denied),
-            actionLabel = stringResource(R.string.pandawave_settings_visualizer_permission_enable),
-            actionEnabled = actionEnabled,
-            onActionClick = onRequestPermission
-        )
+        VisualizerPermissionAction.Request -> BambooCard {
+            BambooTitleBody(
+                title = stringResource(R.string.pandawave_settings_visualizer_permission_title),
+                body = stringResource(R.string.pandawave_settings_visualizer_permission_denied)
+            )
+        }
 
         VisualizerPermissionAction.OpenSettings -> BambooActionCard(
             title = stringResource(R.string.pandawave_settings_visualizer_permission_title),

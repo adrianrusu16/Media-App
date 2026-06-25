@@ -42,6 +42,8 @@ fun resolveVisualizerPermissionState(
 interface VisualizerPermissionRepository {
     val state: StateFlow<VisualizerPermissionState>
 
+    suspend fun markRequestLaunched()
+
     fun refresh(shouldShowRationale: Boolean)
 
     fun onRequestResult(granted: Boolean, shouldShowRationale: Boolean)

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -36,12 +37,12 @@ import com.adrianrusu.pandawave.core.ui.audio.visualizer.BambooAmbientVisualizer
 
 @Composable
 fun NowPlayingAmbientScreen(
+    modifier: Modifier = Modifier,
     amplitudes: FloatArray,
     artworkUri: String?,
     title: String,
     artist: String,
-    onShowPlaybackControls: () -> Unit,
-    modifier: Modifier = Modifier
+    onShowPlaybackControls: () -> Unit
 ) {
     val tokens = LocalPandaWaveDesignTokens.current
     val actionLabel = stringResource(R.string.pandawave_now_playing_show_playback_controls)
@@ -102,10 +103,11 @@ fun NowPlayingAmbientScreen(
                     overflow = TextOverflow.Ellipsis
                 )
                 BambooAmbientVisualizer(
-                    amplitudes = amplitudes,
                     modifier = Modifier
+                        .fillMaxWidth()
                         .height(tokens.components.ambientVisualizerHeight)
-                        .clearAndSetSemantics { }
+                        .clearAndSetSemantics { },
+                    amplitudes = amplitudes
                 )
             }
         }

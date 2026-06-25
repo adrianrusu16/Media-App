@@ -16,6 +16,7 @@ import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineGateway
 import com.adrianrusu.pandawave.core.telemetry.TelemetryEvent
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
 import com.adrianrusu.pandawave.core.telemetry.TelemetryModule
+import com.adrianrusu.pandawave.core.telemetry.TelemetrySeverity
 import com.adrianrusu.pandawave.core.telemetry.TelemetrySink
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -48,7 +49,7 @@ class DefaultBambooPlaybackRepositoryTest {
             ),
             engine.platformEvents.map { it.type }
         )
-        assertFalse(repository.state.value.vehicleSafety.ambientPermitted)
+        assertFalse(repository.state.value.vehicleSafety.isParked)
 
         engine.pushSnapshot(
             EngineSnapshot.idle(nowMillis = 2L).copy(
@@ -57,7 +58,56 @@ class DefaultBambooPlaybackRepositoryTest {
             )
         )
 
-        assertTrue(repository.state.value.vehicleSafety.ambientPermitted)
+        assertTrue(repository.state.value.vehicleSafety.isParked)
+        assertTrue(repository.state.value.vehicleSafety.isUxUnrestricted)
+    }
+
+    @Test
+    fun `driving changes are deduplicated logged and dispatched to the engine`() {
+        val engine = RecordingEngineGateway(initialSnapshot = EngineSnapshot.idle(nowMillis = 1L))
+        val drivingObserver = FakeDrivingStateObserver(AutomotiveDrivingState.Parked)
+        val telemetrySink = RecordingTelemetrySink()
+        val repository = DefaultBambooPlaybackRepository(
+            engine = engine,
+            uxRestrictionObserver = FakeUxRestrictionObserver(
+                AutomotiveUxRestrictions.unrestricted(AutomotiveUxRestrictions.Source.AutomotivePlatform)
+            ),
+            telemetryLogger = testTelemetryLogger(telemetrySink),
+            drivingStateObserver = drivingObserver
+        )
+
+        repository.start()
+        drivingObserver.emit(AutomotiveDrivingState.Parked)
+        drivingObserver.emit(AutomotiveDrivingState.Moving)
+        drivingObserver.emit(AutomotiveDrivingState.Moving)
+        drivingObserver.emit(AutomotiveDrivingState.Unknown)
+
+        val drivingEvents = engine.platformEvents.filter {
+            it.type == EnginePlatformEvent.TYPE_VEHICLE_DRIVING_STATE_CHANGED
+        }
+        assertEquals(
+            listOf(
+                EnginePlatformEvent.PAYLOAD_PARKED,
+                EnginePlatformEvent.PAYLOAD_MOVING,
+                EnginePlatformEvent.PAYLOAD_UNKNOWN
+            ),
+            drivingEvents.map { it.payload }
+        )
+
+        val telemetryEvents = telemetrySink.events.filter {
+            it.name == AutomotiveTelemetryEvents.DRIVING_STATE_CHANGED
+        }
+        assertEquals(3, telemetryEvents.size)
+        assertEquals(setOf(TelemetryModule.Automotive), telemetryEvents.mapTo(mutableSetOf()) { it.module })
+        assertEquals(
+            AutomotiveDrivingState.Moving.name,
+            telemetryEvents.last().attributes[AutomotiveTelemetryAttributes.PREVIOUS_STATE]
+        )
+        assertEquals(
+            AutomotiveDrivingState.Unknown.name,
+            telemetryEvents.last().attributes[AutomotiveTelemetryAttributes.CURRENT_STATE]
+        )
+        assertEquals(TelemetrySeverity.Warning, telemetryEvents.last().severity)
     }
 
     @Test
@@ -455,13 +505,22 @@ private class FakeUxRestrictionObserver(private val restrictions: AutomotiveUxRe
 
 private class FakeDrivingStateObserver(private val drivingState: AutomotiveDrivingState) :
     AutomotiveDrivingStateObserver {
+    private var listener: ((AutomotiveDrivingState) -> Unit)? = null
+
     override fun current(): AutomotiveDrivingState = drivingState
 
     override fun start(onChanged: (AutomotiveDrivingState) -> Unit) {
+        listener = onChanged
         onChanged(drivingState)
     }
 
-    override fun close() = Unit
+    fun emit(state: AutomotiveDrivingState) {
+        listener?.invoke(state)
+    }
+
+    override fun close() {
+        listener = null
+    }
 }
 
 private class RecordingEngineGateway(

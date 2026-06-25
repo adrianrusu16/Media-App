@@ -51,7 +51,8 @@ class InMemoryNowPlayingRepositoryTest {
         assertEquals(NowPlayingPlaybackState.Playing, repository.state.value.playbackState)
         assertEquals(BambooEngineConnectionUiState.Ready, repository.state.value.engineConnection)
         assertTrue(repository.state.value.restriction.isRestricted)
-        assertTrue(repository.state.value.ambientSafetyPermitted)
+        assertTrue(repository.state.value.isParked)
+        assertTrue(repository.state.value.isUxUnrestricted)
         assertEquals(13_000L, repository.state.value.progressAt(nowMillis = 2_100L).positionMillis)
         assertEquals(0.325F, repository.state.value.progressAt(nowMillis = 2_100L).fraction)
     }

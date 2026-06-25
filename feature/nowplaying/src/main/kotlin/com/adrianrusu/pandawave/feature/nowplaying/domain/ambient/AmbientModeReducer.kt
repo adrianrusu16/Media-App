@@ -11,15 +11,9 @@ class AmbientModeReducer {
             nowMillis = input.nowMillis
         )
 
-        is AmbientModeInput.TimeoutElapsed -> reduceTimeout(
-            state = state,
-            token = input.token
-        )
+        is AmbientModeInput.TimeoutElapsed -> reduceTimeout(state = state, token = input.token)
 
-        is AmbientModeInput.UserInteraction -> reduceInteraction(
-            state = state,
-            nowMillis = input.nowMillis
-        )
+        is AmbientModeInput.UserInteraction -> reduceInteraction(state = state, nowMillis = input.nowMillis)
     }
 
     private fun reduceEligibility(
@@ -41,11 +35,22 @@ class AmbientModeReducer {
             return exitAmbient(
                 state = state,
                 target = AmbientModeState.Interactive,
-                transition = if (!eligibility.safetyPermitted) {
+                transition = if (
+                    !eligibility.isParked ||
+                    !eligibility.isUxUnrestricted ||
+                    !eligibility.permissionGranted
+                ) {
                     AmbientModeTransition.Immediate
                 } else {
                     AmbientModeTransition.Animated
                 }
+            )
+        }
+        if (!eligibility.hasUsableAmplitudeSource) {
+            return exitAmbient(
+                state = state,
+                target = AmbientModeState.Interactive,
+                transition = AmbientModeTransition.Animated
             )
         }
 
@@ -64,11 +69,14 @@ class AmbientModeReducer {
                 }
             }
 
-            AmbientModeState.AmbientStatic -> {
-                if (eligibility.visualizerAvailable) {
+            AmbientModeState.AmbientSleeping -> {
+                if (eligibility.isPlaying) {
                     AmbientModeReduction(
                         state = AmbientModeState.AmbientVisualizing,
-                        effects = listOf(AmbientModeEffect.StartVisualizer)
+                        effects = listOf(
+                            AmbientModeEffect.StopSleepingAnimation,
+                            AmbientModeEffect.StartRealVisualizer
+                        )
                     )
                 } else {
                     AmbientModeReduction(state)
@@ -76,12 +84,15 @@ class AmbientModeReducer {
             }
 
             AmbientModeState.AmbientVisualizing -> {
-                if (eligibility.visualizerAvailable) {
+                if (eligibility.isPlaying) {
                     AmbientModeReduction(state)
                 } else {
                     AmbientModeReduction(
-                        state = AmbientModeState.AmbientStatic,
-                        effects = listOf(AmbientModeEffect.StopVisualizer)
+                        state = AmbientModeState.AmbientSleeping,
+                        effects = listOf(
+                            AmbientModeEffect.StopRealVisualizer,
+                            AmbientModeEffect.StartSleepingAnimation
+                        )
                     )
                 }
             }
@@ -91,17 +102,24 @@ class AmbientModeReducer {
     private fun reduceTimeout(state: AmbientModeState, token: Long): AmbientModeReduction {
         val waiting = state as? AmbientModeState.WaitingForInactivity
             ?: return AmbientModeReduction(state)
-        if (waiting.token != token || !currentEligibility.ambientPermitted) {
+        if (
+            waiting.token != token ||
+            !currentEligibility.ambientPermitted ||
+            !currentEligibility.hasUsableAmplitudeSource
+        ) {
             return AmbientModeReduction(state)
         }
 
-        return if (currentEligibility.visualizerAvailable) {
+        return if (currentEligibility.isPlaying) {
             AmbientModeReduction(
                 state = AmbientModeState.AmbientVisualizing,
-                effects = listOf(AmbientModeEffect.StartVisualizer)
+                effects = listOf(AmbientModeEffect.StartRealVisualizer)
             )
         } else {
-            AmbientModeReduction(state = AmbientModeState.AmbientStatic)
+            AmbientModeReduction(
+                state = AmbientModeState.AmbientSleeping,
+                effects = listOf(AmbientModeEffect.StartSleepingAnimation)
+            )
         }
     }
 
@@ -113,7 +131,7 @@ class AmbientModeReducer {
                 transition = AmbientModeTransition.Immediate
             )
         }
-        if (!currentEligibility.ambientPermitted) {
+        if (!currentEligibility.ambientPermitted || !currentEligibility.hasUsableAmplitudeSource) {
             return exitAmbient(
                 state = state,
                 target = AmbientModeState.Interactive,
@@ -123,15 +141,13 @@ class AmbientModeReducer {
 
         val effects = buildList {
             when (state) {
-                AmbientModeState.AmbientVisualizing -> add(AmbientModeEffect.StopVisualizer)
+                AmbientModeState.AmbientSleeping -> add(AmbientModeEffect.StopSleepingAnimation)
+                AmbientModeState.AmbientVisualizing -> add(AmbientModeEffect.StopRealVisualizer)
                 is AmbientModeState.WaitingForInactivity -> add(AmbientModeEffect.CancelTimeout)
                 else -> Unit
             }
         }
-        return waitForInactivity(
-            nowMillis = nowMillis,
-            effectsBeforeSchedule = effects
-        )
+        return waitForInactivity(nowMillis = nowMillis, effectsBeforeSchedule = effects)
     }
 
     private fun waitForInactivity(
@@ -141,10 +157,7 @@ class AmbientModeReducer {
         val token = ++nextToken
         val deadlineMillis = nowMillis + currentEligibility.timeoutMillis.coerceAtLeast(0L)
         return AmbientModeReduction(
-            state = AmbientModeState.WaitingForInactivity(
-                deadlineMillis = deadlineMillis,
-                token = token
-            ),
+            state = AmbientModeState.WaitingForInactivity(deadlineMillis = deadlineMillis, token = token),
             effects = effectsBeforeSchedule + AmbientModeEffect.ScheduleTimeout(
                 deadlineMillis = deadlineMillis,
                 token = token
@@ -158,11 +171,11 @@ class AmbientModeReducer {
         transition: AmbientModeTransition
     ): AmbientModeReduction {
         val effects = buildList {
-            if (state is AmbientModeState.WaitingForInactivity) {
-                add(AmbientModeEffect.CancelTimeout)
-            }
-            if (state == AmbientModeState.AmbientVisualizing) {
-                add(AmbientModeEffect.StopVisualizer)
+            when (state) {
+                is AmbientModeState.WaitingForInactivity -> add(AmbientModeEffect.CancelTimeout)
+                AmbientModeState.AmbientSleeping -> add(AmbientModeEffect.StopSleepingAnimation)
+                AmbientModeState.AmbientVisualizing -> add(AmbientModeEffect.StopRealVisualizer)
+                else -> Unit
             }
         }
         return AmbientModeReduction(

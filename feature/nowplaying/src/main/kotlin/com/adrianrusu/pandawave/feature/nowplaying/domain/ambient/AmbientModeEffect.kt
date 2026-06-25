@@ -5,7 +5,11 @@ sealed interface AmbientModeEffect {
 
     data object CancelTimeout : AmbientModeEffect
 
-    data object StartVisualizer : AmbientModeEffect
+    data object StartRealVisualizer : AmbientModeEffect
 
-    data object StopVisualizer : AmbientModeEffect
+    data object StopRealVisualizer : AmbientModeEffect
+
+    data object StartSleepingAnimation : AmbientModeEffect
+
+    data object StopSleepingAnimation : AmbientModeEffect
 }

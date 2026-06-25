@@ -1,5 +1,6 @@
 package com.adrianrusu.pandawave.feature.nowplaying.presentation
 
+import com.adrianrusu.pandawave.core.audio.visualizer.AmbientAmplitudeSource
 import com.adrianrusu.pandawave.core.audio.visualizer.AmbientAudioVisualizer
 import com.adrianrusu.pandawave.core.audio.visualizer.AmbientVisualizerAvailability
 import com.adrianrusu.pandawave.core.audio.visualizer.AudioSessionRepository
@@ -60,7 +61,8 @@ class NowPlayingViewModelTest {
             NowPlayingState(
                 mediaId = "track-1",
                 playbackState = NowPlayingPlaybackState.Playing,
-                ambientSafetyPermitted = true
+                isParked = true,
+                isUxUnrestricted = true
             )
         )
         val visualizer = RecordingAmbientAudioVisualizer()
@@ -72,6 +74,7 @@ class NowPlayingViewModelTest {
             dispatchIntent = DispatchNowPlayingIntentUseCase(repository),
             audioSessionRepository = RecordingAudioSessionRepository(),
             visualizer = visualizer,
+            sleepingAmplitudeSource = RecordingAmbientAmplitudeSource(),
             visualizerPermissionRepository = RecordingVisualizerPermissionRepository(),
             ambientModePreferenceRepository = RecordingAmbientModePreferenceRepository(),
             interactionTracker = UserInteractionTracker(),
@@ -115,12 +118,13 @@ class NowPlayingViewModelTest {
     }
 
     @Test
-    fun `denied permission enters static ambient without starting visualization`() = runTest(dispatcher) {
+    fun `denied permission stays interactive without starting an amplitude source`() = runTest(dispatcher) {
         val repository = RecordingNowPlayingRepository(
             NowPlayingState(
                 mediaId = "track-1",
                 playbackState = NowPlayingPlaybackState.Playing,
-                ambientSafetyPermitted = true
+                isParked = true,
+                isUxUnrestricted = true
             )
         )
         val visualizer = RecordingAmbientAudioVisualizer()
@@ -130,6 +134,7 @@ class NowPlayingViewModelTest {
             dispatchIntent = DispatchNowPlayingIntentUseCase(repository),
             audioSessionRepository = RecordingAudioSessionRepository(),
             visualizer = visualizer,
+            sleepingAmplitudeSource = RecordingAmbientAmplitudeSource(),
             visualizerPermissionRepository = RecordingVisualizerPermissionRepository(
                 VisualizerPermissionState.Denied(canRequest = true)
             ),
@@ -145,7 +150,7 @@ class NowPlayingViewModelTest {
         advanceTimeBy(5_000L)
         runCurrent()
 
-        assertEquals(AmbientModeState.AmbientStatic, viewModel.ambientModeState.value)
+        assertEquals(AmbientModeState.Interactive, viewModel.ambientModeState.value)
         assertEquals(0, visualizer.startCount)
         assertEquals(emptyList(), visualizer.attachedAudioSessions)
     }
@@ -156,7 +161,8 @@ class NowPlayingViewModelTest {
             NowPlayingState(
                 mediaId = "track-1",
                 playbackState = NowPlayingPlaybackState.Playing,
-                ambientSafetyPermitted = true
+                isParked = true,
+                isUxUnrestricted = true
             )
         )
         val viewModel = NowPlayingViewModel(
@@ -165,6 +171,7 @@ class NowPlayingViewModelTest {
             dispatchIntent = DispatchNowPlayingIntentUseCase(repository),
             audioSessionRepository = RecordingAudioSessionRepository(),
             visualizer = RecordingAmbientAudioVisualizer(),
+            sleepingAmplitudeSource = RecordingAmbientAmplitudeSource(),
             visualizerPermissionRepository = RecordingVisualizerPermissionRepository(),
             ambientModePreferenceRepository = RecordingAmbientModePreferenceRepository(),
             interactionTracker = UserInteractionTracker(),
@@ -196,7 +203,8 @@ class NowPlayingViewModelTest {
                 title = "Private title",
                 artist = "Private artist",
                 playbackState = NowPlayingPlaybackState.Playing,
-                ambientSafetyPermitted = true
+                isParked = true,
+                isUxUnrestricted = true
             )
         )
         val visualizer = RecordingAmbientAudioVisualizer()
@@ -207,6 +215,7 @@ class NowPlayingViewModelTest {
             dispatchIntent = DispatchNowPlayingIntentUseCase(repository),
             audioSessionRepository = RecordingAudioSessionRepository(),
             visualizer = visualizer,
+            sleepingAmplitudeSource = RecordingAmbientAmplitudeSource(),
             visualizerPermissionRepository = RecordingVisualizerPermissionRepository(),
             ambientModePreferenceRepository = RecordingAmbientModePreferenceRepository(),
             interactionTracker = UserInteractionTracker(),
@@ -232,12 +241,19 @@ class NowPlayingViewModelTest {
         runCurrent()
 
         assertEquals(
-            listOf(AmbientTelemetryEvents.ENTERED, AmbientTelemetryEvents.VISUALIZER_UNAVAILABLE),
+            listOf(
+                AmbientTelemetryEvents.ENTERED,
+                AmbientTelemetryEvents.VISUALIZER_UNAVAILABLE,
+                AmbientTelemetryEvents.EXITED
+            ),
             telemetrySink.events.map(TelemetryEvent::name)
         )
+        val unavailableEvent = telemetrySink.events.single {
+            it.name == AmbientTelemetryEvents.VISUALIZER_UNAVAILABLE
+        }
         assertEquals(
             AmbientTelemetryVisualizerReasons.RUNTIME_FAILED,
-            telemetrySink.events.last().attributes[AmbientTelemetryAttributes.REASON]
+            unavailableEvent.attributes[AmbientTelemetryAttributes.REASON]
         )
         val telemetryPayload = telemetrySink.events
             .flatMap { event -> listOf(event.name) + event.attributes.keys + event.attributes.values }
@@ -257,7 +273,8 @@ class NowPlayingViewModelTest {
         val repository = RecordingNowPlayingRepository(
             NowPlayingState(
                 playbackState = NowPlayingPlaybackState.Playing,
-                ambientSafetyPermitted = true
+                isParked = true,
+                isUxUnrestricted = true
             )
         )
         val telemetrySink = RecordingTelemetrySink()
@@ -267,6 +284,7 @@ class NowPlayingViewModelTest {
             dispatchIntent = DispatchNowPlayingIntentUseCase(repository),
             audioSessionRepository = RecordingAudioSessionRepository(),
             visualizer = RecordingAmbientAudioVisualizer(),
+            sleepingAmplitudeSource = RecordingAmbientAmplitudeSource(),
             visualizerPermissionRepository = RecordingVisualizerPermissionRepository(),
             ambientModePreferenceRepository = RecordingAmbientModePreferenceRepository(),
             interactionTracker = UserInteractionTracker(),
@@ -280,7 +298,7 @@ class NowPlayingViewModelTest {
         advanceTimeBy(5_000L)
         runCurrent()
 
-        repository.state.value = repository.state.value.copy(ambientSafetyPermitted = false)
+        repository.state.value = repository.state.value.copy(isParked = false)
         runCurrent()
 
         val exit = telemetrySink.events.single { it.name == AmbientTelemetryEvents.EXITED }
@@ -293,7 +311,8 @@ class NowPlayingViewModelTest {
         val repository = RecordingNowPlayingRepository(
             NowPlayingState(
                 playbackState = NowPlayingPlaybackState.Playing,
-                ambientSafetyPermitted = true
+                isParked = true,
+                isUxUnrestricted = true
             )
         )
         val telemetrySink = RecordingTelemetrySink()
@@ -303,6 +322,7 @@ class NowPlayingViewModelTest {
             dispatchIntent = DispatchNowPlayingIntentUseCase(repository),
             audioSessionRepository = RecordingAudioSessionRepository(),
             visualizer = RecordingAmbientAudioVisualizer(),
+            sleepingAmplitudeSource = RecordingAmbientAmplitudeSource(),
             visualizerPermissionRepository = RecordingVisualizerPermissionRepository(),
             ambientModePreferenceRepository = RecordingAmbientModePreferenceRepository(),
             interactionTracker = UserInteractionTracker(),
@@ -317,7 +337,7 @@ class NowPlayingViewModelTest {
         runCurrent()
 
         repository.state.value = repository.state.value.copy(
-            ambientSafetyPermitted = false,
+            isParked = false,
             engineConnection = BambooEngineConnectionUiState.Unavailable
         )
         runCurrent()
@@ -325,6 +345,40 @@ class NowPlayingViewModelTest {
         val exit = telemetrySink.events.single { it.name == AmbientTelemetryEvents.EXITED }
         assertEquals(AmbientTelemetryExitReasons.SAFETY_LOST, exit.attributes[AmbientTelemetryAttributes.REASON])
         assertEquals(TelemetrySeverity.Warning, exit.severity)
+    }
+
+    @Test
+    fun `idle inactivity starts the sleeping amplitude source`() = runTest(dispatcher) {
+        val repository = RecordingNowPlayingRepository(
+            NowPlayingState(
+                playbackState = NowPlayingPlaybackState.Idle,
+                isParked = true,
+                isUxUnrestricted = true
+            )
+        )
+        val sleepingSource = RecordingAmbientAmplitudeSource()
+        val viewModel = NowPlayingViewModel(
+            observeState = ObserveNowPlayingStateUseCase(repository),
+            repository = repository,
+            dispatchIntent = DispatchNowPlayingIntentUseCase(repository),
+            audioSessionRepository = RecordingAudioSessionRepository(),
+            visualizer = RecordingAmbientAudioVisualizer(),
+            sleepingAmplitudeSource = sleepingSource,
+            visualizerPermissionRepository = RecordingVisualizerPermissionRepository(),
+            ambientModePreferenceRepository = RecordingAmbientModePreferenceRepository(),
+            interactionTracker = UserInteractionTracker(),
+            clock = MutableMonotonicClock(nowMillis = 1_000L),
+            telemetryLogger = testTelemetryLogger()
+        )
+
+        viewModel.onRouteVisibilityChanged(true)
+        viewModel.onLifecycleResumedChanged(true)
+        runCurrent()
+        advanceTimeBy(5_000L)
+        runCurrent()
+
+        assertEquals(AmbientModeState.AmbientSleeping, viewModel.ambientModeState.value)
+        assertEquals(1, sleepingSource.startCount)
     }
 }
 
@@ -365,6 +419,8 @@ private class RecordingVisualizerPermissionRepository(
 ) : VisualizerPermissionRepository {
     override val state = MutableStateFlow(initialState)
 
+    override suspend fun markRequestLaunched() = Unit
+
     override fun refresh(shouldShowRationale: Boolean) = Unit
 
     override fun onRequestResult(granted: Boolean, shouldShowRationale: Boolean) = Unit
@@ -385,6 +441,22 @@ private class RecordingAmbientAudioVisualizer : AmbientAudioVisualizer {
     }
 
     override fun detachFromAudioSession() = Unit
+
+    override fun start() {
+        startCount += 1
+    }
+
+    override fun stop() {
+        stopCount += 1
+    }
+
+    override fun close() = Unit
+}
+
+private class RecordingAmbientAmplitudeSource : AmbientAmplitudeSource {
+    override val amplitudes = MutableStateFlow(FloatArray(0))
+    var startCount = 0
+    var stopCount = 0
 
     override fun start() {
         startCount += 1

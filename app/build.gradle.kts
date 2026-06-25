@@ -44,6 +44,7 @@ dependencies {
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.kotlin.test.junit5)
     testImplementation(libs.junit.jupiter)
+    testImplementation(libs.kotlinx.coroutines.test)
     testRuntimeOnly(libs.junit.platform.launcher)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)

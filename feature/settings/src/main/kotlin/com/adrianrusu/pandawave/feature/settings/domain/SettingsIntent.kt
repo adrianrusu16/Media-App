@@ -10,5 +10,4 @@ sealed interface SettingsIntent {
     data class SelectThemePreference(val preference: PandaWaveThemePreference) : SettingsIntent
     data class SetAmbientModeEnabled(val enabled: Boolean) : SettingsIntent
     data class SetAmbientTimeoutSeconds(val timeoutSeconds: Int) : SettingsIntent
-    data object RequestVisualizerPermission : SettingsIntent
 }

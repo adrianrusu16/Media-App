@@ -69,12 +69,12 @@
     <dimen name="pandawave_now_playing_artwork_standard">316dp</dimen>
     <dimen name="pandawave_ambient_artwork_min_size">240dp</dimen>
     <dimen name="pandawave_ambient_artwork_max_size">440dp</dimen>
-    <dimen name="pandawave_ambient_visualizer_height">128dp</dimen>
+    <dimen name="pandawave_ambient_visualizer_height">328dp</dimen>
     <dimen name="pandawave_ambient_visualizer_bar_width">6dp</dimen>
     <dimen name="pandawave_ambient_visualizer_bar_gap">4dp</dimen>
     <dimen name="pandawave_ambient_visualizer_bar_radius">3dp</dimen>
     <dimen name="pandawave_ambient_visualizer_min_bar_height">8dp</dimen>
-    <dimen name="pandawave_ambient_visualizer_max_bar_height">118dp</dimen>
+    <dimen name="pandawave_ambient_visualizer_max_bar_height">350dp</dimen>
     <dimen name="pandawave_now_playing_primary_button">56dp</dimen>
     <dimen name="pandawave_now_playing_secondary_transport_size">42dp</dimen>
     <dimen name="pandawave_now_playing_transport_spacing">18dp</dimen>

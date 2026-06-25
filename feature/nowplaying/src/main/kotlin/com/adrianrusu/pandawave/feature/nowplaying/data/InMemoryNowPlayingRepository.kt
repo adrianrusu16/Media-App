@@ -57,7 +57,8 @@ internal fun NowPlayingState.withPlaybackState(playback: BambooPlaybackState): N
     playbackState = playback.playbackStatus.toNowPlayingPlaybackState(),
     engineConnection = playback.engineConnection,
     restriction = playback.restriction.toNowPlayingRestrictionState(),
-    ambientSafetyPermitted = playback.vehicleSafety.ambientPermitted,
+    isParked = playback.vehicleSafety.isParked,
+    isUxUnrestricted = playback.vehicleSafety.isUxUnrestricted,
     updatedAtEpochMillis = playback.updatedAtEpochMillis,
     progressAnchor = BambooPlaybackProgressAnchor.fromPlaybackState(playback)
 )

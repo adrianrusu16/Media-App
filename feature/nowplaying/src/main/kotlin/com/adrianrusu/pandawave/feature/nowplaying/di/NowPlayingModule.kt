@@ -1,7 +1,9 @@
 package com.adrianrusu.pandawave.feature.nowplaying.di
 
+import com.adrianrusu.pandawave.core.audio.visualizer.AmbientAmplitudeSource
 import com.adrianrusu.pandawave.core.audio.visualizer.AmbientAudioVisualizer
 import com.adrianrusu.pandawave.core.audio.visualizer.AndroidFftAudioVisualizer
+import com.adrianrusu.pandawave.core.audio.visualizer.SleepingAmbientAmplitudeSource
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
 import com.adrianrusu.pandawave.feature.nowplaying.data.InMemoryNowPlayingRepository
 import com.adrianrusu.pandawave.feature.nowplaying.domain.DispatchNowPlayingIntentUseCase
@@ -36,4 +38,8 @@ object NowPlayingModule {
     @Provides
     @ViewModelScoped
     fun provideAmbientAudioVisualizer(): AmbientAudioVisualizer = AndroidFftAudioVisualizer()
+
+    @Provides
+    @ViewModelScoped
+    fun provideSleepingAmbientAmplitudeSource(): AmbientAmplitudeSource = SleepingAmbientAmplitudeSource()
 }

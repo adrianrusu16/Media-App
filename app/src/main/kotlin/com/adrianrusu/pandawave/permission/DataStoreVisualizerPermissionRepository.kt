@@ -19,12 +19,23 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
-class DataStoreVisualizerPermissionRepository(
-    context: Context,
+class DataStoreVisualizerPermissionRepository internal constructor(
+    private val isPermissionGranted: () -> Boolean,
     private val dataStore: DataStore<Preferences>,
     private val scope: CoroutineScope
 ) : VisualizerPermissionRepository {
-    private val applicationContext = context.applicationContext
+    constructor(
+        context: Context,
+        dataStore: DataStore<Preferences>,
+        scope: CoroutineScope
+    ) : this(
+        isPermissionGranted = {
+            context.applicationContext.checkSelfPermission(PERMISSION) == PackageManager.PERMISSION_GRANTED
+        },
+        dataStore = dataStore,
+        scope = scope
+    )
+
     private val mutableState = MutableStateFlow<VisualizerPermissionState>(VisualizerPermissionState.Unknown)
     override val state: StateFlow<VisualizerPermissionState> = mutableState.asStateFlow()
 
@@ -56,6 +67,12 @@ class DataStoreVisualizerPermissionRepository(
         publishState()
     }
 
+    override suspend fun markRequestLaunched() {
+        dataStore.edit { preferences -> preferences[HAS_REQUESTED_KEY] = true }
+        hasRequested = true
+        publishState()
+    }
+
     override fun onRequestResult(granted: Boolean, shouldShowRationale: Boolean) {
         hasRequested = true
         this.shouldShowRationale = shouldShowRationale
@@ -67,9 +84,7 @@ class DataStoreVisualizerPermissionRepository(
 
     private fun publishState(grantedOverride: Boolean? = null) {
         val requested = hasRequested ?: return
-        val granted = grantedOverride ?: (
-            applicationContext.checkSelfPermission(PERMISSION) == PackageManager.PERMISSION_GRANTED
-            )
+        val granted = grantedOverride ?: isPermissionGranted()
         mutableState.value = resolveVisualizerPermissionState(
             granted = granted,
             hasRequested = requested,

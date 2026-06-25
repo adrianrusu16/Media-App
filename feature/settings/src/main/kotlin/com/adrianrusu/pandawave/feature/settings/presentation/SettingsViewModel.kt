@@ -32,10 +32,6 @@ class SettingsViewModel @Inject constructor(
         visualizerPermissionRepository.refresh(shouldShowRationale)
     }
 
-    fun onVisualizerPermissionResult(granted: Boolean, shouldShowRationale: Boolean) {
-        visualizerPermissionRepository.onRequestResult(granted, shouldShowRationale)
-    }
-
     override fun onCleared() {
         repository.close()
         super.onCleared()

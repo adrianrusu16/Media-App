@@ -11,25 +11,26 @@ import kotlin.test.assertTrue
 
 class BambooPlaybackStateProjectorTest {
     @Test
-    fun `ambient safety is false unless engine reports parked and unrestricted`() {
-        assertFalse(BambooVehicleSafetyState.Unknown.ambientPermitted)
+    fun `vehicle safety exposes parked and ux restriction facts independently`() {
+        assertFalse(BambooVehicleSafetyState.Unknown.isParked)
+        assertFalse(BambooVehicleSafetyState.Unknown.isUxUnrestricted)
         assertFalse(
             BambooVehicleSafetyState(
                 drivingState = BambooDrivingState.Parked,
                 restrictionState = BambooRestrictionState.Unknown
-            ).ambientPermitted
+            ).isUxUnrestricted
         )
-        assertFalse(
+        assertTrue(
             BambooVehicleSafetyState(
                 drivingState = BambooDrivingState.Moving,
                 restrictionState = BambooRestrictionState.Unrestricted
-            ).ambientPermitted
+            ).isUxUnrestricted
         )
         assertTrue(
             BambooVehicleSafetyState(
                 drivingState = BambooDrivingState.Parked,
-                restrictionState = BambooRestrictionState.Unrestricted
-            ).ambientPermitted
+                restrictionState = BambooRestrictionState.Restricted
+            ).isParked
         )
     }
 
@@ -155,6 +156,7 @@ class BambooPlaybackStateProjectorTest {
         )
 
         assertEquals(true, state.restriction.isRestricted)
-        assertFalse(state.vehicleSafety.ambientPermitted)
+        assertTrue(state.vehicleSafety.isParked)
+        assertFalse(state.vehicleSafety.isUxUnrestricted)
     }
 }

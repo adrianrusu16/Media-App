@@ -49,9 +49,11 @@ data class BambooVehicleSafetyState(
     val drivingState: BambooDrivingState,
     val restrictionState: BambooRestrictionState
 ) {
-    val ambientPermitted: Boolean
-        get() = drivingState == BambooDrivingState.Parked &&
-            restrictionState == BambooRestrictionState.Unrestricted
+    val isParked: Boolean
+        get() = drivingState == BambooDrivingState.Parked
+
+    val isUxUnrestricted: Boolean
+        get() = restrictionState == BambooRestrictionState.Unrestricted
 
     companion object {
         val Unknown = BambooVehicleSafetyState(

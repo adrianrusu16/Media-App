@@ -2,6 +2,7 @@ package com.adrianrusu.pandawave.feature.nowplaying.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.adrianrusu.pandawave.core.audio.visualizer.AmbientAmplitudeSource
 import com.adrianrusu.pandawave.core.audio.visualizer.AmbientAudioVisualizer
 import com.adrianrusu.pandawave.core.audio.visualizer.AmbientVisualizerAvailability
 import com.adrianrusu.pandawave.core.audio.visualizer.AudioSessionRepository
@@ -26,6 +27,7 @@ import com.adrianrusu.pandawave.feature.nowplaying.domain.ambient.AmbientModeSta
 import com.adrianrusu.pandawave.feature.nowplaying.domain.ambient.AmbientModeTransition
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -44,6 +46,7 @@ class NowPlayingViewModel @Inject constructor(
     private val dispatchIntent: DispatchNowPlayingIntentUseCase,
     audioSessionRepository: AudioSessionRepository,
     private val visualizer: AmbientAudioVisualizer,
+    private val sleepingAmplitudeSource: AmbientAmplitudeSource,
     private val visualizerPermissionRepository: VisualizerPermissionRepository,
     ambientModePreferenceRepository: AmbientModePreferenceRepository,
     private val interactionTracker: UserInteractionTracker,
@@ -59,7 +62,7 @@ class NowPlayingViewModel @Inject constructor(
     private var timeoutJob: Job? = null
 
     private val playbackState = observeState()
-    val amplitudes = visualizer.amplitudes
+
     val state = combine(
         playbackState,
         ambientModePreferenceRepository.state,
@@ -78,6 +81,22 @@ class NowPlayingViewModel @Inject constructor(
     )
     val ambientModeState: StateFlow<AmbientModeState> = mutableAmbientModeState.asStateFlow()
     val ambientTransition: StateFlow<AmbientModeTransition> = mutableAmbientTransition.asStateFlow()
+    val amplitudes: StateFlow<FloatArray> = combine(
+        ambientModeState,
+        sleepingAmplitudeSource.amplitudes,
+        visualizer.amplitudes
+    ) { ambientState, sleepingAmplitudes, visualizerAmplitudes ->
+        when (ambientState) {
+            AmbientModeState.AmbientSleeping -> sleepingAmplitudes
+            AmbientModeState.AmbientVisualizing -> visualizerAmplitudes
+            else -> FloatArray(0)
+        }
+    }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(STATE_STOP_TIMEOUT_MILLIS),
+            initialValue = FloatArray(0)
+        )
 
     init {
         repository.start()
@@ -110,12 +129,13 @@ class NowPlayingViewModel @Inject constructor(
                 AmbientEligibility(
                     routeVisible = isRouteVisible,
                     lifecycleResumed = isLifecycleResumed,
-                    safetyPermitted = nowPlaying.ambientSafetyPermitted,
+                    isParked = nowPlaying.isParked,
+                    isUxUnrestricted = nowPlaying.isUxUnrestricted,
                     preferenceEnabled = nowPlaying.ambientModeEnabled,
+                    permissionGranted = nowPlaying.visualizerPermissionState == VisualizerPermissionState.Granted,
                     isPlaying = nowPlaying.isPlaying,
                     timeoutMillis = nowPlaying.ambientTimeoutSeconds * MILLIS_PER_SECOND,
-                    visualizerAvailable = nowPlaying.visualizerPermissionState == VisualizerPermissionState.Granted &&
-                        visualizerAvailability == AmbientVisualizerAvailability.Ready
+                    realVisualizerReady = visualizerAvailability == AmbientVisualizerAvailability.Ready
                 )
             }.collect { eligibility ->
                 reduce(
@@ -154,14 +174,6 @@ class NowPlayingViewModel @Inject constructor(
         interactionTracker.recordInteraction()
     }
 
-    fun onVisualizerPermissionSnapshot(shouldShowRationale: Boolean) {
-        visualizerPermissionRepository.refresh(shouldShowRationale)
-    }
-
-    fun onVisualizerPermissionResult(granted: Boolean, shouldShowRationale: Boolean) {
-        visualizerPermissionRepository.onRequestResult(granted, shouldShowRationale)
-    }
-
     fun onIntent(intent: NowPlayingIntent) {
         interactionTracker.recordInteraction()
         dispatchIntent(intent)
@@ -171,6 +183,7 @@ class NowPlayingViewModel @Inject constructor(
         timeoutJob?.cancel()
         repository.close()
         visualizer.close()
+        sleepingAmplitudeSource.close()
         super.onCleared()
     }
 
@@ -197,6 +210,22 @@ class NowPlayingViewModel @Inject constructor(
     ) {
         if (previousState == currentState) return
 
+        if (
+            previousState == AmbientModeState.AmbientVisualizing &&
+            currentState == AmbientModeState.Interactive
+        ) {
+            val unavailable = visualizer.availability.value as? AmbientVisualizerAvailability.Unavailable
+            if (unavailable != null) {
+                logger.warning(
+                    name = AmbientTelemetryEvents.VISUALIZER_UNAVAILABLE,
+                    attributes = mapOf(
+                        AmbientTelemetryAttributes.REASON to
+                            AmbientTelemetryVisualizerReasons.from(unavailable.reason)
+                    )
+                )
+            }
+        }
+
         when {
             !previousState.isAmbientPresentation && currentState.isAmbientPresentation -> logger.info(
                 name = AmbientTelemetryEvents.ENTERED,
@@ -215,19 +244,6 @@ class NowPlayingViewModel @Inject constructor(
                     logger.info(name = AmbientTelemetryEvents.EXITED, attributes = attributes)
                 }
             }
-
-            previousState == AmbientModeState.AmbientVisualizing &&
-                currentState == AmbientModeState.AmbientStatic -> {
-                val unavailable = visualizer.availability.value as? AmbientVisualizerAvailability.Unavailable
-                    ?: return
-                logger.warning(
-                    name = AmbientTelemetryEvents.VISUALIZER_UNAVAILABLE,
-                    attributes = mapOf(
-                        AmbientTelemetryAttributes.REASON to
-                            AmbientTelemetryVisualizerReasons.from(unavailable.reason)
-                    )
-                )
-            }
         }
     }
 
@@ -241,14 +257,18 @@ class NowPlayingViewModel @Inject constructor(
             is AmbientModeEffect.ScheduleTimeout -> {
                 timeoutJob?.cancel()
                 timeoutJob = viewModelScope.launch {
-                    delay((effect.deadlineMillis - clock.nowMillis()).coerceAtLeast(0L))
+                    delay((effect.deadlineMillis - clock.nowMillis()).coerceAtLeast(0L).milliseconds)
                     reduce(AmbientModeInput.TimeoutElapsed(effect.token))
                 }
             }
 
-            AmbientModeEffect.StartVisualizer -> visualizer.start()
+            AmbientModeEffect.StartRealVisualizer -> visualizer.start()
 
-            AmbientModeEffect.StopVisualizer -> visualizer.stop()
+            AmbientModeEffect.StopRealVisualizer -> visualizer.stop()
+
+            AmbientModeEffect.StartSleepingAnimation -> sleepingAmplitudeSource.start()
+
+            AmbientModeEffect.StopSleepingAnimation -> sleepingAmplitudeSource.stop()
         }
     }
 

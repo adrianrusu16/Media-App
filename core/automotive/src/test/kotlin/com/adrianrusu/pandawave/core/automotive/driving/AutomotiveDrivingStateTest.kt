@@ -11,7 +11,7 @@ class AutomotiveDrivingStateTest {
             AutomotiveDrivingState.Parked,
             AutomotiveDrivingState.fromVehicleSignals(
                 gearSelection = VehicleGear.GEAR_PARK,
-                speedMetersPerSecond = 0F
+                speedMetersPerSecond = null
             )
         )
         assertEquals(
@@ -31,6 +31,13 @@ class AutomotiveDrivingStateTest {
         assertEquals(
             AutomotiveDrivingState.Unknown,
             AutomotiveDrivingState.fromVehicleSignals(gearSelection = null, speedMetersPerSecond = 0F)
+        )
+        assertEquals(
+            AutomotiveDrivingState.Unknown,
+            AutomotiveDrivingState.fromVehicleSignals(
+                gearSelection = VehicleGear.GEAR_DRIVE,
+                speedMetersPerSecond = null
+            )
         )
         assertEquals(
             AutomotiveDrivingState.Unknown,
