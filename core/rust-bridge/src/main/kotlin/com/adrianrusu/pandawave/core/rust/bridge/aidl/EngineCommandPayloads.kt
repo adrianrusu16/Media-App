@@ -9,6 +9,7 @@ import kotlinx.serialization.json.put
 
 object EngineCommandPayloads {
     const val DEFAULT_BROWSE_PARENT_ID = "root"
+    const val DEFAULT_SESSION_USER_ID = "guest"
 
     private const val DEFAULT_PLAYBACK_SPEED = 1F
     private const val MIN_PLAYBACK_SPEED = 0F

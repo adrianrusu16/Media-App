@@ -60,6 +60,7 @@ class DefaultBambooPlaybackRepository(
         }
 
         bootstrapEngine()
+        startEngineSession()
 
         uxRestrictionObserver.start { restrictions ->
             dispatchPlatformEvent(
@@ -181,6 +182,7 @@ class DefaultBambooPlaybackRepository(
             return
         }
 
+        endEngineSession()
         engineSnapshotSubscription?.close()
         engineSnapshotSubscription = null
         engineEventSubscription?.close()
@@ -196,6 +198,34 @@ class DefaultBambooPlaybackRepository(
             EngineCommand(
                 type = EngineCommand.TYPE_BOOTSTRAP,
                 payload = null
+            )
+        )
+
+        updateState { current ->
+            current.fromEngineResult(result)
+        }
+        notifyEffects(result.effects)
+    }
+
+    private fun startEngineSession() {
+        dispatchLifecycleCommand(
+            commandType = EngineCommand.TYPE_START_SESSION,
+            payload = EngineCommandPayloads.DEFAULT_SESSION_USER_ID
+        )
+    }
+
+    private fun endEngineSession() {
+        dispatchLifecycleCommand(
+            commandType = EngineCommand.TYPE_END_SESSION,
+            payload = null
+        )
+    }
+
+    private fun dispatchLifecycleCommand(commandType: String, payload: String?) {
+        val result = engine.dispatch(
+            EngineCommand(
+                type = commandType,
+                payload = payload
             )
         )
 

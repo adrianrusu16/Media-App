@@ -146,6 +146,32 @@ class DefaultBambooPlaybackRepositoryTest {
     }
 
     @Test
+    fun `start opens a guest engine session after bootstrap`() {
+        val engine = RecordingEngineGateway(initialSnapshot = EngineSnapshot.idle(nowMillis = 1L))
+        val repository = DefaultBambooPlaybackRepository(
+            engine = engine,
+            uxRestrictionObserver = FakeUxRestrictionObserver(
+                restrictions = AutomotiveUxRestrictions.unrestricted(
+                    AutomotiveUxRestrictions.Source.NotAutomotive
+                )
+            ),
+            telemetryLogger = testTelemetryLogger()
+        )
+        val effects = mutableListOf<List<EngineEffect>>()
+
+        repository.observeEffects { emittedEffects -> effects += emittedEffects }
+        repository.start()
+
+        assertEquals(STARTUP_COMMAND_TYPES, engine.commands.map { it.type })
+        assertEquals(EngineCommandPayloads.DEFAULT_SESSION_USER_ID, engine.commands[1].payload)
+        assertTrue(repository.state.value.hasActiveSession)
+        assertEquals(
+            listOf(listOf(EngineEffect(type = EngineEffect.TYPE_SESSION_STARTED))),
+            effects
+        )
+    }
+
+    @Test
     fun `queued bootstrap keeps engine commands disabled`() {
         val engine = RecordingEngineGateway(
             initialSnapshot = EngineSnapshot.idle(nowMillis = 1L),
@@ -166,7 +192,7 @@ class DefaultBambooPlaybackRepositoryTest {
 
         assertFalse(repository.state.value.canDispatchEngineCommands)
         assertEquals(
-            listOf(EngineCommand.TYPE_BOOTSTRAP),
+            STARTUP_COMMAND_TYPES,
             engine.commands.map { it.type }
         )
     }
@@ -190,8 +216,7 @@ class DefaultBambooPlaybackRepositoryTest {
 
         assertTrue(repository.state.value.canDispatchEngineCommands)
         assertEquals(
-            listOf(
-                EngineCommand.TYPE_BOOTSTRAP,
+            STARTUP_COMMAND_TYPES + listOf(
                 EngineCommand.TYPE_PLAY,
                 EngineCommand.TYPE_SKIP_NEXT
             ),
@@ -218,8 +243,7 @@ class DefaultBambooPlaybackRepositoryTest {
         repository.dispatch(BambooPlaybackIntent.Pause)
 
         assertEquals(
-            listOf(
-                EngineCommand.TYPE_BOOTSTRAP,
+            STARTUP_COMMAND_TYPES + listOf(
                 EngineCommand.TYPE_PLAY,
                 EngineCommand.TYPE_PAUSE
             ),
@@ -248,6 +272,7 @@ class DefaultBambooPlaybackRepositoryTest {
 
         assertEquals(
             listOf(
+                listOf(EngineEffect(type = EngineEffect.TYPE_SESSION_STARTED)),
                 listOf(
                     EngineEffect(type = EngineEffect.TYPE_REQUEST_AUDIO_FOCUS),
                     EngineEffect(type = EngineEffect.TYPE_PLAY)
@@ -275,15 +300,14 @@ class DefaultBambooPlaybackRepositoryTest {
         repository.dispatch(BambooPlaybackIntent.SetSpeed(speed = 1.25F))
 
         assertEquals(
-            listOf(
-                EngineCommand.TYPE_BOOTSTRAP,
+            STARTUP_COMMAND_TYPES + listOf(
                 EngineCommand.TYPE_SEEK,
                 EngineCommand.TYPE_SET_SPEED
             ),
             engine.commands.map { it.type }
         )
-        assertEquals(EngineCommandPayloads.seekPositionMillis(12_345L), engine.commands[1].payload)
-        assertEquals(EngineCommandPayloads.playbackSpeed(1.25F), engine.commands[2].payload)
+        assertEquals(EngineCommandPayloads.seekPositionMillis(12_345L), engine.commands[2].payload)
+        assertEquals(EngineCommandPayloads.playbackSpeed(1.25F), engine.commands[3].payload)
     }
 
     @Test
@@ -306,8 +330,7 @@ class DefaultBambooPlaybackRepositoryTest {
         repository.dispatch(BambooPlaybackIntent.SearchCatalog(query = "Rust"))
 
         assertEquals(
-            listOf(
-                EngineCommand.TYPE_BOOTSTRAP,
+            STARTUP_COMMAND_TYPES + listOf(
                 EngineCommand.TYPE_BROWSE,
                 EngineCommand.TYPE_SEARCH
             ),
@@ -315,9 +338,9 @@ class DefaultBambooPlaybackRepositoryTest {
         )
         assertEquals(
             EngineCommandPayloads.browseParentId(EngineCommandPayloads.DEFAULT_BROWSE_PARENT_ID),
-            engine.commands[1].payload
+            engine.commands[2].payload
         )
-        assertEquals(EngineCommandPayloads.searchQuery("Rust"), engine.commands[2].payload)
+        assertEquals(EngineCommandPayloads.searchQuery("Rust"), engine.commands[3].payload)
     }
 
     @Test
@@ -337,13 +360,12 @@ class DefaultBambooPlaybackRepositoryTest {
         repository.dispatch(BambooPlaybackIntent.PlayMedia(mediaId = " track-1 "))
 
         assertEquals(
-            listOf(
-                EngineCommand.TYPE_BOOTSTRAP,
+            STARTUP_COMMAND_TYPES + listOf(
                 EngineCommand.TYPE_PLAY_MEDIA_BY_ID
             ),
             engine.commands.map { it.type }
         )
-        assertEquals(EngineCommandPayloads.mediaId(" track-1 "), engine.commands[1].payload)
+        assertEquals(EngineCommandPayloads.mediaId(" track-1 "), engine.commands[2].payload)
     }
 
     @Test
@@ -365,7 +387,7 @@ class DefaultBambooPlaybackRepositoryTest {
 
         assertEquals(BambooEngineConnectionUiState.Reconnecting, repository.state.value.engineConnection)
         assertEquals(
-            listOf(EngineCommand.TYPE_BOOTSTRAP),
+            STARTUP_COMMAND_TYPES,
             engine.commands.map { it.type }
         )
 
@@ -374,8 +396,7 @@ class DefaultBambooPlaybackRepositoryTest {
 
         assertEquals(BambooEngineConnectionUiState.Ready, repository.state.value.engineConnection)
         assertEquals(
-            listOf(
-                EngineCommand.TYPE_BOOTSTRAP,
+            STARTUP_COMMAND_TYPES + listOf(
                 EngineCommand.TYPE_PLAY
             ),
             engine.commands.map { it.type }
@@ -429,6 +450,48 @@ class DefaultBambooPlaybackRepositoryTest {
 
         assertEquals("Still observed", repository.state.value.title)
         assertEquals(1, observer.closeCount)
+        assertEquals(
+            STARTUP_COMMAND_TYPES + listOf(EngineCommand.TYPE_END_SESSION),
+            engine.commands.map { it.type }
+        )
+    }
+
+    @Test
+    fun `close ends engine session only after final reference is released`() {
+        val engine = RecordingEngineGateway(initialSnapshot = EngineSnapshot.idle(nowMillis = 1L))
+        val repository = DefaultBambooPlaybackRepository(
+            engine = engine,
+            uxRestrictionObserver = FakeUxRestrictionObserver(
+                restrictions = AutomotiveUxRestrictions.unrestricted(
+                    AutomotiveUxRestrictions.Source.NotAutomotive
+                )
+            ),
+            telemetryLogger = testTelemetryLogger()
+        )
+        val effects = mutableListOf<List<EngineEffect>>()
+
+        repository.observeEffects { emittedEffects -> effects += emittedEffects }
+        repository.start()
+        repository.start()
+        repository.close()
+
+        assertEquals(STARTUP_COMMAND_TYPES, engine.commands.map { it.type })
+        assertTrue(repository.state.value.hasActiveSession)
+
+        repository.close()
+
+        assertEquals(
+            STARTUP_COMMAND_TYPES + listOf(EngineCommand.TYPE_END_SESSION),
+            engine.commands.map { it.type }
+        )
+        assertFalse(repository.state.value.hasActiveSession)
+        assertEquals(
+            listOf(
+                listOf(EngineEffect(type = EngineEffect.TYPE_SESSION_STARTED)),
+                listOf(EngineEffect(type = EngineEffect.TYPE_SESSION_ENDED))
+            ),
+            effects
+        )
     }
 
     @Test
@@ -558,6 +621,16 @@ private class RecordingEngineGateway(
                 updatedAtEpochMillis = currentSnapshot.updatedAtEpochMillis + 1
             )
 
+            EngineCommand.TYPE_START_SESSION -> currentSnapshot.copy(
+                hasActiveSession = true,
+                updatedAtEpochMillis = currentSnapshot.updatedAtEpochMillis + 1
+            )
+
+            EngineCommand.TYPE_END_SESSION -> currentSnapshot.copy(
+                hasActiveSession = false,
+                updatedAtEpochMillis = currentSnapshot.updatedAtEpochMillis + 1
+            )
+
             else -> currentSnapshot
         }
 
@@ -620,6 +693,10 @@ private class RecordingEngineGateway(
 
         EngineCommand.TYPE_PAUSE -> listOf(EngineEffect(type = EngineEffect.TYPE_PAUSE))
 
+        EngineCommand.TYPE_START_SESSION -> listOf(EngineEffect(type = EngineEffect.TYPE_SESSION_STARTED))
+
+        EngineCommand.TYPE_END_SESSION -> listOf(EngineEffect(type = EngineEffect.TYPE_SESSION_ENDED))
+
         EngineCommand.TYPE_SEEK -> listOf(
             EngineEffect(
                 type = EngineEffect.TYPE_SEEK,
@@ -647,6 +724,11 @@ private class RecordingEngineGateway(
 private fun testTelemetryLogger(sink: TelemetrySink = TelemetrySink { }): TelemetryLogger = TelemetryLogger(
     sink = sink,
     clock = { 42L }
+)
+
+private val STARTUP_COMMAND_TYPES = listOf(
+    EngineCommand.TYPE_BOOTSTRAP,
+    EngineCommand.TYPE_START_SESSION
 )
 
 private class RecordingTelemetrySink : TelemetrySink {
