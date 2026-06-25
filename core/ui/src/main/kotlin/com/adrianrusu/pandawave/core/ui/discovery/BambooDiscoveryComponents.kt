@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -47,6 +48,10 @@ import com.adrianrusu.pandawave.core.designsystem.tokens.mediaTileCompactArtwork
 import com.adrianrusu.pandawave.core.designsystem.tokens.mediaTileCompactMaxWidth
 import com.adrianrusu.pandawave.core.designsystem.tokens.mediaTileCompactMinHeight
 import com.adrianrusu.pandawave.core.designsystem.tokens.mediaTileCompactMinWidth
+import com.adrianrusu.pandawave.core.designsystem.tokens.mediaTileHeroArtworkHeight
+import com.adrianrusu.pandawave.core.designsystem.tokens.mediaTileHeroMaxWidth
+import com.adrianrusu.pandawave.core.designsystem.tokens.mediaTileHeroMinHeight
+import com.adrianrusu.pandawave.core.designsystem.tokens.mediaTileHeroMinWidth
 import com.adrianrusu.pandawave.core.designsystem.tokens.mediaTileStandardArtworkHeight
 import com.adrianrusu.pandawave.core.designsystem.tokens.mediaTileStandardMaxWidth
 import com.adrianrusu.pandawave.core.designsystem.tokens.mediaTileStandardMinHeight
@@ -57,6 +62,7 @@ import com.adrianrusu.pandawave.core.designsystem.tokens.waveformBarWidth
 import com.adrianrusu.pandawave.core.designsystem.tokens.waveformHeight
 import com.adrianrusu.pandawave.core.designsystem.tokens.xl
 import com.adrianrusu.pandawave.core.designsystem.tokens.xs
+import com.adrianrusu.pandawave.core.ui.R
 import com.adrianrusu.pandawave.core.ui.focus.BambooFocusableLazyRow
 import com.adrianrusu.pandawave.core.ui.focus.bambooBringIntoViewOnFocus
 import com.adrianrusu.pandawave.core.ui.focus.bambooFocusIndicator
@@ -105,12 +111,12 @@ fun BambooMediaHeroCard(
     Surface(
         modifier = modifier
             .widthIn(
-                min = tokens.components.mediaTileStandardMinWidth,
-                max = tokens.components.mediaTileStandardMaxWidth
+                min = tokens.components.mediaTileHeroMinWidth,
+                max = tokens.components.mediaTileHeroMaxWidth
             )
             .bambooFocusIndicator(enabled = enabled)
             .bambooBringIntoViewOnFocus()
-            .heightIn(min = tokens.components.mediaTileStandardMinHeight)
+            .heightIn(min = tokens.components.mediaTileHeroMinHeight)
             .clickable(
                 enabled = enabled,
                 role = Role.Button,
@@ -131,7 +137,7 @@ fun BambooMediaHeroCard(
                 accentColor = resolvedAccent,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(tokens.components.mediaTileStandardArtworkHeight)
+                    .height(tokens.components.mediaTileHeroArtworkHeight)
             )
 
             Row(
@@ -393,7 +399,7 @@ fun BambooSearchBar(
                 IconButton(onClick = onVoiceClick) {
                     Icon(
                         imageVector = PandaWaveIcons.Microphone,
-                        contentDescription = VOICE_SEARCH_CONTENT_DESCRIPTION
+                        contentDescription = stringResource(R.string.pandawave_action_voice_search)
                     )
                 }
             }
@@ -493,4 +499,3 @@ private fun BambooMediaCopy(
 
 private const val ENABLED_ACCENT_ALPHA = 0.16f
 private const val DISABLED_ACCENT_ALPHA = 0.08f
-private const val VOICE_SEARCH_CONTENT_DESCRIPTION = "Voice search"

@@ -11,8 +11,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import com.adrianrusu.pandawave.core.designsystem.tokens.LocalPandaWaveDesignTokens
-import com.adrianrusu.pandawave.core.designsystem.tokens.lg
-import com.adrianrusu.pandawave.core.designsystem.tokens.md
+import com.adrianrusu.pandawave.core.designsystem.tokens.mediaCarouselSpacing
+import com.adrianrusu.pandawave.core.designsystem.tokens.mediaSectionSpacing
 import com.adrianrusu.pandawave.core.ui.discovery.BambooMediaAction
 import com.adrianrusu.pandawave.core.ui.discovery.BambooMediaHeroCard
 import com.adrianrusu.pandawave.core.ui.discovery.BambooMediaItem
@@ -32,18 +32,18 @@ fun HomeRoute(modifier: Modifier = Modifier) {
         modifier = modifier
             .fillMaxWidth()
             .testTag("home-route"),
-        verticalArrangement = Arrangement.spacedBy(tokens.spacing.lg)
+        verticalArrangement = Arrangement.spacedBy(tokens.components.mediaSectionSpacing)
     ) {
         BambooSectionHeader(
             title = stringResource(R.string.pandawave_home_greeting),
             subtitle = stringResource(R.string.pandawave_home_greeting_body)
         )
 
-        Column(verticalArrangement = Arrangement.spacedBy(tokens.spacing.md)) {
+        Column(verticalArrangement = Arrangement.spacedBy(tokens.components.mediaCarouselSpacing)) {
             BambooSectionHeader(title = stringResource(R.string.pandawave_home_for_you))
             BambooFocusableLazyRow(
-                horizontalArrangement = Arrangement.spacedBy(tokens.spacing.md),
-                contentPadding = PaddingValues(horizontal = tokens.spacing.md)
+                horizontalArrangement = Arrangement.spacedBy(tokens.components.mediaCarouselSpacing),
+                contentPadding = PaddingValues(horizontal = tokens.components.mediaCarouselSpacing)
             ) {
                 items(forYou, key = { it.id }) { item ->
                     BambooMediaHeroCard(
@@ -65,11 +65,11 @@ fun HomeRoute(modifier: Modifier = Modifier) {
             }
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(tokens.spacing.md)) {
+        Column(verticalArrangement = Arrangement.spacedBy(tokens.components.mediaCarouselSpacing)) {
             BambooSectionHeader(title = stringResource(R.string.pandawave_home_recent))
             BambooFocusableLazyRow(
-                horizontalArrangement = Arrangement.spacedBy(tokens.spacing.md),
-                contentPadding = PaddingValues(horizontal = tokens.spacing.md)
+                horizontalArrangement = Arrangement.spacedBy(tokens.components.mediaCarouselSpacing),
+                contentPadding = PaddingValues(horizontal = tokens.components.mediaCarouselSpacing)
             ) {
                 items(recent, key = { it.id }) { item ->
                     BambooMediaTile(

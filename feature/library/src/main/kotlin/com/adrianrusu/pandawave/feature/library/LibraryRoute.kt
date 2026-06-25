@@ -15,8 +15,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import com.adrianrusu.pandawave.core.designsystem.tokens.LocalPandaWaveDesignTokens
-import com.adrianrusu.pandawave.core.designsystem.tokens.lg
-import com.adrianrusu.pandawave.core.designsystem.tokens.md
+import com.adrianrusu.pandawave.core.designsystem.tokens.mediaCarouselSpacing
+import com.adrianrusu.pandawave.core.designsystem.tokens.mediaSectionSpacing
 import com.adrianrusu.pandawave.core.ui.discovery.BambooFilterChipRow
 import com.adrianrusu.pandawave.core.ui.discovery.BambooFilterOption
 import com.adrianrusu.pandawave.core.ui.discovery.BambooMediaAction
@@ -48,18 +48,18 @@ fun LibraryRoute(modifier: Modifier = Modifier) {
         modifier = modifier
             .fillMaxWidth()
             .testTag("library-route"),
-        verticalArrangement = Arrangement.spacedBy(tokens.spacing.lg)
+        verticalArrangement = Arrangement.spacedBy(tokens.components.mediaSectionSpacing)
     ) {
         BambooSectionHeader(
             title = stringResource(R.string.pandawave_library_title),
             subtitle = stringResource(R.string.pandawave_library_subtitle)
         )
 
-        Column(verticalArrangement = Arrangement.spacedBy(tokens.spacing.md)) {
+        Column(verticalArrangement = Arrangement.spacedBy(tokens.components.mediaCarouselSpacing)) {
             BambooSectionHeader(title = stringResource(R.string.pandawave_library_panda_picks))
             BambooFocusableLazyRow(
-                horizontalArrangement = Arrangement.spacedBy(tokens.spacing.md),
-                contentPadding = PaddingValues(horizontal = tokens.spacing.md)
+                horizontalArrangement = Arrangement.spacedBy(tokens.components.mediaCarouselSpacing),
+                contentPadding = PaddingValues(horizontal = tokens.components.mediaCarouselSpacing)
             ) {
                 items(featured, key = { it.id }) { item ->
                     BambooMediaHeroCard(
@@ -77,7 +77,7 @@ fun LibraryRoute(modifier: Modifier = Modifier) {
             }
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(tokens.spacing.md)) {
+        Column(verticalArrangement = Arrangement.spacedBy(tokens.components.mediaCarouselSpacing)) {
             BambooFilterChipRow(
                 modifier = Modifier.testTag("library-filters"),
                 options = filters,

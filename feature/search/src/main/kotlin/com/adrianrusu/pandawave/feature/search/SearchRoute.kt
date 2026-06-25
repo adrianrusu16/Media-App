@@ -15,8 +15,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import com.adrianrusu.pandawave.core.designsystem.tokens.LocalPandaWaveDesignTokens
-import com.adrianrusu.pandawave.core.designsystem.tokens.lg
-import com.adrianrusu.pandawave.core.designsystem.tokens.md
+import com.adrianrusu.pandawave.core.designsystem.tokens.mediaCarouselSpacing
+import com.adrianrusu.pandawave.core.designsystem.tokens.mediaSectionSpacing
 import com.adrianrusu.pandawave.core.ui.discovery.BambooCategoryCard
 import com.adrianrusu.pandawave.core.ui.discovery.BambooCategoryItem
 import com.adrianrusu.pandawave.core.ui.discovery.BambooMediaAction
@@ -40,14 +40,14 @@ fun SearchRoute(modifier: Modifier = Modifier) {
         modifier = modifier
             .fillMaxWidth()
             .testTag("search-route"),
-        verticalArrangement = Arrangement.spacedBy(tokens.spacing.lg)
+        verticalArrangement = Arrangement.spacedBy(tokens.components.mediaSectionSpacing)
     ) {
         BambooSectionHeader(
             title = stringResource(R.string.pandawave_search_title),
             subtitle = stringResource(R.string.pandawave_search_subtitle)
         )
 
-        Column(verticalArrangement = Arrangement.spacedBy(tokens.spacing.md)) {
+        Column(verticalArrangement = Arrangement.spacedBy(tokens.components.mediaCarouselSpacing)) {
             BambooSearchBar(
                 modifier = Modifier.testTag("search-input"),
                 query = query,
@@ -58,11 +58,11 @@ fun SearchRoute(modifier: Modifier = Modifier) {
             BambooWaveform(active = query.isBlank())
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(tokens.spacing.md)) {
+        Column(verticalArrangement = Arrangement.spacedBy(tokens.components.mediaCarouselSpacing)) {
             BambooSectionHeader(title = stringResource(R.string.pandawave_search_browse_mood))
             BambooFocusableLazyRow(
-                horizontalArrangement = Arrangement.spacedBy(tokens.spacing.md),
-                contentPadding = PaddingValues(horizontal = tokens.spacing.md)
+                horizontalArrangement = Arrangement.spacedBy(tokens.components.mediaCarouselSpacing),
+                contentPadding = PaddingValues(horizontal = tokens.components.mediaCarouselSpacing)
             ) {
                 items(categories, key = { it.id }) { category ->
                     BambooCategoryCard(
@@ -84,7 +84,7 @@ fun SearchRoute(modifier: Modifier = Modifier) {
             }
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(tokens.spacing.md)) {
+        Column(verticalArrangement = Arrangement.spacedBy(tokens.components.mediaCarouselSpacing)) {
             BambooSectionHeader(title = stringResource(R.string.pandawave_search_recent))
             recent.forEach { item ->
                 BambooMediaListRow(

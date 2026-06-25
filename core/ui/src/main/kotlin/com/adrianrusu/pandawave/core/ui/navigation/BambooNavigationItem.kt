@@ -25,10 +25,10 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import com.adrianrusu.pandawave.core.designsystem.tokens.LocalPandaWaveDesignTokens
 import com.adrianrusu.pandawave.core.designsystem.tokens.navigationItemHeight
+import com.adrianrusu.pandawave.core.designsystem.tokens.navigationSelectedIndicatorCorner
 import com.adrianrusu.pandawave.core.designsystem.tokens.navigationSelectedIndicatorHeight
 import com.adrianrusu.pandawave.core.designsystem.tokens.navigationSelectedIndicatorInset
 import com.adrianrusu.pandawave.core.designsystem.tokens.navigationSelectedIndicatorWidth
-import com.adrianrusu.pandawave.core.designsystem.tokens.smallCorner
 import com.adrianrusu.pandawave.core.designsystem.tokens.xs
 import com.adrianrusu.pandawave.core.ui.focus.bambooBringIntoViewOnFocus
 import com.adrianrusu.pandawave.core.ui.focus.bambooFocusIndicator
@@ -70,7 +70,7 @@ internal fun BambooNavigationItem(
                     .width(tokens.layout.navigationSelectedIndicatorWidth)
                     .height(tokens.layout.navigationSelectedIndicatorHeight),
                 color = MaterialTheme.colorScheme.primary,
-                shape = RoundedCornerShape(tokens.shape.smallCorner)
+                shape = RoundedCornerShape(tokens.components.navigationSelectedIndicatorCorner)
             ) { }
         }
         Column(

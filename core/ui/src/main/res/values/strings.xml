@@ -5,6 +5,9 @@
     <string name="pandawave_action_pause">Pause</string>
     <string name="pandawave_action_skip_next">Skip next</string>
     <string name="pandawave_action_skip_previous">Skip previous</string>
+    <string name="pandawave_action_voice_search">Voice search</string>
+    <string name="pandawave_empty_state_body">Content will appear here when it becomes available.</string>
+    <string name="pandawave_empty_state_title">Nothing here yet</string>
     <string name="pandawave_playback_nothing_playing">Nothing playing</string>
     <string name="pandawave_playback_ready_when_you_are">Ready when you are</string>
     <string name="pandawave_time_unknown">--:--</string>

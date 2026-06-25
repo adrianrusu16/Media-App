@@ -91,16 +91,25 @@ class ResourceDesignTokenProvider(context: Context) {
             navigationItemSpacingPx = dimension(R.dimen.pandawave_navigation_item_spacing),
             navigationSelectedIndicatorInsetPx =
                 dimension(R.dimen.pandawave_navigation_selected_indicator_inset),
+            navigationSelectedIndicatorCornerPx =
+                dimension(R.dimen.pandawave_navigation_selected_indicator_corner),
+            mediaSectionSpacingPx = dimension(R.dimen.pandawave_media_section_spacing),
+            mediaCarouselSpacingPx = dimension(R.dimen.pandawave_media_carousel_spacing),
             mediaTileCompactMinWidthPx = dimension(R.dimen.pandawave_media_tile_compact_min_width),
             mediaTileCompactMaxWidthPx = dimension(R.dimen.pandawave_media_tile_compact_max_width),
             mediaTileCompactMinHeightPx = dimension(R.dimen.pandawave_media_tile_compact_min_height),
             mediaTileStandardMinWidthPx = dimension(R.dimen.pandawave_media_tile_standard_min_width),
             mediaTileStandardMaxWidthPx = dimension(R.dimen.pandawave_media_tile_standard_max_width),
             mediaTileStandardMinHeightPx = dimension(R.dimen.pandawave_media_tile_standard_min_height),
+            mediaTileHeroMinWidthPx = dimension(R.dimen.pandawave_media_tile_hero_min_width),
+            mediaTileHeroMaxWidthPx = dimension(R.dimen.pandawave_media_tile_hero_max_width),
+            mediaTileHeroMinHeightPx = dimension(R.dimen.pandawave_media_tile_hero_min_height),
             mediaTileCompactArtworkHeightPx =
                 dimension(R.dimen.pandawave_media_tile_compact_artwork_height),
             mediaTileStandardArtworkHeightPx =
                 dimension(R.dimen.pandawave_media_tile_standard_artwork_height),
+            mediaTileHeroArtworkHeightPx =
+                dimension(R.dimen.pandawave_media_tile_hero_artwork_height),
             mediaRowArtworkSizePx = dimension(R.dimen.pandawave_media_row_artwork_size),
             mediaRowMinHeightPx = dimension(R.dimen.pandawave_media_row_min_height),
             categoryCardMinWidthPx = dimension(R.dimen.pandawave_category_card_min_width),
@@ -108,6 +117,10 @@ class ResourceDesignTokenProvider(context: Context) {
             categoryCardMinHeightPx = dimension(R.dimen.pandawave_category_card_min_height),
             cardPaddingPx = dimension(R.dimen.pandawave_card_padding),
             actionableCardMinHeightPx = dimension(R.dimen.pandawave_actionable_card_min_height),
+            preferenceRowMinHeightPx = dimension(R.dimen.pandawave_preference_row_min_height),
+            preferenceContentPaddingPx = dimension(R.dimen.pandawave_preference_content_padding),
+            preferenceIconSizePx = dimension(R.dimen.pandawave_preference_icon_size),
+            preferenceControlWidthPx = dimension(R.dimen.pandawave_preference_control_width),
             miniPlayerArtworkSizePx = dimension(R.dimen.pandawave_miniplayer_artwork_size),
             miniPlayerTransportButtonSizePx =
                 dimension(R.dimen.pandawave_miniplayer_transport_button_size),
@@ -140,7 +153,10 @@ class ResourceDesignTokenProvider(context: Context) {
                 dimension(R.dimen.pandawave_now_playing_transport_spacing),
             nowPlayingFooterHeightPx = dimension(R.dimen.pandawave_now_playing_footer_height),
             nowPlayingQuickActionWidthPx = dimension(R.dimen.pandawave_now_playing_quick_action_width),
-            nowPlayingQuickActionHeightPx = dimension(R.dimen.pandawave_now_playing_quick_action_height)
+            nowPlayingQuickActionHeightPx = dimension(R.dimen.pandawave_now_playing_quick_action_height),
+            feedbackIconSizePx = dimension(R.dimen.pandawave_feedback_icon_size),
+            feedbackMaxWidthPx = dimension(R.dimen.pandawave_feedback_max_width),
+            feedbackSpacingPx = dimension(R.dimen.pandawave_feedback_spacing)
         ),
         layout = PandaWaveLayoutTokens(
             appContentPaddingPx = dimension(R.dimen.pandawave_app_content_padding),
@@ -155,7 +171,9 @@ class ResourceDesignTokenProvider(context: Context) {
             nowPlayingCompactHeightThresholdPx =
                 dimension(R.dimen.pandawave_now_playing_compact_height_threshold),
             nowPlayingScrollHeightThresholdPx =
-                dimension(R.dimen.pandawave_now_playing_scroll_height_threshold)
+                dimension(R.dimen.pandawave_now_playing_scroll_height_threshold),
+            compactWidthThresholdPx = dimension(R.dimen.pandawave_layout_compact_width_threshold),
+            textMaxWidthPx = dimension(R.dimen.pandawave_layout_text_max_width)
         ),
         elevation = PandaWaveElevationTokens(
             cardRestingPx = dimension(R.dimen.pandawave_elevation_card_resting)

@@ -3,10 +3,14 @@ package com.adrianrusu.pandawave.core.ui.overview
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import com.adrianrusu.pandawave.core.designsystem.tokens.LocalPandaWaveDesignTokens
-import com.adrianrusu.pandawave.core.designsystem.tokens.md
+import com.adrianrusu.pandawave.core.designsystem.tokens.feedbackMaxWidth
+import com.adrianrusu.pandawave.core.designsystem.tokens.feedbackSpacing
+import com.adrianrusu.pandawave.core.ui.R
 import com.adrianrusu.pandawave.core.ui.components.BambooCard
 import com.adrianrusu.pandawave.core.ui.components.BambooEmptyState
 import com.adrianrusu.pandawave.core.ui.components.BambooTitleBody
@@ -15,23 +19,27 @@ import com.adrianrusu.pandawave.core.ui.components.BambooTitleBody
 fun FeatureOverviewScreen(
     items: List<FeatureOverviewItem>,
     modifier: Modifier = Modifier,
-    emptyTitle: String = "Nothing here yet",
-    emptyBody: String = "Content will appear here when it becomes available."
+    emptyTitle: String? = null,
+    emptyBody: String? = null
 ) {
     val tokens = LocalPandaWaveDesignTokens.current
+    val resolvedEmptyTitle = emptyTitle ?: stringResource(R.string.pandawave_empty_state_title)
+    val resolvedEmptyBody = emptyBody ?: stringResource(R.string.pandawave_empty_state_body)
 
     if (items.isEmpty()) {
         BambooEmptyState(
-            title = emptyTitle,
-            body = emptyBody,
-            modifier = modifier.fillMaxWidth()
+            title = resolvedEmptyTitle,
+            body = resolvedEmptyBody,
+            modifier = modifier
+                .fillMaxWidth()
+                .widthIn(max = tokens.components.feedbackMaxWidth)
         )
         return
     }
 
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(tokens.spacing.md)
+        verticalArrangement = Arrangement.spacedBy(tokens.components.feedbackSpacing)
     ) {
         items.forEach { item ->
             FeatureOverviewRow(item = item)

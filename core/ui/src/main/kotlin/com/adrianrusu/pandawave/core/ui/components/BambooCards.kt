@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.Button
@@ -22,20 +23,30 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import com.adrianrusu.pandawave.core.designsystem.tokens.LocalPandaWaveDesignTokens
 import com.adrianrusu.pandawave.core.designsystem.tokens.actionableCardMinHeight
 import com.adrianrusu.pandawave.core.designsystem.tokens.cardPadding
 import com.adrianrusu.pandawave.core.designsystem.tokens.cardResting
 import com.adrianrusu.pandawave.core.designsystem.tokens.lg
 import com.adrianrusu.pandawave.core.designsystem.tokens.md
+import com.adrianrusu.pandawave.core.designsystem.tokens.preferenceContentPadding
+import com.adrianrusu.pandawave.core.designsystem.tokens.preferenceControlWidth
+import com.adrianrusu.pandawave.core.designsystem.tokens.preferenceRowMinHeight
 import com.adrianrusu.pandawave.core.designsystem.tokens.sm
 import com.adrianrusu.pandawave.core.designsystem.tokens.xs
 import com.adrianrusu.pandawave.core.ui.focus.bambooBringIntoViewOnFocus
 import com.adrianrusu.pandawave.core.ui.focus.bambooFocusIndicator
 
 @Composable
-fun BambooCard(modifier: Modifier = Modifier, highlighted: Boolean = false, content: @Composable () -> Unit) {
+fun BambooCard(
+    modifier: Modifier = Modifier,
+    highlighted: Boolean = false,
+    contentPadding: Dp? = null,
+    content: @Composable () -> Unit
+) {
     val tokens = LocalPandaWaveDesignTokens.current
+    val resolvedContentPadding = contentPadding ?: tokens.components.cardPadding
 
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -50,7 +61,7 @@ fun BambooCard(modifier: Modifier = Modifier, highlighted: Boolean = false, cont
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(tokens.components.cardPadding),
+                .padding(resolvedContentPadding),
             verticalArrangement = Arrangement.spacedBy(tokens.spacing.sm)
         ) {
             content()
@@ -116,6 +127,7 @@ fun BambooSwitchRow(
 
     BambooCard(
         modifier = modifier
+            .heightIn(min = tokens.components.preferenceRowMinHeight)
             .bambooFocusIndicator(enabled = enabled)
             .bambooBringIntoViewOnFocus()
             .toggleable(
@@ -123,7 +135,8 @@ fun BambooSwitchRow(
                 enabled = enabled,
                 role = Role.Switch,
                 onValueChange = onCheckedChange
-            )
+            ),
+        contentPadding = tokens.components.preferenceContentPadding
     ) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(tokens.spacing.md),
@@ -135,6 +148,7 @@ fun BambooSwitchRow(
                 modifier = Modifier.weight(1f)
             )
             Switch(
+                modifier = Modifier.width(tokens.components.preferenceControlWidth),
                 checked = checked,
                 enabled = enabled,
                 onCheckedChange = null
@@ -157,6 +171,7 @@ fun BambooSelectableRow(
     Surface(
         modifier = modifier
             .fillMaxWidth()
+            .heightIn(min = tokens.components.preferenceRowMinHeight)
             .bambooFocusIndicator(enabled = enabled)
             .bambooBringIntoViewOnFocus()
             .selectable(
@@ -175,11 +190,12 @@ fun BambooSelectableRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(tokens.spacing.md),
+                .padding(tokens.components.preferenceContentPadding),
             horizontalArrangement = Arrangement.spacedBy(tokens.spacing.sm),
             verticalAlignment = Alignment.CenterVertically
         ) {
             RadioButton(
+                modifier = Modifier.width(tokens.components.preferenceControlWidth),
                 selected = selected,
                 enabled = enabled,
                 onClick = null
