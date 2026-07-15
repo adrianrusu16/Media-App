@@ -22,7 +22,7 @@ pub mod system_port;
 pub use audio_source_client::{AudioChunk, AudioSourceClient, PlaybackPort, PlaybackSource};
 pub use auth_port::AuthPort;
 pub use backend_client::CatalogPort;
-pub use canopy::{CanopyCatalogClient, CanopyPlaybackClient};
+pub use canopy::{CanopyAuthClient, CanopyCatalogClient, CanopyPlaybackClient, SessionCoordinator};
 pub use canopy_tonic_transport::CanopyTonicTransport;
 pub use remote_repository::RemoteRepository;
 pub use retrying_audio_source_client::RetryingAudioSourceClient;
