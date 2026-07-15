@@ -5,3 +5,4 @@ pub mod persistence;
 pub mod queue;
 pub mod repository;
 pub mod session;
+pub mod session_store;

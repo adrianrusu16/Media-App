@@ -51,6 +51,7 @@ pub use crate::data::persistence::{EnginePersistentState, NoopPersistence, Persi
 pub use crate::data::queue::{QueueManager, RepeatMode};
 pub use crate::data::repository::{InMemoryRepository, MediaItem, MediaItemType, MediaRepository};
 pub use crate::data::session::MediaSession;
+pub use crate::data::session_store::{InMemorySessionStore, SessionStore, SessionStoreError};
 pub use crate::engine::concurrent::ConcurrentEngine;
 pub use crate::engine::core::{Engine, EngineOutcome};
 pub use crate::engine::observability::{EngineObserver, EventBus};
@@ -58,6 +59,7 @@ pub use crate::middleware::{
     AnalyticsMiddleware, FocusMiddleware, LoggerMiddleware, Middleware, MiddlewarePipeline,
     RecoveryMiddleware, TelemetryMiddleware, ThrottlingMiddleware, ValidationMiddleware,
 };
+pub use crate::model::auth::{Account, AuthSession, AuthSessionEnvelope, AuthState};
 pub use crate::model::backend::{
     EngineBackendStatus, EngineDependencyStatus, EngineStatusValue, RetryClass,
 };
@@ -75,8 +77,9 @@ pub use crate::model::playback::{
 pub use crate::model::preferences::{PreferenceSource, ThemePreference, ThemePreferenceState};
 pub use crate::model::snapshot::EngineSnapshot;
 pub use crate::networking::{
-    AudioChunk, AudioSourceClient, CanopyCatalogClient, CanopyPlaybackClient, CatalogPort,
-    PlaybackPort, PlaybackSource, RemoteRepository, RetryingAudioSourceClient, SystemPort,
+    AudioChunk, AudioSourceClient, AuthPort, CanopyCatalogClient, CanopyPlaybackClient,
+    CatalogPort, PlaybackPort, PlaybackSource, RemoteRepository, RetryingAudioSourceClient,
+    SystemPort,
 };
 pub use crate::services::player::{MediaPlayer, MockPlayer};
 pub use crate::services::service::{EngineService, ServiceManager};

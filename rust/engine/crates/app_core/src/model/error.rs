@@ -37,6 +37,8 @@ pub enum EngineErrorType {
     PlayerError,
     /// An error related to user permissions or session.
     AuthenticationError,
+    /// Durable authentication-session storage failed or contained invalid data.
+    SessionStorage,
     /// The media was skipped due to a non-fatal error.
     MediaSkipped,
     /// A command was rejected by middleware or policy checks before execution.
