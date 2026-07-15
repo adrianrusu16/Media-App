@@ -59,7 +59,11 @@ impl Engine {
             });
         }
 
-        if media.source_uri.is_some() {
+        if media
+            .source_uri
+            .as_deref()
+            .is_some_and(|uri| !uri.trim().is_empty())
+        {
             return Ok(ResolvedPlaybackMedia {
                 media: media.clone(),
                 expires_at_epoch_millis: None,
@@ -67,10 +71,11 @@ impl Engine {
         }
 
         let Some(audio_source_client) = &self.audio_source_client else {
-            return Ok(ResolvedPlaybackMedia {
-                media: media.clone(),
-                expires_at_epoch_millis: None,
-            });
+            return Err(crate::model::error::EngineError::new(
+                crate::model::error::EngineErrorType::ServiceUnavailable,
+                "playback resolver is not configured",
+                false,
+            ));
         };
 
         let source = audio_source_client

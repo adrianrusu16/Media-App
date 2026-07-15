@@ -155,7 +155,7 @@ impl From<&EngineSnapshot> for FfiEngineSnapshot {
                 .unwrap_or(-1),
             playback_expires_at_epoch_millis: snapshot
                 .playback_expires_at_epoch_millis
-                .map(|expiry| expiry.min(i64::MAX as u64) as i64)
+                .and_then(|expiry| i64::try_from(expiry).ok())
                 .unwrap_or(-1),
             theme_preference: theme_preference_to_ffi(snapshot.theme_preference.theme),
             preference_source: preference_source_to_ffi(snapshot.theme_preference.source),

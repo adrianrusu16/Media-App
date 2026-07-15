@@ -5,6 +5,7 @@ async fn sleep_timer_pauses_playback() {
     let mut engine = Engine::new(100);
     let items = vec![MediaItem {
         id: "1".to_string(),
+        source_uri: Some("https://media.test/1".into()),
         ..Default::default()
     }];
     engine.set_repository(Box::new(InMemoryRepository::new(items.clone())));
@@ -50,6 +51,7 @@ async fn engine_save_and_restore_cycle() {
         id: "1".to_string(),
         title: "T1".to_string(),
         artist: "A1".to_string(),
+        source_uri: Some("https://media.test/1".into()),
         ..Default::default()
     }];
     engine.set_repository(Box::new(InMemoryRepository::new(items.clone())));
@@ -110,6 +112,7 @@ async fn engine_auto_resume_on_restore() {
 
     let items = vec![MediaItem {
         id: "1".to_string(),
+        source_uri: Some("https://media.test/1".into()),
         ..Default::default()
     }];
     engine.queue().set_items(items);
@@ -157,6 +160,7 @@ async fn persistence_integration_test() {
     // 1. Setup state
     let items = vec![MediaItem {
         id: "1".to_string(),
+        source_uri: Some("https://media.test/1".into()),
         ..Default::default()
     }];
     engine.queue().set_items(items);

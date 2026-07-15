@@ -81,6 +81,7 @@ async fn test_validation_middleware_detects_busy() {
     engine.queue().set_items(vec![MediaItem {
         id: "id-1".to_string(),
         title: "t".to_string(),
+        source_uri: Some("https://media.test/id-1".into()),
         ..Default::default()
     }]);
     let _ = engine.dispatch(EngineCommand::play(), 150).await;
@@ -172,6 +173,7 @@ async fn test_engine_rejects_command_when_validation_fails() {
     engine.queue().set_items(vec![MediaItem {
         id: "id-1".to_string(),
         title: "t".to_string(),
+        source_uri: Some("https://media.test/id-1".into()),
         ..Default::default()
     }]);
     let _ = engine.dispatch(EngineCommand::play(), 150).await;

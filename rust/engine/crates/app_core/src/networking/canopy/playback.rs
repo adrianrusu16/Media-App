@@ -65,7 +65,9 @@ fn map_playback_source(source: PlaybackSource) -> Result<EnginePlaybackSource, E
 fn timestamp_to_epoch_millis(
     timestamp: super::sdk::well_known_types::Timestamp,
 ) -> Result<u64, EngineError> {
-    if timestamp.seconds < 0 || !(0..1_000_000_000).contains(&timestamp.nanos) {
+    if !(0..=PROTOBUF_TIMESTAMP_MAX_SECONDS).contains(&timestamp.seconds)
+        || !(0..1_000_000_000).contains(&timestamp.nanos)
+    {
         return Err(mapping_defect());
     }
 
@@ -75,6 +77,8 @@ fn timestamp_to_epoch_millis(
         .and_then(|millis| millis.checked_add(u64::from(timestamp.nanos as u32) / 1_000_000))
         .ok_or_else(mapping_defect)
 }
+
+const PROTOBUF_TIMESTAMP_MAX_SECONDS: i64 = 253_402_300_799;
 
 fn mapping_defect() -> EngineError {
     EngineError::new(
@@ -133,6 +137,18 @@ mod tests {
         });
         assert_eq!(
             map_playback_source(invalid).unwrap_err().error_type,
+            EngineErrorType::MappingDefect
+        );
+
+        let mut above_canonical_maximum = playback_fixture();
+        above_canonical_maximum.expires_at = Some(Timestamp {
+            seconds: 253_402_300_800,
+            nanos: 0,
+        });
+        assert_eq!(
+            map_playback_source(above_canonical_maximum)
+                .unwrap_err()
+                .error_type,
             EngineErrorType::MappingDefect
         );
     }

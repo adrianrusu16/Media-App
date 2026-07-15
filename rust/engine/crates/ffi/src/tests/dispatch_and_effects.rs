@@ -109,6 +109,7 @@ fn dispatch_play_emits_effects_in_ffi() {
             id: "1".to_string(),
             title: "S1".to_string(),
             artist: "A1".to_string(),
+            source_uri: Some("https://media.test/1".into()),
             ..Default::default()
         }];
         (*engine).engine.with_engine(|e| e.queue().set_items(items));
@@ -238,6 +239,7 @@ fn play_media_by_id_updates_snapshot_metadata() {
             album: Some("Canopy Sessions".to_string()),
             duration_millis: Some(123_000),
             thumbnail_url: Some("content://pandawave/art/track-42".to_string()),
+            source_uri: Some("https://media.test/track-42".into()),
             ..Default::default()
         }];
         (*engine).engine.with_engine(|e| {

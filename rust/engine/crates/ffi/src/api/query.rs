@@ -146,7 +146,7 @@ pub unsafe extern "C" fn panda_engine_get_current_playback_expiry_epoch_millis(
         .engine
         .snapshot()
         .playback_expires_at_epoch_millis
-        .map(|expiry| expiry.min(i64::MAX as u64) as i64)
+        .and_then(|expiry| i64::try_from(expiry).ok())
         .unwrap_or(-1)
 }
 

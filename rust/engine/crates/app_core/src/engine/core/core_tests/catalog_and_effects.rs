@@ -14,12 +14,14 @@ async fn skip_updates_metadata() {
             id: "1".to_string(),
             title: "Song 1".to_string(),
             artist: "Artist 1".to_string(),
+            source_uri: Some("https://media.test/1".into()),
             ..Default::default()
         },
         MediaItem {
             id: "2".to_string(),
             title: "Song 2".to_string(),
             artist: "Artist 2".to_string(),
+            source_uri: Some("https://media.test/2".into()),
             ..Default::default()
         },
     ];
@@ -306,6 +308,7 @@ async fn play_command_emits_effects() {
         id: "1".to_string(),
         title: "Song 1".to_string(),
         artist: "Artist 1".to_string(),
+        source_uri: Some("https://media.test/1".into()),
         ..Default::default()
     }];
     engine.queue().set_items(items);
@@ -462,6 +465,41 @@ async fn play_media_by_id_source_resolution_failure_moves_to_error() {
         Some(&crate::model::error::EngineErrorType::NetworkError)
     );
     assert!(outcome.effects.is_empty());
+}
+
+#[tokio::test]
+async fn play_media_by_id_without_playback_composition_fails_closed() {
+    for source_uri in [None, Some("   ".to_string())] {
+        let mut engine = Engine::new(100);
+        engine.set_repository(Box::new(InMemoryRepository::new(vec![MediaItem {
+            id: "track-1".into(),
+            title: "Unresolved Track".into(),
+            artist: "PandaWave".into(),
+            source_uri,
+            ..Default::default()
+        }])));
+
+        let outcome = engine
+            .dispatch(EngineCommand::play_media_by_id("track-1".into()), 200)
+            .await;
+
+        assert_eq!(PlaybackState::Error, outcome.snapshot.playback_state);
+        assert_eq!(
+            outcome
+                .snapshot
+                .last_error
+                .as_ref()
+                .map(|error| &error.error_type),
+            Some(&crate::EngineErrorType::ServiceUnavailable)
+        );
+        assert_eq!(outcome.snapshot.source_uri, None);
+        assert!(
+            !outcome
+                .effects
+                .iter()
+                .any(|effect| matches!(effect, EngineEffect::PreparePlaybackSource { .. }))
+        );
+    }
 }
 
 #[tokio::test]

@@ -11,6 +11,7 @@ async fn voice_play_starts_playback() {
         album: Some("Album 1".to_string()),
         duration_millis: Some(123_000),
         thumbnail_url: Some("https://example.com/song1.jpg".to_string()),
+        source_uri: Some("https://media.test/1".into()),
         ..Default::default()
     }];
     engine.set_repository(Box::new(InMemoryRepository::new(items)));
@@ -59,6 +60,7 @@ async fn voice_interaction_lifecycle() {
         id: "jazz_1".to_string(),
         title: "Jazz Song".to_string(),
         artist: "Jazz Artist".to_string(),
+        source_uri: Some("https://media.test/jazz_1".into()),
         ..Default::default()
     }])));
 
