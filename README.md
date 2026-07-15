@@ -29,5 +29,9 @@ service, AIDL, JNI, Rust FFI, and PandaEngine hosting model.
 See [docs/testing.md](docs/testing.md) for the Kotlin/JUnit testing conventions
 and the split between local JVM and Android instrumentation test lanes.
 
+See [docs/canopy-backend-integration.md](docs/canopy-backend-integration.md)
+for the PandaEngine-owned Canopy boundary, deployment configuration, and local
+WSL/emulator verification flow.
+
 See [docs/assets-and-branding.md](docs/assets-and-branding.md) for third-party
 asset source recommendations and intake rules.

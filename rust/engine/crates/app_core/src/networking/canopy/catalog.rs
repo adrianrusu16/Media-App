@@ -138,7 +138,7 @@ fn map_track_summary(
     let artist = summary
         .artist
         .ok_or_else(|| mapping_defect("catalog track missing artist"))?;
-    if artist.id.is_empty() || artist.name.is_empty() {
+    if artist.name.is_empty() {
         return Err(mapping_defect("catalog track has invalid artist"));
     }
 
@@ -214,6 +214,21 @@ mod tests {
             map_search_response(response).unwrap_err().error_type,
             EngineErrorType::MappingDefect
         );
+    }
+
+    #[test]
+    fn maps_renderable_artist_when_embedded_id_is_empty() {
+        let response = SearchResponse {
+            tracks: vec![track_summary_fixture()],
+            page_info: None,
+        };
+        let mut response = response;
+        response.tracks[0].artist.as_mut().unwrap().id.clear();
+
+        let page = map_search_response(response).unwrap();
+
+        assert_eq!(page.items[0].artist.id, "");
+        assert_eq!(page.items[0].artist.name, "An Artist");
     }
 
     #[test]

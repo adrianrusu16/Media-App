@@ -37,3 +37,16 @@ device/runtime behavior, and native packaging smoke paths.
 
 Instrumentation tests may still use Kotlin language features, including `use`,
 but they should not depend on the host-side JUnit Platform runner.
+
+## Live Canopy instrumentation
+
+The live Canopy test is opt-in because it requires the documented WSL backend,
+a booted Android emulator, and an adb reverse for the backend-issued loopback
+stream URL. See [canopy-backend-integration.md](canopy-backend-integration.md)
+for the exact commands.
+
+`PandaEngineCanopyLiveTest` proves status, catalog browse, playback resolution,
+opaque URL projection, and a ranged audio response. The Media3 Android test
+separately proves that Android `Uri` preserves an escaped `%2F` capability
+without decoding or rewriting it. Normal connected-test runs skip only the
+live backend method unless `canopyLive=true` is supplied.

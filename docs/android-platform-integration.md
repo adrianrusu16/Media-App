@@ -83,25 +83,22 @@ not be treated as implicit source-preparation commands.
 
 ## Playback Source And Cache
 
-Playback source acquisition is driven by PandaEngine through the
-`AudioSourceClient` trait. Android installs an `AudioSourceResolver` on the
-native host via JNI; the current production resolver maps engine track IDs to
-the stable PandaWave content-URI contract:
+Online playback source acquisition is driven by PandaEngine's Canopy adapter.
+PandaEngine calls `PlaybackService.ResolvePlayback`, preserves the returned
+URL, MIME type, and expiry as backend-neutral engine values, and projects them
+through JNI/AIDL. Media3 receives the opaque URL verbatim and must not parse,
+rebuild, normalize, or exchange its capability token.
 
-```text
-content://com.adrianrusu.pandawave.audio/audio/{trackId}
-```
+The normal online path does not install an Android `AudioSourceResolver` and
+does not synthesize `content://` URLs. The existing content-provider/cache
+contract is test-only and reserved for an explicitly designed offline cache.
+If offline storage is implemented later, cache population and atomic file
+publication must remain separate from Canopy's online capability path.
 
-Canopy/Jade-backed stores should serve those URIs through
-`PandaWaveAudioContentProvider` without moving playback-state authority out of
-PandaEngine. The app installs a file-backed cache store at startup; cache misses
-fail loudly until a real Canopy/Jade download path populates the cache. Cache
-population writes to a temporary file and moves completed audio into place, so
-Media3 never opens a partially written source.
-
-Backend/network downloading belongs in Rust. Kotlin should stay focused on
-Android URI/file-descriptor delivery, framework integration, cache-store
-bridging, and telemetry hooks.
+The Android manifest for `:core:rust-bridge` declares `INTERNET` because the
+Canopy adapter owns network I/O. Cleartext transport is enabled only in debug
+variants for the documented local emulator environment; production deployment
+configuration must use TLS/HTTPS and platform-trusted certificates.
 
 ## Native Packaging Lane
 

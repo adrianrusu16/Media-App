@@ -39,6 +39,7 @@ flowchart TD
 | Boundary | Owns | Must Not Own |
 | --- | --- | --- |
 | PandaEngine core | Domain state, state machine, middleware, queue, catalog, session, effect requests | Android lifecycle, JNI, AIDL, UI naming, framework APIs |
+| PandaEngine Canopy adapter | `canopy.v1` protobuf/gRPC, generated SDKs, transport, canonical status mapping, pagination, and wire-to-domain projection | Android lifecycle, Media3 types, deployment secrets, backend authorization policy |
 | Rust FFI facade | ABI-safe handles, constants, structs, memory rules, panic containment | Domain decisions, Android framework behavior |
 | JNI shim | JVM/native conversion and Android-specific native entrypoints | Business logic, state transitions, policy decisions |
 | Kotlin native host | Native handle lifecycle, thread dispatch, DTO mapping, hard native-load failures | Rust state transitions, UI or Media3 projection policy |
@@ -145,3 +146,18 @@ EngineDataPlane = content handles + source descriptors + zero-copy eligible buff
 
 PandaEngine should own data-policy decisions and backend communication. Android
 should own Android-specific handles and framework delivery mechanisms.
+
+## Canopy Composition
+
+Production composition is explicit and fail-closed. Android supplies the
+secret-free, schema-versioned deployment JSON, and PandaEngine validates it
+before creating one shared Canopy channel. Catalog, playback, and system
+adapters are installed together under the engine lock. A failed first attempt
+is terminal for that engine handle; an identical ready configuration is
+idempotent, while a conflicting configuration is rejected.
+
+The public Kotlin and C entrypoints default to production transport rules.
+Only the Android service's debuggable application flag can select development
+rules for the local cleartext emulator deployment. Raw configuration JSON,
+protobuf messages, gRPC status objects, bearer tokens, and pagination cursors
+do not cross into Kotlin.

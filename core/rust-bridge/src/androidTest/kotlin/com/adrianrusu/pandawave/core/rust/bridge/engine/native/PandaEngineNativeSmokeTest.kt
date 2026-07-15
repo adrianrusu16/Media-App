@@ -106,6 +106,6 @@ class PandaEngineNativeSmokeTest {
 
     private fun cleartextConfig(): String =
         androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
-            .targetContext.assets.open("client-connection.json")
+            .context.assets.open("client-connection.json")
             .bufferedReader().use { it.readText() }
 }
