@@ -1,5 +1,6 @@
 use crate::data::repository::MediaItem;
 use crate::data::session::MediaSession;
+use crate::model::backend::EngineBackendStatus;
 use crate::model::error::EngineError;
 use crate::model::playback::{DrivingState, PlaybackState, PlayerControls, RestrictionState};
 use crate::model::preferences::ThemePreferenceState;
@@ -16,6 +17,9 @@ pub struct EngineSnapshot {
     pub playback_state: PlaybackState,
     /// The last error that occurred, if any.
     pub last_error: Option<EngineError>,
+    /// Latest successfully retrieved backend health projection.
+    #[serde(default)]
+    pub backend_status: Option<EngineBackendStatus>,
     /// Unique identifier for the current media item.
     pub media_id: Option<String>,
     /// Displayable title of the current media.
@@ -127,6 +131,13 @@ impl EngineSnapshot {
     #[must_use]
     pub fn with_error(mut self, error: Option<EngineError>) -> Self {
         self.last_error = error;
+        self
+    }
+
+    /// Functional update for the latest backend status.
+    #[must_use]
+    pub fn with_backend_status(mut self, status: Option<EngineBackendStatus>) -> Self {
+        self.backend_status = status;
         self
     }
 

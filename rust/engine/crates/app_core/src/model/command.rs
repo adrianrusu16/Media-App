@@ -15,6 +15,8 @@ pub enum EngineCommandType {
     StartSession { user_id: String },
     /// Ends the current media session.
     EndSession,
+    /// Refreshes the public backend health projection.
+    RefreshBackendStatus,
     /// Searches for media items matching the provided query string.
     Search { query: String },
     /// Retrieves a list of media items that are children of the specified parent ID.
@@ -72,6 +74,8 @@ impl EngineCommandType {
     pub const START_SESSION_WIRE: &'static str = "start_session";
     /// Wire value for EndSession command.
     pub const END_SESSION_WIRE: &'static str = "end_session";
+    /// Wire value for RefreshBackendStatus command.
+    pub const REFRESH_BACKEND_STATUS_WIRE: &'static str = "refresh_backend_status";
     /// Wire value for Search command.
     pub const SEARCH_WIRE: &'static str = "search";
     /// Wire value for Browse command.
@@ -114,6 +118,7 @@ impl EngineCommandType {
                 user_id: "unknown".to_string(),
             },
             Self::END_SESSION_WIRE => Self::EndSession,
+            Self::REFRESH_BACKEND_STATUS_WIRE => Self::RefreshBackendStatus,
             Self::SEARCH_WIRE => Self::Search {
                 query: "".to_string(),
             },
@@ -162,6 +167,7 @@ impl EngineCommandType {
             Self::SkipNext => Self::SKIP_NEXT_WIRE,
             Self::StartSession { .. } => Self::START_SESSION_WIRE,
             Self::EndSession => Self::END_SESSION_WIRE,
+            Self::RefreshBackendStatus => Self::REFRESH_BACKEND_STATUS_WIRE,
             Self::Search { .. } => Self::SEARCH_WIRE,
             Self::Browse { .. } => Self::BROWSE_WIRE,
             Self::SetSpeed { .. } => Self::SET_SPEED_WIRE,
@@ -232,6 +238,11 @@ impl EngineCommand {
     /// Creates an EndSession command.
     pub fn end_session() -> Self {
         Self::new(EngineCommandType::EndSession, None)
+    }
+
+    /// Creates a public backend health refresh command.
+    pub fn refresh_backend_status() -> Self {
+        Self::new(EngineCommandType::RefreshBackendStatus, None)
     }
 
     /// Creates a Search command.

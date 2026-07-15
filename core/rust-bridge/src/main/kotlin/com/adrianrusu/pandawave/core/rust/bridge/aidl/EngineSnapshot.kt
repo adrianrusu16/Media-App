@@ -28,7 +28,8 @@ data class EngineSnapshot(
     val hasVoiceHypothesis: Boolean = false,
     val browseResultsCount: Int = 0,
     val themePreference: EngineThemePreference = EngineThemePreference.uninitialized(),
-    val drivingState: String = DRIVING_UNKNOWN
+    val drivingState: String = DRIVING_UNKNOWN,
+    val backendStatus: EngineBackendStatus? = null
 ) : Parcelable {
     constructor(parcel: Parcel) : this(
         playbackState = parcel.readString().orEmpty(),
@@ -65,7 +66,8 @@ data class EngineSnapshot(
             revision = parcel.readLong(),
             initialized = parcel.readBooleanValue()
         ),
-        drivingState = parcel.readString() ?: DRIVING_UNKNOWN
+        drivingState = parcel.readString() ?: DRIVING_UNKNOWN,
+        backendStatus = parcel.readBackendStatus()
     )
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
@@ -100,6 +102,7 @@ data class EngineSnapshot(
         parcel.writeLong(themePreference.revision)
         parcel.writeBooleanValue(themePreference.initialized)
         parcel.writeString(drivingState)
+        parcel.writeBackendStatus(backendStatus)
     }
 
     override fun describeContents(): Int = 0
@@ -150,6 +153,20 @@ data class EngineSnapshot(
             }
     }
 }
+
+data class EngineBackendStatus(
+    val healthy: Boolean,
+    val version: String,
+    val status: String,
+    val checkedAtEpochMillis: Long?,
+    val dependencies: List<EngineBackendDependencyStatus>
+)
+
+data class EngineBackendDependencyStatus(
+    val name: String,
+    val status: String,
+    val message: String
+)
 
 data class EngineControlState(val isVisible: Boolean, val isEnabled: Boolean, val isActive: Boolean) {
     companion object {
@@ -219,4 +236,38 @@ private fun Parcel.writeControlState(controlState: EngineControlState) {
     writeBooleanValue(controlState.isVisible)
     writeBooleanValue(controlState.isEnabled)
     writeBooleanValue(controlState.isActive)
+}
+
+private fun Parcel.readBackendStatus(): EngineBackendStatus? {
+    if (!readBooleanValue()) return null
+
+    return EngineBackendStatus(
+        healthy = readBooleanValue(),
+        version = readString().orEmpty(),
+        status = readString().orEmpty(),
+        checkedAtEpochMillis = readNullableLong(),
+        dependencies = List(readInt()) {
+            EngineBackendDependencyStatus(
+                name = readString().orEmpty(),
+                status = readString().orEmpty(),
+                message = readString().orEmpty()
+            )
+        }
+    )
+}
+
+private fun Parcel.writeBackendStatus(status: EngineBackendStatus?) {
+    writeBooleanValue(status != null)
+    if (status == null) return
+
+    writeBooleanValue(status.healthy)
+    writeString(status.version)
+    writeString(status.status)
+    writeNullableLong(status.checkedAtEpochMillis)
+    writeInt(status.dependencies.size)
+    status.dependencies.forEach { dependency ->
+        writeString(dependency.name)
+        writeString(dependency.status)
+        writeString(dependency.message)
+    }
 }

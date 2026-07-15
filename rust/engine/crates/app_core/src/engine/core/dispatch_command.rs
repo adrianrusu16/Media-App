@@ -62,6 +62,24 @@ impl Engine {
                 next_snapshot.theme_preference.session_user_id = None;
                 effects.push(EngineEffect::SessionEnded);
             }
+            EngineCommandType::RefreshBackendStatus => {
+                let result = match self.system_port.clone() {
+                    Some(port) => port.get_status().await,
+                    None => Err(EngineError::new(
+                        crate::model::error::EngineErrorType::ServiceUnavailable,
+                        "backend is not configured",
+                        false,
+                    )),
+                };
+                match result {
+                    Ok(status) => {
+                        next_snapshot = next_snapshot.with_backend_status(Some(status));
+                    }
+                    Err(error) => {
+                        next_snapshot = next_snapshot.with_error(Some(error));
+                    }
+                }
+            }
             EngineCommandType::SkipNext => {
                 if let Some(next_media) = self.queue.next_item().cloned() {
                     match self.resolve_playback_source(&next_media).await {

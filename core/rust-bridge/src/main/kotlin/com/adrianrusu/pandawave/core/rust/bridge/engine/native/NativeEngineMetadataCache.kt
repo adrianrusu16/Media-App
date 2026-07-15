@@ -23,7 +23,17 @@ internal class NativeEngineMetadataCache(private val queryMetadata: () -> Native
     }
 }
 
-internal data class NativeEngineSnapshotProjection(val snapshot: EngineSnapshot, val metadataRevision: Long)
+internal data class NativeEngineSnapshotProjection(
+    val snapshot: EngineSnapshot,
+    val metadataRevision: Long,
+    val backendStatus: NativeBackendStatusProjection? = null
+)
+
+internal data class NativeBackendStatusProjection(
+    val healthy: Boolean,
+    val checkedAtEpochMillis: Long?,
+    val dependencyCount: Int
+)
 
 internal data class NativeEngineMetadata(
     val mediaId: String?,

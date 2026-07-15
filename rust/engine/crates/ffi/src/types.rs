@@ -66,6 +66,10 @@ pub struct FfiEngineSnapshot {
     pub has_voice_hypothesis: bool,
     pub browse_results_count: usize,
     pub driving_state: i32,
+    pub has_backend_status: bool,
+    pub backend_healthy: bool,
+    pub backend_checked_at_epoch_millis: i64,
+    pub backend_dependencies_count: usize,
 }
 
 /// C-compatible representation of the engine outcome.
@@ -118,6 +122,10 @@ impl FfiEngineSnapshot {
             has_voice_hypothesis: false,
             browse_results_count: 0,
             driving_state: FFI_COMMAND_UNKNOWN,
+            has_backend_status: false,
+            backend_healthy: false,
+            backend_checked_at_epoch_millis: -1,
+            backend_dependencies_count: 0,
         }
     }
 }
@@ -201,6 +209,21 @@ impl From<&EngineSnapshot> for FfiEngineSnapshot {
             has_voice_hypothesis: snapshot.voice_hypothesis.is_some(),
             browse_results_count: snapshot.browse_results.len(),
             driving_state: driving_state_to_ffi(snapshot.driving_state),
+            has_backend_status: snapshot.backend_status.is_some(),
+            backend_healthy: snapshot
+                .backend_status
+                .as_ref()
+                .is_some_and(|status| status.healthy),
+            backend_checked_at_epoch_millis: snapshot
+                .backend_status
+                .as_ref()
+                .and_then(|status| status.checked_at_epoch_millis)
+                .map(|checked_at| checked_at.min(i64::MAX as u64) as i64)
+                .unwrap_or(-1),
+            backend_dependencies_count: snapshot
+                .backend_status
+                .as_ref()
+                .map_or(0, |status| status.dependencies.len()),
         }
     }
 }

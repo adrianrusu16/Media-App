@@ -40,7 +40,11 @@ class PandaEngineNativeSnapshotMapperTest {
                 PREFERENCE_SOURCE_REMOTE_PROFILE.toLong(),
                 8L,
                 true.toLong(),
-                DRIVING_PARKED.toLong()
+                DRIVING_PARKED.toLong(),
+                true.toLong(),
+                true.toLong(),
+                1_725_000_000_000L,
+                2L
             )
         )
         val snapshot = projection.snapshot
@@ -75,6 +79,14 @@ class PandaEngineNativeSnapshotMapperTest {
         assertEquals(8L, snapshot.themePreference.revision)
         assertTrue(snapshot.themePreference.initialized)
         assertEquals(EngineSnapshot.DRIVING_PARKED, snapshot.drivingState)
+        assertEquals(
+            NativeBackendStatusProjection(
+                healthy = true,
+                checkedAtEpochMillis = 1_725_000_000_000L,
+                dependencyCount = 2
+            ),
+            projection.backendStatus
+        )
     }
 
     @Test
@@ -84,6 +96,30 @@ class PandaEngineNativeSnapshotMapperTest {
         }
 
         assertTrue(result.isFailure)
+    }
+
+    @Test
+    fun `backend status values map atomically to domain status`() {
+        val status = PandaEngineNativeBackendStatusMapper.toDomain(
+            arrayOf(
+                "1",
+                "0.2.0",
+                "ready",
+                "1750000000250",
+                "1",
+                "catalog",
+                "healthy",
+                "available"
+            )
+        )
+
+        assertTrue(status.healthy)
+        assertEquals("0.2.0", status.version)
+        assertEquals("ready", status.status)
+        assertEquals(1_750_000_000_250L, status.checkedAtEpochMillis)
+        assertEquals("catalog", status.dependencies.single().name)
+        assertEquals("healthy", status.dependencies.single().status)
+        assertEquals("available", status.dependencies.single().message)
     }
 
     private fun Boolean.toLong(): Long = if (this) 1L else 0L

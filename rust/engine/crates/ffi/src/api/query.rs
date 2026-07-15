@@ -151,6 +151,68 @@ pub unsafe extern "C" fn panda_engine_get_current_user_id(
 #[unsafe(no_mangle)]
 /// # Safety
 /// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The returned string pointer must be released with `panda_engine_free_string`.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
+pub unsafe extern "C" fn panda_engine_get_backend_version(
+    engine: *const PandaEngine,
+) -> *const c_char {
+    backend_status_string(engine, |status| Some(status.version.as_str()))
+}
+
+#[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The returned string pointer must be released with `panda_engine_free_string`.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
+pub unsafe extern "C" fn panda_engine_get_backend_status(
+    engine: *const PandaEngine,
+) -> *const c_char {
+    backend_status_string(engine, |status| Some(status.status.as_wire()))
+}
+
+#[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The returned string pointer must be released with `panda_engine_free_string`.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
+pub unsafe extern "C" fn panda_engine_get_backend_dependency_name(
+    engine: *const PandaEngine,
+    index: usize,
+) -> *const c_char {
+    backend_dependency_string(engine, index, |dependency| Some(dependency.name.as_str()))
+}
+
+#[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The returned string pointer must be released with `panda_engine_free_string`.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
+pub unsafe extern "C" fn panda_engine_get_backend_dependency_status(
+    engine: *const PandaEngine,
+    index: usize,
+) -> *const c_char {
+    backend_dependency_string(engine, index, |dependency| {
+        Some(dependency.status.as_wire())
+    })
+}
+
+#[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The returned string pointer must be released with `panda_engine_free_string`.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
+pub unsafe extern "C" fn panda_engine_get_backend_dependency_message(
+    engine: *const PandaEngine,
+    index: usize,
+) -> *const c_char {
+    backend_dependency_string(engine, index, |dependency| {
+        Some(dependency.message.as_str())
+    })
+}
+
+#[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
 /// - The caller must ensure no concurrent mutable access while this function reads engine state.
 pub unsafe extern "C" fn panda_engine_get_effects_count(engine: *const PandaEngine) -> usize {
     let engine = unsafe { engine.as_ref() };
@@ -575,6 +637,46 @@ fn current_snapshot_string(
         let snapshot = engine.engine.snapshot();
         if let Some(value) = value(&snapshot) {
             return CString::new(value.as_str()).unwrap().into_raw();
+        }
+    }
+    ptr::null()
+}
+
+fn backend_status_string(
+    engine: *const PandaEngine,
+    value: fn(&panda_engine_core::EngineBackendStatus) -> Option<&str>,
+) -> *const c_char {
+    let engine = unsafe { engine.as_ref() };
+    if let Some(engine) = engine {
+        let snapshot = engine.engine.snapshot();
+        if let Some(status) = snapshot.backend_status.as_ref()
+            && let Some(value) = value(status)
+        {
+            return CString::new(value)
+                .map(|value| value.into_raw() as *const c_char)
+                .unwrap_or(ptr::null());
+        }
+    }
+    ptr::null()
+}
+
+fn backend_dependency_string(
+    engine: *const PandaEngine,
+    index: usize,
+    value: fn(&panda_engine_core::EngineDependencyStatus) -> Option<&str>,
+) -> *const c_char {
+    let engine = unsafe { engine.as_ref() };
+    if let Some(engine) = engine {
+        let snapshot = engine.engine.snapshot();
+        if let Some(dependency) = snapshot
+            .backend_status
+            .as_ref()
+            .and_then(|status| status.dependencies.get(index))
+            && let Some(value) = value(dependency)
+        {
+            return CString::new(value)
+                .map(|value| value.into_raw() as *const c_char)
+                .unwrap_or(ptr::null());
         }
     }
     ptr::null()

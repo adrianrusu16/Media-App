@@ -1,5 +1,7 @@
 package com.adrianrusu.pandawave.core.rust.bridge.engine.native
 
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineBackendDependencyStatus
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineBackendStatus
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineControlState
@@ -120,6 +122,8 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
 
     private external fun nativeCurrentUserId(handle: Long): String?
 
+    private external fun nativeBackendStatusValues(handle: Long): Array<String>?
+
     private external fun nativeEffectCount(handle: Long): Int
 
     private external fun nativeEffectType(handle: Long, index: Int): Int
@@ -182,8 +186,14 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
 
     private external fun nativeSetAudioSourceResolver(handle: Long, resolver: AudioSourceResolver): Boolean
 
-    private fun LongArray.toEngineSnapshot(): EngineSnapshot =
-        metadataCache.enrich(PandaEngineNativeSnapshotMapper.toProjection(this))
+    private fun LongArray.toEngineSnapshot(): EngineSnapshot {
+        val projection = PandaEngineNativeSnapshotMapper.toProjection(this)
+        val snapshot = metadataCache.enrich(projection)
+        val backendStatus = projection.backendStatus?.let {
+            nativeBackendStatusValues(nativeHandle)?.let(PandaEngineNativeBackendStatusMapper::toDomain)
+        }
+        return snapshot.copy(backendStatus = backendStatus)
+    }
 
     private fun queryNativeMetadata(): NativeEngineMetadata = NativeEngineMetadata(
         mediaId = nativeCurrentMediaId(nativeHandle),
@@ -273,6 +283,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         private const val COMMAND_HYDRATE_THEME_PREFERENCE = 15
         private const val COMMAND_SET_THEME_PREFERENCE = 16
         private const val COMMAND_APPLY_REMOTE_THEME_PREFERENCE = 17
+        private const val COMMAND_REFRESH_BACKEND_STATUS = 18
         private const val COMMAND_UNKNOWN = -1
 
         private const val PLATFORM_EVENT_APP_FOREGROUNDED = 0
@@ -319,6 +330,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             EngineCommand.TYPE_HYDRATE_THEME_PREFERENCE -> COMMAND_HYDRATE_THEME_PREFERENCE
             EngineCommand.TYPE_SET_THEME_PREFERENCE -> COMMAND_SET_THEME_PREFERENCE
             EngineCommand.TYPE_APPLY_REMOTE_THEME_PREFERENCE -> COMMAND_APPLY_REMOTE_THEME_PREFERENCE
+            EngineCommand.TYPE_REFRESH_BACKEND_STATUS -> COMMAND_REFRESH_BACKEND_STATUS
             else -> COMMAND_UNKNOWN
         }
 
@@ -355,6 +367,42 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             else -> EngineEffect.TYPE_UNKNOWN
         }
     }
+}
+
+internal object PandaEngineNativeBackendStatusMapper {
+    fun toDomain(values: Array<String>): EngineBackendStatus {
+        require(values.size >= HEADER_VALUE_COUNT) { "Native backend status header is incomplete." }
+        val dependencyCount = values[DEPENDENCY_COUNT_INDEX].toInt()
+        require(dependencyCount >= 0 && values.size == HEADER_VALUE_COUNT + dependencyCount * 3) {
+            "Native backend dependency values are incomplete."
+        }
+
+        return EngineBackendStatus(
+            healthy = when (values[HEALTHY_INDEX]) {
+                "1" -> true
+                "0" -> false
+                else -> error("Native backend health value is invalid.")
+            },
+            version = values[VERSION_INDEX],
+            status = values[STATUS_INDEX],
+            checkedAtEpochMillis = values[CHECKED_AT_INDEX].takeIf(String::isNotEmpty)?.toLong(),
+            dependencies = List(dependencyCount) { index ->
+                val offset = HEADER_VALUE_COUNT + index * 3
+                EngineBackendDependencyStatus(
+                    name = values[offset],
+                    status = values[offset + 1],
+                    message = values[offset + 2]
+                )
+            }
+        )
+    }
+
+    private const val HEALTHY_INDEX = 0
+    private const val VERSION_INDEX = 1
+    private const val STATUS_INDEX = 2
+    private const val CHECKED_AT_INDEX = 3
+    private const val DEPENDENCY_COUNT_INDEX = 4
+    private const val HEADER_VALUE_COUNT = 5
 }
 
 internal object PandaEngineNativeSnapshotMapper {
@@ -415,7 +463,18 @@ internal object PandaEngineNativeSnapshotMapper {
                     initialized = nativeValues[SNAPSHOT_PREFERENCE_INITIALIZED_INDEX].toBoolean()
                 )
             ),
-            metadataRevision = nativeValues[SNAPSHOT_METADATA_REVISION_INDEX]
+            metadataRevision = nativeValues[SNAPSHOT_METADATA_REVISION_INDEX],
+            backendStatus = nativeValues[SNAPSHOT_HAS_BACKEND_STATUS_INDEX]
+                .toBoolean()
+                .takeIf { hasStatus -> hasStatus }
+                ?.let {
+                    NativeBackendStatusProjection(
+                        healthy = nativeValues[SNAPSHOT_BACKEND_HEALTHY_INDEX].toBoolean(),
+                        checkedAtEpochMillis = nativeValues[SNAPSHOT_BACKEND_CHECKED_AT_INDEX]
+                            .takeIf { checkedAt -> checkedAt >= 0L },
+                        dependencyCount = nativeValues[SNAPSHOT_BACKEND_DEPENDENCY_COUNT_INDEX].toInt()
+                    )
+                }
         )
     }
 
@@ -501,7 +560,7 @@ internal object PandaEngineNativeSnapshotMapper {
     private const val PREFERENCE_SOURCE_LOCAL_USER = 2
     private const val PREFERENCE_SOURCE_REMOTE_PROFILE = 3
 
-    private const val SNAPSHOT_VALUE_COUNT = 30
+    private const val SNAPSHOT_VALUE_COUNT = 34
     private const val SNAPSHOT_PLAYBACK_INDEX = 0
     private const val SNAPSHOT_RESTRICTION_INDEX = 1
     private const val SNAPSHOT_UPDATED_AT_INDEX = 2
@@ -532,4 +591,8 @@ internal object PandaEngineNativeSnapshotMapper {
     private const val SNAPSHOT_PREFERENCE_REVISION_INDEX = 27
     private const val SNAPSHOT_PREFERENCE_INITIALIZED_INDEX = 28
     private const val SNAPSHOT_DRIVING_STATE_INDEX = 29
+    private const val SNAPSHOT_HAS_BACKEND_STATUS_INDEX = 30
+    private const val SNAPSHOT_BACKEND_HEALTHY_INDEX = 31
+    private const val SNAPSHOT_BACKEND_CHECKED_AT_INDEX = 32
+    private const val SNAPSHOT_BACKEND_DEPENDENCY_COUNT_INDEX = 33
 }

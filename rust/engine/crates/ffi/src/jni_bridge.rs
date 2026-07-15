@@ -3,7 +3,7 @@ use std::ptr;
 
 use jni::JNIEnv;
 use jni::objects::{JClass, JObject, JString};
-use jni::sys::{jboolean, jfloat, jint, jlong, jlongArray, jstring};
+use jni::sys::{jboolean, jfloat, jint, jlong, jlongArray, jobjectArray, jstring};
 use std::sync::Arc;
 
 use crate::jni_audio_source_client::JniAudioSourceClient;
@@ -211,6 +211,22 @@ pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_eng
 ) -> jstring {
     let value = unsafe { panda_engine_get_current_user_id(handle as *const PandaEngine) };
     owned_c_string_to_jstring(&mut env, value)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeBackendStatusValues(
+    mut env: JNIEnv,
+    _this: JObject,
+    handle: jlong,
+) -> jobjectArray {
+    let engine = unsafe { (handle as *const PandaEngine).as_ref() };
+    let Some(status) = engine
+        .map(|engine| engine.engine.snapshot())
+        .and_then(|snapshot| snapshot.backend_status)
+    else {
+        return ptr::null_mut();
+    };
+    strings_to_jobject_array(&mut env, backend_status_to_strings(&status))
 }
 
 #[unsafe(no_mangle)]
@@ -508,6 +524,47 @@ fn owned_c_string_to_jstring(env: &mut JNIEnv, value: *const c_char) -> jstring 
     }
 }
 
+fn strings_to_jobject_array(env: &mut JNIEnv, values: Vec<String>) -> jobjectArray {
+    let array = match env.new_object_array(values.len() as i32, "java/lang/String", JObject::null())
+    {
+        Ok(array) => array,
+        Err(_) => return ptr::null_mut(),
+    };
+    for (index, value) in values.into_iter().enumerate() {
+        let value = match env.new_string(value) {
+            Ok(value) => value,
+            Err(_) => return ptr::null_mut(),
+        };
+        if env
+            .set_object_array_element(&array, index as i32, value)
+            .is_err()
+        {
+            return ptr::null_mut();
+        }
+    }
+    array.into_raw()
+}
+
+fn backend_status_to_strings(status: &panda_engine_core::EngineBackendStatus) -> Vec<String> {
+    let mut values = Vec::with_capacity(5 + status.dependencies.len() * 3);
+    values.push(if status.healthy { "1" } else { "0" }.into());
+    values.push(status.version.clone());
+    values.push(status.status.as_wire().into());
+    values.push(
+        status
+            .checked_at_epoch_millis
+            .map(|value| value.to_string())
+            .unwrap_or_default(),
+    );
+    values.push(status.dependencies.len().to_string());
+    for dependency in &status.dependencies {
+        values.push(dependency.name.clone());
+        values.push(dependency.status.as_wire().into());
+        values.push(dependency.message.clone());
+    }
+    values
+}
+
 fn snapshot_to_jlong_array(env: &mut JNIEnv, snapshot: FfiEngineSnapshot) -> jlongArray {
     let values = snapshot_to_jlong_values(snapshot);
     let array = match env.new_long_array(values.len() as i32) {
@@ -522,7 +579,7 @@ fn snapshot_to_jlong_array(env: &mut JNIEnv, snapshot: FfiEngineSnapshot) -> jlo
     array.into_raw()
 }
 
-fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 30] {
+fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 34] {
     [
         snapshot.playback_state as jlong,
         snapshot.restriction_state as jlong,
@@ -554,6 +611,10 @@ fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 30] {
         snapshot.preference_revision as jlong,
         bool_to_jlong(snapshot.preference_initialized),
         snapshot.driving_state as jlong,
+        bool_to_jlong(snapshot.has_backend_status),
+        bool_to_jlong(snapshot.backend_healthy),
+        snapshot.backend_checked_at_epoch_millis as jlong,
+        snapshot.backend_dependencies_count as jlong,
     ]
 }
 
@@ -610,6 +671,10 @@ mod tests {
             },
             has_voice_hypothesis: true,
             browse_results_count: 5,
+            has_backend_status: true,
+            backend_healthy: true,
+            backend_checked_at_epoch_millis: 1_725_000_000_000,
+            backend_dependencies_count: 2,
         };
 
         assert_eq!(
@@ -644,8 +709,41 @@ mod tests {
                 8,
                 1,
                 FFI_DRIVING_PARKED as jlong,
+                1,
+                1,
+                1_725_000_000_000,
+                2,
             ],
             snapshot_to_jlong_values(snapshot)
+        );
+    }
+
+    #[test]
+    fn backend_status_values_are_emitted_from_one_domain_snapshot() {
+        let status = panda_engine_core::EngineBackendStatus {
+            healthy: true,
+            version: "0.2.0".into(),
+            status: panda_engine_core::EngineStatusValue::from_wire("ready"),
+            dependencies: vec![panda_engine_core::EngineDependencyStatus {
+                name: "catalog".into(),
+                status: panda_engine_core::EngineStatusValue::from_wire("healthy"),
+                message: "available".into(),
+            }],
+            checked_at_epoch_millis: Some(1_750_000_000_250),
+        };
+
+        assert_eq!(
+            backend_status_to_strings(&status),
+            vec![
+                "1",
+                "0.2.0",
+                "ready",
+                "1750000000250",
+                "1",
+                "catalog",
+                "healthy",
+                "available",
+            ]
         );
     }
 }

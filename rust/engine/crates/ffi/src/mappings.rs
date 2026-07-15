@@ -55,6 +55,7 @@ pub(crate) fn command_from_ffi(command_type: i32) -> EngineCommandType {
                 baseline_revision: 0,
             }
         }
+        FFI_COMMAND_REFRESH_BACKEND_STATUS => EngineCommandType::RefreshBackendStatus,
         _ => EngineCommandType::Unknown(command_type.to_string()),
     }
 }
