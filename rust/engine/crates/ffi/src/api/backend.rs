@@ -20,7 +20,7 @@ pub unsafe extern "C" fn panda_engine_configure_backend(
     engine: *mut PandaEngine,
     config_json: *const c_char,
 ) -> bool {
-    let Some(engine) = (unsafe { engine.as_mut() }) else {
+    let Some(engine) = (unsafe { engine.as_ref() }) else {
         return false;
     };
     let Some(config_json) = c_string(config_json) else {
@@ -30,7 +30,7 @@ pub unsafe extern "C" fn panda_engine_configure_backend(
 }
 
 pub(crate) fn configure_backend(
-    engine: &mut PandaEngine,
+    engine: &PandaEngine,
     config_json: &str,
     mode: DeploymentMode,
 ) -> Result<(), EngineError> {
@@ -50,7 +50,7 @@ pub(crate) fn configure_backend(
 
 #[cfg(test)]
 pub(crate) fn configure_backend_with_channel(
-    engine: &mut PandaEngine,
+    engine: &PandaEngine,
     config_json: &str,
     mode: DeploymentMode,
     channel: CanopyChannel,
@@ -144,11 +144,18 @@ fn c_string(value: *const c_char) -> Option<String> {
 
 #[cfg(test)]
 mod concurrency_tests {
+    use panda_engine_core::EngineError;
     use panda_engine_core::networking::canopy::{CanopyChannel, DeploymentMode};
 
-    use crate::engine_handle::{BackendConfigurationState, build_engine};
+    use crate::engine_handle::{BackendConfigurationState, PandaEngine, build_engine};
 
-    use super::{begin_configuration, finish_configuration};
+    use super::{begin_configuration, configure_backend, finish_configuration};
+
+    #[test]
+    fn configuration_api_requires_only_shared_engine_access() {
+        let _: fn(&PandaEngine, &str, DeploymentMode) -> Result<(), EngineError> =
+            configure_backend;
+    }
 
     #[test]
     fn rejected_concurrent_attempt_cannot_fail_or_replace_the_in_flight_owner() {

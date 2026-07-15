@@ -5,14 +5,14 @@ use crate::engine_handle::build_engine;
 
 #[test]
 fn production_backend_configuration_replaces_default_adapters() {
-    let mut engine = build_engine(0);
+    let engine = build_engine(0);
     let channel = {
         let _runtime = engine.runtime.enter();
         CanopyChannel::connect_lazy_for_test("https://canopy.example.com")
     };
 
     let result = configure_backend_with_channel(
-        &mut engine,
+        &engine,
         valid_config_json(),
         DeploymentMode::Production,
         channel,
@@ -24,10 +24,10 @@ fn production_backend_configuration_replaces_default_adapters() {
 
 #[test]
 fn identical_ready_configuration_is_idempotent() {
-    let mut engine = build_engine(0);
-    configure_with_lazy_channel(&mut engine, valid_config_json()).unwrap();
+    let engine = build_engine(0);
+    configure_with_lazy_channel(&engine, valid_config_json()).unwrap();
 
-    let result = configure_with_lazy_channel(&mut engine, valid_config_json());
+    let result = configure_with_lazy_channel(&engine, valid_config_json());
 
     assert!(result.is_ok());
     assert!(engine.backend_is_configured());
@@ -35,25 +35,25 @@ fn identical_ready_configuration_is_idempotent() {
 
 #[test]
 fn conflicting_ready_configuration_is_rejected() {
-    let mut engine = build_engine(0);
-    configure_with_lazy_channel(&mut engine, valid_config_json()).unwrap();
+    let engine = build_engine(0);
+    configure_with_lazy_channel(&engine, valid_config_json()).unwrap();
     let conflicting = valid_config_json().replace("production", "staging");
 
-    assert!(configure_with_lazy_channel(&mut engine, &conflicting).is_err());
+    assert!(configure_with_lazy_channel(&engine, &conflicting).is_err());
     assert!(engine.backend_is_configured());
 }
 
 #[test]
 fn failed_configuration_cannot_be_retried() {
-    let mut engine = build_engine(0);
-    assert!(configure_with_lazy_channel(&mut engine, "{}").is_err());
+    let engine = build_engine(0);
+    assert!(configure_with_lazy_channel(&engine, "{}").is_err());
 
-    assert!(configure_with_lazy_channel(&mut engine, valid_config_json()).is_err());
+    assert!(configure_with_lazy_channel(&engine, valid_config_json()).is_err());
     assert!(!engine.backend_is_configured());
 }
 
 fn configure_with_lazy_channel(
-    engine: &mut crate::PandaEngine,
+    engine: &crate::PandaEngine,
     json: &str,
 ) -> Result<(), panda_engine_core::EngineError> {
     let channel = {

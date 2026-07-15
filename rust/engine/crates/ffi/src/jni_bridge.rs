@@ -60,7 +60,7 @@ pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_eng
     config_json: JObject,
     development: jboolean,
 ) -> jboolean {
-    let Some(engine) = (unsafe { (handle as *mut PandaEngine).as_mut() }) else {
+    let Some(engine) = (unsafe { (handle as *const PandaEngine).as_ref() }) else {
         return false.into();
     };
     let Some(config_json) = jni_string_to_c_string(&mut env, config_json) else {
