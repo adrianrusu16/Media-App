@@ -94,7 +94,7 @@ async fn concurrent_expiry_runs_one_refresh_and_all_observe_rotation() {
     for _ in 0..12 {
         let coordinator = coordinator.clone();
         tasks.push(tokio::spawn(async move {
-            coordinator.ensure_fresh_session(1_000).await
+            coordinator.ensure_fresh_session_at(1_000).await
         }));
     }
 
@@ -121,8 +121,14 @@ async fn ambiguous_refresh_invalidates_session_and_never_replays_old_token() {
     let auth = Arc::new(auth_impl);
     let coordinator = SessionCoordinator::new(store.clone(), auth.clone());
 
-    let first = coordinator.ensure_fresh_session(1_000).await.unwrap_err();
-    let second = coordinator.ensure_fresh_session(1_000).await.unwrap_err();
+    let first = coordinator
+        .ensure_fresh_session_at(1_000)
+        .await
+        .unwrap_err();
+    let second = coordinator
+        .ensure_fresh_session_at(1_000)
+        .await
+        .unwrap_err();
 
     assert_eq!(first.error_type, EngineErrorType::LoginRequired);
     assert_eq!(second.error_type, EngineErrorType::LoginRequired);
@@ -185,8 +191,14 @@ async fn failed_rotated_store_write_blocks_replay_even_when_clear_fails() {
     let auth = Arc::new(RecordingAuthPort::succeeding(envelope("new", 5_000)));
     let coordinator = SessionCoordinator::new(store.clone(), auth.clone());
 
-    let first = coordinator.ensure_fresh_session(1_000).await.unwrap_err();
-    let second = coordinator.ensure_fresh_session(1_000).await.unwrap_err();
+    let first = coordinator
+        .ensure_fresh_session_at(1_000)
+        .await
+        .unwrap_err();
+    let second = coordinator
+        .ensure_fresh_session_at(1_000)
+        .await
+        .unwrap_err();
 
     assert_eq!(first.error_type, EngineErrorType::SessionStorage);
     assert_eq!(second.error_type, EngineErrorType::LoginRequired);
@@ -276,7 +288,7 @@ async fn cancelled_refresh_cannot_replay_an_ambiguously_consumed_token() {
     let coordinator = Arc::new(SessionCoordinator::new(store.clone(), auth.clone()));
     let refresh = {
         let coordinator = coordinator.clone();
-        tokio::spawn(async move { coordinator.ensure_fresh_session(1_000).await })
+        tokio::spawn(async move { coordinator.ensure_fresh_session_at(1_000).await })
     };
     auth.refresh_started.notified().await;
 
@@ -290,7 +302,7 @@ async fn cancelled_refresh_cannot_replay_an_ambiguously_consumed_token() {
     assert!(refresh.await.unwrap_err().is_cancelled());
     let error = tokio::time::timeout(
         Duration::from_millis(100),
-        coordinator.ensure_fresh_session(1_000),
+        coordinator.ensure_fresh_session_at(1_000),
     )
     .await
     .expect("cancelled refresh must fail closed without starting another RPC")

@@ -9,7 +9,7 @@ use crate::{
 };
 
 use super::CanopyChannel;
-use super::request::{ReplayPolicy, current_epoch_millis, execute_with_auth};
+use super::request::{ReplayPolicy, execute_with_auth};
 use super::sdk::clients::catalog_service_client::CatalogServiceClient;
 use super::sdk::resources::{
     BrowseRequest, BrowseResponse, GetMediaRequest, PageInfo, PageRequest, SearchRequest,
@@ -61,7 +61,6 @@ impl CatalogPort for CanopyCatalogClient {
         let response = execute_with_auth(
             self.session.as_deref(),
             ReplayPolicy::Safe,
-            current_epoch_millis()?,
             || Request::new(request.clone()),
             move |request| {
                 let mut client = client.clone();
@@ -86,7 +85,6 @@ impl CatalogPort for CanopyCatalogClient {
         let response = execute_with_auth(
             self.session.as_deref(),
             ReplayPolicy::Safe,
-            current_epoch_millis()?,
             || Request::new(request.clone()),
             move |request| {
                 let mut client = client.clone();
@@ -106,7 +104,6 @@ impl CatalogPort for CanopyCatalogClient {
         let response = execute_with_auth(
             self.session.as_deref(),
             ReplayPolicy::Safe,
-            current_epoch_millis()?,
             || Request::new(request.clone()),
             move |request| {
                 let mut client = client.clone();

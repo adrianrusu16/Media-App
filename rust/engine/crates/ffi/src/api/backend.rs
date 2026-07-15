@@ -5,7 +5,8 @@ use panda_engine_core::networking::canopy::{
     CanopyChannel, CanopyConnectionConfig, CanopySystemClient, DeploymentMode,
 };
 use panda_engine_core::{
-    CanopyCatalogClient, CanopyPlaybackClient, EngineError, EngineErrorType, RemoteRepository,
+    CanopyAuthClient, CanopyCatalogClient, CanopyPlaybackClient, EngineError, EngineErrorType,
+    InMemorySessionStore, RemoteRepository, SessionCoordinator, SessionStore,
 };
 
 use crate::engine_handle::{BackendConfigurationState, PandaEngine};
@@ -96,18 +97,47 @@ fn finish_configuration(
         return Err(configuration_error());
     }
 
-    let catalog = Arc::new(CanopyCatalogClient::new(&channel));
-    let repository = RemoteRepository::new(catalog);
-    let playback = Arc::new(CanopyPlaybackClient::new(&channel));
-    let system = Arc::new(CanopySystemClient::new(&channel));
+    let composition = compose_backend(&channel);
 
     engine.engine.with_engine(|inner| {
-        inner.set_repository(Box::new(repository));
-        inner.set_playback_port(playback);
-        inner.set_system_port(system);
+        inner.set_repository(Box::new(composition.repository));
+        inner.set_playback_port(composition.playback);
+        inner.set_system_port(composition.system);
     });
     *state = BackendConfigurationState::Ready(Box::new(config));
     Ok(())
+}
+
+struct BackendComposition {
+    #[cfg(test)]
+    session: Arc<SessionCoordinator>,
+    repository: RemoteRepository<CanopyCatalogClient>,
+    playback: Arc<CanopyPlaybackClient>,
+    system: Arc<CanopySystemClient>,
+}
+
+fn compose_backend(channel: &CanopyChannel) -> BackendComposition {
+    let store: Arc<dyn SessionStore> = Arc::new(InMemorySessionStore::new());
+    let auth = Arc::new(CanopyAuthClient::new(channel));
+    let session = Arc::new(SessionCoordinator::new(store, auth));
+    let catalog = Arc::new(CanopyCatalogClient::with_session_coordinator(
+        channel,
+        session.clone(),
+    ));
+    let repository = RemoteRepository::new(catalog);
+    let playback = Arc::new(CanopyPlaybackClient::with_session_coordinator(
+        channel,
+        session.clone(),
+    ));
+    let system = Arc::new(CanopySystemClient::new(channel));
+
+    BackendComposition {
+        #[cfg(test)]
+        session,
+        repository,
+        playback,
+        system,
+    }
 }
 
 fn fail_configuration(engine: &PandaEngine) {
@@ -144,17 +174,34 @@ fn c_string(value: *const c_char) -> Option<String> {
 
 #[cfg(test)]
 mod concurrency_tests {
-    use panda_engine_core::EngineError;
     use panda_engine_core::networking::canopy::{CanopyChannel, DeploymentMode};
+    use panda_engine_core::{AuthState, EngineError};
 
     use crate::engine_handle::{BackendConfigurationState, PandaEngine, build_engine};
 
-    use super::{begin_configuration, configure_backend, finish_configuration};
+    use super::{begin_configuration, compose_backend, configure_backend, finish_configuration};
 
     #[test]
     fn configuration_api_requires_only_shared_engine_access() {
         let _: fn(&PandaEngine, &str, DeploymentMode) -> Result<(), EngineError> =
             configure_backend;
+    }
+
+    #[test]
+    fn backend_composition_shares_one_anonymous_session_coordinator() {
+        let engine = build_engine(0);
+        let channel = {
+            let _entered = engine.runtime.enter();
+            CanopyChannel::connect_lazy_for_test("https://canopy.example.com")
+        };
+
+        let composition = compose_backend(&channel);
+
+        assert_eq!(
+            composition.session.auth_state().unwrap(),
+            AuthState::Anonymous
+        );
+        assert_eq!(std::sync::Arc::strong_count(&composition.session), 3);
     }
 
     #[test]

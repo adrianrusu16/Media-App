@@ -1,14 +1,44 @@
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use tokio::sync::Mutex;
 
 use crate::{AuthPort, AuthState, EngineError, EngineErrorType, SessionStore};
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+use super::clock::current_epoch_millis;
+
+#[derive(Clone, Copy)]
+enum ExpiryClock {
+    System,
+    Fixed(u64),
+}
+
+impl ExpiryClock {
+    fn now(self) -> Result<u64, EngineError> {
+        match self {
+            Self::System => current_epoch_millis(),
+            Self::Fixed(now) => Ok(now),
+        }
+    }
+}
+
+#[derive(Clone, Eq, PartialEq)]
 pub(crate) enum AccessSnapshot {
     Anonymous,
-    Authenticated { token: String },
+    Authenticated { token: String, generation: u64 },
+}
+
+impl std::fmt::Debug for AccessSnapshot {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Anonymous => formatter.write_str("Anonymous"),
+            Self::Authenticated { generation, .. } => formatter
+                .debug_struct("Authenticated")
+                .field("token", &"[REDACTED]")
+                .field("generation", generation)
+                .finish(),
+        }
+    }
 }
 
 /// Rust-owned authentication session orchestration for the Canopy adapter.
@@ -21,6 +51,7 @@ pub struct SessionCoordinator {
     auth: Arc<dyn AuthPort>,
     rotation: Mutex<()>,
     invalidated: AtomicBool,
+    generation: AtomicU64,
 }
 
 impl SessionCoordinator {
@@ -30,6 +61,7 @@ impl SessionCoordinator {
             auth,
             rotation: Mutex::new(()),
             invalidated: AtomicBool::new(false),
+            generation: AtomicU64::new(0),
         }
     }
 
@@ -45,11 +77,26 @@ impl SessionCoordinator {
             .map_or(AuthState::Anonymous, |envelope| envelope.state()))
     }
 
-    pub async fn ensure_fresh_session(
+    pub async fn ensure_fresh_session(&self) -> Result<AuthState, EngineError> {
+        self.ensure_fresh_session_with_clock(ExpiryClock::System)
+            .await
+    }
+
+    #[doc(hidden)]
+    pub async fn ensure_fresh_session_at(
         &self,
         now_epoch_millis: u64,
     ) -> Result<AuthState, EngineError> {
+        self.ensure_fresh_session_with_clock(ExpiryClock::Fixed(now_epoch_millis))
+            .await
+    }
+
+    async fn ensure_fresh_session_with_clock(
+        &self,
+        clock: ExpiryClock,
+    ) -> Result<AuthState, EngineError> {
         let _rotation = self.rotation.lock().await;
+        let now_epoch_millis = clock.now()?;
         if self.invalidated.load(Ordering::Acquire) {
             return Err(login_required());
         }
@@ -60,14 +107,28 @@ impl SessionCoordinator {
             .map_err(EngineError::from)?
             .ok_or_else(login_required)?;
         let current = self
-            .fresh_envelope_locked(current, now_epoch_millis)
+            .fresh_envelope_locked(current, clock, now_epoch_millis)
             .await?;
         Ok(current.state())
     }
 
-    pub(crate) async fn fresh_access_snapshot(
+    pub(crate) async fn fresh_access_snapshot(&self) -> Result<AccessSnapshot, EngineError> {
+        self.fresh_access_snapshot_with_clock(ExpiryClock::System)
+            .await
+    }
+
+    #[cfg(test)]
+    pub(crate) async fn fresh_access_snapshot_at(
         &self,
         now_epoch_millis: u64,
+    ) -> Result<AccessSnapshot, EngineError> {
+        self.fresh_access_snapshot_with_clock(ExpiryClock::Fixed(now_epoch_millis))
+            .await
+    }
+
+    async fn fresh_access_snapshot_with_clock(
+        &self,
+        clock: ExpiryClock,
     ) -> Result<AccessSnapshot, EngineError> {
         let _rotation = self.rotation.lock().await;
         if self.invalidated.load(Ordering::Acquire) {
@@ -77,42 +138,80 @@ impl SessionCoordinator {
         let Some(current) = self.store.read().map_err(EngineError::from)? else {
             return Ok(AccessSnapshot::Anonymous);
         };
+        let now_epoch_millis = clock.now()?;
         let current = self
-            .fresh_envelope_locked(current, now_epoch_millis)
+            .fresh_envelope_locked(current, clock, now_epoch_millis)
             .await?;
-        Ok(access_snapshot(&current))
+        Ok(self.access_snapshot(&current))
     }
 
     pub(crate) async fn refresh_after_rejection(
         &self,
         rejected: &AccessSnapshot,
+    ) -> Result<AccessSnapshot, EngineError> {
+        self.refresh_after_rejection_with_clock(rejected, ExpiryClock::System)
+            .await
+    }
+
+    #[cfg(test)]
+    pub(crate) async fn refresh_after_rejection_at(
+        &self,
+        rejected: &AccessSnapshot,
         now_epoch_millis: u64,
     ) -> Result<AccessSnapshot, EngineError> {
+        self.refresh_after_rejection_with_clock(rejected, ExpiryClock::Fixed(now_epoch_millis))
+            .await
+    }
+
+    async fn refresh_after_rejection_with_clock(
+        &self,
+        rejected: &AccessSnapshot,
+        clock: ExpiryClock,
+    ) -> Result<AccessSnapshot, EngineError> {
         let AccessSnapshot::Authenticated {
-            token: rejected_token,
+            generation: rejected_generation,
+            ..
         } = rejected
         else {
             return Err(login_required());
         };
 
         let _rotation = self.rotation.lock().await;
+        let now_epoch_millis = clock.now()?;
         if self.invalidated.load(Ordering::Acquire) {
             return Err(login_required());
         }
-        let current = self
-            .store
-            .read()
-            .map_err(EngineError::from)?
-            .ok_or_else(login_required)?;
-        if current.credentials().access_token != rejected_token {
+        if self.generation.load(Ordering::Acquire) != *rejected_generation {
+            let current = match self.store.read() {
+                Ok(Some(current)) => current,
+                Ok(None) => {
+                    self.invalidate();
+                    return Err(login_required());
+                }
+                Err(error) => return Err(error.into()),
+            };
             let current = self
-                .fresh_envelope_locked(current, now_epoch_millis)
+                .fresh_envelope_locked(current, clock, now_epoch_millis)
                 .await?;
-            return Ok(access_snapshot(&current));
+            return Ok(self.access_snapshot(&current));
         }
 
-        let replacement = self.refresh_locked(current, now_epoch_millis).await?;
-        Ok(access_snapshot(&replacement))
+        let current = match self.store.read() {
+            Ok(Some(current)) => current,
+            Ok(None) => {
+                self.invalidate();
+                return Err(login_required());
+            }
+            Err(error) => {
+                self.invalidate();
+                return Err(error.into());
+            }
+        };
+
+        let replacement = self
+            .refresh_locked(current, clock, now_epoch_millis)
+            .await?;
+        Ok(self.access_snapshot(&replacement))
     }
 
     pub(crate) async fn invalidate_if_current(
@@ -120,7 +219,8 @@ impl SessionCoordinator {
         rejected: &AccessSnapshot,
     ) -> Result<(), EngineError> {
         let AccessSnapshot::Authenticated {
-            token: rejected_token,
+            generation: rejected_generation,
+            ..
         } = rejected
         else {
             return Ok(());
@@ -130,11 +230,7 @@ impl SessionCoordinator {
         if self.invalidated.load(Ordering::Acquire) {
             return Ok(());
         }
-        let current = self.store.read().map_err(EngineError::from)?;
-        if current
-            .as_ref()
-            .is_some_and(|envelope| envelope.credentials().access_token == rejected_token)
-        {
+        if self.generation.load(Ordering::Acquire) == *rejected_generation {
             self.invalidate();
         }
         Ok(())
@@ -143,18 +239,20 @@ impl SessionCoordinator {
     async fn fresh_envelope_locked(
         &self,
         current: crate::AuthSessionEnvelope,
+        clock: ExpiryClock,
         now_epoch_millis: u64,
     ) -> Result<crate::AuthSessionEnvelope, EngineError> {
         let credentials = current.credentials();
         if credentials.access_token_expires_at_epoch_millis > now_epoch_millis {
             return Ok(current);
         }
-        self.refresh_locked(current, now_epoch_millis).await
+        self.refresh_locked(current, clock, now_epoch_millis).await
     }
 
     async fn refresh_locked(
         &self,
         current: crate::AuthSessionEnvelope,
+        clock: ExpiryClock,
         now_epoch_millis: u64,
     ) -> Result<crate::AuthSessionEnvelope, EngineError> {
         let credentials = current.credentials();
@@ -170,9 +268,20 @@ impl SessionCoordinator {
             Err(_) => return Err(login_required()),
         };
 
+        let after_refresh_epoch_millis = clock.now()?;
+        let replacement_credentials = replacement.credentials();
+        if replacement_credentials.access_token_expires_at_epoch_millis
+            <= after_refresh_epoch_millis
+            || replacement_credentials.refresh_token_expires_at_epoch_millis
+                <= after_refresh_epoch_millis
+        {
+            return Err(login_required());
+        }
+
         if let Err(error) = self.store.replace(replacement.clone()) {
             return Err(error.into());
         }
+        self.advance_generation()?;
         attempt.disarm();
 
         Ok(replacement)
@@ -188,6 +297,7 @@ impl SessionCoordinator {
 
         self.invalidated.store(true, Ordering::Release);
         let clear_result = self.store.clear();
+        let generation_result = self.advance_generation();
 
         if let Some(error) = read_error {
             return match clear_result {
@@ -195,6 +305,7 @@ impl SessionCoordinator {
                 Err(clear_error) => Err(clear_error.into()),
             };
         }
+        generation_result?;
 
         let remote_result = match access_token {
             Some(access_token) => self.auth.logout(&access_token).await,
@@ -218,6 +329,7 @@ impl SessionCoordinator {
     fn invalidate(&self) {
         self.invalidated.store(true, Ordering::Release);
         let _ = self.store.clear();
+        let _ = self.advance_generation();
     }
 
     #[allow(dead_code)]
@@ -231,11 +343,41 @@ impl SessionCoordinator {
             .map_err(EngineError::from)?
             .map(|envelope| envelope.credentials().access_token.to_owned()))
     }
-}
 
-fn access_snapshot(envelope: &crate::AuthSessionEnvelope) -> AccessSnapshot {
-    AccessSnapshot::Authenticated {
-        token: envelope.credentials().access_token.to_owned(),
+    #[allow(dead_code)]
+    pub(crate) async fn install_session(
+        &self,
+        envelope: crate::AuthSessionEnvelope,
+    ) -> Result<(), EngineError> {
+        let _rotation = self.rotation.lock().await;
+        self.store.replace(envelope).map_err(EngineError::from)?;
+        self.advance_generation()?;
+        self.invalidated.store(false, Ordering::Release);
+        Ok(())
+    }
+
+    fn access_snapshot(&self, envelope: &crate::AuthSessionEnvelope) -> AccessSnapshot {
+        AccessSnapshot::Authenticated {
+            token: envelope.credentials().access_token.to_owned(),
+            generation: self.generation.load(Ordering::Acquire),
+        }
+    }
+
+    fn advance_generation(&self) -> Result<u64, EngineError> {
+        self.generation
+            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |current| {
+                current.checked_add(1)
+            })
+            .map(|previous| previous + 1)
+            .map_err(|_| {
+                self.invalidated.store(true, Ordering::Release);
+                let _ = self.store.clear();
+                EngineError::new(
+                    EngineErrorType::SessionStorage,
+                    "session generation space exhausted",
+                    false,
+                )
+            })
     }
 }
 
@@ -276,11 +418,12 @@ fn login_required() -> EngineError {
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
     use super::{AccessSnapshot, SessionCoordinator};
     use crate::{
         Account, AuthPort, AuthSession, AuthSessionEnvelope, EngineError, InMemorySessionStore,
-        SessionStore,
+        SessionStore, SessionStoreError, SessionStoreSecurity,
     };
 
     struct UnusedAuthPort;
@@ -351,14 +494,15 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn late_rejection_does_not_invalidate_a_newer_session() {
+    async fn late_rejection_does_not_invalidate_newer_identical_token_generation() {
         let store = Arc::new(InMemorySessionStore::with_session(envelope()));
         let coordinator = SessionCoordinator::new(store.clone(), Arc::new(UnusedAuthPort));
         let rejected = AccessSnapshot::Authenticated {
             token: "current-access".into(),
+            generation: 0,
         };
         let newer = AuthSessionEnvelope::new(
-            "newer-access".into(),
+            "current-access".into(),
             8_000,
             "newer-refresh".into(),
             12_000,
@@ -377,7 +521,7 @@ mod tests {
                 current: true,
             },
         );
-        store.replace(newer).unwrap();
+        coordinator.install_session(newer).await.unwrap();
 
         coordinator.invalidate_if_current(&rejected).await.unwrap();
 
@@ -387,7 +531,85 @@ mod tests {
         ));
         assert_eq!(
             coordinator.access_token_snapshot().unwrap().as_deref(),
-            Some("newer-access")
+            Some("current-access")
+        );
+    }
+
+    #[test]
+    fn access_snapshot_debug_redacts_the_raw_token() {
+        let snapshot = AccessSnapshot::Authenticated {
+            token: "raw-access-secret".into(),
+            generation: 42,
+        };
+
+        let rendered = format!("{snapshot:?}");
+
+        assert!(!rendered.contains("raw-access-secret"));
+        assert!(rendered.contains("REDACTED"));
+    }
+
+    struct ToggleReadStore {
+        fail_reads: AtomicBool,
+        clear_calls: AtomicUsize,
+        current: std::sync::Mutex<Option<AuthSessionEnvelope>>,
+    }
+
+    impl SessionStore for ToggleReadStore {
+        fn security_level(&self) -> SessionStoreSecurity {
+            SessionStoreSecurity::Ephemeral
+        }
+
+        fn read(&self) -> Result<Option<AuthSessionEnvelope>, SessionStoreError> {
+            if self.fail_reads.load(Ordering::SeqCst) {
+                Err(SessionStoreError::Unavailable("read failed".into()))
+            } else {
+                Ok(self.current.lock().unwrap().clone())
+            }
+        }
+
+        fn replace(&self, envelope: AuthSessionEnvelope) -> Result<(), SessionStoreError> {
+            *self.current.lock().unwrap() = Some(envelope);
+            Ok(())
+        }
+
+        fn clear(&self) -> Result<(), SessionStoreError> {
+            self.clear_calls.fetch_add(1, Ordering::SeqCst);
+            *self.current.lock().unwrap() = None;
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn rejected_current_generation_read_failure_latches_invalidation() {
+        let store = Arc::new(ToggleReadStore {
+            fail_reads: AtomicBool::new(false),
+            clear_calls: AtomicUsize::new(0),
+            current: std::sync::Mutex::new(Some(envelope())),
+        });
+        let coordinator = SessionCoordinator::new(store.clone(), Arc::new(UnusedAuthPort));
+        let snapshot = coordinator.fresh_access_snapshot_at(1_000).await.unwrap();
+        store.fail_reads.store(true, Ordering::SeqCst);
+
+        let error = coordinator
+            .refresh_after_rejection_at(&snapshot, 1_000)
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.error_type, crate::EngineErrorType::SessionStorage);
+        assert_eq!(store.clear_calls.load(Ordering::SeqCst), 1);
+        assert_eq!(
+            coordinator.auth_state().unwrap(),
+            crate::AuthState::LoginRequired
+        );
+        store.fail_reads.store(false, Ordering::SeqCst);
+        assert_eq!(store.read().unwrap(), None);
+        assert_eq!(
+            coordinator
+                .fresh_access_snapshot_at(1_000)
+                .await
+                .unwrap_err()
+                .error_type,
+            crate::EngineErrorType::LoginRequired
         );
     }
 }

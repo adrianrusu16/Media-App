@@ -8,7 +8,7 @@ use crate::networking::PlaybackPort;
 use crate::{EngineError, EngineErrorType, EnginePlaybackSource};
 
 use super::CanopyChannel;
-use super::request::{ReplayPolicy, current_epoch_millis, execute_with_auth};
+use super::request::{ReplayPolicy, execute_with_auth};
 use super::sdk::clients::playback_service_client::PlaybackServiceClient;
 use super::sdk::resources::{PlaybackSource, ResolvePlaybackRequest};
 use super::session::SessionCoordinator;
@@ -47,7 +47,6 @@ impl PlaybackPort for CanopyPlaybackClient {
         let response = execute_with_auth(
             self.session.as_deref(),
             ReplayPolicy::Safe,
-            current_epoch_millis()?,
             || playback_request(track_id),
             move |request| {
                 let mut client = client.clone();

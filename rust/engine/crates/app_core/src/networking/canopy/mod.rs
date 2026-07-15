@@ -5,6 +5,7 @@
 mod auth;
 mod catalog;
 mod channel;
+mod clock;
 mod config;
 mod error;
 mod playback;

@@ -176,6 +176,7 @@ impl From<&EngineSnapshot> for FfiEngineSnapshot {
                     panda_engine_core::EngineErrorType::AuthenticationError
                     | panda_engine_core::EngineErrorType::LoginRequired
                     | panda_engine_core::EngineErrorType::AuthExpired
+                    | panda_engine_core::EngineErrorType::SessionStorage
                     | panda_engine_core::EngineErrorType::Forbidden => FFI_ERROR_AUTHENTICATION,
                     panda_engine_core::EngineErrorType::MediaSkipped => FFI_ERROR_MEDIA_SKIPPED,
                     panda_engine_core::EngineErrorType::InvalidInput
