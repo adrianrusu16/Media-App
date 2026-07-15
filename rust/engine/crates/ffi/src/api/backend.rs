@@ -26,7 +26,7 @@ pub unsafe extern "C" fn panda_engine_configure_backend(
     let Some(config_json) = c_string(config_json) else {
         return false;
     };
-    configure_backend(engine, config_json, DeploymentMode::Production).is_ok()
+    configure_backend(engine, &config_json, DeploymentMode::Production).is_ok()
 }
 
 pub(crate) fn configure_backend(
@@ -69,7 +69,7 @@ fn begin_configuration(
     let config = match CanopyConnectionConfig::parse_and_validate(config_json, mode) {
         Ok(config) => config,
         Err(error) => {
-            fail_configuration(engine);
+            fail_unstarted_configuration(engine);
             return Err(error);
         }
     };
@@ -91,6 +91,11 @@ fn finish_configuration(
     config: CanopyConnectionConfig,
     channel: CanopyChannel,
 ) -> Result<(), EngineError> {
+    let mut state = engine.backend_configuration.lock().unwrap();
+    if !matches!(*state, BackendConfigurationState::Configuring) {
+        return Err(configuration_error());
+    }
+
     let catalog = Arc::new(CanopyCatalogClient::new(&channel));
     let repository = RemoteRepository::new(catalog);
     let playback = Arc::new(CanopyPlaybackClient::new(&channel));
@@ -101,14 +106,20 @@ fn finish_configuration(
         inner.set_playback_port(playback);
         inner.set_system_port(system);
     });
-    *engine.backend_configuration.lock().unwrap() =
-        BackendConfigurationState::Ready(Box::new(config));
+    *state = BackendConfigurationState::Ready(Box::new(config));
     Ok(())
 }
 
 fn fail_configuration(engine: &PandaEngine) {
     let mut state = engine.backend_configuration.lock().unwrap();
-    if !matches!(*state, BackendConfigurationState::Ready(_)) {
+    if matches!(*state, BackendConfigurationState::Configuring) {
+        *state = BackendConfigurationState::Failed;
+    }
+}
+
+fn fail_unstarted_configuration(engine: &PandaEngine) {
+    let mut state = engine.backend_configuration.lock().unwrap();
+    if matches!(*state, BackendConfigurationState::Unconfigured) {
         *state = BackendConfigurationState::Failed;
     }
 }
@@ -121,9 +132,83 @@ fn configuration_error() -> EngineError {
     )
 }
 
-fn c_string<'a>(value: *const c_char) -> Option<&'a str> {
+fn c_string(value: *const c_char) -> Option<String> {
     if value.is_null() {
         return None;
     }
-    unsafe { CStr::from_ptr(value) }.to_str().ok()
+    unsafe { CStr::from_ptr(value) }
+        .to_str()
+        .ok()
+        .map(str::to_owned)
+}
+
+#[cfg(test)]
+mod concurrency_tests {
+    use panda_engine_core::networking::canopy::{CanopyChannel, DeploymentMode};
+
+    use crate::engine_handle::{BackendConfigurationState, build_engine};
+
+    use super::{begin_configuration, finish_configuration};
+
+    #[test]
+    fn rejected_concurrent_attempt_cannot_fail_or_replace_the_in_flight_owner() {
+        let engine = build_engine(0);
+        let config = begin_configuration(&engine, valid_config_json(), DeploymentMode::Production)
+            .unwrap()
+            .unwrap();
+        assert!(matches!(
+            *engine.backend_configuration.lock().unwrap(),
+            BackendConfigurationState::Configuring
+        ));
+
+        assert!(begin_configuration(&engine, "{}", DeploymentMode::Production).is_err());
+        assert!(matches!(
+            *engine.backend_configuration.lock().unwrap(),
+            BackendConfigurationState::Configuring
+        ));
+
+        let channel = {
+            let _runtime = engine.runtime.enter();
+            CanopyChannel::connect_lazy_for_test("https://canopy.example.com")
+        };
+        finish_configuration(&engine, config, channel).unwrap();
+        assert!(matches!(
+            *engine.backend_configuration.lock().unwrap(),
+            BackendConfigurationState::Ready(_)
+        ));
+    }
+
+    fn valid_config_json() -> &'static str {
+        r#"{
+          "schema_version": 1,
+          "environment": "production",
+          "contract": {
+            "protobuf_package": "canopy.v1",
+            "bsr_module": "buf.build/pandawave/canopy-api",
+            "release": "v0.2.0",
+            "commit": "145678c1d73e45b7bbaebf7e16ee4d64",
+            "prost_package": "pandawave_canopy-api_community_neoeinstein-prost",
+            "prost_version": "=0.5.0-00000000000000-145678c1d73e.2",
+            "tonic_package": "pandawave_canopy-api_community_neoeinstein-tonic",
+            "tonic_version": "=0.5.0-00000000000000-145678c1d73e.4"
+          },
+          "transport": {
+            "grpc_endpoint": "https://canopy.example.com",
+            "stream_base_url": "https://stream.example.com",
+            "openapi_url": "https://api.example.com/openapi.json",
+            "tls_required_outside_loopback": true
+          },
+          "authentication": {
+            "metadata_key": "authorization",
+            "metadata_scheme": "Bearer",
+            "verification_action_relative_path": "verify-email",
+            "verification_token_query_parameter": "token",
+            "password_reset_action_relative_path": "reset-password",
+            "password_reset_token_query_parameter": "token",
+            "expiry_query_parameter": "expires_at",
+            "auth_service_requires_postgresql": true,
+            "password_bootstrap_requires_email_delivery": true
+          }
+        }"#
+    }
 }

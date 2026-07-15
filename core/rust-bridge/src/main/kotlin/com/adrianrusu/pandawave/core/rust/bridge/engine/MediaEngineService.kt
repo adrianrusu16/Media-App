@@ -43,7 +43,7 @@ class MediaEngineService : Service() {
 
         override fun dispatch(command: EngineCommand) {
             val result = engine?.dispatch(command)
-                ?: unavailableResult(EngineEvent.TYPE_COMMAND_APPLIED)
+                ?: backendUnavailableResult(unavailableSnapshot)
 
             notifySnapshotChanged(result.snapshot)
             notifyEngineEvent(result.event)
@@ -51,7 +51,7 @@ class MediaEngineService : Service() {
 
         override fun dispatchPlatformEvent(event: EnginePlatformEvent) {
             val result = engine?.dispatchPlatformEvent(event)
-                ?: unavailableResult(EngineEvent.TYPE_PLATFORM_EVENT_APPLIED)
+                ?: backendUnavailableResult(unavailableSnapshot)
 
             notifySnapshotChanged(result.snapshot)
             notifyEngineEvent(result.event)
@@ -104,12 +104,6 @@ class MediaEngineService : Service() {
         }
     }
 
-    private fun unavailableResult(eventType: String): EngineDispatchResult = EngineDispatchResult(
-        snapshot = unavailableSnapshot,
-        event = EngineEvent(type = eventType, message = BACKEND_UNAVAILABLE),
-        effects = emptyList()
-    )
-
     private fun unavailableSnapshot(): EngineSnapshot = EngineSnapshot.idle(System.currentTimeMillis()).copy(
         playbackState = EngineSnapshot.PLAYBACK_ERROR,
         hasError = true,
@@ -117,7 +111,13 @@ class MediaEngineService : Service() {
         canDispatch = false
     )
 
-    private companion object {
-        const val BACKEND_UNAVAILABLE = "backend_unavailable"
-    }
 }
+
+internal fun backendUnavailableResult(snapshot: EngineSnapshot): EngineDispatchResult = EngineDispatchResult(
+    snapshot = snapshot,
+    event = EngineEvent(
+        type = EngineEvent.TYPE_GATEWAY_UNAVAILABLE,
+        message = "backend_unavailable"
+    ),
+    effects = emptyList()
+)
