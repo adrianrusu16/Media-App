@@ -8,6 +8,7 @@ mod channel;
 mod config;
 mod error;
 mod playback;
+mod request;
 pub(crate) mod sdk;
 mod session;
 mod system;

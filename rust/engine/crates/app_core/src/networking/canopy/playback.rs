@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::time::Duration;
 
 use tonic_014::Request;
@@ -7,20 +8,34 @@ use crate::networking::PlaybackPort;
 use crate::{EngineError, EngineErrorType, EnginePlaybackSource};
 
 use super::CanopyChannel;
-use super::error::map_status;
+use super::request::{ReplayPolicy, current_epoch_millis, execute_with_auth};
 use super::sdk::clients::playback_service_client::PlaybackServiceClient;
 use super::sdk::resources::{PlaybackSource, ResolvePlaybackRequest};
+use super::session::SessionCoordinator;
 
 /// Canonical unary Canopy playback adapter.
 #[derive(Clone)]
 pub struct CanopyPlaybackClient {
     client: PlaybackServiceClient<Channel>,
+    session: Option<Arc<SessionCoordinator>>,
 }
 
 impl CanopyPlaybackClient {
     pub fn new(channel: &CanopyChannel) -> Self {
         Self {
             client: PlaybackServiceClient::new(channel.clone_inner()),
+            session: None,
+        }
+    }
+
+    /// Composes playback transport with Rust-owned Canopy session handling.
+    pub fn with_session_coordinator(
+        channel: &CanopyChannel,
+        session: Arc<SessionCoordinator>,
+    ) -> Self {
+        Self {
+            client: PlaybackServiceClient::new(channel.clone_inner()),
+            session: Some(session),
         }
     }
 }
@@ -28,12 +43,19 @@ impl CanopyPlaybackClient {
 #[async_trait::async_trait]
 impl PlaybackPort for CanopyPlaybackClient {
     async fn resolve_playback(&self, track_id: &str) -> Result<EnginePlaybackSource, EngineError> {
-        let mut client = self.client.clone();
-        let response = client
-            .resolve_playback(playback_request(track_id))
-            .await
-            .map_err(map_status)?
-            .into_inner();
+        let client = self.client.clone();
+        let response = execute_with_auth(
+            self.session.as_deref(),
+            ReplayPolicy::Safe,
+            current_epoch_millis(),
+            || playback_request(track_id),
+            move |request| {
+                let mut client = client.clone();
+                async move { client.resolve_playback(request).await }
+            },
+        )
+        .await?
+        .into_inner();
         map_playback_source(response)
     }
 }

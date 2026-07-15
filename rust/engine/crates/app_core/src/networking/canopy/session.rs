@@ -5,6 +5,12 @@ use tokio::sync::Mutex;
 
 use crate::{AuthPort, AuthState, EngineError, EngineErrorType, SessionStore};
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum AccessSnapshot {
+    Anonymous,
+    Authenticated { token: String },
+}
+
 /// Rust-owned authentication session orchestration for the Canopy adapter.
 ///
 /// The coordinator serializes refresh rotation and is the only component that
@@ -53,10 +59,105 @@ impl SessionCoordinator {
             .read()
             .map_err(EngineError::from)?
             .ok_or_else(login_required)?;
+        let current = self
+            .fresh_envelope_locked(current, now_epoch_millis)
+            .await?;
+        Ok(current.state())
+    }
+
+    pub(crate) async fn fresh_access_snapshot(
+        &self,
+        now_epoch_millis: u64,
+    ) -> Result<AccessSnapshot, EngineError> {
+        let _rotation = self.rotation.lock().await;
+        if self.invalidated.load(Ordering::Acquire) {
+            return Err(login_required());
+        }
+
+        let Some(current) = self.store.read().map_err(EngineError::from)? else {
+            return Ok(AccessSnapshot::Anonymous);
+        };
+        let current = self
+            .fresh_envelope_locked(current, now_epoch_millis)
+            .await?;
+        Ok(access_snapshot(&current))
+    }
+
+    pub(crate) async fn refresh_after_rejection(
+        &self,
+        rejected: &AccessSnapshot,
+        now_epoch_millis: u64,
+    ) -> Result<AccessSnapshot, EngineError> {
+        let AccessSnapshot::Authenticated {
+            token: rejected_token,
+        } = rejected
+        else {
+            return Err(login_required());
+        };
+
+        let _rotation = self.rotation.lock().await;
+        if self.invalidated.load(Ordering::Acquire) {
+            return Err(login_required());
+        }
+        let current = self
+            .store
+            .read()
+            .map_err(EngineError::from)?
+            .ok_or_else(login_required)?;
+        if current.credentials().access_token != rejected_token {
+            let current = self
+                .fresh_envelope_locked(current, now_epoch_millis)
+                .await?;
+            return Ok(access_snapshot(&current));
+        }
+
+        let replacement = self.refresh_locked(current, now_epoch_millis).await?;
+        Ok(access_snapshot(&replacement))
+    }
+
+    pub(crate) async fn invalidate_if_current(
+        &self,
+        rejected: &AccessSnapshot,
+    ) -> Result<(), EngineError> {
+        let AccessSnapshot::Authenticated {
+            token: rejected_token,
+        } = rejected
+        else {
+            return Ok(());
+        };
+
+        let _rotation = self.rotation.lock().await;
+        if self.invalidated.load(Ordering::Acquire) {
+            return Ok(());
+        }
+        let current = self.store.read().map_err(EngineError::from)?;
+        if current
+            .as_ref()
+            .is_some_and(|envelope| envelope.credentials().access_token == rejected_token)
+        {
+            self.invalidate();
+        }
+        Ok(())
+    }
+
+    async fn fresh_envelope_locked(
+        &self,
+        current: crate::AuthSessionEnvelope,
+        now_epoch_millis: u64,
+    ) -> Result<crate::AuthSessionEnvelope, EngineError> {
         let credentials = current.credentials();
         if credentials.access_token_expires_at_epoch_millis > now_epoch_millis {
-            return Ok(current.state());
+            return Ok(current);
         }
+        self.refresh_locked(current, now_epoch_millis).await
+    }
+
+    async fn refresh_locked(
+        &self,
+        current: crate::AuthSessionEnvelope,
+        now_epoch_millis: u64,
+    ) -> Result<crate::AuthSessionEnvelope, EngineError> {
+        let credentials = current.credentials();
         if credentials.refresh_token_expires_at_epoch_millis <= now_epoch_millis {
             self.invalidate();
             return Err(login_required());
@@ -74,7 +175,7 @@ impl SessionCoordinator {
         }
         attempt.disarm();
 
-        Ok(replacement.state())
+        Ok(replacement)
     }
 
     pub async fn logout(&self) -> Result<(), EngineError> {
@@ -132,6 +233,12 @@ impl SessionCoordinator {
     }
 }
 
+fn access_snapshot(envelope: &crate::AuthSessionEnvelope) -> AccessSnapshot {
+    AccessSnapshot::Authenticated {
+        token: envelope.credentials().access_token.to_owned(),
+    }
+}
+
 struct RefreshAttemptGuard<'a> {
     coordinator: &'a SessionCoordinator,
     armed: bool,
@@ -170,7 +277,7 @@ fn login_required() -> EngineError {
 mod tests {
     use std::sync::Arc;
 
-    use super::SessionCoordinator;
+    use super::{AccessSnapshot, SessionCoordinator};
     use crate::{
         Account, AuthPort, AuthSession, AuthSessionEnvelope, EngineError, InMemorySessionStore,
         SessionStore,
@@ -241,5 +348,46 @@ mod tests {
         let coordinator = SessionCoordinator::new(store, Arc::new(UnusedAuthPort));
 
         assert_eq!(coordinator.access_token_snapshot().unwrap(), None);
+    }
+
+    #[tokio::test]
+    async fn late_rejection_does_not_invalidate_a_newer_session() {
+        let store = Arc::new(InMemorySessionStore::with_session(envelope()));
+        let coordinator = SessionCoordinator::new(store.clone(), Arc::new(UnusedAuthPort));
+        let rejected = AccessSnapshot::Authenticated {
+            token: "current-access".into(),
+        };
+        let newer = AuthSessionEnvelope::new(
+            "newer-access".into(),
+            8_000,
+            "newer-refresh".into(),
+            12_000,
+            Account {
+                id: "account-1".into(),
+                primary_email: "driver@example.com".into(),
+                status: "active".into(),
+                created_at_epoch_millis: 100,
+            },
+            AuthSession {
+                id: "session-1".into(),
+                device_label: "car".into(),
+                created_at_epoch_millis: 100,
+                last_used_at_epoch_millis: 300,
+                expires_at_epoch_millis: 12_000,
+                current: true,
+            },
+        );
+        store.replace(newer).unwrap();
+
+        coordinator.invalidate_if_current(&rejected).await.unwrap();
+
+        assert!(matches!(
+            coordinator.auth_state().unwrap(),
+            crate::AuthState::Authenticated { .. }
+        ));
+        assert_eq!(
+            coordinator.access_token_snapshot().unwrap().as_deref(),
+            Some("newer-access")
+        );
     }
 }

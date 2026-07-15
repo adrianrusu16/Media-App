@@ -1,3 +1,7 @@
+use std::sync::Arc;
+
+use tonic_014::Request;
+
 use crate::networking::backend_client::CatalogPort;
 use crate::{
     EngineAlbum, EngineArtist, EngineError, EngineErrorType, EnginePageRequest, EnginePageToken,
@@ -5,23 +9,37 @@ use crate::{
 };
 
 use super::CanopyChannel;
-use super::error::map_status;
+use super::request::{ReplayPolicy, current_epoch_millis, execute_with_auth};
 use super::sdk::clients::catalog_service_client::CatalogServiceClient;
 use super::sdk::resources::{
     BrowseRequest, BrowseResponse, GetMediaRequest, PageInfo, PageRequest, SearchRequest,
     SearchResponse, Track, TrackSummary,
 };
+use super::session::SessionCoordinator;
 
 /// Canonical unary Canopy catalog adapter.
 #[derive(Clone)]
 pub struct CanopyCatalogClient {
     client: CatalogServiceClient<super::sdk::runtime::transport::Channel>,
+    session: Option<Arc<SessionCoordinator>>,
 }
 
 impl CanopyCatalogClient {
     pub fn new(channel: &CanopyChannel) -> Self {
         Self {
             client: CatalogServiceClient::new(channel.clone_inner()),
+            session: None,
+        }
+    }
+
+    /// Composes catalog transport with Rust-owned Canopy session handling.
+    pub fn with_session_coordinator(
+        channel: &CanopyChannel,
+        session: Arc<SessionCoordinator>,
+    ) -> Self {
+        Self {
+            client: CatalogServiceClient::new(channel.clone_inner()),
+            session: Some(session),
         }
     }
 }
@@ -39,12 +57,19 @@ impl CatalogPort for CanopyCatalogClient {
             genres: genres.to_vec(),
             page: Some(map_page_request(page)),
         };
-        let mut client = self.client.clone();
-        let response = client
-            .browse(request)
-            .await
-            .map_err(map_status)?
-            .into_inner();
+        let client = self.client.clone();
+        let response = execute_with_auth(
+            self.session.as_deref(),
+            ReplayPolicy::Safe,
+            current_epoch_millis(),
+            || Request::new(request.clone()),
+            move |request| {
+                let mut client = client.clone();
+                async move { client.browse(request).await }
+            },
+        )
+        .await?
+        .into_inner();
         map_browse_response(response)
     }
 
@@ -57,24 +82,39 @@ impl CatalogPort for CanopyCatalogClient {
             query: query.to_owned(),
             page: Some(map_page_request(page)),
         };
-        let mut client = self.client.clone();
-        let response = client
-            .search(request)
-            .await
-            .map_err(map_status)?
-            .into_inner();
+        let client = self.client.clone();
+        let response = execute_with_auth(
+            self.session.as_deref(),
+            ReplayPolicy::Safe,
+            current_epoch_millis(),
+            || Request::new(request.clone()),
+            move |request| {
+                let mut client = client.clone();
+                async move { client.search(request).await }
+            },
+        )
+        .await?
+        .into_inner();
         map_search_response(response)
     }
 
     async fn get_media(&self, track_id: &str) -> Result<EngineTrack, EngineError> {
-        let mut client = self.client.clone();
-        let response = client
-            .get_media(GetMediaRequest {
-                track_id: track_id.to_owned(),
-            })
-            .await
-            .map_err(map_status)?
-            .into_inner();
+        let request = GetMediaRequest {
+            track_id: track_id.to_owned(),
+        };
+        let client = self.client.clone();
+        let response = execute_with_auth(
+            self.session.as_deref(),
+            ReplayPolicy::Safe,
+            current_epoch_millis(),
+            || Request::new(request.clone()),
+            move |request| {
+                let mut client = client.clone();
+                async move { client.get_media(request).await }
+            },
+        )
+        .await?
+        .into_inner();
         map_track(response)
     }
 }
