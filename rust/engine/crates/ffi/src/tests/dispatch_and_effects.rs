@@ -286,7 +286,9 @@ fn search_updates_snapshot_results() {
         });
     }
 
-    let query = CString::new("Rust").unwrap();
+    let query =
+        CString::new(r#"{"version":1,"query":"Rust","page":{"page_size":25,"page_token":null}}"#)
+            .unwrap();
     let outcome = unsafe { panda_engine_dispatch(engine, FFI_COMMAND_SEARCH, query.as_ptr(), 500) };
 
     assert_eq!(1, outcome.snapshot.search_results_count);
@@ -355,13 +357,18 @@ fn browse_keeps_search_results_separate() {
         });
     }
 
-    let query = CString::new("Rust").unwrap();
+    let query =
+        CString::new(r#"{"version":1,"query":"Rust","page":{"page_size":25,"page_token":null}}"#)
+            .unwrap();
     let search_outcome =
         unsafe { panda_engine_dispatch(engine, FFI_COMMAND_SEARCH, query.as_ptr(), 500) };
     assert_eq!(1, search_outcome.snapshot.search_results_count);
     assert_eq!(0, search_outcome.snapshot.browse_results_count);
 
-    let parent = CString::new("root").unwrap();
+    let parent = CString::new(
+        r#"{"version":1,"parent_id":"root","genres":[],"page":{"page_size":25,"page_token":null}}"#,
+    )
+    .unwrap();
     let browse_outcome =
         unsafe { panda_engine_dispatch(engine, FFI_COMMAND_BROWSE, parent.as_ptr(), 900) };
 

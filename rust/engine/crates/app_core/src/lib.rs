@@ -74,7 +74,7 @@ pub use crate::model::playback::{
 pub use crate::model::preferences::{PreferenceSource, ThemePreference, ThemePreferenceState};
 pub use crate::model::snapshot::EngineSnapshot;
 pub use crate::networking::{
-    AudioChunk, AudioSourceClient, BackendClient, CanopyAudioSourceClient, PlaybackSource,
+    AudioChunk, AudioSourceClient, CanopyCatalogClient, CatalogPort, PlaybackSource,
     RemoteRepository, RetryingAudioSourceClient, SystemPort,
 };
 pub use crate::services::player::{MediaPlayer, MockPlayer};

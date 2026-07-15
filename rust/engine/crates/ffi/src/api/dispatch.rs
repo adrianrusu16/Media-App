@@ -9,9 +9,10 @@ use crate::engine_handle::remember_outcome;
 use crate::mappings::{command_from_ffi, platform_event_from_ffi};
 use crate::{
     FFI_COMMAND_APPLY_REMOTE_THEME_PREFERENCE, FFI_COMMAND_BROWSE,
-    FFI_COMMAND_HYDRATE_THEME_PREFERENCE, FFI_COMMAND_PLAY_MEDIA_BY_ID, FFI_COMMAND_PROCESS_VOICE,
-    FFI_COMMAND_SEARCH, FFI_COMMAND_SEEK, FFI_COMMAND_SET_SPEED, FFI_COMMAND_SET_THEME_PREFERENCE,
-    FFI_COMMAND_START_SESSION, FFI_COMMAND_UNKNOWN, FfiEngineOutcome, PandaEngine,
+    FFI_COMMAND_HYDRATE_THEME_PREFERENCE, FFI_COMMAND_LOAD_NEXT_CATALOG_PAGE,
+    FFI_COMMAND_PLAY_MEDIA_BY_ID, FFI_COMMAND_PROCESS_VOICE, FFI_COMMAND_SEARCH, FFI_COMMAND_SEEK,
+    FFI_COMMAND_SET_SPEED, FFI_COMMAND_SET_THEME_PREFERENCE, FFI_COMMAND_START_SESSION,
+    FFI_COMMAND_UNKNOWN, FfiEngineOutcome, PandaEngine,
 };
 
 #[derive(Deserialize)]
@@ -86,17 +87,15 @@ pub unsafe extern "C" fn panda_engine_dispatch(
     match engine {
         Some(engine) => {
             let command = match command_type {
-                FFI_COMMAND_SEARCH => EngineCommand::new(
-                    EngineCommandType::Search {
-                        query: payload_str.clone().unwrap_or_default(),
-                    },
-                    None,
-                ),
-                FFI_COMMAND_BROWSE => EngineCommand::new(
-                    EngineCommandType::Browse {
-                        parent_id: payload_str.clone().unwrap_or_else(|| "root".to_string()),
-                    },
-                    None,
+                FFI_COMMAND_SEARCH => {
+                    EngineCommand::from_wire(EngineCommandType::SEARCH_WIRE, payload_str.clone())
+                }
+                FFI_COMMAND_BROWSE => {
+                    EngineCommand::from_wire(EngineCommandType::BROWSE_WIRE, payload_str.clone())
+                }
+                FFI_COMMAND_LOAD_NEXT_CATALOG_PAGE => EngineCommand::from_wire(
+                    EngineCommandType::LOAD_NEXT_CATALOG_PAGE_WIRE,
+                    payload_str.clone(),
                 ),
                 FFI_COMMAND_SET_SPEED => {
                     let speed = payload_str

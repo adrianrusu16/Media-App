@@ -96,9 +96,13 @@ async fn test_search_clears_busy_on_repository_error() {
     let mut engine = Engine::new(100);
 
     let mut repo = MockMediaRepository::new();
-    repo.expect_search()
-        .times(1)
-        .returning(|_| Err(anyhow::anyhow!("backend unavailable")));
+    repo.expect_search_catalog().times(1).returning(|_, _| {
+        Err(crate::EngineError::new(
+            crate::EngineErrorType::ServiceUnavailable,
+            "backend unavailable",
+            false,
+        ))
+    });
     engine.set_repository(Box::new(repo));
 
     engine

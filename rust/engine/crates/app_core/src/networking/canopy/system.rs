@@ -69,7 +69,9 @@ fn map_status_response(response: GetStatusResponse) -> Result<EngineBackendStatu
     })
 }
 
-fn timestamp_to_epoch_millis(timestamp: prost_types_014::Timestamp) -> Result<u64, EngineError> {
+fn timestamp_to_epoch_millis(
+    timestamp: super::sdk::well_known_types::Timestamp,
+) -> Result<u64, EngineError> {
     if timestamp.seconds < 0 || !(0..1_000_000_000).contains(&timestamp.nanos) {
         return Err(mapping_defect());
     }
@@ -91,9 +93,9 @@ fn mapping_defect() -> EngineError {
 
 #[cfg(test)]
 mod tests {
+    use super::super::sdk::well_known_types::Timestamp;
     use super::{map_status_response, status_request};
     use crate::networking::canopy::sdk::resources::{DependencyStatus, GetStatusResponse};
-    use prost_types_014::Timestamp;
 
     #[test]
     fn maps_status_and_preserves_open_dependency_values() {

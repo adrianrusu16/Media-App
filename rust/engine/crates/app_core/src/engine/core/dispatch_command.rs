@@ -48,6 +48,7 @@ impl Engine {
         }
 
         let mut effects = Vec::new();
+        let mut event_message = None;
 
         match &command.command_type {
             EngineCommandType::StartSession { user_id } => {
@@ -137,19 +138,144 @@ impl Engine {
                     next_snapshot.playback_state = PlaybackState::Idle;
                 }
             }
-            EngineCommandType::Search { query } => {
+            EngineCommandType::SearchCatalog { query, page } => {
                 next_snapshot = next_snapshot.with_busy(true);
-                let results = self.repository.search(query).await;
-                next_snapshot = next_snapshot
-                    .with_search_results(results.unwrap_or_default())
-                    .with_busy(false);
+                let results = self.repository.search_catalog(query, page.clone()).await;
+                match results {
+                    Ok(result) => {
+                        let operation_id = self.allocate_catalog_operation_id(now_epoch_millis);
+                        self.catalog_operations.insert(
+                            operation_id.clone(),
+                            CatalogOperation::Search {
+                                query: query.clone(),
+                                page_size: page.page_size,
+                                next_page_token: result.next_page_token,
+                            },
+                        );
+                        event_message = Some(operation_id);
+                        next_snapshot = next_snapshot.with_search_results(result.items);
+                    }
+                    Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
+                }
+                next_snapshot = next_snapshot.with_busy(false);
             }
-            EngineCommandType::Browse { parent_id } => {
+            EngineCommandType::BrowseCatalog {
+                parent_id,
+                genres,
+                page,
+            } => {
                 next_snapshot = next_snapshot.with_busy(true);
-                let results = self.repository.browse(parent_id).await;
-                next_snapshot = next_snapshot
-                    .with_browse_results(results.unwrap_or_default())
-                    .with_busy(false);
+                let results = self
+                    .repository
+                    .browse_catalog(parent_id.as_deref(), genres, page.clone())
+                    .await;
+                match results {
+                    Ok(result) => {
+                        let operation_id = self.allocate_catalog_operation_id(now_epoch_millis);
+                        self.catalog_operations.insert(
+                            operation_id.clone(),
+                            CatalogOperation::Browse {
+                                parent_id: parent_id.clone(),
+                                genres: genres.clone(),
+                                page_size: page.page_size,
+                                next_page_token: result.next_page_token,
+                            },
+                        );
+                        event_message = Some(operation_id);
+                        next_snapshot = next_snapshot.with_browse_results(result.items);
+                    }
+                    Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
+                }
+                next_snapshot = next_snapshot.with_busy(false);
+            }
+            EngineCommandType::LoadNextCatalogPage { operation_id } => {
+                next_snapshot = next_snapshot.with_busy(true);
+                let operation = self.catalog_operations.get(operation_id).cloned();
+                match operation {
+                    Some(CatalogOperation::Search {
+                        query,
+                        page_size,
+                        next_page_token: Some(page_token),
+                    }) => {
+                        match self
+                            .repository
+                            .search_catalog(
+                                &query,
+                                crate::EnginePageRequest {
+                                    page_size,
+                                    page_token: Some(page_token),
+                                },
+                            )
+                            .await
+                        {
+                            Ok(result) => {
+                                let mut items = next_snapshot.search_results.clone();
+                                items.extend(result.items);
+                                next_snapshot = next_snapshot.with_search_results(items);
+                                if let Some(operation) =
+                                    self.catalog_operations.get_mut(operation_id)
+                                    && let CatalogOperation::Search {
+                                        next_page_token, ..
+                                    } = operation
+                                {
+                                    *next_page_token = result.next_page_token;
+                                }
+                                event_message = Some(operation_id.clone());
+                            }
+                            Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
+                        }
+                    }
+                    Some(CatalogOperation::Browse {
+                        parent_id,
+                        genres,
+                        page_size,
+                        next_page_token: Some(page_token),
+                    }) => {
+                        match self
+                            .repository
+                            .browse_catalog(
+                                parent_id.as_deref(),
+                                &genres,
+                                crate::EnginePageRequest {
+                                    page_size,
+                                    page_token: Some(page_token),
+                                },
+                            )
+                            .await
+                        {
+                            Ok(result) => {
+                                let mut items = next_snapshot.browse_results.clone();
+                                items.extend(result.items);
+                                next_snapshot = next_snapshot.with_browse_results(items);
+                                if let Some(operation) =
+                                    self.catalog_operations.get_mut(operation_id)
+                                    && let CatalogOperation::Browse {
+                                        next_page_token, ..
+                                    } = operation
+                                {
+                                    *next_page_token = result.next_page_token;
+                                }
+                                event_message = Some(operation_id.clone());
+                            }
+                            Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
+                        }
+                    }
+                    Some(_) => {
+                        next_snapshot = next_snapshot.with_error(Some(EngineError::new(
+                            crate::EngineErrorType::FailedPrecondition,
+                            "catalog operation has no next page",
+                            false,
+                        )));
+                    }
+                    None => {
+                        next_snapshot = next_snapshot.with_error(Some(EngineError::new(
+                            crate::EngineErrorType::InvalidInput,
+                            "unknown catalog operation",
+                            false,
+                        )));
+                    }
+                }
+                next_snapshot = next_snapshot.with_busy(false);
             }
             EngineCommandType::SetSpeed { speed } => {
                 next_snapshot = next_snapshot.with_speed(*speed);
@@ -381,7 +507,9 @@ impl Engine {
 
         let mut outcome = EngineOutcome {
             snapshot: self.snapshot.clone(),
-            event: EngineEvent::command_applied(Some(command.command_type.as_wire().to_owned())),
+            event: EngineEvent::command_applied(
+                event_message.or_else(|| Some(command.command_type.as_wire().to_owned())),
+            ),
             effects,
         };
 

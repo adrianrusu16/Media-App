@@ -80,7 +80,9 @@ fn ffi_block_on_bridge_handles_slow_async_dispatch_without_deadlock() {
             .with_engine(|e| e.set_repository(Box::new(SlowSearchRepository)));
     }
 
-    let query = CString::new("slow").unwrap();
+    let query =
+        CString::new(r#"{"version":1,"query":"slow","page":{"page_size":25,"page_token":null}}"#)
+            .unwrap();
     let (tx, rx) = std::sync::mpsc::channel();
     let engine_addr = engine as usize;
     let query_addr = query.as_ptr() as usize;
@@ -139,7 +141,9 @@ fn ffi_dispatch_handles_async_future_panic_and_returns_invalid_outcome() {
             .with_engine(|e| e.set_repository(Box::new(PanicSearchRepository)));
     }
 
-    let query = CString::new("panic").unwrap();
+    let query =
+        CString::new(r#"{"version":1,"query":"panic","page":{"page_size":25,"page_token":null}}"#)
+            .unwrap();
     let outcome = unsafe { panda_engine_dispatch(engine, FFI_COMMAND_SEARCH, query.as_ptr(), 700) };
 
     assert_eq!(outcome, FfiEngineOutcome::invalid());

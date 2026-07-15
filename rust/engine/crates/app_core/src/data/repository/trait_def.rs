@@ -1,4 +1,5 @@
 use super::MediaItem;
+use crate::{EngineError, EnginePageRequest, EnginePagedResult};
 
 /// Abstract definition for media data management.
 ///
@@ -27,4 +28,46 @@ pub trait MediaRepository: Send + Sync {
 
     /// Searches for media items matching the provided query string.
     async fn search(&self, query: &str) -> anyhow::Result<Vec<MediaItem>>;
+
+    /// Browses a catalog page while keeping continuation tokens engine-owned.
+    async fn browse_catalog<'a>(
+        &'a self,
+        parent_id: Option<&'a str>,
+        _genres: &[String],
+        _page: EnginePageRequest,
+    ) -> Result<EnginePagedResult<MediaItem>, EngineError> {
+        let items = self
+            .browse(parent_id.unwrap_or("root"))
+            .await
+            .map_err(|error| {
+                EngineError::new(
+                    crate::EngineErrorType::NetworkError,
+                    error.to_string(),
+                    false,
+                )
+            })?;
+        Ok(EnginePagedResult {
+            items,
+            next_page_token: None,
+        })
+    }
+
+    /// Searches a catalog page while keeping continuation tokens engine-owned.
+    async fn search_catalog(
+        &self,
+        query: &str,
+        _page: EnginePageRequest,
+    ) -> Result<EnginePagedResult<MediaItem>, EngineError> {
+        let items = self.search(query).await.map_err(|error| {
+            EngineError::new(
+                crate::EngineErrorType::NetworkError,
+                error.to_string(),
+                false,
+            )
+        })?;
+        Ok(EnginePagedResult {
+            items,
+            next_page_token: None,
+        })
+    }
 }

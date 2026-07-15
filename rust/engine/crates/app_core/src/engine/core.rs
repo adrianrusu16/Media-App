@@ -18,7 +18,23 @@ use tracing::{info, instrument, warn};
 
 use crate::engine::observability::EventBus;
 use crate::services::service::ServiceManager;
+use std::collections::HashMap;
 use std::sync::Arc;
+
+#[derive(Clone)]
+enum CatalogOperation {
+    Search {
+        query: String,
+        page_size: u32,
+        next_page_token: Option<crate::EnginePageToken>,
+    },
+    Browse {
+        parent_id: Option<String>,
+        genres: Vec<String>,
+        page_size: u32,
+        next_page_token: Option<crate::EnginePageToken>,
+    },
+}
 
 // Core engine orchestration root:
 // - Public `Engine` API surface lives here.
@@ -55,6 +71,8 @@ pub struct Engine {
     service_manager: ServiceManager,
     audio_source_client: Option<Arc<dyn AudioSourceClient>>,
     system_port: Option<Arc<dyn SystemPort>>,
+    catalog_operations: HashMap<String, CatalogOperation>,
+    next_catalog_operation_sequence: u64,
     player: Option<Box<dyn MediaPlayer>>,
     voice_engine: Option<Box<dyn VoiceEngine>>,
 }
@@ -73,6 +91,8 @@ impl Default for Engine {
             service_manager: ServiceManager::new(),
             audio_source_client: None,
             system_port: None,
+            catalog_operations: HashMap::new(),
+            next_catalog_operation_sequence: 0,
             player: None,
             voice_engine: None,
         }
@@ -107,6 +127,8 @@ impl Engine {
             service_manager: ServiceManager::new(),
             audio_source_client: None,
             system_port: None,
+            catalog_operations: HashMap::new(),
+            next_catalog_operation_sequence: 0,
             player: None,
             voice_engine: None,
         };
@@ -188,6 +210,12 @@ impl Engine {
     /// Returns the current configuration of the engine.
     pub fn config(&self) -> &crate::model::config::EngineConfig {
         &self.config
+    }
+
+    fn allocate_catalog_operation_id(&mut self, now_epoch_millis: u64) -> String {
+        let sequence = self.next_catalog_operation_sequence;
+        self.next_catalog_operation_sequence = self.next_catalog_operation_sequence.wrapping_add(1);
+        format!("catalog-{now_epoch_millis}-{sequence}")
     }
 
     /// Dispatches a command to the engine, returning the outcome.

@@ -1,34 +1,20 @@
-use crate::data::repository::MediaItem;
-use std::pin::Pin;
+use crate::{EngineError, EnginePageRequest, EnginePagedResult, EngineTrack};
 
-pub type MediaItemStream =
-    Pin<Box<dyn tokio_stream::Stream<Item = anyhow::Result<MediaItem>> + Send>>;
-
-/// Abstract, transport-agnostic client for talking to a remote media backend.
-///
-/// This is the single seam through which the engine reaches out to the network.
-/// Concrete implementations (e.g., a tonic/gRPC client) live behind this trait,
-/// so the engine and the data layer never depend on a specific transport.
-///
-/// In test builds, `mockall` auto-generates a `MockBackendClient` that can be
-/// configured with custom return values, argument matchers, call-count
-/// expectations, and (via `returning` closures) slow/error behavior. This makes
-/// it easy to simulate backend latency, timeouts, and failures in unit tests.
-#[cfg_attr(test, mockall::automock)]
+/// Backend-neutral catalog boundary used by engine data consumers.
 #[async_trait::async_trait]
-pub trait BackendClient: Send + Sync {
-    /// Fetches the children of the given parent node from the remote backend.
-    async fn fetch_children(&self, parent_id: &str) -> anyhow::Result<Vec<MediaItem>>;
+pub trait CatalogPort: Send + Sync {
+    async fn browse(
+        &self,
+        parent_id: Option<&str>,
+        genres: &[String],
+        page: EnginePageRequest,
+    ) -> Result<EnginePagedResult<EngineTrack>, EngineError>;
 
-    /// Executes a search query against the remote backend.
-    async fn search(&self, query: &str) -> anyhow::Result<Vec<MediaItem>>;
+    async fn search(
+        &self,
+        query: &str,
+        page: EnginePageRequest,
+    ) -> Result<EnginePagedResult<EngineTrack>, EngineError>;
 
-    /// Executes a search query and returns progressive results.
-    ///
-    /// Default implementation adapts unary `search` into a stream so existing
-    /// backends stay compatible while gRPC streaming clients can override it.
-    async fn search_stream(&self, query: &str) -> anyhow::Result<MediaItemStream> {
-        let results = self.search(query).await?;
-        Ok(Box::pin(tokio_stream::iter(results.into_iter().map(Ok))))
-    }
+    async fn get_media(&self, track_id: &str) -> Result<EngineTrack, EngineError>;
 }

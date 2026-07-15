@@ -126,6 +126,91 @@ async fn browse_does_not_overwrite_previous_search_results() {
 }
 
 #[tokio::test]
+async fn load_next_catalog_page_reuses_token_and_appends_results() {
+    let mut repository = crate::data::repository::MockMediaRepository::new();
+    repository
+        .expect_search_catalog()
+        .withf(|query, page| {
+            query == "Rust"
+                && page
+                    .page_token
+                    .as_ref()
+                    .map(|token| token.as_str())
+                    .is_none()
+        })
+        .times(1)
+        .returning(|_, _| {
+            Ok(crate::EnginePagedResult {
+                items: vec![MediaItem {
+                    id: "page-1".into(),
+                    title: "First".into(),
+                    ..Default::default()
+                }],
+                next_page_token: Some(crate::EnginePageToken::new("opaque+/=".into()).unwrap()),
+            })
+        });
+    repository
+        .expect_search_catalog()
+        .withf(|query, page| {
+            query == "Rust"
+                && page.page_token.as_ref().map(|token| token.as_str()) == Some("opaque+/=")
+        })
+        .times(1)
+        .returning(|_, _| {
+            Ok(crate::EnginePagedResult {
+                items: vec![MediaItem {
+                    id: "page-2".into(),
+                    title: "Second".into(),
+                    ..Default::default()
+                }],
+                next_page_token: None,
+            })
+        });
+
+    let mut engine = Engine::new(100);
+    engine.set_repository(Box::new(repository));
+    let first = engine
+        .dispatch(
+            EngineCommand::search_catalog(
+                "Rust".into(),
+                crate::EnginePageRequest {
+                    page_size: 1,
+                    page_token: None,
+                },
+            ),
+            150,
+        )
+        .await;
+
+    assert_eq!(first.snapshot.search_results[0].id, "page-1");
+    assert_eq!(first.event.message.as_deref(), Some("catalog-150-0"));
+
+    let second = engine
+        .dispatch(
+            EngineCommand::load_next_catalog_page("catalog-150-0".into()),
+            200,
+        )
+        .await;
+
+    assert_eq!(second.snapshot.search_results.len(), 2);
+    assert_eq!(second.snapshot.search_results[1].id, "page-2");
+}
+
+#[tokio::test]
+async fn catalog_operation_ids_are_unique_at_the_same_timestamp() {
+    let mut engine = Engine::new(100);
+
+    let first = engine
+        .dispatch(EngineCommand::search("first".into()), 150)
+        .await;
+    let second = engine
+        .dispatch(EngineCommand::search("second".into()), 150)
+        .await;
+
+    assert_ne!(first.event.message, second.event.message);
+}
+
+#[tokio::test]
 async fn play_command_emits_effects() {
     let mut engine = Engine::new(100);
     engine

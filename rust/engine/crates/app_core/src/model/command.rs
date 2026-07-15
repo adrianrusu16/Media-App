@@ -1,3 +1,31 @@
+use serde::{Deserialize, Serialize};
+
+use crate::EnginePageRequest;
+
+const CATALOG_PAYLOAD_VERSION: u32 = 1;
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+struct SearchCatalogPayload {
+    version: u32,
+    query: String,
+    page: EnginePageRequest,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+struct BrowseCatalogPayload {
+    version: u32,
+    parent_id: Option<String>,
+    #[serde(default)]
+    genres: Vec<String>,
+    page: EnginePageRequest,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+struct LoadNextCatalogPagePayload {
+    version: u32,
+    operation_id: String,
+}
+
 /// Represents the different types of commands the engine can process.
 #[derive(Clone, Debug, PartialEq)]
 pub enum EngineCommandType {
@@ -17,10 +45,19 @@ pub enum EngineCommandType {
     EndSession,
     /// Refreshes the public backend health projection.
     RefreshBackendStatus,
-    /// Searches for media items matching the provided query string.
-    Search { query: String },
-    /// Retrieves a list of media items that are children of the specified parent ID.
-    Browse { parent_id: String },
+    /// Searches a unary catalog page.
+    SearchCatalog {
+        query: String,
+        page: EnginePageRequest,
+    },
+    /// Browses a unary catalog page.
+    BrowseCatalog {
+        parent_id: Option<String>,
+        genres: Vec<String>,
+        page: EnginePageRequest,
+    },
+    /// Continues a previously dispatched catalog operation.
+    LoadNextCatalogPage { operation_id: String },
     /// Changes the playback speed.
     SetSpeed { speed: f32 },
     /// Seeks to a specific position in milliseconds.
@@ -80,6 +117,8 @@ impl EngineCommandType {
     pub const SEARCH_WIRE: &'static str = "search";
     /// Wire value for Browse command.
     pub const BROWSE_WIRE: &'static str = "browse";
+    /// Wire value for loading the next page of an active catalog operation.
+    pub const LOAD_NEXT_CATALOG_PAGE_WIRE: &'static str = "load_next_catalog_page";
     /// Wire value for SetSpeed command.
     pub const SET_SPEED_WIRE: &'static str = "set_speed";
     /// Wire value for Seek command.
@@ -119,11 +158,17 @@ impl EngineCommandType {
             },
             Self::END_SESSION_WIRE => Self::EndSession,
             Self::REFRESH_BACKEND_STATUS_WIRE => Self::RefreshBackendStatus,
-            Self::SEARCH_WIRE => Self::Search {
-                query: "".to_string(),
+            Self::SEARCH_WIRE => Self::SearchCatalog {
+                query: String::new(),
+                page: EnginePageRequest::default(),
             },
-            Self::BROWSE_WIRE => Self::Browse {
-                parent_id: "root".to_string(),
+            Self::BROWSE_WIRE => Self::BrowseCatalog {
+                parent_id: None,
+                genres: Vec::new(),
+                page: EnginePageRequest::default(),
+            },
+            Self::LOAD_NEXT_CATALOG_PAGE_WIRE => Self::LoadNextCatalogPage {
+                operation_id: String::new(),
             },
             Self::SET_SPEED_WIRE => Self::SetSpeed { speed: 1.0 },
             Self::SEEK_WIRE => Self::Seek { position_millis: 0 },
@@ -168,8 +213,9 @@ impl EngineCommandType {
             Self::StartSession { .. } => Self::START_SESSION_WIRE,
             Self::EndSession => Self::END_SESSION_WIRE,
             Self::RefreshBackendStatus => Self::REFRESH_BACKEND_STATUS_WIRE,
-            Self::Search { .. } => Self::SEARCH_WIRE,
-            Self::Browse { .. } => Self::BROWSE_WIRE,
+            Self::SearchCatalog { .. } => Self::SEARCH_WIRE,
+            Self::BrowseCatalog { .. } => Self::BROWSE_WIRE,
+            Self::LoadNextCatalogPage { .. } => Self::LOAD_NEXT_CATALOG_PAGE_WIRE,
             Self::SetSpeed { .. } => Self::SET_SPEED_WIRE,
             Self::Seek { .. } => Self::SEEK_WIRE,
             Self::UpdateConfig { .. } => Self::UPDATE_CONFIG_WIRE,
@@ -207,7 +253,25 @@ impl EngineCommand {
 
     /// Convenience method to create a command from wire values.
     pub fn from_wire(command_type: impl Into<String>, payload: Option<String>) -> Self {
-        Self::new(EngineCommandType::from_wire(command_type), payload)
+        let command_type = command_type.into();
+        let parsed = match command_type.as_str() {
+            EngineCommandType::SEARCH_WIRE => {
+                payload.as_deref().and_then(parse_search_catalog_payload)
+            }
+            EngineCommandType::BROWSE_WIRE => {
+                payload.as_deref().and_then(parse_browse_catalog_payload)
+            }
+            EngineCommandType::LOAD_NEXT_CATALOG_PAGE_WIRE => payload
+                .as_deref()
+                .and_then(parse_load_next_catalog_page_payload),
+            _ => Some(EngineCommandType::from_wire(command_type.clone())),
+        };
+        Self::new(
+            parsed.unwrap_or_else(|| {
+                EngineCommandType::Unknown(format!("invalid_{command_type}_payload"))
+            }),
+            payload,
+        )
     }
 
     /// Creates a Play command.
@@ -247,12 +311,56 @@ impl EngineCommand {
 
     /// Creates a Search command.
     pub fn search(query: String) -> Self {
-        Self::new(EngineCommandType::Search { query }, None)
+        Self::search_catalog(query, EnginePageRequest::default())
     }
 
     /// Creates a Browse command.
     pub fn browse(parent_id: String) -> Self {
-        Self::new(EngineCommandType::Browse { parent_id }, None)
+        Self::browse_catalog(Some(parent_id), Vec::new(), EnginePageRequest::default())
+    }
+
+    pub fn search_catalog(query: String, page: EnginePageRequest) -> Self {
+        let payload = SearchCatalogPayload {
+            version: CATALOG_PAYLOAD_VERSION,
+            query: query.clone(),
+            page: page.clone(),
+        };
+        Self::new(
+            EngineCommandType::SearchCatalog { query, page },
+            serde_json::to_string(&payload).ok(),
+        )
+    }
+
+    pub fn browse_catalog(
+        parent_id: Option<String>,
+        genres: Vec<String>,
+        page: EnginePageRequest,
+    ) -> Self {
+        let payload = BrowseCatalogPayload {
+            version: CATALOG_PAYLOAD_VERSION,
+            parent_id: parent_id.clone(),
+            genres: genres.clone(),
+            page: page.clone(),
+        };
+        Self::new(
+            EngineCommandType::BrowseCatalog {
+                parent_id,
+                genres,
+                page,
+            },
+            serde_json::to_string(&payload).ok(),
+        )
+    }
+
+    pub fn load_next_catalog_page(operation_id: String) -> Self {
+        let payload = LoadNextCatalogPagePayload {
+            version: CATALOG_PAYLOAD_VERSION,
+            operation_id: operation_id.clone(),
+        };
+        Self::new(
+            EngineCommandType::LoadNextCatalogPage { operation_id },
+            serde_json::to_string(&payload).ok(),
+        )
     }
 
     /// Creates a SetSpeed command.
@@ -327,6 +435,33 @@ impl EngineCommand {
     }
 }
 
+fn parse_search_catalog_payload(payload: &str) -> Option<EngineCommandType> {
+    let payload: SearchCatalogPayload = serde_json::from_str(payload).ok()?;
+    (payload.version == CATALOG_PAYLOAD_VERSION && !payload.query.trim().is_empty()).then_some(
+        EngineCommandType::SearchCatalog {
+            query: payload.query,
+            page: payload.page,
+        },
+    )
+}
+
+fn parse_browse_catalog_payload(payload: &str) -> Option<EngineCommandType> {
+    let payload: BrowseCatalogPayload = serde_json::from_str(payload).ok()?;
+    (payload.version == CATALOG_PAYLOAD_VERSION).then_some(EngineCommandType::BrowseCatalog {
+        parent_id: payload.parent_id,
+        genres: payload.genres,
+        page: payload.page,
+    })
+}
+
+fn parse_load_next_catalog_page_payload(payload: &str) -> Option<EngineCommandType> {
+    let payload: LoadNextCatalogPagePayload = serde_json::from_str(payload).ok()?;
+    (payload.version == CATALOG_PAYLOAD_VERSION && !payload.operation_id.trim().is_empty())
+        .then_some(EngineCommandType::LoadNextCatalogPage {
+            operation_id: payload.operation_id,
+        })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -351,14 +486,17 @@ mod tests {
         );
         assert_eq!(
             EngineCommandType::from_wire(EngineCommandType::SEARCH_WIRE),
-            EngineCommandType::Search {
-                query: "".to_string()
+            EngineCommandType::SearchCatalog {
+                query: String::new(),
+                page: EnginePageRequest::default(),
             }
         );
         assert_eq!(
             EngineCommandType::from_wire(EngineCommandType::BROWSE_WIRE),
-            EngineCommandType::Browse {
-                parent_id: "root".to_string()
+            EngineCommandType::BrowseCatalog {
+                parent_id: None,
+                genres: Vec::new(),
+                page: EnginePageRequest::default(),
             }
         );
     }
@@ -371,5 +509,57 @@ mod tests {
             EngineCommandType::Unknown("invalid_wire".to_string())
         );
         assert_eq!(command.payload.as_deref(), Some("payload"));
+    }
+
+    #[test]
+    fn search_catalog_decodes_versioned_json_page_payload() {
+        let payload =
+            r#"{"version":1,"query":"jazz","page":{"page_size":25,"page_token":"opaque+/="}}"#;
+
+        let command = EngineCommand::from_wire("search", Some(payload.into()));
+
+        assert_eq!(
+            command.command_type,
+            EngineCommandType::SearchCatalog {
+                query: "jazz".into(),
+                page: crate::EnginePageRequest {
+                    page_size: 25,
+                    page_token: Some(crate::EnginePageToken::new("opaque+/=".into()).unwrap()),
+                },
+            }
+        );
+    }
+
+    #[test]
+    fn browse_catalog_decodes_versioned_json_filters() {
+        let payload = r#"{"version":1,"parent_id":null,"genres":["jazz","fusion"],"page":{"page_size":10,"page_token":null}}"#;
+
+        let command = EngineCommand::from_wire("browse", Some(payload.into()));
+
+        assert_eq!(
+            command.command_type,
+            EngineCommandType::BrowseCatalog {
+                parent_id: None,
+                genres: vec!["jazz".into(), "fusion".into()],
+                page: crate::EnginePageRequest {
+                    page_size: 10,
+                    page_token: None,
+                },
+            }
+        );
+    }
+
+    #[test]
+    fn next_catalog_page_decodes_operation_id_from_json() {
+        let payload = r#"{"version":1,"operation_id":"catalog-42"}"#;
+
+        let command = EngineCommand::from_wire("load_next_catalog_page", Some(payload.into()));
+
+        assert_eq!(
+            command.command_type,
+            EngineCommandType::LoadNextCatalogPage {
+                operation_id: "catalog-42".into(),
+            }
+        );
     }
 }

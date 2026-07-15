@@ -1,51 +1,36 @@
 use std::sync::Arc;
-use tokio_stream::StreamExt;
 
 use crate::data::repository::{MediaItem, MediaRepository};
-use crate::networking::backend_client::{BackendClient, MediaItemStream};
+use crate::networking::backend_client::CatalogPort;
+use crate::{EngineError, EnginePageRequest, EnginePagedResult, EngineTrack};
 
-/// A [`MediaRepository`] backed by a remote [`BackendClient`].
-///
-/// This is the layer that wires the engine's data-access abstraction to the
-/// networking boundary. The repository stays transport-agnostic: it only knows
-/// about the [`BackendClient`] trait and delegates the async, network-bound
-/// operations (`browse`, `search`) to it. The concrete transport (tonic/gRPC,
-/// etc.) is hidden inside whichever `BackendClient` is injected.
+/// Projects backend-neutral catalog tracks into the legacy playback repository view.
 pub struct RemoteRepository<C> {
     client: Arc<C>,
 }
 
 impl<C> RemoteRepository<C>
 where
-    C: BackendClient,
+    C: CatalogPort,
 {
-    /// Creates a new repository that delegates remote calls to `client`.
     pub fn new(client: Arc<C>) -> Self {
         Self { client }
     }
 
-    pub async fn search_stream(&self, query: &str) -> anyhow::Result<MediaItemStream> {
-        self.client.search_stream(query).await
-    }
-
-    pub async fn search_collect_progressive(&self, query: &str) -> anyhow::Result<Vec<MediaItem>> {
-        let mut stream = self.client.search_stream(query).await?;
-        let mut items = Vec::new();
-        while let Some(item) = stream.next().await {
-            items.push(item?);
+    fn project_page(page: EnginePagedResult<EngineTrack>) -> EnginePagedResult<MediaItem> {
+        EnginePagedResult {
+            items: page.items.into_iter().map(project_track).collect(),
+            next_page_token: page.next_page_token,
         }
-        Ok(items)
     }
 }
 
 #[async_trait::async_trait]
 impl<C> MediaRepository for RemoteRepository<C>
 where
-    C: BackendClient,
+    C: CatalogPort,
 {
     fn get_by_id(&self, _id: &str) -> Option<MediaItem> {
-        // Synchronous lookups are not yet supported by the remote backend.
-        // A future revision may add a local cache populated by browse/search.
         None
     }
 
@@ -58,113 +43,120 @@ where
     }
 
     async fn browse(&self, parent_id: &str) -> anyhow::Result<Vec<MediaItem>> {
-        self.client.fetch_children(parent_id).await
+        Ok(self
+            .browse_catalog(Some(parent_id), &[], EnginePageRequest::default())
+            .await?
+            .items)
     }
 
     async fn search(&self, query: &str) -> anyhow::Result<Vec<MediaItem>> {
-        self.client.search(query).await
+        Ok(self
+            .search_catalog(query, EnginePageRequest::default())
+            .await?
+            .items)
+    }
+
+    async fn browse_catalog<'a>(
+        &'a self,
+        parent_id: Option<&'a str>,
+        genres: &[String],
+        page: EnginePageRequest,
+    ) -> Result<EnginePagedResult<MediaItem>, EngineError> {
+        self.client
+            .browse(parent_id, genres, page)
+            .await
+            .map(Self::project_page)
+    }
+
+    async fn search_catalog(
+        &self,
+        query: &str,
+        page: EnginePageRequest,
+    ) -> Result<EnginePagedResult<MediaItem>, EngineError> {
+        self.client
+            .search(query, page)
+            .await
+            .map(Self::project_page)
+    }
+}
+
+fn project_track(track: EngineTrack) -> MediaItem {
+    MediaItem {
+        id: track.id,
+        title: track.title,
+        artist: track.artist.name,
+        album: track.album.map(|album| album.title),
+        duration_millis: Some(track.duration_millis),
+        thumbnail_url: track.artwork_id,
+        ..Default::default()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::networking::backend_client::MockBackendClient;
+    use crate::{EngineArtist, EnginePageToken};
 
-    #[tokio::test]
-    async fn search_delegates_to_backend_client() {
-        let mut client = MockBackendClient::new();
-        client
-            .expect_search()
-            .withf(|query| query == "jazz")
-            .times(1)
-            .returning(|_| {
-                Ok(vec![MediaItem {
-                    id: "track-1".to_string(),
-                    title: "Blue Train".to_string(),
-                    ..Default::default()
-                }])
-            });
+    struct FakeCatalog;
 
-        let repo = RemoteRepository::new(Arc::new(client));
-        let results = repo.search("jazz").await.unwrap();
+    #[async_trait::async_trait]
+    impl CatalogPort for FakeCatalog {
+        async fn browse(
+            &self,
+            _parent_id: Option<&str>,
+            _genres: &[String],
+            _page: EnginePageRequest,
+        ) -> Result<EnginePagedResult<EngineTrack>, EngineError> {
+            Ok(page("browse-track"))
+        }
 
-        assert_eq!(results.len(), 1);
-        assert_eq!(results[0].id, "track-1");
+        async fn search(
+            &self,
+            _query: &str,
+            _page: EnginePageRequest,
+        ) -> Result<EnginePagedResult<EngineTrack>, EngineError> {
+            Ok(page("search-track"))
+        }
+
+        async fn get_media(&self, _track_id: &str) -> Result<EngineTrack, EngineError> {
+            Ok(track("media-track"))
+        }
+    }
+
+    fn track(id: &str) -> EngineTrack {
+        EngineTrack {
+            id: id.into(),
+            title: "A Song".into(),
+            artist: EngineArtist {
+                id: "artist-1".into(),
+                name: "An Artist".into(),
+            },
+            album: None,
+            duration_millis: 42,
+            explicit: false,
+            artwork_id: Some("art-1".into()),
+            genres: vec![],
+        }
+    }
+
+    fn page(id: &str) -> EnginePagedResult<EngineTrack> {
+        EnginePagedResult {
+            items: vec![track(id)],
+            next_page_token: Some(EnginePageToken::new("next+/=".into()).unwrap()),
+        }
     }
 
     #[tokio::test]
-    async fn browse_delegates_to_backend_client() {
-        let mut client = MockBackendClient::new();
-        client
-            .expect_fetch_children()
-            .withf(|parent| parent == "album-1")
-            .times(1)
-            .returning(|_| Ok(vec![MediaItem::default()]));
+    async fn search_projects_domain_tracks_and_preserves_page_token() {
+        let repository = RemoteRepository::new(Arc::new(FakeCatalog));
 
-        let repo = RemoteRepository::new(Arc::new(client));
-        let results = repo.browse("album-1").await.unwrap();
+        let result = repository
+            .search_catalog("song", EnginePageRequest::default())
+            .await
+            .unwrap();
 
-        assert_eq!(results.len(), 1);
-    }
-
-    #[tokio::test]
-    async fn search_propagates_backend_error() {
-        let mut client = MockBackendClient::new();
-        client
-            .expect_search()
-            .times(1)
-            .returning(|_| Err(anyhow::anyhow!("backend unavailable")));
-
-        let repo = RemoteRepository::new(Arc::new(client));
-        assert!(repo.search("anything").await.is_err());
-    }
-
-    #[tokio::test]
-    async fn search_stream_collects_progressive_results() {
-        let mut client = MockBackendClient::new();
-        client.expect_search_stream().times(1).returning(|_| {
-            Ok(Box::pin(tokio_stream::iter(vec![
-                Ok(MediaItem {
-                    id: "track-1".to_string(),
-                    title: "First".to_string(),
-                    ..Default::default()
-                }),
-                Ok(MediaItem {
-                    id: "track-2".to_string(),
-                    title: "Second".to_string(),
-                    ..Default::default()
-                }),
-            ])))
-        });
-
-        let repo = RemoteRepository::new(Arc::new(client));
-        let results = repo.search_collect_progressive("mix").await.unwrap();
-
-        assert_eq!(results.len(), 2);
-        assert_eq!(results[0].id, "track-1");
-        assert_eq!(results[1].id, "track-2");
-    }
-
-    #[tokio::test]
-    async fn browse_propagates_backend_error() {
-        let mut client = MockBackendClient::new();
-        client
-            .expect_fetch_children()
-            .times(1)
-            .returning(|_| Err(anyhow::anyhow!("upstream timeout")));
-
-        let repo = RemoteRepository::new(Arc::new(client));
-        assert!(repo.browse("root").await.is_err());
-    }
-
-    #[test]
-    fn sync_navigation_methods_return_none_without_cache() {
-        let client = MockBackendClient::new();
-        let repo = RemoteRepository::new(Arc::new(client));
-
-        assert!(repo.get_by_id("track-1").is_none());
-        assert!(repo.get_next("track-1").is_none());
-        assert!(repo.get_previous("track-1").is_none());
+        assert_eq!(result.items[0].id, "search-track");
+        assert_eq!(result.items[0].artist, "An Artist");
+        assert_eq!(result.next_page_token.unwrap().as_str(), "next+/=");
     }
 }

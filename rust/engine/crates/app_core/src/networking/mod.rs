@@ -2,7 +2,7 @@
 //!
 //! This module owns the boundary between the engine and any remote backend.
 //! It is intentionally **transport-agnostic**: the engine and the data layer
-//! depend only on the [`BackendClient`] trait, never on the concrete transport
+//! depend only on the [`CatalogPort`] trait, never on the concrete transport
 //! (gRPC/tonic, HTTP, etc.).
 //!
 //! The real, tonic-based client (`prost`-generated stubs, connection pooling,
@@ -13,20 +13,15 @@
 pub mod audio_source_client;
 pub mod backend_client;
 pub mod canopy;
-pub mod canopy_audio_source_client;
-pub mod canopy_proto;
 pub mod canopy_tonic_transport;
 pub mod remote_repository;
 pub mod retrying_audio_source_client;
-pub mod retrying_backend_client;
 pub mod system_port;
 
 pub use audio_source_client::{AudioChunk, AudioSourceClient, PlaybackSource};
-pub use backend_client::BackendClient;
-pub use canopy_audio_source_client::CanopyAudioSourceClient;
-pub use canopy_proto::generated as canopy_generated;
+pub use backend_client::CatalogPort;
+pub use canopy::CanopyCatalogClient;
 pub use canopy_tonic_transport::CanopyTonicTransport;
 pub use remote_repository::RemoteRepository;
 pub use retrying_audio_source_client::RetryingAudioSourceClient;
-pub use retrying_backend_client::RetryingBackendClient;
 pub use system_port::SystemPort;

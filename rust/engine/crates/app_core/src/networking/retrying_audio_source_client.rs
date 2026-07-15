@@ -268,8 +268,23 @@ where
 mod tests {
     use super::*;
     use crate::networking::audio_source_client::MockAudioSourceClient;
-    use crate::networking::canopy_audio_source_client::is_retryable_grpc_error;
-    use tonic::{Code, Status};
+
+    #[derive(Debug)]
+    struct RetryPolicyError(bool);
+
+    impl std::fmt::Display for RetryPolicyError {
+        fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            formatter.write_str("policy error")
+        }
+    }
+
+    impl std::error::Error for RetryPolicyError {}
+
+    fn is_retryable_test_error(error: &anyhow::Error) -> bool {
+        error
+            .downcast_ref::<RetryPolicyError>()
+            .is_some_and(|error| error.0)
+    }
 
     #[test]
     fn exponential_backoff_delay_caps_at_max_retry_delay() {
@@ -379,10 +394,7 @@ mod tests {
         client.expect_resolve_track().times(2).returning(move |_| {
             calls += 1;
             if calls == 1 {
-                Err(anyhow::Error::new(Status::new(
-                    Code::Unavailable,
-                    "upstream temporarily unavailable",
-                )))
+                Err(anyhow::Error::new(RetryPolicyError(true)))
             } else {
                 Ok(PlaybackSource {
                     source_id: "source-1".to_string(),
@@ -397,7 +409,7 @@ mod tests {
             Arc::new(client),
             2,
             Duration::from_millis(1),
-            is_retryable_grpc_error,
+            is_retryable_test_error,
         );
         let result = retrying.resolve_track("track-1").await.unwrap();
 
@@ -407,18 +419,16 @@ mod tests {
     #[tokio::test]
     async fn resolve_track_retry_policy_does_not_retry_non_retryable_grpc_status() {
         let mut client = MockAudioSourceClient::new();
-        client.expect_resolve_track().times(1).returning(|_| {
-            Err(anyhow::Error::new(Status::new(
-                Code::InvalidArgument,
-                "invalid track id",
-            )))
-        });
+        client
+            .expect_resolve_track()
+            .times(1)
+            .returning(|_| Err(anyhow::Error::new(RetryPolicyError(false))));
 
         let retrying = RetryingAudioSourceClient::new_with_policy(
             Arc::new(client),
             3,
             Duration::from_millis(1),
-            is_retryable_grpc_error,
+            is_retryable_test_error,
         );
         let error = retrying.resolve_track("bad-track").await.unwrap_err();
 
@@ -432,12 +442,10 @@ mod tests {
     #[tokio::test]
     async fn jitter_strategy_can_be_combined_with_retry_policy() {
         let mut client = MockAudioSourceClient::new();
-        client.expect_resolve_track().times(1).returning(|_| {
-            Err(anyhow::Error::new(Status::new(
-                Code::InvalidArgument,
-                "invalid track id",
-            )))
-        });
+        client
+            .expect_resolve_track()
+            .times(1)
+            .returning(|_| Err(anyhow::Error::new(RetryPolicyError(false))));
 
         let retrying = RetryingAudioSourceClient::new_with_exponential_backoff_and_jitter(
             Arc::new(client),
@@ -446,7 +454,7 @@ mod tests {
             Duration::from_millis(4),
             20,
         )
-        .with_retry_policy(is_retryable_grpc_error);
+        .with_retry_policy(is_retryable_test_error);
         let error = retrying.resolve_track("bad-track").await.unwrap_err();
 
         assert!(
