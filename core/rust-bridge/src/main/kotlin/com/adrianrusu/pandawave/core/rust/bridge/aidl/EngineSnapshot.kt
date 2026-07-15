@@ -30,7 +30,8 @@ data class EngineSnapshot(
     val browseResultsCount: Int = 0,
     val themePreference: EngineThemePreference = EngineThemePreference.uninitialized(),
     val drivingState: String = DRIVING_UNKNOWN,
-    val backendStatus: EngineBackendStatus? = null
+    val backendStatus: EngineBackendStatus? = null,
+    val authState: EngineAuthState = EngineAuthState.anonymous()
 ) : Parcelable {
     constructor(parcel: Parcel) : this(
         playbackState = parcel.readString().orEmpty(),
@@ -69,7 +70,8 @@ data class EngineSnapshot(
             initialized = parcel.readBooleanValue()
         ),
         drivingState = parcel.readString() ?: DRIVING_UNKNOWN,
-        backendStatus = parcel.readBackendStatus()
+        backendStatus = parcel.readBackendStatus(),
+        authState = parcel.readAuthState()
     )
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
@@ -106,6 +108,7 @@ data class EngineSnapshot(
         parcel.writeBooleanValue(themePreference.initialized)
         parcel.writeString(drivingState)
         parcel.writeBackendStatus(backendStatus)
+        parcel.writeAuthState(authState)
     }
 
     override fun describeContents(): Int = 0
@@ -157,6 +160,38 @@ data class EngineSnapshot(
             }
     }
 }
+
+data class EngineAuthState(
+    val state: String,
+    val account: EngineAccount? = null,
+    val session: EngineAuthSession? = null
+) {
+    companion object {
+        const val ANONYMOUS = "anonymous"
+        const val AUTHENTICATED = "authenticated"
+        const val LOGIN_REQUIRED = "login_required"
+
+        fun anonymous(): EngineAuthState = EngineAuthState(ANONYMOUS)
+
+        fun loginRequired(): EngineAuthState = EngineAuthState(LOGIN_REQUIRED)
+    }
+}
+
+data class EngineAccount(
+    val id: String,
+    val primaryEmail: String,
+    val status: String,
+    val createdAtEpochMillis: Long
+)
+
+data class EngineAuthSession(
+    val id: String,
+    val deviceLabel: String,
+    val createdAtEpochMillis: Long,
+    val lastUsedAtEpochMillis: Long,
+    val expiresAtEpochMillis: Long,
+    val current: Boolean
+)
 
 data class EngineBackendStatus(
     val healthy: Boolean,
@@ -274,4 +309,55 @@ private fun Parcel.writeBackendStatus(status: EngineBackendStatus?) {
         writeString(dependency.status)
         writeString(dependency.message)
     }
+}
+
+private fun Parcel.readAuthState(): EngineAuthState {
+    val state = readString() ?: return EngineAuthState.loginRequired()
+    if (state != EngineAuthState.AUTHENTICATED) {
+        return when (state) {
+            EngineAuthState.ANONYMOUS -> EngineAuthState.anonymous()
+            else -> EngineAuthState.loginRequired()
+        }
+    }
+    return EngineAuthState(
+        state = state,
+        account = EngineAccount(
+            id = readString().orEmpty(),
+            primaryEmail = readString().orEmpty(),
+            status = readString().orEmpty(),
+            createdAtEpochMillis = readLong()
+        ),
+        session = EngineAuthSession(
+            id = readString().orEmpty(),
+            deviceLabel = readString().orEmpty(),
+            createdAtEpochMillis = readLong(),
+            lastUsedAtEpochMillis = readLong(),
+            expiresAtEpochMillis = readLong(),
+            current = readBooleanValue()
+        )
+    )
+}
+
+private fun Parcel.writeAuthState(authState: EngineAuthState) {
+    val account = authState.account
+    val session = authState.session
+    val validAuthenticated = authState.state == EngineAuthState.AUTHENTICATED &&
+        account != null && session != null
+    val state = when {
+        validAuthenticated -> EngineAuthState.AUTHENTICATED
+        authState.state == EngineAuthState.ANONYMOUS -> EngineAuthState.ANONYMOUS
+        else -> EngineAuthState.LOGIN_REQUIRED
+    }
+    writeString(state)
+    if (!validAuthenticated) return
+    writeString(account.id)
+    writeString(account.primaryEmail)
+    writeString(account.status)
+    writeLong(account.createdAtEpochMillis)
+    writeString(session.id)
+    writeString(session.deviceLabel)
+    writeLong(session.createdAtEpochMillis)
+    writeLong(session.lastUsedAtEpochMillis)
+    writeLong(session.expiresAtEpochMillis)
+    writeBooleanValue(session.current)
 }

@@ -12,6 +12,7 @@
 
 pub mod audio_source_client;
 mod auth_port;
+mod auth_state_provider;
 pub mod backend_client;
 pub mod canopy;
 pub mod canopy_tonic_transport;
@@ -21,6 +22,7 @@ pub mod system_port;
 
 pub use audio_source_client::{AudioChunk, AudioSourceClient, PlaybackPort, PlaybackSource};
 pub use auth_port::AuthPort;
+pub use auth_state_provider::AuthStateProvider;
 pub use backend_client::CatalogPort;
 pub use canopy::{CanopyAuthClient, CanopyCatalogClient, CanopyPlaybackClient, SessionCoordinator};
 pub use canopy_tonic_transport::CanopyTonicTransport;

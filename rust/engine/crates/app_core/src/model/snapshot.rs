@@ -1,5 +1,6 @@
 use crate::data::repository::MediaItem;
 use crate::data::session::MediaSession;
+use crate::model::auth::AuthState;
 use crate::model::backend::EngineBackendStatus;
 use crate::model::error::EngineError;
 use crate::model::playback::{DrivingState, PlaybackState, PlayerControls, RestrictionState};
@@ -13,6 +14,9 @@ use serde::{Deserialize, Serialize};
 /// It is immutable and should only be updated through the engine's reducer.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct EngineSnapshot {
+    /// Current credential-free authentication projection.
+    #[serde(default)]
+    pub auth_state: AuthState,
     /// The current playback status (e.g., Playing, Paused).
     pub playback_state: PlaybackState,
     /// The last error that occurred, if any.

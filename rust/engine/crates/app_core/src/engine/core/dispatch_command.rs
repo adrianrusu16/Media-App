@@ -507,6 +507,7 @@ impl Engine {
 
         self.snapshot = next_snapshot;
         self.snapshot.controls = self.derive_controls(&self.snapshot);
+        self.sync_auth_state_projection();
 
         if self.snapshot.playback_state != prev_playback_state {
             info!(

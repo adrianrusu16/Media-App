@@ -103,13 +103,13 @@ fn finish_configuration(
         inner.set_repository(Box::new(composition.repository));
         inner.set_playback_port(composition.playback);
         inner.set_system_port(composition.system);
+        inner.set_auth_state_provider(composition.session);
     });
     *state = BackendConfigurationState::Ready(Box::new(config));
     Ok(())
 }
 
 struct BackendComposition {
-    #[cfg(test)]
     session: Arc<SessionCoordinator>,
     repository: RemoteRepository<CanopyCatalogClient>,
     playback: Arc<CanopyPlaybackClient>,
@@ -132,7 +132,6 @@ fn compose_backend(channel: &CanopyChannel) -> BackendComposition {
     let system = Arc::new(CanopySystemClient::new(channel));
 
     BackendComposition {
-        #[cfg(test)]
         session,
         repository,
         playback,

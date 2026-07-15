@@ -11,7 +11,7 @@ use crate::model::event::EngineEvent;
 use crate::model::platform_event::{EnginePlatformEvent, EnginePlatformEventType};
 use crate::model::playback::PlaybackState;
 use crate::model::snapshot::EngineSnapshot;
-use crate::networking::{AudioSourceClient, PlaybackPort, SystemPort};
+use crate::networking::{AudioSourceClient, AuthStateProvider, PlaybackPort, SystemPort};
 use crate::services::player::MediaPlayer;
 use crate::services::voice::{VoiceEngine, VoiceInteractionResult};
 use tracing::{info, instrument, warn};
@@ -74,6 +74,7 @@ pub struct Engine {
     audio_source_client: Option<Arc<dyn AudioSourceClient>>,
     playback_port: Option<Arc<dyn PlaybackPort>>,
     system_port: Option<Arc<dyn SystemPort>>,
+    auth_state_provider: Option<Arc<dyn AuthStateProvider>>,
     catalog_operations: HashMap<String, CatalogOperation>,
     next_catalog_operation_sequence: u64,
     player: Option<Box<dyn MediaPlayer>>,
@@ -95,6 +96,7 @@ impl Default for Engine {
             audio_source_client: None,
             playback_port: None,
             system_port: None,
+            auth_state_provider: None,
             catalog_operations: HashMap::new(),
             next_catalog_operation_sequence: 0,
             player: None,
@@ -132,6 +134,7 @@ impl Engine {
             audio_source_client: None,
             playback_port: None,
             system_port: None,
+            auth_state_provider: None,
             catalog_operations: HashMap::new(),
             next_catalog_operation_sequence: 0,
             player: None,
@@ -200,6 +203,31 @@ impl Engine {
     /// Sets the backend-neutral public system status port.
     pub fn set_system_port(&mut self, port: Arc<dyn SystemPort>) {
         self.system_port = Some(port);
+    }
+
+    /// Sets the service-neutral source used for live auth-state projections.
+    pub fn set_auth_state_provider(&mut self, provider: Arc<dyn AuthStateProvider>) {
+        self.auth_state_provider = Some(provider);
+    }
+
+    pub(crate) fn snapshot_projection(&self) -> EngineSnapshot {
+        let mut snapshot = self.snapshot.clone();
+        if let Some(provider) = &self.auth_state_provider {
+            snapshot.auth_state = provider.current_auth_state();
+        }
+        snapshot
+    }
+
+    pub(crate) fn project_outcome_auth_state(&self, outcome: &mut EngineOutcome) {
+        if let Some(provider) = &self.auth_state_provider {
+            outcome.snapshot.auth_state = provider.current_auth_state();
+        }
+    }
+
+    pub(crate) fn sync_auth_state_projection(&mut self) {
+        if let Some(provider) = &self.auth_state_provider {
+            self.snapshot.auth_state = provider.current_auth_state();
+        }
     }
 
     /// Sets the media player for the engine.

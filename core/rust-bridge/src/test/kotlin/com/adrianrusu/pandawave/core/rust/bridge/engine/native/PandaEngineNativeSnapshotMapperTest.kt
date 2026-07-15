@@ -1,6 +1,7 @@
 package com.adrianrusu.pandawave.core.rust.bridge.engine.native
 
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthState
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -45,7 +46,8 @@ class PandaEngineNativeSnapshotMapperTest {
                 true.toLong(),
                 1_725_000_000_000L,
                 2L,
-                1_750_000_000_250L
+                1_750_000_000_250L,
+                AUTH_AUTHENTICATED.toLong()
             )
         )
         val snapshot = projection.snapshot
@@ -89,6 +91,7 @@ class PandaEngineNativeSnapshotMapperTest {
             ),
             projection.backendStatus
         )
+        assertEquals(EngineAuthState.AUTHENTICATED, snapshot.authState.state)
     }
 
     @Test
@@ -124,6 +127,37 @@ class PandaEngineNativeSnapshotMapperTest {
         assertEquals("available", status.dependencies.single().message)
     }
 
+    @Test
+    fun `sanitized authenticated values map to generic account and session`() {
+        val authState = PandaEngineNativeAuthStateMapper.toDomain(
+            arrayOf(
+                "authenticated", "account-1", "driver@example.com", "active", "10",
+                "session-1", "PandaEmulatorNoStore", "20", "30", "40", "1"
+            )
+        )
+
+        assertEquals(EngineAuthState.AUTHENTICATED, authState.state)
+        assertEquals("driver@example.com", authState.account?.primaryEmail)
+        assertEquals("PandaEmulatorNoStore", authState.session?.deviceLabel)
+        assertEquals(40L, authState.session?.expiresAtEpochMillis)
+        assertTrue(authState.session?.current == true)
+    }
+
+    @Test
+    fun `auth projection fails closed when one atomic sample is malformed`() {
+        val missingSession = PandaEngineNativeAuthStateMapper.toDomain(
+            arrayOf("authenticated", "account-1", "driver@example.com", "active", "10")
+        )
+        val contradictoryAnonymous = PandaEngineNativeAuthStateMapper.toDomain(
+            arrayOf("anonymous", "unexpected-second-sample-data")
+        )
+
+        assertEquals(EngineAuthState.LOGIN_REQUIRED, missingSession.state)
+        assertEquals(EngineAuthState.LOGIN_REQUIRED, contradictoryAnonymous.state)
+        assertEquals(null, missingSession.account)
+        assertEquals(null, missingSession.session)
+    }
+
     private fun Boolean.toLong(): Long = if (this) 1L else 0L
 
     private companion object {
@@ -134,5 +168,6 @@ class PandaEngineNativeSnapshotMapperTest {
         const val THEME_FOREST_TECH_DARK = 4
         const val PREFERENCE_SOURCE_REMOTE_PROFILE = 3
         const val DRIVING_PARKED = 1
+        const val AUTH_AUTHENTICATED = 1
     }
 }

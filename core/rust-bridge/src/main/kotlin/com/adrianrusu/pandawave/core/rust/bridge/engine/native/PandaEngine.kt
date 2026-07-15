@@ -2,6 +2,9 @@ package com.adrianrusu.pandawave.core.rust.bridge.engine.native
 
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineBackendDependencyStatus
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineBackendStatus
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAccount
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthSession
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthState
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineControlState
@@ -142,6 +145,8 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
 
     private external fun nativeBackendStatusValues(handle: Long): Array<String>?
 
+    private external fun nativeAuthStateValues(handle: Long): Array<String>?
+
     private external fun nativeEffectCount(handle: Long): Int
 
     private external fun nativeEffectType(handle: Long, index: Int): Int
@@ -210,7 +215,10 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         val backendStatus = projection.backendStatus?.let {
             nativeBackendStatusValues(nativeHandle)?.let(PandaEngineNativeBackendStatusMapper::toDomain)
         }
-        return snapshot.copy(backendStatus = backendStatus)
+        val authState = nativeAuthStateValues(nativeHandle)
+            ?.let(PandaEngineNativeAuthStateMapper::toDomain)
+            ?: EngineAuthState.loginRequired()
+        return snapshot.copy(backendStatus = backendStatus, authState = authState)
     }
 
     private fun queryNativeMetadata(): NativeEngineMetadata = NativeEngineMetadata(
@@ -427,6 +435,53 @@ internal object PandaEngineNativeBackendStatusMapper {
     private const val HEADER_VALUE_COUNT = 5
 }
 
+internal object PandaEngineNativeAuthStateMapper {
+    fun toDomain(values: Array<String>): EngineAuthState = when {
+        values.contentEquals(arrayOf(EngineAuthState.ANONYMOUS)) -> EngineAuthState.anonymous()
+        values.contentEquals(arrayOf(EngineAuthState.LOGIN_REQUIRED)) -> EngineAuthState.loginRequired()
+        values.size == AUTHENTICATED_VALUE_COUNT && values[STATE_INDEX] == EngineAuthState.AUTHENTICATED ->
+            runCatching {
+                EngineAuthState(
+                    state = EngineAuthState.AUTHENTICATED,
+                    account = EngineAccount(
+                        id = values[ACCOUNT_ID_INDEX].required(),
+                        primaryEmail = values[ACCOUNT_EMAIL_INDEX].required(),
+                        status = values[ACCOUNT_STATUS_INDEX].required(),
+                        createdAtEpochMillis = values[ACCOUNT_CREATED_INDEX].toLong()
+                    ),
+                    session = EngineAuthSession(
+                        id = values[SESSION_ID_INDEX].required(),
+                        deviceLabel = values[SESSION_DEVICE_INDEX],
+                        createdAtEpochMillis = values[SESSION_CREATED_INDEX].toLong(),
+                        lastUsedAtEpochMillis = values[SESSION_LAST_USED_INDEX].toLong(),
+                        expiresAtEpochMillis = values[SESSION_EXPIRES_INDEX].toLong(),
+                        current = when (values[SESSION_CURRENT_INDEX]) {
+                            "1" -> true
+                            "0" -> false
+                            else -> error("invalid current-session flag")
+                        }
+                    )
+                )
+            }.getOrElse { EngineAuthState.loginRequired() }
+        else -> EngineAuthState.loginRequired()
+    }
+
+    private fun String.required(): String = require(isNotBlank()) { "required auth field is blank" }.let { this }
+
+    private const val STATE_INDEX = 0
+    private const val ACCOUNT_ID_INDEX = 1
+    private const val ACCOUNT_EMAIL_INDEX = 2
+    private const val ACCOUNT_STATUS_INDEX = 3
+    private const val ACCOUNT_CREATED_INDEX = 4
+    private const val SESSION_ID_INDEX = 5
+    private const val SESSION_DEVICE_INDEX = 6
+    private const val SESSION_CREATED_INDEX = 7
+    private const val SESSION_LAST_USED_INDEX = 8
+    private const val SESSION_EXPIRES_INDEX = 9
+    private const val SESSION_CURRENT_INDEX = 10
+    private const val AUTHENTICATED_VALUE_COUNT = 11
+}
+
 internal object PandaEngineNativeSnapshotMapper {
     fun toProjection(nativeValues: LongArray): NativeEngineSnapshotProjection {
         require(nativeValues.size >= SNAPSHOT_VALUE_COUNT) {
@@ -485,7 +540,12 @@ internal object PandaEngineNativeSnapshotMapper {
                     source = preferenceSourceFromNative(nativeValues[SNAPSHOT_PREFERENCE_SOURCE_INDEX].toInt()),
                     revision = nativeValues[SNAPSHOT_PREFERENCE_REVISION_INDEX],
                     initialized = nativeValues[SNAPSHOT_PREFERENCE_INITIALIZED_INDEX].toBoolean()
-                )
+                ),
+                authState = when (nativeValues[SNAPSHOT_AUTH_STATE_INDEX].toInt()) {
+                    AUTH_ANONYMOUS -> EngineAuthState.anonymous()
+                    AUTH_AUTHENTICATED -> EngineAuthState(EngineAuthState.AUTHENTICATED)
+                    else -> EngineAuthState.loginRequired()
+                }
             ),
             metadataRevision = nativeValues[SNAPSHOT_METADATA_REVISION_INDEX],
             backendStatus = nativeValues[SNAPSHOT_HAS_BACKEND_STATUS_INDEX]
@@ -584,7 +644,7 @@ internal object PandaEngineNativeSnapshotMapper {
     private const val PREFERENCE_SOURCE_LOCAL_USER = 2
     private const val PREFERENCE_SOURCE_REMOTE_PROFILE = 3
 
-    private const val SNAPSHOT_VALUE_COUNT = 35
+    private const val SNAPSHOT_VALUE_COUNT = 36
     private const val SNAPSHOT_PLAYBACK_INDEX = 0
     private const val SNAPSHOT_RESTRICTION_INDEX = 1
     private const val SNAPSHOT_UPDATED_AT_INDEX = 2
@@ -620,4 +680,7 @@ internal object PandaEngineNativeSnapshotMapper {
     private const val SNAPSHOT_BACKEND_CHECKED_AT_INDEX = 32
     private const val SNAPSHOT_BACKEND_DEPENDENCY_COUNT_INDEX = 33
     private const val SNAPSHOT_PLAYBACK_EXPIRY_INDEX = 34
+    private const val SNAPSHOT_AUTH_STATE_INDEX = 35
+    private const val AUTH_ANONYMOUS = 0
+    private const val AUTH_AUTHENTICATED = 1
 }

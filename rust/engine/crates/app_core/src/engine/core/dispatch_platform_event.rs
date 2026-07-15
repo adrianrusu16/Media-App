@@ -82,6 +82,7 @@ impl Engine {
 
         self.snapshot = next_snapshot;
         self.snapshot.controls = self.derive_controls(&self.snapshot);
+        self.sync_auth_state_projection();
 
         let middleware = Arc::clone(&self.middleware);
         let outcome = EngineOutcome {

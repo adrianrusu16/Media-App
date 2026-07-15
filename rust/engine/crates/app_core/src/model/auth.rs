@@ -104,8 +104,9 @@ impl std::fmt::Debug for AuthSessionEnvelope {
 }
 
 /// Credential-free authentication state suitable for snapshots and UI-facing projection.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub enum AuthState {
+    #[default]
     Anonymous,
     Authenticated {
         account: Account,

@@ -267,6 +267,20 @@ pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_eng
 }
 
 #[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeAuthStateValues(
+    mut env: JNIEnv,
+    _this: JObject,
+    handle: jlong,
+) -> jobjectArray {
+    let Some(snapshot) =
+        (unsafe { (handle as *const PandaEngine).as_ref() }).map(|engine| engine.engine.snapshot())
+    else {
+        return ptr::null_mut();
+    };
+    strings_to_jobject_array(&mut env, auth_state_to_strings(&snapshot.auth_state))
+}
+
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeEffectCount(
     _env: JNIEnv,
     _this: JObject,
@@ -602,6 +616,26 @@ fn backend_status_to_strings(status: &panda_engine_core::EngineBackendStatus) ->
     values
 }
 
+fn auth_state_to_strings(state: &panda_engine_core::AuthState) -> Vec<String> {
+    match state {
+        panda_engine_core::AuthState::Anonymous => vec!["anonymous".into()],
+        panda_engine_core::AuthState::LoginRequired => vec!["login_required".into()],
+        panda_engine_core::AuthState::Authenticated { account, session } => vec![
+            "authenticated".into(),
+            account.id.clone(),
+            account.primary_email.clone(),
+            account.status.clone(),
+            account.created_at_epoch_millis.to_string(),
+            session.id.clone(),
+            session.device_label.clone(),
+            session.created_at_epoch_millis.to_string(),
+            session.last_used_at_epoch_millis.to_string(),
+            session.expires_at_epoch_millis.to_string(),
+            if session.current { "1" } else { "0" }.into(),
+        ],
+    }
+}
+
 fn snapshot_to_jlong_array(env: &mut JNIEnv, snapshot: FfiEngineSnapshot) -> jlongArray {
     let values = snapshot_to_jlong_values(snapshot);
     let array = match env.new_long_array(values.len() as i32) {
@@ -616,7 +650,7 @@ fn snapshot_to_jlong_array(env: &mut JNIEnv, snapshot: FfiEngineSnapshot) -> jlo
     array.into_raw()
 }
 
-fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 35] {
+fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 36] {
     [
         snapshot.playback_state as jlong,
         snapshot.restriction_state as jlong,
@@ -653,6 +687,7 @@ fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 35] {
         snapshot.backend_checked_at_epoch_millis as jlong,
         snapshot.backend_dependencies_count as jlong,
         snapshot.playback_expires_at_epoch_millis as jlong,
+        snapshot.auth_state as jlong,
     ]
 }
 
@@ -667,10 +702,49 @@ mod tests {
         FFI_DRIVING_PARKED, FFI_ERROR_NETWORK, FFI_PLAYBACK_PLAYING, FFI_RESTRICTION_UNKNOWN,
         FfiControlState, FfiPlayerControls,
     };
+    use panda_engine_core::{Account, AuthSession, AuthState};
+
+    #[test]
+    fn authenticated_state_projects_only_sanitized_account_and_session_fields() {
+        let state = AuthState::Authenticated {
+            account: Account {
+                id: "account-1".into(),
+                primary_email: "driver@example.com".into(),
+                status: "active".into(),
+                created_at_epoch_millis: 10,
+            },
+            session: AuthSession {
+                id: "session-1".into(),
+                device_label: "emulator".into(),
+                created_at_epoch_millis: 20,
+                last_used_at_epoch_millis: 30,
+                expires_at_epoch_millis: 40,
+                current: true,
+            },
+        };
+
+        assert_eq!(
+            auth_state_to_strings(&state),
+            vec![
+                "authenticated",
+                "account-1",
+                "driver@example.com",
+                "active",
+                "10",
+                "session-1",
+                "emulator",
+                "20",
+                "30",
+                "40",
+                "1",
+            ]
+        );
+    }
 
     #[test]
     fn snapshot_values_match_kotlin_compact_layout() {
         let snapshot = FfiEngineSnapshot {
+            auth_state: crate::FFI_AUTH_AUTHENTICATED,
             playback_state: FFI_PLAYBACK_PLAYING,
             restriction_state: FFI_RESTRICTION_UNKNOWN,
             updated_at_epoch_millis: 42,
@@ -753,6 +827,7 @@ mod tests {
                 1_725_000_000_000,
                 2,
                 1_750_000_000_250,
+                crate::FFI_AUTH_AUTHENTICATED as jlong,
             ],
             snapshot_to_jlong_values(snapshot)
         );

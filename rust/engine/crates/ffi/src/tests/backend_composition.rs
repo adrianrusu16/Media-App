@@ -1,3 +1,4 @@
+use panda_engine_core::AuthState;
 use panda_engine_core::networking::canopy::{CanopyChannel, DeploymentMode};
 
 use crate::api::backend::configure_backend_with_channel;
@@ -20,6 +21,7 @@ fn production_backend_configuration_replaces_default_adapters() {
 
     assert!(result.is_ok());
     assert!(engine.backend_is_configured());
+    assert_eq!(engine.engine.snapshot().auth_state, AuthState::Anonymous);
 }
 
 #[test]

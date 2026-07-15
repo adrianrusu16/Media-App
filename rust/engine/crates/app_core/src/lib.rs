@@ -80,9 +80,9 @@ pub use crate::model::playback::{
 pub use crate::model::preferences::{PreferenceSource, ThemePreference, ThemePreferenceState};
 pub use crate::model::snapshot::EngineSnapshot;
 pub use crate::networking::{
-    AudioChunk, AudioSourceClient, AuthPort, CanopyAuthClient, CanopyCatalogClient,
-    CanopyPlaybackClient, CatalogPort, PlaybackPort, PlaybackSource, RemoteRepository,
-    RetryingAudioSourceClient, SessionCoordinator, SystemPort,
+    AudioChunk, AudioSourceClient, AuthPort, AuthStateProvider, CanopyAuthClient,
+    CanopyCatalogClient, CanopyPlaybackClient, CatalogPort, PlaybackPort, PlaybackSource,
+    RemoteRepository, RetryingAudioSourceClient, SessionCoordinator, SystemPort,
 };
 pub use crate::services::player::{MediaPlayer, MockPlayer};
 pub use crate::services::service::{EngineService, ServiceManager};

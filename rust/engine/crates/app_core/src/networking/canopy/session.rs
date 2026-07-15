@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use tokio::sync::Mutex;
 
-use crate::{AuthPort, AuthState, EngineError, EngineErrorType, SessionStore};
+use crate::{AuthPort, AuthState, AuthStateProvider, EngineError, EngineErrorType, SessionStore};
 
 use super::clock::current_epoch_millis;
 
@@ -378,6 +378,12 @@ impl SessionCoordinator {
                     false,
                 )
             })
+    }
+}
+
+impl AuthStateProvider for SessionCoordinator {
+    fn current_auth_state(&self) -> AuthState {
+        self.auth_state().unwrap_or(AuthState::LoginRequired)
     }
 }
 

@@ -31,7 +31,9 @@ impl ConcurrentEngine {
     /// non-blocking for the runtime.
     pub async fn dispatch(&self, command: EngineCommand, now_epoch_millis: u64) -> EngineOutcome {
         let mut engine = self.inner.lock().await;
-        engine.dispatch(command, now_epoch_millis).await
+        let mut outcome = engine.dispatch(command, now_epoch_millis).await;
+        engine.project_outcome_auth_state(&mut outcome);
+        outcome
     }
 
     /// Dispatches a platform event to the engine in a thread-safe manner.
@@ -43,9 +45,11 @@ impl ConcurrentEngine {
         now_epoch_millis: u64,
     ) -> EngineOutcome {
         let mut engine = self.inner.lock().await;
-        engine
+        let mut outcome = engine
             .dispatch_platform_event(event, now_epoch_millis)
-            .await
+            .await;
+        engine.project_outcome_auth_state(&mut outcome);
+        outcome
     }
 
     /// Advances the engine state in a thread-safe manner.
@@ -53,7 +57,11 @@ impl ConcurrentEngine {
     /// See [`ConcurrentEngine::dispatch`] for why the lock is held across the await.
     pub async fn tick(&self, now_epoch_millis: u64) -> Vec<EngineOutcome> {
         let mut engine = self.inner.lock().await;
-        engine.tick(now_epoch_millis).await
+        let mut outcomes = engine.tick(now_epoch_millis).await;
+        for outcome in &mut outcomes {
+            engine.project_outcome_auth_state(outcome);
+        }
+        outcomes
     }
 
     /// Accesses the engine's snapshot in a thread-safe manner.
@@ -65,7 +73,7 @@ impl ConcurrentEngine {
     /// an async runtime context.
     pub fn snapshot(&self) -> crate::model::snapshot::EngineSnapshot {
         let engine = self.inner.blocking_lock();
-        engine.snapshot().clone()
+        engine.snapshot_projection()
     }
 
     /// Accesses the engine's configuration in a thread-safe manner.

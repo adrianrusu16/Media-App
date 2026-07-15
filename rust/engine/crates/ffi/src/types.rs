@@ -71,6 +71,9 @@ pub struct FfiEngineSnapshot {
     pub backend_healthy: bool,
     pub backend_checked_at_epoch_millis: i64,
     pub backend_dependencies_count: usize,
+    /// Credential-free auth-state discriminant. Appended to preserve the
+    /// offsets of the pre-existing C snapshot fields.
+    pub auth_state: i32,
 }
 
 /// C-compatible representation of the engine outcome.
@@ -85,6 +88,7 @@ pub struct FfiEngineOutcome {
 impl FfiEngineSnapshot {
     pub(crate) fn invalid() -> Self {
         Self {
+            auth_state: crate::FFI_AUTH_ANONYMOUS,
             playback_state: FFI_COMMAND_UNKNOWN,
             restriction_state: FFI_COMMAND_UNKNOWN,
             updated_at_epoch_millis: 0,
@@ -145,6 +149,11 @@ impl FfiEngineOutcome {
 impl From<&EngineSnapshot> for FfiEngineSnapshot {
     fn from(snapshot: &EngineSnapshot) -> Self {
         Self {
+            auth_state: match &snapshot.auth_state {
+                panda_engine_core::AuthState::Anonymous => crate::FFI_AUTH_ANONYMOUS,
+                panda_engine_core::AuthState::Authenticated { .. } => crate::FFI_AUTH_AUTHENTICATED,
+                panda_engine_core::AuthState::LoginRequired => crate::FFI_AUTH_LOGIN_REQUIRED,
+            },
             playback_state: playback_to_ffi(snapshot.playback_state),
             restriction_state: restriction_to_ffi(snapshot.restriction_state),
             updated_at_epoch_millis: snapshot.updated_at_epoch_millis,
