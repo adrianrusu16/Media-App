@@ -3,8 +3,34 @@ use serde::{Deserialize, Serialize};
 /// Represents the different types of errors that can occur in the engine.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum EngineErrorType {
+    /// Client input failed domain validation.
+    InvalidInput,
     /// A required resource (e.g., media file) was not found.
     NotFound,
+    /// The operation requires a new interactive login.
+    LoginRequired,
+    /// The current access credential is no longer usable.
+    AuthExpired,
+    /// The authenticated principal is not allowed to perform the operation.
+    Forbidden,
+    /// A resource with the requested identity already exists.
+    AlreadyExists,
+    /// The operation cannot run in the resource's current state.
+    FailedPrecondition,
+    /// Concurrent state conflicts with the requested mutation.
+    Conflict,
+    /// The backend rejected the operation due to rate limiting.
+    RateLimited,
+    /// The backend is temporarily unavailable.
+    ServiceUnavailable,
+    /// The backend reported an internal fault.
+    BackendFault,
+    /// The client could not reach or negotiate with the backend.
+    Transport,
+    /// The configured transport violates deployment security rules.
+    UnsafeTransport,
+    /// A canonical backend response could not be mapped into the engine domain.
+    MappingDefect,
     /// A network-related error occurred.
     NetworkError,
     /// An error occurred in the platform media player.
@@ -28,6 +54,9 @@ pub struct EngineError {
     pub message: String,
     /// Whether the error is fatal (requires stopping playback).
     pub is_fatal: bool,
+    /// Optional server-provided delay before a rate-limited operation may be retried.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub retry_after_millis: Option<u64>,
 }
 
 impl EngineError {
@@ -37,6 +66,7 @@ impl EngineError {
             error_type,
             message: message.into(),
             is_fatal,
+            retry_after_millis: None,
         }
     }
 
@@ -49,7 +79,35 @@ impl EngineError {
     pub fn media_skipped(message: impl Into<String>) -> Self {
         Self::new(EngineErrorType::MediaSkipped, message, false)
     }
+
+    /// Typed unsafe-transport configuration error.
+    pub fn unsafe_transport() -> Self {
+        Self::new(
+            EngineErrorType::UnsafeTransport,
+            "unsafe backend transport configuration",
+            false,
+        )
+    }
+
+    /// Typed rate-limit error with an optional server retry hint.
+    pub fn rate_limited(retry_after_millis: Option<u64>) -> Self {
+        let mut error = Self::new(
+            EngineErrorType::RateLimited,
+            "backend rate limit exceeded",
+            false,
+        );
+        error.retry_after_millis = retry_after_millis;
+        error
+    }
 }
+
+impl std::fmt::Display for EngineError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(&self.message)
+    }
+}
+
+impl std::error::Error for EngineError {}
 
 #[cfg(test)]
 mod tests {

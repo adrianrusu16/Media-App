@@ -154,14 +154,25 @@ impl From<&EngineSnapshot> for FfiEngineSnapshot {
                 .as_ref()
                 .map(|e| match e.error_type {
                     panda_engine_core::EngineErrorType::NotFound => FFI_ERROR_NOT_FOUND,
-                    panda_engine_core::EngineErrorType::NetworkError => FFI_ERROR_NETWORK,
+                    panda_engine_core::EngineErrorType::NetworkError
+                    | panda_engine_core::EngineErrorType::RateLimited
+                    | panda_engine_core::EngineErrorType::ServiceUnavailable
+                    | panda_engine_core::EngineErrorType::Transport => FFI_ERROR_NETWORK,
                     panda_engine_core::EngineErrorType::PlayerError => FFI_ERROR_PLAYER,
-                    panda_engine_core::EngineErrorType::AuthenticationError => {
-                        FFI_ERROR_AUTHENTICATION
-                    }
+                    panda_engine_core::EngineErrorType::AuthenticationError
+                    | panda_engine_core::EngineErrorType::LoginRequired
+                    | panda_engine_core::EngineErrorType::AuthExpired
+                    | panda_engine_core::EngineErrorType::Forbidden => FFI_ERROR_AUTHENTICATION,
                     panda_engine_core::EngineErrorType::MediaSkipped => FFI_ERROR_MEDIA_SKIPPED,
-                    panda_engine_core::EngineErrorType::CommandRejected => FFI_ERROR_UNKNOWN,
-                    panda_engine_core::EngineErrorType::Unknown => FFI_ERROR_UNKNOWN,
+                    panda_engine_core::EngineErrorType::InvalidInput
+                    | panda_engine_core::EngineErrorType::AlreadyExists
+                    | panda_engine_core::EngineErrorType::FailedPrecondition
+                    | panda_engine_core::EngineErrorType::Conflict
+                    | panda_engine_core::EngineErrorType::BackendFault
+                    | panda_engine_core::EngineErrorType::UnsafeTransport
+                    | panda_engine_core::EngineErrorType::MappingDefect
+                    | panda_engine_core::EngineErrorType::CommandRejected
+                    | panda_engine_core::EngineErrorType::Unknown => FFI_ERROR_UNKNOWN,
                 })
                 .unwrap_or(FFI_ERROR_NONE),
             search_results_count: snapshot.search_results.len(),

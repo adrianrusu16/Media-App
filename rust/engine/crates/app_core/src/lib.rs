@@ -58,10 +58,15 @@ pub use crate::middleware::{
     AnalyticsMiddleware, FocusMiddleware, LoggerMiddleware, Middleware, MiddlewarePipeline,
     RecoveryMiddleware, TelemetryMiddleware, ThrottlingMiddleware, ValidationMiddleware,
 };
+pub use crate::model::backend::{
+    EngineBackendStatus, EngineDependencyStatus, EngineStatusValue, RetryClass,
+};
+pub use crate::model::catalog::{EngineAlbum, EngineArtist, EnginePlaybackSource, EngineTrack};
 pub use crate::model::command::{EngineCommand, EngineCommandType};
 pub use crate::model::effect::EngineEffect;
 pub use crate::model::error::{EngineError, EngineErrorType};
 pub use crate::model::event::{EngineEvent, EngineEventType};
+pub use crate::model::page::{EnginePageRequest, EnginePageToken, EnginePagedResult};
 pub use crate::model::platform_event::{EnginePlatformEvent, EnginePlatformEventType};
 pub use crate::model::playback::{
     ControlState, DrivingState, PlaybackState, PlayerControls, RestrictionState,
