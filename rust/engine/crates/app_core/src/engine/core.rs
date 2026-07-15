@@ -11,7 +11,7 @@ use crate::model::event::EngineEvent;
 use crate::model::platform_event::{EnginePlatformEvent, EnginePlatformEventType};
 use crate::model::playback::PlaybackState;
 use crate::model::snapshot::EngineSnapshot;
-use crate::networking::{AudioSourceClient, SystemPort};
+use crate::networking::{AudioSourceClient, PlaybackPort, SystemPort};
 use crate::services::player::MediaPlayer;
 use crate::services::voice::{VoiceEngine, VoiceInteractionResult};
 use tracing::{info, instrument, warn};
@@ -72,6 +72,7 @@ pub struct Engine {
     event_bus: Arc<EventBus>,
     service_manager: ServiceManager,
     audio_source_client: Option<Arc<dyn AudioSourceClient>>,
+    playback_port: Option<Arc<dyn PlaybackPort>>,
     system_port: Option<Arc<dyn SystemPort>>,
     catalog_operations: HashMap<String, CatalogOperation>,
     next_catalog_operation_sequence: u64,
@@ -92,6 +93,7 @@ impl Default for Engine {
             event_bus: bus,
             service_manager: ServiceManager::new(),
             audio_source_client: None,
+            playback_port: None,
             system_port: None,
             catalog_operations: HashMap::new(),
             next_catalog_operation_sequence: 0,
@@ -128,6 +130,7 @@ impl Engine {
             event_bus: bus,
             service_manager: ServiceManager::new(),
             audio_source_client: None,
+            playback_port: None,
             system_port: None,
             catalog_operations: HashMap::new(),
             next_catalog_operation_sequence: 0,
@@ -187,6 +190,11 @@ impl Engine {
     /// Sets the playback source resolver for the engine.
     pub fn set_audio_source_client(&mut self, client: Arc<dyn AudioSourceClient>) {
         self.audio_source_client = Some(client);
+    }
+
+    /// Sets the canonical backend-neutral playback resolver.
+    pub fn set_playback_port(&mut self, port: Arc<dyn PlaybackPort>) {
+        self.playback_port = Some(port);
     }
 
     /// Sets the backend-neutral public system status port.

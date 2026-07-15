@@ -15,9 +15,7 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.IMediaEngineService
 
 class MediaEngineService : Service() {
     private val listeners = RemoteCallbackList<IEngineListener>()
-    private val engine: RustEngine = PandaEngineFactory.create(
-        audioSourceResolver = AudioSourceResolvers.pandaWaveContent()
-    )
+    private val engine: RustEngine = PandaEngineFactory.create()
 
     private val binder = object : IMediaEngineService.Stub() {
         override fun getSnapshot(): EngineSnapshot = engine.snapshot()

@@ -18,9 +18,9 @@ pub mod remote_repository;
 pub mod retrying_audio_source_client;
 pub mod system_port;
 
-pub use audio_source_client::{AudioChunk, AudioSourceClient, PlaybackSource};
+pub use audio_source_client::{AudioChunk, AudioSourceClient, PlaybackPort, PlaybackSource};
 pub use backend_client::CatalogPort;
-pub use canopy::CanopyCatalogClient;
+pub use canopy::{CanopyCatalogClient, CanopyPlaybackClient};
 pub use canopy_tonic_transport::CanopyTonicTransport;
 pub use remote_repository::RemoteRepository;
 pub use retrying_audio_source_client::RetryingAudioSourceClient;

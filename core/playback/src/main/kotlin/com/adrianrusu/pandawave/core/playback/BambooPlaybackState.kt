@@ -9,6 +9,7 @@ data class BambooPlaybackState(
     val artworkUri: String? = null,
     val sourceUri: String? = null,
     val mimeType: String? = null,
+    val playbackExpiresAtEpochMillis: Long? = null,
     val playbackStatus: BambooPlaybackStatus = BambooPlaybackStatus.Idle,
     val engineConnection: BambooEngineConnectionUiState = BambooEngineConnectionUiState.Connecting,
     val restriction: BambooPlaybackRestrictionState = BambooPlaybackRestrictionState.Unavailable,

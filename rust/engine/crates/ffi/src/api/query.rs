@@ -131,6 +131,26 @@ pub unsafe extern "C" fn panda_engine_get_current_mime_type(
 }
 
 #[unsafe(no_mangle)]
+/// Returns the current opaque playback capability expiry in epoch milliseconds, or `-1`.
+///
+/// # Safety
+/// - `engine` must be null or a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
+pub unsafe extern "C" fn panda_engine_get_current_playback_expiry_epoch_millis(
+    engine: *const PandaEngine,
+) -> i64 {
+    let Some(engine) = (unsafe { engine.as_ref() }) else {
+        return -1;
+    };
+    engine
+        .engine
+        .snapshot()
+        .playback_expires_at_epoch_millis
+        .map(|expiry| expiry.min(i64::MAX as u64) as i64)
+        .unwrap_or(-1)
+}
+
+#[unsafe(no_mangle)]
 /// # Safety
 /// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
 /// - The returned string pointer must be released with `panda_engine_free_string`.

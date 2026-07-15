@@ -26,14 +26,3 @@ pub struct EngineTrack {
     pub artwork_id: Option<String>,
     pub genres: Vec<String>,
 }
-
-/// Opaque, time-limited playback capability resolved by the backend adapter.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct EnginePlaybackSource {
-    pub track_id: String,
-    pub url: String,
-    pub content_type: String,
-    pub codec: String,
-    pub duration_millis: u64,
-    pub expires_at_epoch_millis: u64,
-}

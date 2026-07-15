@@ -10,7 +10,9 @@ import com.adrianrusu.pandawave.core.playback.BambooPlaybackStatus
 internal data class BambooMediaSessionStateProjection(
     val mediaItem: MediaItem,
     val playWhenReady: Boolean,
-    val positionMillis: Long
+    val positionMillis: Long,
+    val playbackExpiresAtEpochMillis: Long? = null,
+    val contentType: String? = null
 )
 
 internal fun interface BambooUriParser {
@@ -43,7 +45,9 @@ internal fun BambooPlaybackState.toMediaSessionStateProjection(
             )
             .build(),
         playWhenReady = playbackStatus == BambooPlaybackStatus.Playing,
-        positionMillis = positionMillis.coerceAtLeast(0L)
+        positionMillis = positionMillis.coerceAtLeast(0L),
+        playbackExpiresAtEpochMillis = playbackExpiresAtEpochMillis,
+        contentType = mimeType
     )
 }
 

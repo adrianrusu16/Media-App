@@ -1,5 +1,10 @@
 use super::*;
 
+pub(super) struct ResolvedPlaybackMedia {
+    pub(super) media: crate::data::repository::MediaItem,
+    pub(super) expires_at_epoch_millis: Option<u64>,
+}
+
 impl Engine {
     /// Executes any side effects by driving the player and other components.
     pub(super) fn execute_effects(&mut self, effects: &[EngineEffect]) {
@@ -20,10 +25,11 @@ impl Engine {
 
     /// Helper to update the snapshot with new media and emit metadata effects.
     pub(super) fn update_media_state(
-        media: &crate::data::repository::MediaItem,
+        resolved: &ResolvedPlaybackMedia,
         snapshot: EngineSnapshot,
         effects: &mut Vec<EngineEffect>,
     ) -> EngineSnapshot {
+        let media = &resolved.media;
         let next_snapshot = snapshot.with_media(media.clone());
         effects.push(EngineEffect::PreparePlaybackSource {
             media_id: media.id.clone(),
@@ -33,20 +39,38 @@ impl Engine {
             title: media.title.clone(),
             artist: media.artist.clone(),
         });
-        next_snapshot
+        next_snapshot.with_playback_expiry(resolved.expires_at_epoch_millis)
     }
 
     /// Resolves a selected media item into a playable source before projection.
     pub(super) async fn resolve_playback_source(
         &self,
         media: &crate::data::repository::MediaItem,
-    ) -> Result<crate::data::repository::MediaItem, crate::model::error::EngineError> {
+    ) -> Result<ResolvedPlaybackMedia, crate::model::error::EngineError> {
+        if let Some(playback_port) = &self.playback_port {
+            let source = playback_port.resolve_playback(&media.id).await?;
+            let mut resolved_media = media.clone();
+            resolved_media.source_uri = Some(source.url);
+            resolved_media.mime_type = Some(source.content_type);
+            resolved_media.duration_millis = Some(source.duration_millis);
+            return Ok(ResolvedPlaybackMedia {
+                media: resolved_media,
+                expires_at_epoch_millis: Some(source.expires_at_epoch_millis),
+            });
+        }
+
         if media.source_uri.is_some() {
-            return Ok(media.clone());
+            return Ok(ResolvedPlaybackMedia {
+                media: media.clone(),
+                expires_at_epoch_millis: None,
+            });
         }
 
         let Some(audio_source_client) = &self.audio_source_client else {
-            return Ok(media.clone());
+            return Ok(ResolvedPlaybackMedia {
+                media: media.clone(),
+                expires_at_epoch_millis: None,
+            });
         };
 
         let source = audio_source_client
@@ -70,6 +94,9 @@ impl Engine {
             resolved_media.duration_millis = source.expected_duration_ms;
         }
 
-        Ok(resolved_media)
+        Ok(ResolvedPlaybackMedia {
+            media: resolved_media,
+            expires_at_epoch_millis: None,
+        })
     }
 }

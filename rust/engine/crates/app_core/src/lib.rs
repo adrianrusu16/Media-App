@@ -61,7 +61,7 @@ pub use crate::middleware::{
 pub use crate::model::backend::{
     EngineBackendStatus, EngineDependencyStatus, EngineStatusValue, RetryClass,
 };
-pub use crate::model::catalog::{EngineAlbum, EngineArtist, EnginePlaybackSource, EngineTrack};
+pub use crate::model::catalog::{EngineAlbum, EngineArtist, EngineTrack};
 pub use crate::model::command::{EngineCommand, EngineCommandType};
 pub use crate::model::effect::EngineEffect;
 pub use crate::model::error::{EngineError, EngineErrorType};
@@ -69,13 +69,14 @@ pub use crate::model::event::{EngineEvent, EngineEventType};
 pub use crate::model::page::{EnginePageRequest, EnginePageToken, EnginePagedResult};
 pub use crate::model::platform_event::{EnginePlatformEvent, EnginePlatformEventType};
 pub use crate::model::playback::{
-    ControlState, DrivingState, PlaybackState, PlayerControls, RestrictionState,
+    ControlState, DrivingState, EnginePlaybackSource, PlaybackState, PlayerControls,
+    RestrictionState,
 };
 pub use crate::model::preferences::{PreferenceSource, ThemePreference, ThemePreferenceState};
 pub use crate::model::snapshot::EngineSnapshot;
 pub use crate::networking::{
-    AudioChunk, AudioSourceClient, CanopyCatalogClient, CatalogPort, PlaybackSource,
-    RemoteRepository, RetryingAudioSourceClient, SystemPort,
+    AudioChunk, AudioSourceClient, CanopyCatalogClient, CanopyPlaybackClient, CatalogPort,
+    PlaybackPort, PlaybackSource, RemoteRepository, RetryingAudioSourceClient, SystemPort,
 };
 pub use crate::services::player::{MediaPlayer, MockPlayer};
 pub use crate::services::service::{EngineService, ServiceManager};

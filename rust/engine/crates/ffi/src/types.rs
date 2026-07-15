@@ -50,6 +50,7 @@ pub struct FfiEngineSnapshot {
     pub updated_at_epoch_millis: u64,
     pub metadata_revision: u64,
     pub duration_millis: i64,
+    pub playback_expires_at_epoch_millis: i64,
     pub theme_preference: i32,
     pub preference_source: i32,
     pub preference_revision: u64,
@@ -89,6 +90,7 @@ impl FfiEngineSnapshot {
             updated_at_epoch_millis: 0,
             metadata_revision: 0,
             duration_millis: -1,
+            playback_expires_at_epoch_millis: -1,
             theme_preference: crate::FFI_THEME_SYSTEM_DEFAULT,
             preference_source: crate::FFI_PREFERENCE_SOURCE_UNINITIALIZED,
             preference_revision: 0,
@@ -150,6 +152,10 @@ impl From<&EngineSnapshot> for FfiEngineSnapshot {
             duration_millis: snapshot
                 .duration_millis
                 .map(|duration_millis| duration_millis.min(i64::MAX as u64) as i64)
+                .unwrap_or(-1),
+            playback_expires_at_epoch_millis: snapshot
+                .playback_expires_at_epoch_millis
+                .map(|expiry| expiry.min(i64::MAX as u64) as i64)
                 .unwrap_or(-1),
             theme_preference: theme_preference_to_ffi(snapshot.theme_preference.theme),
             preference_source: preference_source_to_ffi(snapshot.theme_preference.source),

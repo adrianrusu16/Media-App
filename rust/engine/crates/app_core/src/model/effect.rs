@@ -32,7 +32,8 @@ pub enum EngineEffect {
     DuckAudio,
     /// Request the platform to unduck audio sources.
     UnduckAudio,
-    /// Request the platform to prepare the resolved playback source.
+    /// Signal the platform to consume the latest resolved playback projection
+    /// for this media identifier and prepare it for playback.
     PreparePlaybackSource { media_id: String },
     /// Update the system's media session metadata.
     UpdateMetadata {

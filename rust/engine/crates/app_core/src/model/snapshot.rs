@@ -36,6 +36,9 @@ pub struct EngineSnapshot {
     pub source_uri: Option<String>,
     /// MIME type for the current playable media source.
     pub mime_type: Option<String>,
+    /// Expiry of the current opaque playback capability, in Unix epoch milliseconds.
+    #[serde(default)]
+    pub playback_expires_at_epoch_millis: Option<u64>,
     /// The ID of the user currently interacting with the engine.
     pub user_id: Option<String>,
     /// Theme preference projected from local cache, local input, or an authenticated profile.
@@ -138,6 +141,16 @@ impl EngineSnapshot {
     #[must_use]
     pub fn with_backend_status(mut self, status: Option<EngineBackendStatus>) -> Self {
         self.backend_status = status;
+        self
+    }
+
+    /// Functional update for the current opaque playback capability expiry.
+    #[must_use]
+    pub fn with_playback_expiry(mut self, expires_at_epoch_millis: Option<u64>) -> Self {
+        if self.playback_expires_at_epoch_millis != expires_at_epoch_millis {
+            self.metadata_revision = self.metadata_revision.saturating_add(1);
+        }
+        self.playback_expires_at_epoch_millis = expires_at_epoch_millis;
         self
     }
 

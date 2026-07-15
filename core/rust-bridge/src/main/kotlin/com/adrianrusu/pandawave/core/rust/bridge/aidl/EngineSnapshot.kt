@@ -13,6 +13,7 @@ data class EngineSnapshot(
     val artworkUri: String? = null,
     val sourceUri: String? = null,
     val mimeType: String? = null,
+    val playbackExpiresAtEpochMillis: Long? = null,
     val userId: String?,
     val restrictionState: String,
     val updatedAtEpochMillis: Long,
@@ -41,6 +42,7 @@ data class EngineSnapshot(
         artworkUri = parcel.readString(),
         sourceUri = parcel.readString(),
         mimeType = parcel.readString(),
+        playbackExpiresAtEpochMillis = parcel.readNullableLong(),
         userId = parcel.readString(),
         restrictionState = parcel.readString().orEmpty(),
         updatedAtEpochMillis = parcel.readLong(),
@@ -80,6 +82,7 @@ data class EngineSnapshot(
         parcel.writeString(artworkUri)
         parcel.writeString(sourceUri)
         parcel.writeString(mimeType)
+        parcel.writeNullableLong(playbackExpiresAtEpochMillis)
         parcel.writeString(userId)
         parcel.writeString(restrictionState)
         parcel.writeLong(updatedAtEpochMillis)
@@ -138,6 +141,7 @@ data class EngineSnapshot(
             artworkUri = null,
             sourceUri = null,
             mimeType = null,
+            playbackExpiresAtEpochMillis = null,
             userId = null,
             restrictionState = RESTRICTION_UNKNOWN,
             updatedAtEpochMillis = nowMillis,

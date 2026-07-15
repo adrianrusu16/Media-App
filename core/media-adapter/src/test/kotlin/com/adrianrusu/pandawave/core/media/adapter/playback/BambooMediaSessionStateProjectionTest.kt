@@ -66,4 +66,28 @@ class BambooMediaSessionStateProjectionTest {
 
         assertEquals(0L, projection.positionMillis)
     }
+
+    @Test
+    fun `opaque canonical source and expiry project directly to media3`() {
+        val opaqueUrl = "http://10.0.2.2:8080/s/opaque?token=a%2Fb"
+        val parsedUris = mutableListOf<String>()
+        val projection = BambooPlaybackState(
+            mediaId = "track-1",
+            sourceUri = opaqueUrl,
+            mimeType = "audio/flac",
+            durationMillis = 42_000,
+            playbackExpiresAtEpochMillis = 1_750_000_000_250
+        ).toMediaSessionStateProjection(
+            uriParser = BambooUriParser { value ->
+                parsedUris += value
+                null
+            }
+        )
+
+        assertEquals(listOf(opaqueUrl), parsedUris)
+        assertEquals("audio/flac", projection.contentType)
+        assertEquals(42_000, projection.mediaItem.mediaMetadata.durationMs)
+        assertEquals(1_750_000_000_250, projection.playbackExpiresAtEpochMillis)
+        assertFalse(parsedUris.single().startsWith("content://"))
+    }
 }

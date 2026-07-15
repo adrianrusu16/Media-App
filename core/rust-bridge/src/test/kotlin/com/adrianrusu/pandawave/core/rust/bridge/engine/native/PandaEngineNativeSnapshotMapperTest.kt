@@ -44,7 +44,8 @@ class PandaEngineNativeSnapshotMapperTest {
                 true.toLong(),
                 true.toLong(),
                 1_725_000_000_000L,
-                2L
+                2L,
+                1_750_000_000_250L
             )
         )
         val snapshot = projection.snapshot
@@ -74,6 +75,7 @@ class PandaEngineNativeSnapshotMapperTest {
         assertEquals(5, snapshot.browseResultsCount)
         assertEquals(7L, projection.metadataRevision)
         assertEquals(222_000L, snapshot.durationMillis)
+        assertEquals(1_750_000_000_250L, snapshot.playbackExpiresAtEpochMillis)
         assertEquals("forest_tech_dark", snapshot.themePreference.themeId)
         assertEquals("remote_profile", snapshot.themePreference.source)
         assertEquals(8L, snapshot.themePreference.revision)

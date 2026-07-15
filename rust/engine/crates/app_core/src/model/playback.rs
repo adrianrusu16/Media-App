@@ -1,5 +1,16 @@
 use serde::{Deserialize, Serialize};
 
+/// Opaque, time-limited playback capability resolved by a backend adapter.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct EnginePlaybackSource {
+    pub track_id: String,
+    pub url: String,
+    pub content_type: String,
+    pub codec: String,
+    pub duration_millis: u64,
+    pub expires_at_epoch_millis: u64,
+}
+
 /// Represents the current playback status of the media engine.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub enum PlaybackState {

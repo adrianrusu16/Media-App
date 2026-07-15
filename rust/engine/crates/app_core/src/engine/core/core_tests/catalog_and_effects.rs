@@ -1,6 +1,6 @@
 use super::*;
 use crate::networking::PlaybackSource;
-use crate::networking::audio_source_client::MockAudioSourceClient;
+use crate::networking::audio_source_client::{MockAudioSourceClient, MockPlaybackPort};
 use std::sync::Arc;
 
 #[tokio::test]
@@ -378,6 +378,56 @@ async fn play_media_by_id_resolves_playback_source() {
         artist: "PandaWave".to_string(),
     }));
     assert!(outcome.effects.contains(&EngineEffect::Play));
+}
+
+#[tokio::test]
+async fn play_media_by_id_projects_canonical_playback_capability_verbatim() {
+    let mut engine = Engine::new(100);
+    engine.set_repository(Box::new(InMemoryRepository::new(vec![MediaItem {
+        id: "track-1".into(),
+        title: "Canonical Track".into(),
+        artist: "PandaWave".into(),
+        ..Default::default()
+    }])));
+
+    let mut playback_port = MockPlaybackPort::new();
+    playback_port
+        .expect_resolve_playback()
+        .withf(|track_id| track_id == "track-1")
+        .times(1)
+        .returning(|_| {
+            Ok(crate::EnginePlaybackSource {
+                track_id: "track-1".into(),
+                url: "http://10.0.2.2:8080/s/opaque?token=a%2Fb".into(),
+                content_type: "audio/flac".into(),
+                codec: "flac".into(),
+                duration_millis: 42_000,
+                expires_at_epoch_millis: 1_750_000_000_250,
+            })
+        });
+    engine.set_playback_port(Arc::new(playback_port));
+
+    let outcome = engine
+        .dispatch(EngineCommand::play_media_by_id("track-1".into()), 200)
+        .await;
+
+    assert_eq!(
+        outcome.snapshot.source_uri.as_deref(),
+        Some("http://10.0.2.2:8080/s/opaque?token=a%2Fb")
+    );
+    assert_eq!(outcome.snapshot.mime_type.as_deref(), Some("audio/flac"));
+    assert_eq!(outcome.snapshot.duration_millis, Some(42_000));
+    assert_eq!(
+        outcome.snapshot.playback_expires_at_epoch_millis,
+        Some(1_750_000_000_250)
+    );
+    assert!(
+        outcome
+            .effects
+            .contains(&EngineEffect::PreparePlaybackSource {
+                media_id: "track-1".into(),
+            })
+    );
 }
 
 #[tokio::test]

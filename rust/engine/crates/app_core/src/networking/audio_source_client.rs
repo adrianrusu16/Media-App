@@ -1,3 +1,12 @@
+use crate::{EngineError, EnginePlaybackSource};
+
+/// Backend-neutral port for resolving an opaque, expiring playback capability.
+#[cfg_attr(test, mockall::automock)]
+#[async_trait::async_trait]
+pub trait PlaybackPort: Send + Sync {
+    async fn resolve_playback(&self, track_id: &str) -> Result<EnginePlaybackSource, EngineError>;
+}
+
 /// Transport-agnostic source descriptor used by playback-facing layers.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlaybackSource {

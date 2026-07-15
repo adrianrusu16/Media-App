@@ -15,6 +15,7 @@ internal object BambooPlaybackStateProjector {
         artworkUri = snapshot.artworkUri,
         sourceUri = snapshot.sourceUri,
         mimeType = snapshot.mimeType,
+        playbackExpiresAtEpochMillis = snapshot.playbackExpiresAtEpochMillis,
         playbackStatus = snapshot.playbackState.toPlaybackStatus(),
         updatedAtEpochMillis = snapshot.updatedAtEpochMillis,
         positionMillis = snapshot.positionMillis,

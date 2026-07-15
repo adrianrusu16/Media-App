@@ -427,6 +427,8 @@ internal object PandaEngineNativeSnapshotMapper {
                 durationMillis = nativeValues[SNAPSHOT_DURATION_MILLIS_INDEX].takeIf { durationMillis ->
                     durationMillis >= 0L
                 },
+                playbackExpiresAtEpochMillis = nativeValues[SNAPSHOT_PLAYBACK_EXPIRY_INDEX]
+                    .takeIf { expiry -> expiry >= 0L },
                 artworkUri = null,
                 userId = null,
                 restrictionState = restrictionStateFromNative(
@@ -566,7 +568,7 @@ internal object PandaEngineNativeSnapshotMapper {
     private const val PREFERENCE_SOURCE_LOCAL_USER = 2
     private const val PREFERENCE_SOURCE_REMOTE_PROFILE = 3
 
-    private const val SNAPSHOT_VALUE_COUNT = 34
+    private const val SNAPSHOT_VALUE_COUNT = 35
     private const val SNAPSHOT_PLAYBACK_INDEX = 0
     private const val SNAPSHOT_RESTRICTION_INDEX = 1
     private const val SNAPSHOT_UPDATED_AT_INDEX = 2
@@ -601,4 +603,5 @@ internal object PandaEngineNativeSnapshotMapper {
     private const val SNAPSHOT_BACKEND_HEALTHY_INDEX = 31
     private const val SNAPSHOT_BACKEND_CHECKED_AT_INDEX = 32
     private const val SNAPSHOT_BACKEND_DEPENDENCY_COUNT_INDEX = 33
+    private const val SNAPSHOT_PLAYBACK_EXPIRY_INDEX = 34
 }
