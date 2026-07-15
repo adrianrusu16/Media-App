@@ -61,7 +61,7 @@ impl CatalogPort for CanopyCatalogClient {
         let response = execute_with_auth(
             self.session.as_deref(),
             ReplayPolicy::Safe,
-            current_epoch_millis(),
+            current_epoch_millis()?,
             || Request::new(request.clone()),
             move |request| {
                 let mut client = client.clone();
@@ -86,7 +86,7 @@ impl CatalogPort for CanopyCatalogClient {
         let response = execute_with_auth(
             self.session.as_deref(),
             ReplayPolicy::Safe,
-            current_epoch_millis(),
+            current_epoch_millis()?,
             || Request::new(request.clone()),
             move |request| {
                 let mut client = client.clone();
@@ -106,7 +106,7 @@ impl CatalogPort for CanopyCatalogClient {
         let response = execute_with_auth(
             self.session.as_deref(),
             ReplayPolicy::Safe,
-            current_epoch_millis(),
+            current_epoch_millis()?,
             || Request::new(request.clone()),
             move |request| {
                 let mut client = client.clone();

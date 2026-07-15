@@ -47,7 +47,7 @@ impl PlaybackPort for CanopyPlaybackClient {
         let response = execute_with_auth(
             self.session.as_deref(),
             ReplayPolicy::Safe,
-            current_epoch_millis(),
+            current_epoch_millis()?,
             || playback_request(track_id),
             move |request| {
                 let mut client = client.clone();

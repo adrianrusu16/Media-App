@@ -17,13 +17,24 @@ pub(crate) enum ReplayPolicy {
     NonIdempotent,
 }
 
-pub(crate) fn current_epoch_millis() -> u64 {
-    SystemTime::now()
+pub(crate) fn current_epoch_millis() -> Result<u64, EngineError> {
+    epoch_millis(SystemTime::now())
+}
+
+fn epoch_millis(time: SystemTime) -> Result<u64, EngineError> {
+    let millis = time
         .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_millis()
-        .try_into()
-        .unwrap_or(u64::MAX)
+        .map_err(|_| invalid_system_clock())?
+        .as_millis();
+    u64::try_from(millis).map_err(|_| invalid_system_clock())
+}
+
+fn invalid_system_clock() -> EngineError {
+    EngineError::new(
+        EngineErrorType::FailedPrecondition,
+        "system clock cannot be used for authentication expiry checks",
+        false,
+    )
 }
 
 pub(crate) async fn execute_with_auth<TRequest, TResponse, MakeRequest, Execute, ExecuteFuture>(
@@ -96,10 +107,11 @@ fn invalid_authorization_metadata() -> EngineError {
 mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::{Arc, Mutex};
+    use std::time::{Duration, UNIX_EPOCH};
 
     use tonic_014::{Code, Request, Response, Status};
 
-    use super::{ReplayPolicy, execute_with_auth};
+    use super::{ReplayPolicy, epoch_millis, execute_with_auth};
     use crate::{
         Account, AuthPort, AuthSession, AuthSessionEnvelope, EngineError, EngineErrorType,
         InMemorySessionStore, SessionCoordinator, SessionStore,
@@ -170,6 +182,15 @@ mod tests {
             replacement,
         });
         (Arc::new(SessionCoordinator::new(store, auth.clone())), auth)
+    }
+
+    #[test]
+    fn pre_epoch_clock_fails_closed_with_a_typed_error() {
+        let before_epoch = UNIX_EPOCH.checked_sub(Duration::from_millis(1)).unwrap();
+
+        let error = epoch_millis(before_epoch).unwrap_err();
+
+        assert_eq!(error.error_type, EngineErrorType::FailedPrecondition);
     }
 
     #[tokio::test]
