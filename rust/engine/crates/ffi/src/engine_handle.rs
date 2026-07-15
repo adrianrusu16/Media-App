@@ -1,5 +1,6 @@
 use std::sync::{Arc, Mutex};
 
+use panda_engine_core::networking::canopy::CanopyConnectionConfig;
 use panda_engine_core::{
     ConcurrentEngine, Engine, EngineEffect, EngineEvent, EngineObserver, EngineOutcome,
     EngineSnapshot, LoggerMiddleware, MiddlewarePipeline, TelemetryMiddleware,
@@ -16,6 +17,25 @@ pub struct PandaEngine {
     pub(crate) last_event: Arc<Mutex<Option<EngineEvent>>>,
     pub(crate) observer: Option<Arc<FfiObserver>>,
     pub(crate) runtime: tokio::runtime::Runtime,
+    pub(crate) backend_configuration: Mutex<BackendConfigurationState>,
+}
+
+#[derive(Debug)]
+pub(crate) enum BackendConfigurationState {
+    Unconfigured,
+    Configuring,
+    Ready(Box<CanopyConnectionConfig>),
+    Failed,
+}
+
+impl PandaEngine {
+    #[cfg(test)]
+    pub(crate) fn backend_is_configured(&self) -> bool {
+        matches!(
+            *self.backend_configuration.lock().unwrap(),
+            BackendConfigurationState::Ready(_)
+        )
+    }
 }
 
 pub(crate) struct FfiObserver {
@@ -70,6 +90,7 @@ pub(crate) fn build_engine(now_epoch_millis: u64) -> PandaEngine {
         last_event: Arc::new(Mutex::new(None)),
         observer: None,
         runtime,
+        backend_configuration: Mutex::new(BackendConfigurationState::Unconfigured),
     }
 }
 

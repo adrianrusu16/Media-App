@@ -30,6 +30,16 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         }
     }
 
+    fun configureBackend(configJson: String) {
+        configureBackend(configJson, isDevelopment = false)
+    }
+
+    internal fun configureBackend(configJson: String, isDevelopment: Boolean) {
+        check(nativeConfigureBackend(nativeHandle, configJson, isDevelopment)) {
+            "PandaEngine backend configuration failed"
+        }
+    }
+
     override fun snapshot(): EngineSnapshot = nativeSnapshot(nativeHandle).toEngineSnapshot()
 
     override fun browseResult(index: Int): EngineCatalogItem? = resultItem(
@@ -105,6 +115,12 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     }
 
     private external fun nativeSnapshot(handle: Long): LongArray
+
+    private external fun nativeConfigureBackend(
+        handle: Long,
+        configJson: String,
+        isDevelopment: Boolean
+    ): Boolean
 
     private external fun nativeCurrentMediaId(handle: Long): String?
 

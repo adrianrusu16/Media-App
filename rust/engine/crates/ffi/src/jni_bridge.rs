@@ -6,6 +6,7 @@ use jni::objects::{JClass, JObject, JString};
 use jni::sys::{jboolean, jfloat, jint, jlong, jlongArray, jobjectArray, jstring};
 use std::sync::Arc;
 
+use crate::api::backend::configure_backend;
 use crate::jni_audio_source_client::JniAudioSourceClient;
 use crate::{
     FfiEngineSnapshot, PandaEngine, panda_engine_create, panda_engine_destroy,
@@ -27,6 +28,7 @@ use crate::{
     panda_engine_get_search_result_source_uri, panda_engine_get_search_result_thumbnail_url,
     panda_engine_get_search_result_title, panda_engine_snapshot,
 };
+use panda_engine_core::networking::canopy::DeploymentMode;
 
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeCreate(
@@ -48,6 +50,31 @@ pub extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_nat
 
 fn create_engine_handle(now_epoch_millis: jlong) -> jlong {
     panda_engine_create(now_epoch_millis as u64) as jlong
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeConfigureBackend(
+    mut env: JNIEnv,
+    _this: JObject,
+    handle: jlong,
+    config_json: JObject,
+    development: jboolean,
+) -> jboolean {
+    let Some(engine) = (unsafe { (handle as *mut PandaEngine).as_mut() }) else {
+        return false.into();
+    };
+    let Some(config_json) = jni_string_to_c_string(&mut env, config_json) else {
+        return false.into();
+    };
+    let Ok(config_json) = config_json.to_str() else {
+        return false.into();
+    };
+    let mode = if development != 0 {
+        DeploymentMode::Development
+    } else {
+        DeploymentMode::Production
+    };
+    configure_backend(engine, config_json, mode).is_ok().into()
 }
 
 #[unsafe(no_mangle)]

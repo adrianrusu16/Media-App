@@ -9,11 +9,21 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class PandaEngineNativeSmokeTest {
+    @Test
+    fun `production backend configuration rejects cleartext endpoints`() {
+        PandaEngine.create().use { engine ->
+            assertThrows(IllegalStateException::class.java) {
+                engine.configureBackend(cleartextConfig(), isDevelopment = false)
+            }
+        }
+    }
+
     @Test
     fun `native engine follows session and playback lifecycle`() {
         var nowEpochMillis = 1_000L
@@ -93,4 +103,9 @@ class PandaEngineNativeSmokeTest {
             assertFalse(endSessionResult.snapshot.hasActiveSession)
         }
     }
+
+    private fun cleartextConfig(): String =
+        androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+            .targetContext.assets.open("client-connection.json")
+            .bufferedReader().use { it.readText() }
 }

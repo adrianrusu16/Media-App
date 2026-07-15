@@ -1,8 +1,12 @@
+use std::time::Duration;
+
 use tonic_014::transport::{Channel, Endpoint};
 
 use crate::{EngineError, EngineErrorType};
 
 use super::CanopyConnectionConfig;
+
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// Cloneable shared HTTP/2 transport used by all canonical Canopy clients.
 #[derive(Clone)]
@@ -12,17 +16,27 @@ pub struct CanopyChannel {
 
 impl CanopyChannel {
     pub async fn connect(config: &CanopyConnectionConfig) -> Result<Self, EngineError> {
-        let endpoint = Endpoint::from_shared(config.grpc_endpoint().to_string()).map_err(|_| {
-            EngineError::new(
-                EngineErrorType::InvalidInput,
-                "invalid gRPC endpoint",
-                false,
-            )
-        })?;
+        let endpoint = Endpoint::from_shared(config.grpc_endpoint().to_string())
+            .map_err(|_| {
+                EngineError::new(
+                    EngineErrorType::InvalidInput,
+                    "invalid gRPC endpoint",
+                    false,
+                )
+            })?
+            .connect_timeout(CONNECT_TIMEOUT);
         let channel = endpoint.connect().await.map_err(|error| {
             EngineError::new(EngineErrorType::Transport, error.to_string(), false)
         })?;
         Ok(Self { channel })
+    }
+
+    /// Creates a lazy transport for composition tests without opening a network connection.
+    #[doc(hidden)]
+    pub fn connect_lazy_for_test(endpoint: &'static str) -> Self {
+        Self {
+            channel: Endpoint::from_static(endpoint).connect_lazy(),
+        }
     }
 
     pub(crate) fn clone_inner(&self) -> Channel {
@@ -42,5 +56,10 @@ mod tests {
 
         let _: Channel = shared.clone_inner();
         let _: Channel = shared.clone_inner();
+    }
+
+    #[test]
+    fn production_connection_attempt_has_a_bounded_timeout() {
+        assert!(super::CONNECT_TIMEOUT <= std::time::Duration::from_secs(5));
     }
 }

@@ -1,12 +1,14 @@
 // FFI API module root:
 // - Groups C entrypoints by responsibility and re-exports stable symbols.
 // - Keeps function names unchanged while reducing root-file complexity.
+pub(crate) mod backend;
 mod dispatch;
 mod lifecycle;
 mod persistence;
 mod query;
 mod queue;
 
+pub use backend::panda_engine_configure_backend;
 pub use dispatch::{
     panda_engine_dispatch, panda_engine_dispatch_platform_event, panda_engine_process_audio_raw,
 };
