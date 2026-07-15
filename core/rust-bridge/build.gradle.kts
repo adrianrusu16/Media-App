@@ -1,7 +1,4 @@
-import java.util.Locale
-import java.util.Properties
-import org.gradle.api.GradleException
-import org.gradle.api.tasks.Exec
+import com.adrianrusu.pandawave.buildlogic.BuildPandaEngineAndroidTask
 import org.gradle.api.tasks.Sync
 
 plugins {
@@ -14,8 +11,8 @@ val pandaEngineAndroidApi = 33
 val pandaEngineLibraryName = "libpanda_engine_ffi.so"
 val pandaEngineAndroidNdkVersion = providers.gradleProperty("pandaEngine.androidNdkVersion").get()
 val pandaEngineGeneratedJniLibsDir = layout.buildDirectory.dir("generated/panda-engine/jniLibs")
-val cargoExecutable = providers.environmentVariable("CARGO").orElse("cargo")
-val rustcExecutable = providers.environmentVariable("RUSTC").orElse("rustc")
+val cargoExecutableProvider = providers.environmentVariable("CARGO").orElse("cargo")
+val rustcExecutableProvider = providers.environmentVariable("RUSTC").orElse("rustc")
 val pandaEngineBuildNative =
     providers.gradleProperty("pandaEngine.buildNative")
         .map(String::toBoolean)
@@ -61,148 +58,39 @@ android {
     }
 }
 
-fun findAndroidNdkDirectory(): File? {
-    listOfNotNull(
-        System.getenv("ANDROID_NDK_HOME"),
-        System.getenv("ANDROID_NDK_ROOT")
-    ).map(::File)
-        .mapNotNull(::resolveAndroidNdkDirectory)
-        .firstOrNull()
-        ?.let { return it }
-
-    listOfNotNull(
-        System.getenv("ANDROID_SDK_ROOT"),
-        System.getenv("ANDROID_HOME")
-    ).map(::File)
-        .map { it.resolve("ndk/$pandaEngineAndroidNdkVersion") }
-        .firstOrNull { it.resolve("toolchains/llvm/prebuilt").isDirectory }
-        ?.let { return it }
-
-    val localPropertiesFile = rootProject.file("local.properties")
-    if (!localPropertiesFile.isFile) return null
-
-    val localProperties = Properties()
-    localPropertiesFile.inputStream().use(localProperties::load)
-    val sdkDirectory = localProperties.getProperty("sdk.dir")?.let(::File) ?: return null
-    if (!sdkDirectory.isDirectory) return null
-
-    val versionedNdkDirectory = sdkDirectory.resolve("ndk/$pandaEngineAndroidNdkVersion")
-    if (versionedNdkDirectory.resolve("toolchains/llvm/prebuilt").isDirectory) {
-        return versionedNdkDirectory
-    }
-
-    return null
-}
-
-fun resolveAndroidNdkDirectory(candidate: File): File? {
-    if (!candidate.isDirectory) return null
-
-    val toolchainDirectory = candidate.resolve("toolchains/llvm/prebuilt")
-    if (toolchainDirectory.isDirectory) return candidate
-
-    return candidate
-        .listFiles(File::isDirectory)
-        ?.filter { it.resolve("toolchains/llvm/prebuilt").isDirectory }
-        ?.maxByOrNull(File::getName)
-}
-
-fun androidNdkHostTag(): String {
-    val osName = System.getProperty("os.name").lowercase(Locale.US)
-    val osArch = System.getProperty("os.arch").lowercase(Locale.US)
-
-    return when {
-        osName.contains("windows") -> "windows-x86_64"
-        osName.contains("mac") && osArch.contains("aarch64") -> "darwin-arm64"
-        osName.contains("mac") -> "darwin-x86_64"
-        else -> "linux-x86_64"
-    }
-}
-
-fun PandaEngineAndroidTarget.linkerExecutable(ndkDirectory: File): File {
-    val executableSuffix = if (System.getProperty("os.name").contains("Windows", ignoreCase = true)) ".cmd" else ""
-    return ndkDirectory.resolve(
-        "toolchains/llvm/prebuilt/${androidNdkHostTag()}/bin/" +
-            "$linkerPrefix$pandaEngineAndroidApi-clang$executableSuffix"
-    )
-}
-
-fun rustTargetLibDirectory(rustTarget: String): File {
-    val process =
-        ProcessBuilder(
-            rustcExecutable.get(),
-            "--print",
-            "target-libdir",
-            "--target",
-            rustTarget
-        ).start()
-    val output = process.inputStream.bufferedReader().readText().trim()
-    val errors = process.errorStream.bufferedReader().readText().trim()
-    val exitCode = process.waitFor()
-
-    if (exitCode != 0) {
-        throw GradleException(
-            "Unable to inspect Rust target $rustTarget. " +
-                "Install rustup/rustc or set RUSTC. $errors"
-        )
-    }
-
-    return File(output)
-}
-
 val buildPandaEngineAndroidTargetTasks =
     pandaEngineAndroidTargets.map { (taskSuffix, target) ->
-        tasks.register<Exec>("buildPandaEngineAndroid$taskSuffix") {
+        tasks.register<BuildPandaEngineAndroidTask>("buildPandaEngineAndroid$taskSuffix") {
             group = "build"
             description = "Builds $pandaEngineLibraryName for ${target.abi}."
-            workingDir = rootProject.layout.projectDirectory.dir("rust/engine").asFile
-            commandLine(
-                cargoExecutable.get(),
-                "build",
-                "-p",
-                "panda_engine_ffi",
-                "--release",
-                "--target",
-                target.rustTarget
-            )
-            inputs.files(
+            cargoExecutable.set(cargoExecutableProvider)
+            rustcExecutable.set(rustcExecutableProvider)
+            rustTarget.set(target.rustTarget)
+            androidAbi.set(target.abi)
+            androidNdkVersion.set(pandaEngineAndroidNdkVersion)
+            androidApi.set(pandaEngineAndroidApi)
+            linkerPrefix.set(target.linkerPrefix)
+            androidNdkHome.set(providers.environmentVariable("ANDROID_NDK_HOME"))
+            androidNdkRoot.set(providers.environmentVariable("ANDROID_NDK_ROOT"))
+            androidSdkRoot.set(providers.environmentVariable("ANDROID_SDK_ROOT"))
+            androidHome.set(providers.environmentVariable("ANDROID_HOME"))
+            engineDirectory.set(rootProject.layout.projectDirectory.dir("rust/engine"))
+            val localProperties = rootProject.layout.projectDirectory.file("local.properties")
+            if (localProperties.asFile.isFile) {
+                localPropertiesFile.set(localProperties)
+            }
+            rustSources.from(
                 fileTree(rootProject.layout.projectDirectory.dir("rust/engine")) {
                     include("Cargo.toml")
                     include("Cargo.lock")
                     include("crates/**")
                 }
             )
-            outputs.file(
+            outputLibrary.set(
                 rootProject.layout.projectDirectory.file(
                     "rust/engine/target/${target.rustTarget}/release/$pandaEngineLibraryName"
                 )
             )
-
-            doFirst {
-                val targetLibDirectory = rustTargetLibDirectory(target.rustTarget)
-                if (!targetLibDirectory.isDirectory) {
-                    throw GradleException(
-                        "Rust target ${target.rustTarget} is required to build PandaEngine for ${target.abi}. " +
-                            "Install it with: rustup target add ${target.rustTarget}"
-                    )
-                }
-
-                val ndkDirectory =
-                    findAndroidNdkDirectory()
-                        ?: throw GradleException(
-                            "Android NDK $pandaEngineAndroidNdkVersion is required to build " +
-                                "PandaEngine native libraries. Install it through Android Studio " +
-                                "or set ANDROID_NDK_HOME."
-                        )
-                val linker = target.linkerExecutable(ndkDirectory)
-                if (!linker.isFile) {
-                    throw GradleException("Android NDK linker was not found: ${linker.absolutePath}")
-                }
-
-                environment(
-                    "CARGO_TARGET_${target.rustTarget.uppercase(Locale.US).replace('-', '_')}_LINKER",
-                    linker.absolutePath
-                )
-            }
         }
     }
 
