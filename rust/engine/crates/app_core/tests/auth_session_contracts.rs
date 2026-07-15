@@ -3,7 +3,8 @@ use std::thread;
 
 use panda_engine_core::{
     Account, AuthPort, AuthSession, AuthSessionEnvelope, AuthState, EngineError, EngineErrorType,
-    InMemorySessionStore, SessionStore, SessionStoreError,
+    InMemorySessionStore, SessionStore, SessionStoreError, SessionStoreSecurity,
+    validate_production_session_store,
 };
 
 fn envelope(label: &str) -> AuthSessionEnvelope {
@@ -102,6 +103,10 @@ struct FailingBeforeCommitStore {
 }
 
 impl SessionStore for FailingBeforeCommitStore {
+    fn security_level(&self) -> SessionStoreSecurity {
+        SessionStoreSecurity::Ephemeral
+    }
+
     fn read(&self) -> Result<Option<AuthSessionEnvelope>, SessionStoreError> {
         self.inner.read()
     }
@@ -216,7 +221,42 @@ fn storage_errors_map_to_a_typed_engine_error() {
 }
 
 #[test]
-fn in_memory_store_explicitly_rejects_production_use() {
-    let production_ready = std::hint::black_box(InMemorySessionStore::PRODUCTION_READY);
-    assert!(!production_ready);
+fn production_validator_rejects_arc_dyn_in_memory_store() {
+    let store: Arc<dyn SessionStore> = Arc::new(InMemorySessionStore::new());
+
+    assert_eq!(
+        validate_production_session_store(store.as_ref()),
+        Err(SessionStoreError::InsecureForProduction)
+    );
+}
+
+struct DurableSecureTestStore {
+    inner: InMemorySessionStore,
+}
+
+impl SessionStore for DurableSecureTestStore {
+    fn security_level(&self) -> SessionStoreSecurity {
+        SessionStoreSecurity::DurableSecure
+    }
+
+    fn read(&self) -> Result<Option<AuthSessionEnvelope>, SessionStoreError> {
+        self.inner.read()
+    }
+
+    fn replace(&self, envelope: AuthSessionEnvelope) -> Result<(), SessionStoreError> {
+        self.inner.replace(envelope)
+    }
+
+    fn clear(&self) -> Result<(), SessionStoreError> {
+        self.inner.clear()
+    }
+}
+
+#[test]
+fn production_validator_accepts_dyn_durable_secure_store() {
+    let store: Arc<dyn SessionStore> = Arc::new(DurableSecureTestStore {
+        inner: InMemorySessionStore::new(),
+    });
+
+    assert_eq!(validate_production_session_store(store.as_ref()), Ok(()));
 }

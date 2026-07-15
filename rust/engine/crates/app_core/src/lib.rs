@@ -51,7 +51,10 @@ pub use crate::data::persistence::{EnginePersistentState, NoopPersistence, Persi
 pub use crate::data::queue::{QueueManager, RepeatMode};
 pub use crate::data::repository::{InMemoryRepository, MediaItem, MediaItemType, MediaRepository};
 pub use crate::data::session::MediaSession;
-pub use crate::data::session_store::{InMemorySessionStore, SessionStore, SessionStoreError};
+pub use crate::data::session_store::{
+    InMemorySessionStore, SessionStore, SessionStoreError, SessionStoreSecurity,
+    validate_production_session_store,
+};
 pub use crate::engine::concurrent::ConcurrentEngine;
 pub use crate::engine::core::{Engine, EngineOutcome};
 pub use crate::engine::observability::{EngineObserver, EventBus};
