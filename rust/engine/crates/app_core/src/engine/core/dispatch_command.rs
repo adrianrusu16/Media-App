@@ -149,7 +149,8 @@ impl Engine {
                             CatalogOperation::Search {
                                 query: query.clone(),
                                 page_size: page.page_size,
-                                next_page_token: result.next_page_token,
+                                next_page_token: result.next_page_token.clone(),
+                                items: result.items.clone(),
                             },
                         );
                         event_message = Some(operation_id);
@@ -178,7 +179,8 @@ impl Engine {
                                 parent_id: parent_id.clone(),
                                 genres: genres.clone(),
                                 page_size: page.page_size,
-                                next_page_token: result.next_page_token,
+                                next_page_token: result.next_page_token.clone(),
+                                items: result.items.clone(),
                             },
                         );
                         event_message = Some(operation_id);
@@ -196,6 +198,7 @@ impl Engine {
                         query,
                         page_size,
                         next_page_token: Some(page_token),
+                        items: mut accumulated_items,
                     }) => {
                         match self
                             .repository
@@ -209,16 +212,19 @@ impl Engine {
                             .await
                         {
                             Ok(result) => {
-                                let mut items = next_snapshot.search_results.clone();
-                                items.extend(result.items);
-                                next_snapshot = next_snapshot.with_search_results(items);
+                                accumulated_items.extend(result.items);
+                                next_snapshot =
+                                    next_snapshot.with_search_results(accumulated_items.clone());
                                 if let Some(operation) =
                                     self.catalog_operations.get_mut(operation_id)
                                     && let CatalogOperation::Search {
-                                        next_page_token, ..
+                                        next_page_token,
+                                        items,
+                                        ..
                                     } = operation
                                 {
                                     *next_page_token = result.next_page_token;
+                                    *items = accumulated_items;
                                 }
                                 event_message = Some(operation_id.clone());
                             }
@@ -230,6 +236,7 @@ impl Engine {
                         genres,
                         page_size,
                         next_page_token: Some(page_token),
+                        items: mut accumulated_items,
                     }) => {
                         match self
                             .repository
@@ -244,16 +251,19 @@ impl Engine {
                             .await
                         {
                             Ok(result) => {
-                                let mut items = next_snapshot.browse_results.clone();
-                                items.extend(result.items);
-                                next_snapshot = next_snapshot.with_browse_results(items);
+                                accumulated_items.extend(result.items);
+                                next_snapshot =
+                                    next_snapshot.with_browse_results(accumulated_items.clone());
                                 if let Some(operation) =
                                     self.catalog_operations.get_mut(operation_id)
                                     && let CatalogOperation::Browse {
-                                        next_page_token, ..
+                                        next_page_token,
+                                        items,
+                                        ..
                                     } = operation
                                 {
                                     *next_page_token = result.next_page_token;
+                                    *items = accumulated_items;
                                 }
                                 event_message = Some(operation_id.clone());
                             }

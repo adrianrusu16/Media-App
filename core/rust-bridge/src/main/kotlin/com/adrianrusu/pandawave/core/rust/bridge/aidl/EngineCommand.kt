@@ -26,6 +26,7 @@ data class EngineCommand(val type: String, val payload: String?) : Parcelable {
         const val TYPE_END_SESSION = "end_session"
         const val TYPE_SEARCH = "search"
         const val TYPE_BROWSE = "browse"
+        const val TYPE_LOAD_NEXT_CATALOG_PAGE = "load_next_catalog_page"
         const val TYPE_SET_SPEED = "set_speed"
         const val TYPE_SEEK = "seek"
         const val TYPE_PLAY_MEDIA_BY_ID = "play_media_by_id"

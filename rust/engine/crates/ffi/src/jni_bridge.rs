@@ -21,11 +21,11 @@ use crate::{
     panda_engine_get_effect_media_id, panda_engine_get_effect_notify_message,
     panda_engine_get_effect_position_millis, panda_engine_get_effect_speed,
     panda_engine_get_effect_type, panda_engine_get_effects_count,
-    panda_engine_get_search_result_album, panda_engine_get_search_result_artist,
-    panda_engine_get_search_result_id, panda_engine_get_search_result_item_type,
-    panda_engine_get_search_result_mime_type, panda_engine_get_search_result_source_uri,
-    panda_engine_get_search_result_thumbnail_url, panda_engine_get_search_result_title,
-    panda_engine_snapshot,
+    panda_engine_get_last_event_message, panda_engine_get_search_result_album,
+    panda_engine_get_search_result_artist, panda_engine_get_search_result_id,
+    panda_engine_get_search_result_item_type, panda_engine_get_search_result_mime_type,
+    panda_engine_get_search_result_source_uri, panda_engine_get_search_result_thumbnail_url,
+    panda_engine_get_search_result_title, panda_engine_snapshot,
 };
 
 #[unsafe(no_mangle)]
@@ -210,6 +210,16 @@ pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_eng
     handle: jlong,
 ) -> jstring {
     let value = unsafe { panda_engine_get_current_user_id(handle as *const PandaEngine) };
+    owned_c_string_to_jstring(&mut env, value)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeLastEventMessage(
+    mut env: JNIEnv,
+    _this: JObject,
+    handle: jlong,
+) -> jstring {
+    let value = unsafe { panda_engine_get_last_event_message(handle as *const PandaEngine) };
     owned_c_string_to_jstring(&mut env, value)
 }
 

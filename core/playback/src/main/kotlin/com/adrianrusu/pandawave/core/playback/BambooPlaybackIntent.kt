@@ -12,6 +12,7 @@ sealed interface BambooPlaybackIntent {
     data class PlayMedia(val mediaId: String) : BambooPlaybackIntent
     data class SearchCatalog(val query: String) : BambooPlaybackIntent
     data class BrowseCatalog(val parentId: String) : BambooPlaybackIntent
+    data class LoadNextCatalogPage(val operationId: String) : BambooPlaybackIntent
 
     /**
      * Platform-level event that should be processed by the engine.

@@ -150,6 +150,12 @@ class DefaultBambooPlaybackRepository(
                 sourceIntent = intent
             )
 
+            is BambooPlaybackIntent.LoadNextCatalogPage -> dispatchEngineCommand(
+                commandType = EngineCommand.TYPE_LOAD_NEXT_CATALOG_PAGE,
+                payload = EngineCommandPayloads.loadNextCatalogPage(intent.operationId),
+                sourceIntent = intent
+            )
+
             is BambooPlaybackIntent.PlatformEvent -> dispatchPlatformEvent(intent)
         }
     }

@@ -67,7 +67,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     override fun dispatch(command: EngineCommand): EngineDispatchResult {
         val nativeValues = nativeDispatch(
             handle = nativeHandle,
-            commandType = command.toNativeCommandType(),
+            commandType = nativeCommandType(command),
             payload = command.payload,
             nowEpochMillis = clock()
         )
@@ -76,7 +76,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             snapshot = nativeValues.toEngineSnapshot(),
             event = EngineEvent(
                 type = EngineEvent.TYPE_COMMAND_APPLIED,
-                message = command.type
+                message = nativeLastEventMessage(nativeHandle) ?: command.type
             ),
             effects = effects()
         )
@@ -94,7 +94,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             snapshot = nativeValues.toEngineSnapshot(),
             event = EngineEvent(
                 type = EngineEvent.TYPE_PLATFORM_EVENT_APPLIED,
-                message = event.type
+                message = nativeLastEventMessage(nativeHandle) ?: event.type
             ),
             effects = effects()
         )
@@ -121,6 +121,8 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     private external fun nativeCurrentMimeType(handle: Long): String?
 
     private external fun nativeCurrentUserId(handle: Long): String?
+
+    private external fun nativeLastEventMessage(handle: Long): String?
 
     private external fun nativeBackendStatusValues(handle: Long): Array<String>?
 
@@ -284,6 +286,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         private const val COMMAND_SET_THEME_PREFERENCE = 16
         private const val COMMAND_APPLY_REMOTE_THEME_PREFERENCE = 17
         private const val COMMAND_REFRESH_BACKEND_STATUS = 18
+        private const val COMMAND_LOAD_NEXT_CATALOG_PAGE = 19
         private const val COMMAND_UNKNOWN = -1
 
         private const val PLATFORM_EVENT_APP_FOREGROUNDED = 0
@@ -331,8 +334,11 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             EngineCommand.TYPE_SET_THEME_PREFERENCE -> COMMAND_SET_THEME_PREFERENCE
             EngineCommand.TYPE_APPLY_REMOTE_THEME_PREFERENCE -> COMMAND_APPLY_REMOTE_THEME_PREFERENCE
             EngineCommand.TYPE_REFRESH_BACKEND_STATUS -> COMMAND_REFRESH_BACKEND_STATUS
+            EngineCommand.TYPE_LOAD_NEXT_CATALOG_PAGE -> COMMAND_LOAD_NEXT_CATALOG_PAGE
             else -> COMMAND_UNKNOWN
         }
+
+        internal fun nativeCommandType(command: EngineCommand): Int = command.toNativeCommandType()
 
         private fun EnginePlatformEvent.toNativePlatformEventType(): Int = when (type) {
             EnginePlatformEvent.TYPE_APP_FOREGROUNDED -> PLATFORM_EVENT_APP_FOREGROUNDED

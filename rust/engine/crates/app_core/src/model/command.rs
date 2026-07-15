@@ -5,22 +5,31 @@ use crate::EnginePageRequest;
 const CATALOG_PAYLOAD_VERSION: u32 = 1;
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-struct SearchCatalogPayload {
-    version: u32,
-    query: String,
-    page: EnginePageRequest,
+#[serde(deny_unknown_fields)]
+struct InitialCatalogPagePayload {
+    page_size: u32,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SearchCatalogPayload {
+    version: u32,
+    query: String,
+    page: InitialCatalogPagePayload,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct BrowseCatalogPayload {
     version: u32,
     parent_id: Option<String>,
     #[serde(default)]
     genres: Vec<String>,
-    page: EnginePageRequest,
+    page: InitialCatalogPagePayload,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct LoadNextCatalogPagePayload {
     version: u32,
     operation_id: String,
@@ -320,10 +329,16 @@ impl EngineCommand {
     }
 
     pub fn search_catalog(query: String, page: EnginePageRequest) -> Self {
+        let page = EnginePageRequest {
+            page_size: page.page_size,
+            page_token: None,
+        };
         let payload = SearchCatalogPayload {
             version: CATALOG_PAYLOAD_VERSION,
             query: query.clone(),
-            page: page.clone(),
+            page: InitialCatalogPagePayload {
+                page_size: page.page_size,
+            },
         };
         Self::new(
             EngineCommandType::SearchCatalog { query, page },
@@ -336,11 +351,17 @@ impl EngineCommand {
         genres: Vec<String>,
         page: EnginePageRequest,
     ) -> Self {
+        let page = EnginePageRequest {
+            page_size: page.page_size,
+            page_token: None,
+        };
         let payload = BrowseCatalogPayload {
             version: CATALOG_PAYLOAD_VERSION,
             parent_id: parent_id.clone(),
             genres: genres.clone(),
-            page: page.clone(),
+            page: InitialCatalogPagePayload {
+                page_size: page.page_size,
+            },
         };
         Self::new(
             EngineCommandType::BrowseCatalog {
@@ -440,7 +461,10 @@ fn parse_search_catalog_payload(payload: &str) -> Option<EngineCommandType> {
     (payload.version == CATALOG_PAYLOAD_VERSION && !payload.query.trim().is_empty()).then_some(
         EngineCommandType::SearchCatalog {
             query: payload.query,
-            page: payload.page,
+            page: EnginePageRequest {
+                page_size: payload.page.page_size,
+                page_token: None,
+            },
         },
     )
 }
@@ -450,7 +474,10 @@ fn parse_browse_catalog_payload(payload: &str) -> Option<EngineCommandType> {
     (payload.version == CATALOG_PAYLOAD_VERSION).then_some(EngineCommandType::BrowseCatalog {
         parent_id: payload.parent_id,
         genres: payload.genres,
-        page: payload.page,
+        page: EnginePageRequest {
+            page_size: payload.page.page_size,
+            page_token: None,
+        },
     })
 }
 
@@ -513,8 +540,7 @@ mod tests {
 
     #[test]
     fn search_catalog_decodes_versioned_json_page_payload() {
-        let payload =
-            r#"{"version":1,"query":"jazz","page":{"page_size":25,"page_token":"opaque+/="}}"#;
+        let payload = r#"{"version":1,"query":"jazz","page":{"page_size":25}}"#;
 
         let command = EngineCommand::from_wire("search", Some(payload.into()));
 
@@ -524,15 +550,35 @@ mod tests {
                 query: "jazz".into(),
                 page: crate::EnginePageRequest {
                     page_size: 25,
-                    page_token: Some(crate::EnginePageToken::new("opaque+/=".into()).unwrap()),
+                    page_token: None,
                 },
             }
         );
     }
 
     #[test]
+    fn initial_catalog_payload_rejects_page_token() {
+        let payload =
+            r#"{"version":1,"query":"jazz","page":{"page_size":25,"page_token":"opaque+/="}}"#;
+        let command = EngineCommand::from_wire("search", Some(payload.into()));
+
+        assert_eq!(
+            command.command_type,
+            EngineCommandType::Unknown("invalid_search_payload".into())
+        );
+
+        let browse_payload = r#"{"version":1,"parent_id":"root","genres":[],"page":{"page_size":25,"page_token":null}}"#;
+        let browse = EngineCommand::from_wire("browse", Some(browse_payload.into()));
+        assert_eq!(
+            browse.command_type,
+            EngineCommandType::Unknown("invalid_browse_payload".into())
+        );
+    }
+
+    #[test]
     fn browse_catalog_decodes_versioned_json_filters() {
-        let payload = r#"{"version":1,"parent_id":null,"genres":["jazz","fusion"],"page":{"page_size":10,"page_token":null}}"#;
+        let payload =
+            r#"{"version":1,"parent_id":null,"genres":["jazz","fusion"],"page":{"page_size":10}}"#;
 
         let command = EngineCommand::from_wire("browse", Some(payload.into()));
 

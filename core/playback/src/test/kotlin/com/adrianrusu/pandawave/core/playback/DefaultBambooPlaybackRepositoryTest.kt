@@ -328,11 +328,13 @@ class DefaultBambooPlaybackRepositoryTest {
             BambooPlaybackIntent.BrowseCatalog(parentId = EngineCommandPayloads.DEFAULT_BROWSE_PARENT_ID)
         )
         repository.dispatch(BambooPlaybackIntent.SearchCatalog(query = "Rust"))
+        repository.dispatch(BambooPlaybackIntent.LoadNextCatalogPage(operationId = "catalog-1"))
 
         assertEquals(
             STARTUP_COMMAND_TYPES + listOf(
                 EngineCommand.TYPE_BROWSE,
-                EngineCommand.TYPE_SEARCH
+                EngineCommand.TYPE_SEARCH,
+                EngineCommand.TYPE_LOAD_NEXT_CATALOG_PAGE
             ),
             engine.commands.map { it.type }
         )
@@ -341,6 +343,10 @@ class DefaultBambooPlaybackRepositoryTest {
             engine.commands[2].payload
         )
         assertEquals(EngineCommandPayloads.searchQuery("Rust"), engine.commands[3].payload)
+        assertEquals(
+            EngineCommandPayloads.loadNextCatalogPage("catalog-1"),
+            engine.commands[4].payload
+        )
     }
 
     @Test

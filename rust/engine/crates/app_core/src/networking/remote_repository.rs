@@ -1,4 +1,5 @@
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
 
 use crate::data::repository::{MediaItem, MediaRepository};
 use crate::networking::backend_client::CatalogPort;
@@ -7,6 +8,7 @@ use crate::{EngineError, EnginePageRequest, EnginePagedResult, EngineTrack};
 /// Projects backend-neutral catalog tracks into the legacy playback repository view.
 pub struct RemoteRepository<C> {
     client: Arc<C>,
+    cache: RwLock<HashMap<String, MediaItem>>,
 }
 
 impl<C> RemoteRepository<C>
@@ -14,12 +16,18 @@ where
     C: CatalogPort,
 {
     pub fn new(client: Arc<C>) -> Self {
-        Self { client }
+        Self {
+            client,
+            cache: RwLock::new(HashMap::new()),
+        }
     }
 
-    fn project_page(page: EnginePagedResult<EngineTrack>) -> EnginePagedResult<MediaItem> {
+    fn project_page(&self, page: EnginePagedResult<EngineTrack>) -> EnginePagedResult<MediaItem> {
+        let items: Vec<_> = page.items.into_iter().map(project_track).collect();
+        let mut cache = self.cache.write().unwrap();
+        cache.extend(items.iter().cloned().map(|item| (item.id.clone(), item)));
         EnginePagedResult {
-            items: page.items.into_iter().map(project_track).collect(),
+            items,
             next_page_token: page.next_page_token,
         }
     }
@@ -30,8 +38,8 @@ impl<C> MediaRepository for RemoteRepository<C>
 where
     C: CatalogPort,
 {
-    fn get_by_id(&self, _id: &str) -> Option<MediaItem> {
-        None
+    fn get_by_id(&self, id: &str) -> Option<MediaItem> {
+        self.cache.read().unwrap().get(id).cloned()
     }
 
     fn get_next(&self, _current_id: &str) -> Option<MediaItem> {
@@ -65,7 +73,7 @@ where
         self.client
             .browse(parent_id, genres, page)
             .await
-            .map(Self::project_page)
+            .map(|page| self.project_page(page))
     }
 
     async fn search_catalog(
@@ -76,7 +84,7 @@ where
         self.client
             .search(query, page)
             .await
-            .map(Self::project_page)
+            .map(|page| self.project_page(page))
     }
 }
 
@@ -158,5 +166,9 @@ mod tests {
         assert_eq!(result.items[0].id, "search-track");
         assert_eq!(result.items[0].artist, "An Artist");
         assert_eq!(result.next_page_token.unwrap().as_str(), "next+/=");
+        assert_eq!(
+            repository.get_by_id("search-track").unwrap().title,
+            "A Song"
+        );
     }
 }

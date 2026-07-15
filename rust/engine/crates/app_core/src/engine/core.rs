@@ -27,12 +27,14 @@ enum CatalogOperation {
         query: String,
         page_size: u32,
         next_page_token: Option<crate::EnginePageToken>,
+        items: Vec<crate::MediaItem>,
     },
     Browse {
         parent_id: Option<String>,
         genres: Vec<String>,
         page_size: u32,
         next_page_token: Option<crate::EnginePageToken>,
+        items: Vec<crate::MediaItem>,
     },
 }
 

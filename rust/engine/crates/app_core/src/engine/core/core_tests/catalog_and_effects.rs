@@ -211,6 +211,92 @@ async fn catalog_operation_ids_are_unique_at_the_same_timestamp() {
 }
 
 #[tokio::test]
+async fn continuing_older_search_restores_that_operations_accumulated_items() {
+    let mut repository = crate::data::repository::MockMediaRepository::new();
+    repository.expect_search_catalog().returning(|query, page| {
+        let id = match (query, page.page_token.as_ref().map(|token| token.as_str())) {
+            ("A", None) => "a-1",
+            ("A", Some("a-next")) => "a-2",
+            ("B", None) => "b-1",
+            _ => unreachable!(),
+        };
+        Ok(crate::EnginePagedResult {
+            items: vec![MediaItem {
+                id: id.into(),
+                ..Default::default()
+            }],
+            next_page_token: (id == "a-1")
+                .then(|| crate::EnginePageToken::new("a-next".into()).unwrap()),
+        })
+    });
+    let mut engine = Engine::new(0);
+    engine.set_repository(Box::new(repository));
+
+    let a = engine.dispatch(EngineCommand::search("A".into()), 1).await;
+    engine.dispatch(EngineCommand::search("B".into()), 2).await;
+    let continued = engine
+        .dispatch(
+            EngineCommand::load_next_catalog_page(a.event.message.unwrap()),
+            3,
+        )
+        .await;
+
+    assert_eq!(
+        continued
+            .snapshot
+            .search_results
+            .iter()
+            .map(|item| item.id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["a-1", "a-2"]
+    );
+}
+
+#[tokio::test]
+async fn continuing_older_browse_restores_that_operations_accumulated_items() {
+    let mut repository = crate::data::repository::MockMediaRepository::new();
+    repository
+        .expect_browse_catalog()
+        .returning(|parent, _, page| {
+            let id = match (parent, page.page_token.as_ref().map(|token| token.as_str())) {
+                (Some("A"), None) => "a-1",
+                (Some("A"), Some("a-next")) => "a-2",
+                (Some("B"), None) => "b-1",
+                _ => unreachable!(),
+            };
+            Ok(crate::EnginePagedResult {
+                items: vec![MediaItem {
+                    id: id.into(),
+                    ..Default::default()
+                }],
+                next_page_token: (id == "a-1")
+                    .then(|| crate::EnginePageToken::new("a-next".into()).unwrap()),
+            })
+        });
+    let mut engine = Engine::new(0);
+    engine.set_repository(Box::new(repository));
+
+    let a = engine.dispatch(EngineCommand::browse("A".into()), 1).await;
+    engine.dispatch(EngineCommand::browse("B".into()), 2).await;
+    let continued = engine
+        .dispatch(
+            EngineCommand::load_next_catalog_page(a.event.message.unwrap()),
+            3,
+        )
+        .await;
+
+    assert_eq!(
+        continued
+            .snapshot
+            .browse_results
+            .iter()
+            .map(|item| item.id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["a-1", "a-2"]
+    );
+}
+
+#[tokio::test]
 async fn play_command_emits_effects() {
     let mut engine = Engine::new(100);
     engine

@@ -1,11 +1,14 @@
 package com.adrianrusu.pandawave.core.rust.bridge.aidl
 
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonObject
 
 object EngineCommandPayloads {
     const val DEFAULT_BROWSE_PARENT_ID = "root"
@@ -23,9 +26,31 @@ object EngineCommandPayloads {
         .coerceAtLeast(MIN_PLAYBACK_SPEED)
         .toString()
 
-    fun searchQuery(query: String): String = query
+    fun searchCatalog(query: String, pageSize: Int = DEFAULT_CATALOG_PAGE_SIZE): String = buildJsonObject {
+        put(KEY_VERSION, PAYLOAD_VERSION)
+        put(KEY_QUERY, query)
+        putJsonObject(KEY_PAGE) { put(KEY_PAGE_SIZE, pageSize.coerceAtLeast(0)) }
+    }.toString()
 
-    fun browseParentId(parentId: String): String = parentId.ifBlank { DEFAULT_BROWSE_PARENT_ID }
+    fun browseCatalog(
+        parentId: String?,
+        genres: List<String> = emptyList(),
+        pageSize: Int = DEFAULT_CATALOG_PAGE_SIZE
+    ): String = buildJsonObject {
+        put(KEY_VERSION, PAYLOAD_VERSION)
+        put(KEY_PARENT_ID, parentId?.takeIf(String::isNotBlank) ?: DEFAULT_BROWSE_PARENT_ID)
+        put(KEY_GENRES, buildJsonArray { genres.forEach { genre -> add(genre) } })
+        putJsonObject(KEY_PAGE) { put(KEY_PAGE_SIZE, pageSize.coerceAtLeast(0)) }
+    }.toString()
+
+    fun loadNextCatalogPage(operationId: String): String = buildJsonObject {
+        put(KEY_VERSION, PAYLOAD_VERSION)
+        put(KEY_OPERATION_ID, operationId)
+    }.toString()
+
+    fun searchQuery(query: String): String = searchCatalog(query)
+
+    fun browseParentId(parentId: String): String = browseCatalog(parentId)
 
     fun mediaId(mediaId: String): String = mediaId.trim()
 
@@ -47,10 +72,17 @@ object EngineCommandPayloads {
         ?.coerceAtLeast(MIN_PLAYBACK_SPEED)
         ?: DEFAULT_PLAYBACK_SPEED
 
-    fun parseSearchQuery(payload: String?): String = payload.orEmpty()
+    fun parseSearchQuery(payload: String?): String = parseCatalogObject(payload)
+        ?.get(KEY_QUERY)
+        ?.jsonPrimitive
+        ?.content
+        .orEmpty()
 
-    fun parseBrowseParentId(payload: String?): String = payload
-        ?.takeIf { parentId -> parentId.isNotBlank() }
+    fun parseBrowseParentId(payload: String?): String = parseCatalogObject(payload)
+        ?.get(KEY_PARENT_ID)
+        ?.jsonPrimitive
+        ?.content
+        ?.takeIf(String::isNotBlank)
         ?: DEFAULT_BROWSE_PARENT_ID
 
     fun parseMediaId(payload: String?): String = payload.orEmpty().trim()
@@ -77,9 +109,22 @@ object EngineCommandPayloads {
 
     data class ParsedThemePreference(val themeId: String, val userId: String?, val baselineRevision: Long?)
 
+    private fun parseCatalogObject(payload: String?) = runCatching {
+        Json.parseToJsonElement(payload.orEmpty()).jsonObject
+    }.getOrNull()?.takeIf { values ->
+        values[KEY_VERSION]?.jsonPrimitive?.longOrNull == PAYLOAD_VERSION.toLong()
+    }
+
     private const val PAYLOAD_VERSION = 1
+    private const val DEFAULT_CATALOG_PAGE_SIZE = 0
     private const val KEY_VERSION = "version"
     private const val KEY_THEME_ID = "theme_id"
     private const val KEY_USER_ID = "user_id"
     private const val KEY_BASELINE_REVISION = "baseline_revision"
+    private const val KEY_QUERY = "query"
+    private const val KEY_PARENT_ID = "parent_id"
+    private const val KEY_GENRES = "genres"
+    private const val KEY_PAGE = "page"
+    private const val KEY_PAGE_SIZE = "page_size"
+    private const val KEY_OPERATION_ID = "operation_id"
 }
