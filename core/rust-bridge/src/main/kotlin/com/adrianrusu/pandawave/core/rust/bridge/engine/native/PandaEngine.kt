@@ -444,13 +444,13 @@ internal object PandaEngineNativeAuthStateMapper {
                 EngineAuthState(
                     state = EngineAuthState.AUTHENTICATED,
                     account = EngineAccount(
-                        id = values[ACCOUNT_ID_INDEX].required(),
-                        primaryEmail = values[ACCOUNT_EMAIL_INDEX].required(),
-                        status = values[ACCOUNT_STATUS_INDEX].required(),
+                        id = values[ACCOUNT_ID_INDEX],
+                        primaryEmail = values[ACCOUNT_EMAIL_INDEX],
+                        status = values[ACCOUNT_STATUS_INDEX],
                         createdAtEpochMillis = values[ACCOUNT_CREATED_INDEX].toLong()
                     ),
                     session = EngineAuthSession(
-                        id = values[SESSION_ID_INDEX].required(),
+                        id = values[SESSION_ID_INDEX],
                         deviceLabel = values[SESSION_DEVICE_INDEX],
                         createdAtEpochMillis = values[SESSION_CREATED_INDEX].toLong(),
                         lastUsedAtEpochMillis = values[SESSION_LAST_USED_INDEX].toLong(),
@@ -461,12 +461,10 @@ internal object PandaEngineNativeAuthStateMapper {
                             else -> error("invalid current-session flag")
                         }
                     )
-                )
+                ).normalized()
             }.getOrElse { EngineAuthState.loginRequired() }
         else -> EngineAuthState.loginRequired()
     }
-
-    private fun String.required(): String = require(isNotBlank()) { "required auth field is blank" }.let { this }
 
     private const val STATE_INDEX = 0
     private const val ACCOUNT_ID_INDEX = 1

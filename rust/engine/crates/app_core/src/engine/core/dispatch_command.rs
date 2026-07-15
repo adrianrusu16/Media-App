@@ -18,6 +18,7 @@ impl Engine {
                 .clone()
                 .with_error(Some(error.clone()))
                 .with_busy(false);
+            self.sync_auth_state_projection();
 
             return EngineOutcome {
                 snapshot: self.snapshot.clone(),

@@ -1,3 +1,4 @@
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use panda_engine_core::{
@@ -51,6 +52,19 @@ fn concurrent_snapshot_reads_current_auth_state_instead_of_a_stale_copy() {
     assert_eq!(engine.snapshot().auth_state, AuthState::LoginRequired);
 }
 
+#[test]
+fn direct_engine_snapshot_reads_current_auth_state_without_dispatch() {
+    let state = Arc::new(Mutex::new(AuthState::Anonymous));
+    let mut engine = Engine::new(1);
+    engine.set_auth_state_provider(Arc::new(MutableAuthState(state.clone())));
+
+    assert_eq!(engine.snapshot().auth_state, AuthState::Anonymous);
+    *state.lock().unwrap() = authenticated();
+    assert_eq!(engine.snapshot().auth_state, authenticated());
+    *state.lock().unwrap() = AuthState::LoginRequired;
+    assert_eq!(engine.snapshot().auth_state, AuthState::LoginRequired);
+}
+
 #[tokio::test]
 async fn dispatch_result_projects_the_latest_auth_state() {
     let state = Arc::new(Mutex::new(AuthState::Anonymous));
@@ -96,6 +110,40 @@ async fn observer_receives_the_live_auth_projection() {
         observed.lock().unwrap().as_slice(),
         &[AuthState::LoginRequired]
     );
+}
+
+struct ChangingAuthState(AtomicUsize);
+
+impl AuthStateProvider for ChangingAuthState {
+    fn current_auth_state(&self) -> AuthState {
+        if self.0.fetch_add(1, Ordering::SeqCst) == 0 {
+            authenticated()
+        } else {
+            AuthState::LoginRequired
+        }
+    }
+}
+
+#[tokio::test]
+async fn dispatch_samples_auth_once_for_observer_and_returned_outcome() {
+    let provider = Arc::new(ChangingAuthState(AtomicUsize::new(0)));
+    let observed = Arc::new(Mutex::new(Vec::new()));
+    let mut engine = Engine::new(1);
+    engine.set_auth_state_provider(provider.clone());
+    let bus = engine.event_bus();
+    bus.subscribe(Box::new(RecordingObserver(observed.clone())));
+    let mut middleware = MiddlewarePipeline::new();
+    middleware.add(Box::new(TelemetryMiddleware::new(bus)));
+    engine.set_middleware(middleware);
+    let engine = ConcurrentEngine::new(engine);
+
+    let outcome = engine
+        .dispatch(EngineCommand::new(EngineCommandType::Bootstrap, None), 2)
+        .await;
+
+    assert_eq!(outcome.snapshot.auth_state, authenticated());
+    assert_eq!(observed.lock().unwrap().as_slice(), &[authenticated()]);
+    assert_eq!(provider.0.load(Ordering::SeqCst), 1);
 }
 
 #[test]

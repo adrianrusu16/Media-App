@@ -210,18 +210,12 @@ impl Engine {
         self.auth_state_provider = Some(provider);
     }
 
-    pub(crate) fn snapshot_projection(&self) -> EngineSnapshot {
+    fn snapshot_projection(&self) -> EngineSnapshot {
         let mut snapshot = self.snapshot.clone();
         if let Some(provider) = &self.auth_state_provider {
             snapshot.auth_state = provider.current_auth_state();
         }
         snapshot
-    }
-
-    pub(crate) fn project_outcome_auth_state(&self, outcome: &mut EngineOutcome) {
-        if let Some(provider) = &self.auth_state_provider {
-            outcome.snapshot.auth_state = provider.current_auth_state();
-        }
     }
 
     pub(crate) fn sync_auth_state_projection(&mut self) {
@@ -240,9 +234,9 @@ impl Engine {
         self.voice_engine = Some(voice_engine);
     }
 
-    /// Returns the current state of the engine.
-    pub fn snapshot(&self) -> &EngineSnapshot {
-        &self.snapshot
+    /// Returns an owned, credential-free projection of the current engine state.
+    pub fn snapshot(&self) -> EngineSnapshot {
+        self.snapshot_projection()
     }
 
     /// Returns the current configuration of the engine.

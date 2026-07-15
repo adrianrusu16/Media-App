@@ -71,7 +71,7 @@ data class EngineSnapshot(
         ),
         drivingState = parcel.readString() ?: DRIVING_UNKNOWN,
         backendStatus = parcel.readBackendStatus(),
-        authState = parcel.readAuthState()
+        authState = parcel.readEngineAuthState()
     )
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
@@ -108,7 +108,7 @@ data class EngineSnapshot(
         parcel.writeBooleanValue(themePreference.initialized)
         parcel.writeString(drivingState)
         parcel.writeBackendStatus(backendStatus)
-        parcel.writeAuthState(authState)
+        parcel.writeEngineAuthState(authState)
     }
 
     override fun describeContents(): Int = 0
@@ -166,6 +166,13 @@ data class EngineAuthState(
     val account: EngineAccount? = null,
     val session: EngineAuthSession? = null
 ) {
+    internal fun normalized(): EngineAuthState = when (state) {
+        ANONYMOUS -> anonymous()
+        LOGIN_REQUIRED -> loginRequired()
+        AUTHENTICATED -> if (account.isValid() && session.isValid()) this else loginRequired()
+        else -> loginRequired()
+    }
+
     companion object {
         const val ANONYMOUS = "anonymous"
         const val AUTHENTICATED = "authenticated"
@@ -176,6 +183,14 @@ data class EngineAuthState(
         fun loginRequired(): EngineAuthState = EngineAuthState(LOGIN_REQUIRED)
     }
 }
+
+private fun EngineAccount?.isValid(): Boolean = this != null &&
+    id.isNotBlank() && primaryEmail.isNotBlank() && status.isNotBlank() &&
+    createdAtEpochMillis >= 0
+
+private fun EngineAuthSession?.isValid(): Boolean = this != null &&
+    id.isNotBlank() && createdAtEpochMillis >= 0 && lastUsedAtEpochMillis >= 0 &&
+    expiresAtEpochMillis >= 0
 
 data class EngineAccount(
     val id: String,
@@ -311,7 +326,7 @@ private fun Parcel.writeBackendStatus(status: EngineBackendStatus?) {
     }
 }
 
-private fun Parcel.readAuthState(): EngineAuthState {
+internal fun Parcel.readEngineAuthState(): EngineAuthState {
     val state = readString() ?: return EngineAuthState.loginRequired()
     if (state != EngineAuthState.AUTHENTICATED) {
         return when (state) {
@@ -335,21 +350,15 @@ private fun Parcel.readAuthState(): EngineAuthState {
             expiresAtEpochMillis = readLong(),
             current = readBooleanValue()
         )
-    )
+    ).normalized()
 }
 
-private fun Parcel.writeAuthState(authState: EngineAuthState) {
-    val account = authState.account
-    val session = authState.session
-    val validAuthenticated = authState.state == EngineAuthState.AUTHENTICATED &&
-        account != null && session != null
-    val state = when {
-        validAuthenticated -> EngineAuthState.AUTHENTICATED
-        authState.state == EngineAuthState.ANONYMOUS -> EngineAuthState.ANONYMOUS
-        else -> EngineAuthState.LOGIN_REQUIRED
-    }
-    writeString(state)
-    if (!validAuthenticated) return
+internal fun Parcel.writeEngineAuthState(authState: EngineAuthState) {
+    val normalized = authState.normalized()
+    val account = normalized.account
+    val session = normalized.session
+    writeString(normalized.state)
+    if (normalized.state != EngineAuthState.AUTHENTICATED || account == null || session == null) return
     writeString(account.id)
     writeString(account.primaryEmail)
     writeString(account.status)
