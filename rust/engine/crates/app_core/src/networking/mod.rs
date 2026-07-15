@@ -12,6 +12,7 @@
 
 pub mod audio_source_client;
 pub mod backend_client;
+pub mod canopy;
 pub mod canopy_audio_source_client;
 pub mod canopy_proto;
 pub mod canopy_tonic_transport;
