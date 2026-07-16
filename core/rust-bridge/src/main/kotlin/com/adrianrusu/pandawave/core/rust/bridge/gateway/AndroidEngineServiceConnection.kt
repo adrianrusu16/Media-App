@@ -6,6 +6,7 @@ import android.content.ServiceConnection
 import android.os.IBinder
 import android.os.RemoteException
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthOperationResult
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
@@ -129,6 +130,27 @@ class AndroidEngineServiceConnection(
     }
 
     private class AidlEngineService(private val remote: IMediaEngineService) : EngineService {
+        override fun registerPassword(
+            email: String,
+            password: ByteArray
+        ): EngineAuthOperationResult = remote.registerPassword(email, password)
+
+        override fun resendVerification(email: String): EngineAuthOperationResult =
+            remote.resendVerification(email)
+
+        override fun verifyEmail(
+            verificationToken: ByteArray,
+            deviceLabel: String
+        ): EngineAuthOperationResult = remote.verifyEmail(verificationToken, deviceLabel)
+
+        override fun loginPassword(
+            email: String,
+            password: ByteArray,
+            deviceLabel: String
+        ): EngineAuthOperationResult = remote.loginPassword(email, password, deviceLabel)
+
+        override fun logout(): EngineAuthOperationResult = remote.logout()
+
         override fun snapshot(): EngineSnapshot = remote.snapshot
 
         override fun browseResult(index: Int): EngineCatalogItem? = remote.getBrowseResult(index)

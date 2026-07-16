@@ -5,6 +5,7 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineBackendStatus
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAccount
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthSession
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthState
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthOperationResult
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineControlState
@@ -46,6 +47,46 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     }
 
     override fun snapshot(): EngineSnapshot = nativeSnapshot(nativeHandle).toEngineSnapshot()
+
+    override fun registerPassword(
+        email: String,
+        password: ByteArray
+    ): EngineAuthOperationResult = withSecret(password) {
+        nativeRegisterPassword(nativeHandle, email, password).toAuthOperationResult()
+    }
+
+    override fun resendVerification(email: String): EngineAuthOperationResult =
+        nativeResendVerification(nativeHandle, email).toAuthOperationResult()
+
+    override fun verifyEmail(
+        verificationToken: ByteArray,
+        deviceLabel: String
+    ): EngineAuthOperationResult = withSecret(verificationToken) {
+        nativeVerifyEmail(nativeHandle, verificationToken, deviceLabel).toAuthOperationResult()
+    }
+
+    override fun loginPassword(
+        email: String,
+        password: ByteArray,
+        deviceLabel: String
+    ): EngineAuthOperationResult = withSecret(password) {
+        nativeLoginPassword(nativeHandle, email, password, deviceLabel).toAuthOperationResult()
+    }
+
+    override fun logout(): EngineAuthOperationResult =
+        nativeLogout(nativeHandle).toAuthOperationResult()
+
+    private inline fun withSecret(
+        secret: ByteArray,
+        operation: () -> EngineAuthOperationResult
+    ): EngineAuthOperationResult = try {
+        operation()
+    } finally {
+        secret.fill(0)
+    }
+
+    private fun Array<String>?.toAuthOperationResult(): EngineAuthOperationResult =
+        PandaEngineNativeAuthOperationMapper.toDomain(this)
 
     override fun browseResult(index: Int): EngineCatalogItem? = resultItem(
         id = nativeBrowseResultId(nativeHandle, index),
@@ -120,6 +161,29 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     }
 
     private external fun nativeSnapshot(handle: Long): LongArray
+
+    private external fun nativeRegisterPassword(
+        handle: Long,
+        email: String,
+        password: ByteArray
+    ): Array<String>?
+
+    private external fun nativeResendVerification(handle: Long, email: String): Array<String>?
+
+    private external fun nativeVerifyEmail(
+        handle: Long,
+        verificationToken: ByteArray,
+        deviceLabel: String
+    ): Array<String>?
+
+    private external fun nativeLoginPassword(
+        handle: Long,
+        email: String,
+        password: ByteArray,
+        deviceLabel: String
+    ): Array<String>?
+
+    private external fun nativeLogout(handle: Long): Array<String>?
 
     private external fun nativeConfigureBackend(
         handle: Long,
@@ -427,6 +491,39 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             else -> EngineEffect.TYPE_UNKNOWN
         }
     }
+}
+
+internal object PandaEngineNativeAuthOperationMapper {
+    fun toDomain(values: Array<String>?): EngineAuthOperationResult {
+        if (values == null || values.size != VALUE_COUNT) {
+            return EngineAuthOperationResult.error(EngineAuthOperationResult.ERROR_MAPPING_DEFECT)
+        }
+        return runCatching {
+            when (values[STATUS_INDEX]) {
+                EngineAuthOperationResult.STATUS_ACCEPTED -> EngineAuthOperationResult.accepted()
+                EngineAuthOperationResult.STATUS_REJECTED -> EngineAuthOperationResult.rejected()
+                EngineAuthOperationResult.STATUS_AUTHENTICATED ->
+                    EngineAuthOperationResult.authenticated()
+                EngineAuthOperationResult.STATUS_ANONYMOUS -> EngineAuthOperationResult.anonymous()
+                EngineAuthOperationResult.STATUS_ERROR -> EngineAuthOperationResult.error(
+                    errorType = values[ERROR_INDEX].ifBlank {
+                        EngineAuthOperationResult.ERROR_UNKNOWN
+                    },
+                    retryAfterMillis = values[RETRY_INDEX].takeIf(String::isNotBlank)?.toLong()
+                )
+                else -> EngineAuthOperationResult.error(
+                    EngineAuthOperationResult.ERROR_MAPPING_DEFECT
+                )
+            }
+        }.getOrElse {
+            EngineAuthOperationResult.error(EngineAuthOperationResult.ERROR_MAPPING_DEFECT)
+        }
+    }
+
+    private const val VALUE_COUNT = 3
+    private const val STATUS_INDEX = 0
+    private const val ERROR_INDEX = 1
+    private const val RETRY_INDEX = 2
 }
 
 internal object PandaEngineNativeBackendStatusMapper {

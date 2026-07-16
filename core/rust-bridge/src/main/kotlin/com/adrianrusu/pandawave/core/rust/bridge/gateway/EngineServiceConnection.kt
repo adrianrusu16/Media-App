@@ -1,6 +1,7 @@
 package com.adrianrusu.pandawave.core.rust.bridge.gateway
 
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthOperationResult
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
@@ -20,6 +21,25 @@ interface EngineServiceConnection : AutoCloseable {
  * Narrow command/snapshot surface exposed by a connected engine service.
  */
 interface EngineService {
+    fun registerPassword(email: String, password: ByteArray): EngineAuthOperationResult =
+        EngineAuthOperationResult.unavailable()
+
+    fun resendVerification(email: String): EngineAuthOperationResult =
+        EngineAuthOperationResult.unavailable()
+
+    fun verifyEmail(
+        verificationToken: ByteArray,
+        deviceLabel: String
+    ): EngineAuthOperationResult = EngineAuthOperationResult.unavailable()
+
+    fun loginPassword(
+        email: String,
+        password: ByteArray,
+        deviceLabel: String
+    ): EngineAuthOperationResult = EngineAuthOperationResult.unavailable()
+
+    fun logout(): EngineAuthOperationResult = EngineAuthOperationResult.unavailable()
+
     fun snapshot(): EngineSnapshot
 
     fun browseResult(index: Int): EngineCatalogItem?

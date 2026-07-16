@@ -1,6 +1,7 @@
 package com.adrianrusu.pandawave.core.rust.bridge.gateway
 
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthOperationResult
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
@@ -15,6 +16,36 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
 class AidlEngineGatewayTest {
+    @Test
+    fun `login is never queued and wipes password while disconnected`() {
+        val gateway = AidlEngineGateway(
+            connection = FakeEngineServiceConnection(service = null),
+            clock = { 25L }
+        )
+        val password = "super-secret".encodeToByteArray()
+
+        val result = gateway.loginPassword("driver@example.com", password, "PandaWave")
+
+        assertEquals(EngineAuthOperationResult.unavailable(), result)
+        assertEquals(List(password.size) { 0.toByte() }, password.toList())
+    }
+
+    @Test
+    fun `login reaches connected service before password is wiped`() {
+        val service = RecordingEngineService(EngineSnapshot.idle(nowMillis = 10L))
+        val gateway = AidlEngineGateway(
+            connection = FakeEngineServiceConnection(service = service),
+            clock = { 25L }
+        )
+        val password = "super-secret".encodeToByteArray()
+
+        val result = gateway.loginPassword("driver@example.com", password, "PandaWave")
+
+        assertEquals(EngineAuthOperationResult.authenticated(), result)
+        assertEquals("super-secret", service.lastPassword)
+        assertEquals(List(password.size) { 0.toByte() }, password.toList())
+    }
+
     @Test
     fun `snapshot returns service snapshot when connected`() {
         val service = RecordingEngineService(
@@ -477,6 +508,18 @@ private class RecordingEngineService(initialSnapshot: EngineSnapshot) : EngineSe
 
     val platformEventTypes: List<String>
         get() = platformEvents.map { it.type }
+
+    var lastPassword: String? = null
+        private set
+
+    override fun loginPassword(
+        email: String,
+        password: ByteArray,
+        deviceLabel: String
+    ): EngineAuthOperationResult {
+        lastPassword = password.decodeToString()
+        return EngineAuthOperationResult.authenticated()
+    }
 
     override fun snapshot(): EngineSnapshot = currentSnapshot
 

@@ -6,6 +6,7 @@ import android.content.pm.ApplicationInfo
 import android.os.IBinder
 import android.os.RemoteCallbackList
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthOperationResult
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
@@ -38,6 +39,37 @@ class MediaEngineService : Service() {
     }
 
     private val binder = object : IMediaEngineService.Stub() {
+        override fun registerPassword(
+            email: String,
+            password: ByteArray
+        ): EngineAuthOperationResult = withSecret(password) {
+            engine?.registerPassword(email, password) ?: EngineAuthOperationResult.unavailable()
+        }
+
+        override fun resendVerification(email: String): EngineAuthOperationResult =
+            engine?.resendVerification(email) ?: EngineAuthOperationResult.unavailable()
+
+        override fun verifyEmail(
+            verificationToken: ByteArray,
+            deviceLabel: String
+        ): EngineAuthOperationResult = withSecret(verificationToken) {
+            engine?.verifyEmail(verificationToken, deviceLabel)
+                ?: EngineAuthOperationResult.unavailable()
+        }.also { notifySnapshotChanged(engine?.snapshot() ?: unavailableSnapshot) }
+
+        override fun loginPassword(
+            email: String,
+            password: ByteArray,
+            deviceLabel: String
+        ): EngineAuthOperationResult = withSecret(password) {
+            engine?.loginPassword(email, password, deviceLabel)
+                ?: EngineAuthOperationResult.unavailable()
+        }.also { notifySnapshotChanged(engine?.snapshot() ?: unavailableSnapshot) }
+
+        override fun logout(): EngineAuthOperationResult =
+            (engine?.logout() ?: EngineAuthOperationResult.unavailable())
+                .also { notifySnapshotChanged(engine?.snapshot() ?: unavailableSnapshot) }
+
         override fun getSnapshot(): EngineSnapshot = engine?.snapshot() ?: unavailableSnapshot
 
         override fun getBrowseResult(index: Int): EngineCatalogItem? = engine?.browseResult(index)
@@ -109,6 +141,15 @@ class MediaEngineService : Service() {
         } finally {
             listeners.finishBroadcast()
         }
+    }
+
+    private inline fun withSecret(
+        secret: ByteArray,
+        operation: () -> EngineAuthOperationResult
+    ): EngineAuthOperationResult = try {
+        operation()
+    } finally {
+        secret.fill(0)
     }
 
     private fun unavailableSnapshot(): EngineSnapshot = EngineSnapshot.idle(System.currentTimeMillis()).copy(

@@ -3,8 +3,8 @@ use std::sync::{Arc, Mutex};
 use panda_engine_core::networking::canopy::CanopyConnectionConfig;
 use panda_engine_core::{
     ConcurrentEngine, Engine, EngineEffect, EngineEvent, EngineObserver, EngineOutcome,
-    EngineSnapshot, InMemorySessionStore, LoggerMiddleware, MiddlewarePipeline, SessionStore,
-    TelemetryMiddleware,
+    EngineSnapshot, InMemorySessionStore, LoggerMiddleware, MiddlewarePipeline, SessionCoordinator,
+    SessionStore, TelemetryMiddleware,
 };
 use tracing::info;
 
@@ -20,6 +20,14 @@ pub struct PandaEngine {
     pub(crate) runtime: tokio::runtime::Runtime,
     pub(crate) backend_configuration: Mutex<BackendConfigurationState>,
     pub(crate) session_store: Mutex<Arc<dyn SessionStore>>,
+    pub(crate) auth_runtime: Mutex<Option<EngineAuthRuntime>>,
+}
+
+#[derive(Clone)]
+pub(crate) struct EngineAuthRuntime {
+    pub(crate) coordinator: Arc<SessionCoordinator>,
+    pub(crate) store: Arc<dyn SessionStore>,
+    pub(crate) production: bool,
 }
 
 #[derive(Debug)]
@@ -103,6 +111,7 @@ pub(crate) fn build_engine(now_epoch_millis: u64) -> PandaEngine {
         runtime,
         backend_configuration: Mutex::new(BackendConfigurationState::Unconfigured),
         session_store: Mutex::new(Arc::new(InMemorySessionStore::new())),
+        auth_runtime: Mutex::new(None),
     }
 }
 

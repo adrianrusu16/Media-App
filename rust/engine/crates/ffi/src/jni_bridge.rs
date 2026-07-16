@@ -2,10 +2,14 @@ use std::ffi::{CStr, CString, c_char};
 use std::ptr;
 
 use jni::JNIEnv;
-use jni::objects::{JClass, JObject, JString};
+use jni::objects::{JByteArray, JClass, JObject, JString};
 use jni::sys::{jboolean, jfloat, jint, jlong, jlongArray, jobjectArray, jstring};
 use std::sync::Arc;
 
+use crate::api::auth::{
+    AuthOperationResult, login_password, logout, register_password, resend_verification,
+    verify_email,
+};
 use crate::api::backend::configure_backend;
 use crate::jni_audio_source_client::JniAudioSourceClient;
 use crate::jni_session_cryptor::JniSessionCryptor;
@@ -315,6 +319,104 @@ pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_eng
 }
 
 #[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeRegisterPassword(
+    mut env: JNIEnv,
+    _this: JObject,
+    handle: jlong,
+    email: JObject,
+    password: JByteArray,
+) -> jobjectArray {
+    let Some(password) = jni_secret_to_string(&mut env, &password) else {
+        return auth_result_array(&mut env, invalid_auth_input());
+    };
+    let Some(engine) = (unsafe { (handle as *const PandaEngine).as_ref() }) else {
+        return ptr::null_mut();
+    };
+    let Some(email) = jni_string_to_string(&mut env, email) else {
+        return auth_result_array(&mut env, invalid_auth_input());
+    };
+    auth_result_array(&mut env, register_password(engine, &email, &password))
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeResendVerification(
+    mut env: JNIEnv,
+    _this: JObject,
+    handle: jlong,
+    email: JObject,
+) -> jobjectArray {
+    let Some(engine) = (unsafe { (handle as *const PandaEngine).as_ref() }) else {
+        return ptr::null_mut();
+    };
+    let Some(email) = jni_string_to_string(&mut env, email) else {
+        return auth_result_array(&mut env, invalid_auth_input());
+    };
+    auth_result_array(&mut env, resend_verification(engine, &email))
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeVerifyEmail(
+    mut env: JNIEnv,
+    _this: JObject,
+    handle: jlong,
+    verification_token: JByteArray,
+    device_label: JObject,
+) -> jobjectArray {
+    let Some(verification_token) = jni_secret_to_string(&mut env, &verification_token) else {
+        return auth_result_array(&mut env, invalid_auth_input());
+    };
+    let Some(engine) = (unsafe { (handle as *const PandaEngine).as_ref() }) else {
+        return ptr::null_mut();
+    };
+    let Some(device_label) = jni_string_to_string(&mut env, device_label) else {
+        return auth_result_array(&mut env, invalid_auth_input());
+    };
+    auth_result_array(
+        &mut env,
+        verify_email(engine, &verification_token, &device_label),
+    )
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeLoginPassword(
+    mut env: JNIEnv,
+    _this: JObject,
+    handle: jlong,
+    email: JObject,
+    password: JByteArray,
+    device_label: JObject,
+) -> jobjectArray {
+    let Some(password) = jni_secret_to_string(&mut env, &password) else {
+        return auth_result_array(&mut env, invalid_auth_input());
+    };
+    let Some(engine) = (unsafe { (handle as *const PandaEngine).as_ref() }) else {
+        return ptr::null_mut();
+    };
+    let (Some(email), Some(device_label)) = (
+        jni_string_to_string(&mut env, email),
+        jni_string_to_string(&mut env, device_label),
+    ) else {
+        return auth_result_array(&mut env, invalid_auth_input());
+    };
+    auth_result_array(
+        &mut env,
+        login_password(engine, &email, &password, &device_label),
+    )
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeLogout(
+    mut env: JNIEnv,
+    _this: JObject,
+    handle: jlong,
+) -> jobjectArray {
+    let Some(engine) = (unsafe { (handle as *const PandaEngine).as_ref() }) else {
+        return ptr::null_mut();
+    };
+    auth_result_array(&mut env, logout(engine))
+}
+
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeEffectCount(
     _env: JNIEnv,
     _this: JObject,
@@ -590,6 +692,64 @@ fn jni_string_to_c_string(env: &mut JNIEnv, value: JObject) -> Option<CString> {
     let string = JString::from(value);
     let value = env.get_string(&string).ok()?;
     CString::new(value.to_string_lossy().as_bytes()).ok()
+}
+
+fn jni_string_to_string(env: &mut JNIEnv, value: JObject) -> Option<String> {
+    if value.is_null() {
+        return None;
+    }
+    let string = JString::from(value);
+    env.get_string(&string)
+        .ok()
+        .map(|value| value.to_string_lossy().into_owned())
+}
+
+fn jni_secret_to_string(env: &mut JNIEnv, value: &JByteArray) -> Option<SecretString> {
+    let mut bytes = env.convert_byte_array(value).ok()?;
+    let zeros = vec![0_i8; bytes.len()];
+    let cleared = env.set_byte_array_region(value, 0, &zeros).is_ok();
+    if !cleared {
+        bytes.fill(0);
+        return None;
+    }
+    match String::from_utf8(bytes) {
+        Ok(secret) => Some(SecretString(secret)),
+        Err(error) => {
+            let mut invalid_bytes = error.into_bytes();
+            invalid_bytes.fill(0);
+            None
+        }
+    }
+}
+
+struct SecretString(String);
+
+impl std::ops::Deref for SecretString {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl Drop for SecretString {
+    fn drop(&mut self) {
+        // SAFETY: bytes are overwritten without changing length or violating
+        // the allocation; the string is never read after this drop begins.
+        unsafe { self.0.as_bytes_mut().fill(0) };
+    }
+}
+
+fn invalid_auth_input() -> AuthOperationResult {
+    AuthOperationResult::Error(panda_engine_core::EngineError::new(
+        panda_engine_core::EngineErrorType::InvalidInput,
+        "invalid authentication input",
+        false,
+    ))
+}
+
+fn auth_result_array(env: &mut JNIEnv, result: AuthOperationResult) -> jobjectArray {
+    strings_to_jobject_array(env, result.to_strings().into())
 }
 
 fn owned_c_string_to_jstring(env: &mut JNIEnv, value: *const c_char) -> jstring {

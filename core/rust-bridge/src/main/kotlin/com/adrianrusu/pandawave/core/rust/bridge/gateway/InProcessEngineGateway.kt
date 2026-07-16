@@ -1,6 +1,7 @@
 package com.adrianrusu.pandawave.core.rust.bridge.gateway
 
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthOperationResult
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
@@ -11,7 +12,7 @@ import com.adrianrusu.pandawave.core.rust.bridge.engine.RustEngine
 /**
  * Gateway implementation used while the app and fake engine live in-process.
  */
-class InProcessEngineGateway(private val engine: RustEngine) : EngineGateway {
+class InProcessEngineGateway(private val engine: RustEngine) : EngineGateway, EngineAuthGateway {
     private val listeners = mutableSetOf<(EngineSnapshot) -> Unit>()
     private val eventListeners = mutableSetOf<(EngineEvent) -> Unit>()
 
@@ -20,6 +21,38 @@ class InProcessEngineGateway(private val engine: RustEngine) : EngineGateway {
     override fun browseResult(index: Int): EngineCatalogItem? = engine.browseResult(index)
 
     override fun searchResult(index: Int): EngineCatalogItem? = engine.searchResult(index)
+
+    override fun registerPassword(email: String, password: ByteArray): EngineAuthOperationResult =
+        withSecret(password) { engine.registerPassword(email, password) }
+
+    override fun resendVerification(email: String): EngineAuthOperationResult =
+        engine.resendVerification(email)
+
+    override fun verifyEmail(
+        verificationToken: ByteArray,
+        deviceLabel: String
+    ): EngineAuthOperationResult = withSecret(verificationToken) {
+        engine.verifyEmail(verificationToken, deviceLabel)
+    }
+
+    override fun loginPassword(
+        email: String,
+        password: ByteArray,
+        deviceLabel: String
+    ): EngineAuthOperationResult = withSecret(password) {
+        engine.loginPassword(email, password, deviceLabel)
+    }
+
+    override fun logout(): EngineAuthOperationResult = engine.logout()
+
+    private inline fun withSecret(
+        secret: ByteArray,
+        operation: () -> EngineAuthOperationResult
+    ): EngineAuthOperationResult = try {
+        operation()
+    } finally {
+        secret.fill(0)
+    }
 
     override fun dispatch(command: EngineCommand): EngineDispatchResult {
         val result = engine.dispatch(command)

@@ -1,6 +1,7 @@
 package com.adrianrusu.pandawave.core.rust.bridge.gateway
 
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthOperationResult
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
@@ -18,6 +19,7 @@ class AidlEngineGateway(
     telemetryLogger: TelemetryLogger? = null,
     private val clock: () -> Long = System::currentTimeMillis
 ) : EngineGateway,
+    EngineAuthGateway,
     AutoCloseable {
     private val telemetryLogger = telemetryLogger?.forModule(TelemetryModule.RustBridge)
     private var latestSnapshot: EngineSnapshot? = null
@@ -61,6 +63,42 @@ class AidlEngineGateway(
     override fun browseResult(index: Int): EngineCatalogItem? = connection.service?.browseResult(index)
 
     override fun searchResult(index: Int): EngineCatalogItem? = connection.service?.searchResult(index)
+
+    override fun registerPassword(email: String, password: ByteArray): EngineAuthOperationResult =
+        withSecret(password) { connection.service?.registerPassword(email, password) }
+
+    override fun resendVerification(email: String): EngineAuthOperationResult =
+        if (isClosed) EngineAuthOperationResult.unavailable()
+        else connection.service?.resendVerification(email) ?: EngineAuthOperationResult.unavailable()
+
+    override fun verifyEmail(
+        verificationToken: ByteArray,
+        deviceLabel: String
+    ): EngineAuthOperationResult = withSecret(verificationToken) {
+        connection.service?.verifyEmail(verificationToken, deviceLabel)
+    }
+
+    override fun loginPassword(
+        email: String,
+        password: ByteArray,
+        deviceLabel: String
+    ): EngineAuthOperationResult = withSecret(password) {
+        connection.service?.loginPassword(email, password, deviceLabel)
+    }
+
+    override fun logout(): EngineAuthOperationResult =
+        if (isClosed) EngineAuthOperationResult.unavailable()
+        else connection.service?.logout() ?: EngineAuthOperationResult.unavailable()
+
+    private inline fun withSecret(
+        secret: ByteArray,
+        operation: () -> EngineAuthOperationResult?
+    ): EngineAuthOperationResult = try {
+        if (isClosed) EngineAuthOperationResult.unavailable()
+        else operation() ?: EngineAuthOperationResult.unavailable()
+    } finally {
+        secret.fill(0)
+    }
 
     override fun dispatch(command: EngineCommand): EngineDispatchResult {
         val service = connection.service

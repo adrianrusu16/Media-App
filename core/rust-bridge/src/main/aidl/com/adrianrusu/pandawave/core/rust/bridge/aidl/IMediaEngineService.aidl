@@ -1,6 +1,7 @@
 package com.adrianrusu.pandawave.core.rust.bridge.aidl;
 
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand;
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthOperationResult;
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem;
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect;
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent;
@@ -8,6 +9,11 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot;
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.IEngineListener;
 
 interface IMediaEngineService {
+    EngineAuthOperationResult registerPassword(String email, in byte[] password);
+    EngineAuthOperationResult resendVerification(String email);
+    EngineAuthOperationResult verifyEmail(in byte[] verificationToken, String deviceLabel);
+    EngineAuthOperationResult loginPassword(String email, in byte[] password, String deviceLabel);
+    EngineAuthOperationResult logout();
     EngineSnapshot getSnapshot();
     EngineCatalogItem getBrowseResult(int index);
     EngineCatalogItem getSearchResult(int index);

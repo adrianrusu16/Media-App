@@ -1,6 +1,7 @@
 // FFI API module root:
 // - Groups C entrypoints by responsibility and re-exports stable symbols.
 // - Keeps function names unchanged while reducing root-file complexity.
+pub(crate) mod auth;
 pub(crate) mod backend;
 mod dispatch;
 mod lifecycle;

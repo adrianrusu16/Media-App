@@ -41,7 +41,7 @@ pub(crate) fn configure_backend(
     };
     let connected = engine.runtime.block_on(CanopyChannel::connect(&config));
     match connected {
-        Ok(channel) => finish_configuration(engine, config, channel),
+        Ok(channel) => finish_configuration(engine, config, channel, mode),
         Err(error) => {
             fail_configuration(engine);
             Err(error)
@@ -59,7 +59,7 @@ pub(crate) fn configure_backend_with_channel(
     let Some(config) = begin_configuration(engine, config_json, mode)? else {
         return Ok(());
     };
-    finish_configuration(engine, config, channel)
+    finish_configuration(engine, config, channel, mode)
 }
 
 fn begin_configuration(
@@ -91,6 +91,7 @@ fn finish_configuration(
     engine: &PandaEngine,
     config: CanopyConnectionConfig,
     channel: CanopyChannel,
+    mode: DeploymentMode,
 ) -> Result<(), EngineError> {
     let mut state = engine.backend_configuration.lock().unwrap();
     if !matches!(*state, BackendConfigurationState::Configuring) {
@@ -98,13 +99,19 @@ fn finish_configuration(
     }
 
     let session_store = engine.session_store.lock().unwrap().clone();
-    let composition = compose_backend(&channel, session_store);
+    let composition = compose_backend(&channel, session_store.clone());
+    let session = composition.session.clone();
 
     engine.engine.with_engine(|inner| {
         inner.set_repository(Box::new(composition.repository));
         inner.set_playback_port(composition.playback);
         inner.set_system_port(composition.system);
-        inner.set_auth_state_provider(composition.session);
+        inner.set_auth_state_provider(session.clone());
+    });
+    *engine.auth_runtime.lock().unwrap() = Some(crate::engine_handle::EngineAuthRuntime {
+        coordinator: session,
+        store: session_store,
+        production: mode == DeploymentMode::Production,
     });
     *state = BackendConfigurationState::Ready(Box::new(config));
     Ok(())
@@ -264,7 +271,7 @@ mod concurrency_tests {
             let _runtime = engine.runtime.enter();
             CanopyChannel::connect_lazy_for_test("https://canopy.example.com")
         };
-        finish_configuration(&engine, config, channel).unwrap();
+        finish_configuration(&engine, config, channel, DeploymentMode::Production).unwrap();
         assert!(matches!(
             *engine.backend_configuration.lock().unwrap(),
             BackendConfigurationState::Ready(_)
