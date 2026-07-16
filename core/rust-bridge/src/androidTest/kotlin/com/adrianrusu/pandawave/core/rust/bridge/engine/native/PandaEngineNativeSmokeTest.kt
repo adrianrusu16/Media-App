@@ -1,12 +1,17 @@
 package com.adrianrusu.pandawave.core.rust.bridge.engine.native
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthState
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommandPayloads
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
+import com.adrianrusu.pandawave.core.secure.storage.keystore.AndroidKeystoreSecureSecretProtector
+import java.io.File
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertThrows
@@ -15,6 +20,40 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class PandaEngineNativeSmokeTest {
+    @Test
+    fun `session cryptor uses keystore authenticated encryption`() {
+        val cryptor = PandaEngineSessionCryptor(AndroidKeystoreSecureSecretProtector())
+        val plaintext = "opaque-rust-session".encodeToByteArray()
+        val expected = plaintext.clone()
+        val associatedData = "session-format-v1".encodeToByteArray()
+
+        val sealed = cryptor.seal(plaintext, associatedData)
+
+        assertArrayEquals(ByteArray(expected.size), plaintext)
+        assertArrayEquals(expected, cryptor.open(sealed[0], sealed[1], sealed[2], associatedData))
+        val tamperedTag = sealed[2].clone().also { tag -> tag[0] = (tag[0].toInt() xor 1).toByte() }
+        assertThrows(RuntimeException::class.java) {
+            cryptor.open(sealed[0], sealed[1], tamperedTag, associatedData)
+        }
+    }
+
+    @Test
+    fun `secure session store starts anonymous when ciphertext is missing`() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val sessionFile = File(context.noBackupFilesDir, "native-smoke/session.bin")
+        sessionFile.parentFile?.deleteRecursively()
+
+        PandaEngine.create(
+            sessionFile = sessionFile,
+            sessionProtector = AndroidKeystoreSecureSecretProtector()
+        ).use { engine ->
+            engine.configureBackend(cleartextConfig(), isDevelopment = true)
+
+            assertEquals(EngineAuthState.ANONYMOUS, engine.snapshot().authState.state)
+            assertFalse(sessionFile.exists())
+        }
+    }
+
     @Test
     fun `production backend configuration rejects cleartext endpoints`() {
         PandaEngine.create().use { engine ->

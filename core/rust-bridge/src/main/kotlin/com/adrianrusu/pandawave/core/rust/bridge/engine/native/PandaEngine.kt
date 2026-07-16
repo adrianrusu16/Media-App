@@ -17,6 +17,8 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineThemePreference
 import com.adrianrusu.pandawave.core.rust.bridge.engine.AudioSourceResolver
 import com.adrianrusu.pandawave.core.rust.bridge.engine.EngineDispatchResult
 import com.adrianrusu.pandawave.core.rust.bridge.engine.RustEngine
+import com.adrianrusu.pandawave.core.secure.storage.SecureSecretProtector
+import java.io.File
 
 class PandaEngine private constructor(private val nativeHandle: Long, private val clock: () -> Long) :
     RustEngine,
@@ -123,6 +125,12 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         handle: Long,
         configJson: String,
         isDevelopment: Boolean
+    ): Boolean
+
+    private external fun nativeInstallSessionStore(
+        handle: Long,
+        sessionPath: String,
+        cryptor: PandaEngineSessionCryptor
     ): Boolean
 
     private external fun nativeCurrentMediaId(handle: Long): String?
@@ -360,6 +368,28 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             EngineCommand.TYPE_REFRESH_BACKEND_STATUS -> COMMAND_REFRESH_BACKEND_STATUS
             EngineCommand.TYPE_LOAD_NEXT_CATALOG_PAGE -> COMMAND_LOAD_NEXT_CATALOG_PAGE
             else -> COMMAND_UNKNOWN
+        }
+
+        fun create(
+            sessionFile: File,
+            sessionProtector: SecureSecretProtector,
+            clock: () -> Long = System::currentTimeMillis
+        ): PandaEngine {
+            require(sessionFile.isAbsolute) { "PandaEngine session file must be absolute." }
+            val engine = create(clock)
+            return try {
+                check(
+                    engine.nativeInstallSessionStore(
+                        handle = engine.nativeHandle,
+                        sessionPath = sessionFile.absolutePath,
+                        cryptor = PandaEngineSessionCryptor(sessionProtector)
+                    )
+                ) { "PandaEngine failed to install secure session storage." }
+                engine
+            } catch (error: Throwable) {
+                engine.close()
+                throw error
+            }
         }
 
         internal fun nativeCommandType(command: EngineCommand): Int = command.toNativeCommandType()

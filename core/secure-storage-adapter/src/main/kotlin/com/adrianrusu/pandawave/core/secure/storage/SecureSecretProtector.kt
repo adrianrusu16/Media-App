@@ -5,9 +5,17 @@ package com.adrianrusu.pandawave.core.secure.storage
  *
  * The caller owns persistence of [EncryptedSecret]. Implementations should avoid
  * logging plaintext, ciphertext, IVs, aliases, or error payloads.
+ * Decryption must receive the exact associated data supplied during encryption.
  */
 interface SecureSecretProtector {
-    fun encrypt(purpose: SecureSecretPurpose, plaintext: ByteArray): EncryptedSecret
+    fun encrypt(
+        purpose: SecureSecretPurpose,
+        plaintext: ByteArray,
+        associatedData: ByteArray = byteArrayOf()
+    ): EncryptedSecret
 
-    fun decrypt(secret: EncryptedSecret): ByteArray
+    fun decrypt(
+        secret: EncryptedSecret,
+        associatedData: ByteArray = byteArrayOf()
+    ): ByteArray
 }

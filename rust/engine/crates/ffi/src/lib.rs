@@ -6,6 +6,7 @@ mod constants;
 mod engine_handle;
 mod jni_audio_source_client;
 mod jni_bridge;
+mod jni_session_cryptor;
 mod mappings;
 mod types;
 

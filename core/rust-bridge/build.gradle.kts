@@ -49,6 +49,10 @@ val pandaEngineAndroidTargets =
 android {
     ndkVersion = pandaEngineAndroidNdkVersion
 
+    defaultConfig {
+        consumerProguardFiles("consumer-rules.pro")
+    }
+
     if (pandaEngineBuildNative.get()) {
         sourceSets {
             getByName("main") {
@@ -127,6 +131,7 @@ if (pandaEngineBuildNative.get()) {
 dependencies {
     implementation(project(":core:common"))
     implementation(project(":core:model"))
+    implementation(project(":core:secure-storage-adapter"))
     implementation(project(":core:telemetry-adapter"))
 
     implementation(libs.kotlinx.serialization.json)

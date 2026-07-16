@@ -6,7 +6,7 @@ use panda_engine_core::networking::canopy::{
 };
 use panda_engine_core::{
     CanopyAuthClient, CanopyCatalogClient, CanopyPlaybackClient, EngineError, EngineErrorType,
-    InMemorySessionStore, RemoteRepository, SessionCoordinator, SessionStore,
+    RemoteRepository, SessionCoordinator, SessionStore,
 };
 
 use crate::engine_handle::{BackendConfigurationState, PandaEngine};
@@ -97,7 +97,8 @@ fn finish_configuration(
         return Err(configuration_error());
     }
 
-    let composition = compose_backend(&channel);
+    let session_store = engine.session_store.lock().unwrap().clone();
+    let composition = compose_backend(&channel, session_store);
 
     engine.engine.with_engine(|inner| {
         inner.set_repository(Box::new(composition.repository));
@@ -116,8 +117,7 @@ struct BackendComposition {
     system: Arc<CanopySystemClient>,
 }
 
-fn compose_backend(channel: &CanopyChannel) -> BackendComposition {
-    let store: Arc<dyn SessionStore> = Arc::new(InMemorySessionStore::new());
+fn compose_backend(channel: &CanopyChannel, store: Arc<dyn SessionStore>) -> BackendComposition {
     let auth = Arc::new(CanopyAuthClient::new(channel));
     let session = Arc::new(SessionCoordinator::new(store, auth));
     let catalog = Arc::new(CanopyCatalogClient::with_session_coordinator(
@@ -174,7 +174,11 @@ fn c_string(value: *const c_char) -> Option<String> {
 #[cfg(test)]
 mod concurrency_tests {
     use panda_engine_core::networking::canopy::{CanopyChannel, DeploymentMode};
-    use panda_engine_core::{AuthState, EngineError};
+    use panda_engine_core::{
+        Account, AuthSession, AuthSessionEnvelope, AuthState, EngineError, InMemorySessionStore,
+        SessionStore,
+    };
+    use std::sync::Arc;
 
     use crate::engine_handle::{BackendConfigurationState, PandaEngine, build_engine};
 
@@ -194,13 +198,49 @@ mod concurrency_tests {
             CanopyChannel::connect_lazy_for_test("https://canopy.example.com")
         };
 
-        let composition = compose_backend(&channel);
+        let store: Arc<dyn SessionStore> = Arc::new(InMemorySessionStore::new());
+        let composition = compose_backend(&channel, store);
 
         assert_eq!(
             composition.session.auth_state().unwrap(),
             AuthState::Anonymous
         );
         assert_eq!(std::sync::Arc::strong_count(&composition.session), 3);
+    }
+
+    #[test]
+    fn backend_composition_restores_the_injected_session_store() {
+        let engine = build_engine(0);
+        let channel = {
+            let _entered = engine.runtime.enter();
+            CanopyChannel::connect_lazy_for_test("https://canopy.example.com")
+        };
+        let envelope = AuthSessionEnvelope::new(
+            "access-secret".into(),
+            2_000,
+            "refresh-secret".into(),
+            3_000,
+            Account {
+                id: "account-1".into(),
+                primary_email: "driver@example.com".into(),
+                status: "active".into(),
+                created_at_epoch_millis: 500,
+            },
+            AuthSession {
+                id: "session-1".into(),
+                device_label: "PandaWave".into(),
+                created_at_epoch_millis: 1_000,
+                last_used_at_epoch_millis: 1_100,
+                expires_at_epoch_millis: 4_000,
+                current: true,
+            },
+        );
+        let expected = envelope.state();
+        let store: Arc<dyn SessionStore> = Arc::new(InMemorySessionStore::with_session(envelope));
+
+        let composition = compose_backend(&channel, store);
+
+        assert_eq!(composition.session.auth_state().unwrap(), expected);
     }
 
     #[test]

@@ -15,12 +15,17 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 class AndroidKeystoreSecureSecretProtector : SecureSecretProtector {
-    override fun encrypt(purpose: SecureSecretPurpose, plaintext: ByteArray): EncryptedSecret {
+    override fun encrypt(
+        purpose: SecureSecretPurpose,
+        plaintext: ByteArray,
+        associatedData: ByteArray
+    ): EncryptedSecret {
         require(plaintext.isNotEmpty()) { "Plaintext must not be empty." }
 
         return try {
             val cipher = Cipher.getInstance(TRANSFORMATION)
             cipher.init(Cipher.ENCRYPT_MODE, getOrCreateSecretKey(purpose))
+            cipher.updateAAD(associatedData)
 
             EncryptedSecret(
                 purpose = purpose,
@@ -34,13 +39,14 @@ class AndroidKeystoreSecureSecretProtector : SecureSecretProtector {
         }
     }
 
-    override fun decrypt(secret: EncryptedSecret): ByteArray = try {
+    override fun decrypt(secret: EncryptedSecret, associatedData: ByteArray): ByteArray = try {
         val cipher = Cipher.getInstance(TRANSFORMATION)
         cipher.init(
             Cipher.DECRYPT_MODE,
             getOrCreateSecretKey(secret.purpose),
             GCMParameterSpec(GCM_TAG_LENGTH_BITS, secret.iv)
         )
+        cipher.updateAAD(associatedData)
         cipher.doFinal(secret.ciphertext)
     } catch (exception: GeneralSecurityException) {
         throw SecureStorageException("Failed to decrypt secret.", exception)

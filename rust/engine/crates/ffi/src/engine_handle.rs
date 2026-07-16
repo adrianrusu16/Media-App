@@ -3,7 +3,8 @@ use std::sync::{Arc, Mutex};
 use panda_engine_core::networking::canopy::CanopyConnectionConfig;
 use panda_engine_core::{
     ConcurrentEngine, Engine, EngineEffect, EngineEvent, EngineObserver, EngineOutcome,
-    EngineSnapshot, LoggerMiddleware, MiddlewarePipeline, TelemetryMiddleware,
+    EngineSnapshot, InMemorySessionStore, LoggerMiddleware, MiddlewarePipeline, SessionStore,
+    TelemetryMiddleware,
 };
 use tracing::info;
 
@@ -18,6 +19,7 @@ pub struct PandaEngine {
     pub(crate) observer: Option<Arc<FfiObserver>>,
     pub(crate) runtime: tokio::runtime::Runtime,
     pub(crate) backend_configuration: Mutex<BackendConfigurationState>,
+    pub(crate) session_store: Mutex<Arc<dyn SessionStore>>,
 }
 
 #[derive(Debug)]
@@ -35,6 +37,15 @@ impl PandaEngine {
             *self.backend_configuration.lock().unwrap(),
             BackendConfigurationState::Ready(_)
         )
+    }
+
+    pub(crate) fn install_session_store(&self, store: Arc<dyn SessionStore>) -> bool {
+        let configuration = self.backend_configuration.lock().unwrap();
+        if !matches!(*configuration, BackendConfigurationState::Unconfigured) {
+            return false;
+        }
+        *self.session_store.lock().unwrap() = store;
+        true
     }
 }
 
@@ -91,6 +102,7 @@ pub(crate) fn build_engine(now_epoch_millis: u64) -> PandaEngine {
         observer: None,
         runtime,
         backend_configuration: Mutex::new(BackendConfigurationState::Unconfigured),
+        session_store: Mutex::new(Arc::new(InMemorySessionStore::new())),
     }
 }
 

@@ -14,6 +14,8 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.IEngineListener
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.IMediaEngineService
 import com.adrianrusu.pandawave.core.rust.bridge.config.EngineConnectionConfigLoader
+import com.adrianrusu.pandawave.core.secure.storage.keystore.AndroidKeystoreSecureSecretProtector
+import java.io.File
 
 class MediaEngineService : Service() {
     private val listeners = RemoteCallbackList<IEngineListener>()
@@ -25,7 +27,12 @@ class MediaEngineService : Service() {
         engine = runCatching {
             val configJson = EngineConnectionConfigLoader.load(this)
             val isDevelopment = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
-            PandaEngineFactory.create(configJson, isDevelopment)
+            PandaEngineFactory.create(
+                configJson = configJson,
+                isDevelopment = isDevelopment,
+                sessionFile = File(noBackupFilesDir, SESSION_FILE_RELATIVE_PATH),
+                sessionProtector = AndroidKeystoreSecureSecretProtector()
+            )
         }.getOrNull()
         unavailableSnapshot = unavailableSnapshot()
     }
@@ -110,6 +117,10 @@ class MediaEngineService : Service() {
         errorType = EngineSnapshot.ERROR_NETWORK,
         canDispatch = false
     )
+
+    private companion object {
+        const val SESSION_FILE_RELATIVE_PATH = "panda-engine/session.bin"
+    }
 
 }
 

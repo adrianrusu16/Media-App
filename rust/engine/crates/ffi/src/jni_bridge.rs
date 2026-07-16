@@ -8,6 +8,7 @@ use std::sync::Arc;
 
 use crate::api::backend::configure_backend;
 use crate::jni_audio_source_client::JniAudioSourceClient;
+use crate::jni_session_cryptor::JniSessionCryptor;
 use crate::{
     FfiEngineSnapshot, PandaEngine, panda_engine_create, panda_engine_destroy,
     panda_engine_dispatch, panda_engine_dispatch_platform_event, panda_engine_free_string,
@@ -29,6 +30,8 @@ use crate::{
     panda_engine_get_search_result_title, panda_engine_snapshot,
 };
 use panda_engine_core::networking::canopy::DeploymentMode;
+use panda_engine_core::{EncryptedFileSessionStore, SessionStore};
+use std::path::PathBuf;
 
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeCreate(
@@ -50,6 +53,37 @@ pub extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_nat
 
 fn create_engine_handle(now_epoch_millis: jlong) -> jlong {
     panda_engine_create(now_epoch_millis as u64) as jlong
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeInstallSessionStore(
+    mut env: JNIEnv,
+    _this: JObject,
+    handle: jlong,
+    session_path: JObject,
+    cryptor: JObject,
+) -> jboolean {
+    let Some(engine) = (unsafe { (handle as *const PandaEngine).as_ref() }) else {
+        return false.into();
+    };
+    let Some(session_path) = jni_string_to_c_string(&mut env, session_path) else {
+        return false.into();
+    };
+    let Ok(session_path) = session_path.to_str() else {
+        return false.into();
+    };
+    let session_path = PathBuf::from(session_path);
+    if !session_path.is_absolute() {
+        return false.into();
+    }
+    let Ok(cryptor) = JniSessionCryptor::new(&mut env, cryptor) else {
+        return false.into();
+    };
+    let store: Arc<dyn SessionStore> = Arc::new(EncryptedFileSessionStore::new(
+        session_path,
+        Arc::new(cryptor),
+    ));
+    engine.install_session_store(store).into()
 }
 
 #[unsafe(no_mangle)]
