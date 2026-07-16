@@ -4,7 +4,10 @@ use tonic_014::metadata::MetadataValue;
 use tonic_014::transport::Channel;
 use tonic_014::{Code, Request, Status};
 
-use crate::{Account, AuthPort, AuthSession, AuthSessionEnvelope, EngineError, EngineErrorType};
+use crate::{
+    Account, AuthPort, AuthRequestAcceptance, AuthSession, AuthSessionEnvelope, EngineError,
+    EngineErrorType,
+};
 
 use super::CanopyChannel;
 use super::error::map_status;
@@ -12,7 +15,8 @@ use super::sdk::{
     clients::auth_service_client::AuthServiceClient,
     resources::{
         AccountSummary, LoginPasswordRequest, LogoutRequest, RefreshSessionRequest,
-        SessionEnvelope, SessionSummary,
+        RegisterPasswordRequest, ResendVerificationRequest, SessionEnvelope, SessionSummary,
+        VerifyEmailRequest,
     },
     well_known_types::Timestamp,
 };
@@ -34,6 +38,44 @@ impl CanopyAuthClient {
 
 #[async_trait::async_trait]
 impl AuthPort for CanopyAuthClient {
+    async fn register_password(
+        &self,
+        email: &str,
+        password: &str,
+    ) -> Result<AuthRequestAcceptance, EngineError> {
+        let mut client = self.client.clone();
+        let response = client
+            .register_password(register_request(email, password))
+            .await
+            .map_err(map_status)?
+            .into_inner();
+        Ok(AuthRequestAcceptance::new(response.accepted))
+    }
+
+    async fn resend_verification(&self, email: &str) -> Result<AuthRequestAcceptance, EngineError> {
+        let mut client = self.client.clone();
+        let response = client
+            .resend_verification(resend_request(email))
+            .await
+            .map_err(map_status)?
+            .into_inner();
+        Ok(AuthRequestAcceptance::new(response.accepted))
+    }
+
+    async fn verify_email(
+        &self,
+        verification_token: &str,
+        device_label: &str,
+    ) -> Result<AuthSessionEnvelope, EngineError> {
+        let mut client = self.client.clone();
+        let response = client
+            .verify_email(verify_request(verification_token, device_label))
+            .await
+            .map_err(map_status)?
+            .into_inner();
+        map_session_envelope(response)
+    }
+
     async fn login_password(
         &self,
         email: &str,
@@ -70,6 +112,26 @@ impl AuthPort for CanopyAuthClient {
             .map_err(map_protected_status)?;
         Ok(())
     }
+}
+
+fn register_request(email: &str, password: &str) -> Request<RegisterPasswordRequest> {
+    request_with_timeout(RegisterPasswordRequest {
+        email: email.to_owned(),
+        password: password.to_owned(),
+    })
+}
+
+fn resend_request(email: &str) -> Request<ResendVerificationRequest> {
+    request_with_timeout(ResendVerificationRequest {
+        email: email.to_owned(),
+    })
+}
+
+fn verify_request(verification_token: &str, device_label: &str) -> Request<VerifyEmailRequest> {
+    request_with_timeout(VerifyEmailRequest {
+        verification_token: verification_token.to_owned(),
+        device_label: device_label.to_owned(),
+    })
 }
 
 fn login_request(email: &str, password: &str, device_label: &str) -> Request<LoginPasswordRequest> {
@@ -202,6 +264,7 @@ fn invalid_authorization_metadata() -> EngineError {
 mod tests {
     use super::{
         login_request, logout_request, map_protected_status, map_session_envelope, refresh_request,
+        register_request, resend_request, verify_request,
     };
     use crate::EngineErrorType;
     use crate::networking::canopy::sdk::resources::{
@@ -345,10 +408,16 @@ mod tests {
 
     #[test]
     fn auth_metadata_is_added_only_to_the_protected_logout_request() {
+        let register = register_request("driver@example.com", "password");
+        let resend = resend_request("driver@example.com");
+        let verify = verify_request("opaque-token", "PandaWave");
         let login = login_request("driver@example.com", "password", "car");
         let refresh = refresh_request("refresh-secret");
         let logout = logout_request("access-secret").unwrap();
 
+        assert!(register.metadata().get("authorization").is_none());
+        assert!(resend.metadata().get("authorization").is_none());
+        assert!(verify.metadata().get("authorization").is_none());
         assert!(login.metadata().get("authorization").is_none());
         assert!(refresh.metadata().get("authorization").is_none());
         assert_eq!(
@@ -360,6 +429,22 @@ mod tests {
                 .unwrap(),
             "Bearer access-secret"
         );
+    }
+
+    #[test]
+    fn bootstrap_requests_preserve_canonical_fields_verbatim() {
+        let register = register_request("driver@example.com", "secret-password");
+        let resend = resend_request("driver@example.com");
+        let verify = verify_request("opaque-verification-token", "PandaWave emulator");
+
+        assert_eq!(register.get_ref().email, "driver@example.com");
+        assert_eq!(register.get_ref().password, "secret-password");
+        assert_eq!(resend.get_ref().email, "driver@example.com");
+        assert_eq!(
+            verify.get_ref().verification_token,
+            "opaque-verification-token"
+        );
+        assert_eq!(verify.get_ref().device_label, "PandaWave emulator");
     }
 
     #[test]

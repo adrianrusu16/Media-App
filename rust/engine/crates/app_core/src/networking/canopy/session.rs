@@ -3,7 +3,10 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use tokio::sync::Mutex;
 
-use crate::{AuthPort, AuthState, AuthStateProvider, EngineError, EngineErrorType, SessionStore};
+use crate::{
+    AuthPort, AuthRequestAcceptance, AuthState, AuthStateProvider, EngineError, EngineErrorType,
+    SessionStore,
+};
 
 use super::clock::current_epoch_millis;
 
@@ -75,6 +78,76 @@ impl SessionCoordinator {
             .read()
             .map_err(EngineError::from)?
             .map_or(AuthState::Anonymous, |envelope| envelope.state()))
+    }
+
+    pub async fn register_password(
+        &self,
+        email: &str,
+        password: &str,
+    ) -> Result<AuthRequestAcceptance, EngineError> {
+        self.auth.register_password(email, password).await
+    }
+
+    pub async fn resend_verification(
+        &self,
+        email: &str,
+    ) -> Result<AuthRequestAcceptance, EngineError> {
+        self.auth.resend_verification(email).await
+    }
+
+    pub async fn verify_email(
+        &self,
+        verification_token: &str,
+        device_label: &str,
+    ) -> Result<AuthState, EngineError> {
+        let _rotation = self.rotation.lock().await;
+        let envelope = self
+            .auth
+            .verify_email(verification_token, device_label)
+            .await?;
+        self.commit_interactive_session(envelope).await
+    }
+
+    pub async fn login_password(
+        &self,
+        email: &str,
+        password: &str,
+        device_label: &str,
+    ) -> Result<AuthState, EngineError> {
+        let _rotation = self.rotation.lock().await;
+        let envelope = self
+            .auth
+            .login_password(email, password, device_label)
+            .await?;
+        self.commit_interactive_session(envelope).await
+    }
+
+    async fn commit_interactive_session(
+        &self,
+        envelope: crate::AuthSessionEnvelope,
+    ) -> Result<AuthState, EngineError> {
+        let state = envelope.state();
+        let mut transient_access_token = envelope.credentials().access_token.to_owned();
+        let commit_result = self
+            .store
+            .replace(envelope)
+            .map_err(EngineError::from)
+            .and_then(|()| self.advance_generation().map(|_| ()));
+
+        match commit_result {
+            Ok(()) => {
+                self.invalidated.store(false, Ordering::Release);
+                wipe_token(&mut transient_access_token);
+                Ok(state)
+            }
+            Err(error) => {
+                self.invalidated.store(true, Ordering::Release);
+                let _ = self.store.clear();
+                let _ = self.auth.logout(&transient_access_token).await;
+                wipe_token(&mut transient_access_token);
+                Err(error)
+            }
+        }
     }
 
     pub async fn ensure_fresh_session(&self) -> Result<AuthState, EngineError> {
@@ -419,6 +492,12 @@ fn login_required() -> EngineError {
         "a new interactive login is required",
         false,
     )
+}
+
+fn wipe_token(token: &mut str) {
+    // Replacing UTF-8 bytes with zero preserves String's validity while clearing
+    // the transient credential before its allocation is released.
+    unsafe { token.as_bytes_mut().fill(0) };
 }
 
 #[cfg(test)]

@@ -65,7 +65,9 @@ pub use crate::middleware::{
     AnalyticsMiddleware, FocusMiddleware, LoggerMiddleware, Middleware, MiddlewarePipeline,
     RecoveryMiddleware, TelemetryMiddleware, ThrottlingMiddleware, ValidationMiddleware,
 };
-pub use crate::model::auth::{Account, AuthSession, AuthSessionEnvelope, AuthState};
+pub use crate::model::auth::{
+    Account, AuthRequestAcceptance, AuthSession, AuthSessionEnvelope, AuthState,
+};
 pub use crate::model::backend::{
     EngineBackendStatus, EngineDependencyStatus, EngineStatusValue, RetryClass,
 };

@@ -21,6 +21,26 @@ pub struct AuthSession {
     pub current: bool,
 }
 
+/// Service-neutral acknowledgement for enumeration-safe auth bootstrap requests.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct AuthRequestAcceptance {
+    accepted: bool,
+}
+
+impl AuthRequestAcceptance {
+    pub fn new(accepted: bool) -> Self {
+        Self { accepted }
+    }
+
+    pub fn accepted() -> Self {
+        Self::new(true)
+    }
+
+    pub fn is_accepted(self) -> bool {
+        self.accepted
+    }
+}
+
 /// The complete credential rotation unit owned by the engine.
 ///
 /// All fields are intentionally private so callers cannot update individual
