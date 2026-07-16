@@ -47,6 +47,9 @@ pub mod test_utils {
     }
 }
 
+pub use crate::data::encrypted_session_store::{
+    EncryptedFileSessionStore, SealedSession, SessionCryptor,
+};
 pub use crate::data::persistence::{EnginePersistentState, NoopPersistence, Persistence};
 pub use crate::data::queue::{QueueManager, RepeatMode};
 pub use crate::data::repository::{InMemoryRepository, MediaItem, MediaItemType, MediaRepository};

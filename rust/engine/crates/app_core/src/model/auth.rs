@@ -81,6 +81,70 @@ impl AuthSessionEnvelope {
             refresh_token_expires_at_epoch_millis: self.refresh_token_expires_at_epoch_millis,
         }
     }
+
+    pub(crate) fn to_storage_bytes(&self) -> Result<Vec<u8>, serde_json::Error> {
+        serde_json::to_vec(&StoredAuthSessionEnvelope::from(self))
+    }
+
+    pub(crate) fn from_storage_bytes(bytes: &[u8]) -> Result<Self, String> {
+        let stored: StoredAuthSessionEnvelope =
+            serde_json::from_slice(bytes).map_err(|_| "stored session payload is malformed")?;
+        stored.try_into()
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+struct StoredAuthSessionEnvelope {
+    codec_version: u8,
+    access_token: String,
+    access_token_expires_at_epoch_millis: u64,
+    refresh_token: String,
+    refresh_token_expires_at_epoch_millis: u64,
+    account: Account,
+    session: AuthSession,
+}
+
+impl From<&AuthSessionEnvelope> for StoredAuthSessionEnvelope {
+    fn from(envelope: &AuthSessionEnvelope) -> Self {
+        Self {
+            codec_version: 1,
+            access_token: envelope.access_token.clone(),
+            access_token_expires_at_epoch_millis: envelope.access_token_expires_at_epoch_millis,
+            refresh_token: envelope.refresh_token.clone(),
+            refresh_token_expires_at_epoch_millis: envelope.refresh_token_expires_at_epoch_millis,
+            account: envelope.account.clone(),
+            session: envelope.session.clone(),
+        }
+    }
+}
+
+impl TryFrom<StoredAuthSessionEnvelope> for AuthSessionEnvelope {
+    type Error = String;
+
+    fn try_from(stored: StoredAuthSessionEnvelope) -> Result<Self, Self::Error> {
+        if stored.codec_version != 1 {
+            return Err("stored session codec version is unsupported".into());
+        }
+        if stored.access_token.is_empty()
+            || stored.refresh_token.is_empty()
+            || stored.account.id.is_empty()
+            || stored.account.primary_email.is_empty()
+            || stored.session.id.is_empty()
+            || stored.session.device_label.is_empty()
+            || stored.access_token_expires_at_epoch_millis == 0
+            || stored.refresh_token_expires_at_epoch_millis == 0
+        {
+            return Err("stored session payload is incomplete".into());
+        }
+        Ok(Self::new(
+            stored.access_token,
+            stored.access_token_expires_at_epoch_millis,
+            stored.refresh_token,
+            stored.refresh_token_expires_at_epoch_millis,
+            stored.account,
+            stored.session,
+        ))
+    }
 }
 
 impl std::fmt::Debug for AuthSessionEnvelope {
