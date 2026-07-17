@@ -1,9 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="pandawave_profile_account_title">Account</string>
-    <string name="pandawave_profile_account_body">Sign-in and account details will live here.</string>
-    <string name="pandawave_profile_session_title">Session</string>
-    <string name="pandawave_profile_session_body">Manage active sessions and trusted devices.</string>
+    <string name="pandawave_profile_login_title">Login</string>
+    <string name="pandawave_profile_login_body">Use your Canopy account on this device.</string>
+    <string name="pandawave_profile_login_action">Login</string>
+    <string name="pandawave_profile_register_title">Create account</string>
+    <string name="pandawave_profile_register_body">Create a Canopy account and verify it by email.</string>
+    <string name="pandawave_profile_register_action">Create account</string>
+    <string name="pandawave_profile_email_title">Email</string>
+    <string name="pandawave_profile_status_title">Account status</string>
+    <string name="pandawave_profile_device_title">Current device</string>
+    <string name="pandawave_profile_session_created_title">Session created</string>
+    <string name="pandawave_profile_session_active_title">Last active</string>
+    <string name="pandawave_profile_logout_title">Logout</string>
+    <string name="pandawave_profile_logout_body">Clear this device’s local session and revoke it with Canopy when possible.</string>
+    <string name="pandawave_profile_logout_action">Logout</string>
+    <string name="pandawave_profile_logging_out">Logging out…</string>
     <string name="pandawave_profile_preferences_title">Preferences</string>
     <string name="pandawave_profile_preferences_body">Appearance, privacy, content, and diagnostics.</string>
     <string name="pandawave_profile_open">Open</string>

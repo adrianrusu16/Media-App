@@ -18,6 +18,7 @@ dependencies {
     implementation(project(":core:telemetry-adapter"))
     implementation(project(":core:ui"))
     implementation(project(":feature:home"))
+    implementation(project(":feature:auth"))
     implementation(project(":feature:library"))
     implementation(project(":feature:nowplaying"))
     implementation(project(":feature:profile"))

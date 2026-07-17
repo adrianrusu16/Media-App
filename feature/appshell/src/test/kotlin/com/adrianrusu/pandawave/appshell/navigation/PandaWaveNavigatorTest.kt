@@ -39,6 +39,18 @@ class PandaWaveNavigatorTest {
     }
 
     @Test
+    fun `opening credential destinations keeps profile as the back target`() {
+        val stack = mutableListOf<NavKey>(HomeDestination, ProfileDestination)
+        val navigator = PandaWaveNavigator(stack)
+
+        navigator.openLogin()
+        assertEquals(listOf<NavKey>(HomeDestination, ProfileDestination, LoginDestination), stack)
+
+        navigator.openRegister()
+        assertEquals(listOf<NavKey>(HomeDestination, ProfileDestination, RegisterDestination), stack)
+    }
+
+    @Test
     fun `opening now playing from preferences preserves profile as back target`() {
         val stack = mutableListOf<NavKey>(
             HomeDestination,

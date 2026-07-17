@@ -21,6 +21,12 @@ data object ProfileDestination : PandaWaveDestination
 data object PreferencesDestination : PandaWaveDestination
 
 @Serializable
+data object LoginDestination : PandaWaveDestination
+
+@Serializable
+data object RegisterDestination : PandaWaveDestination
+
+@Serializable
 data object NowPlayingDestination : PandaWaveDestination
 
 val primaryDestinations: List<PandaWaveDestination> = listOf(
@@ -37,12 +43,14 @@ val PandaWaveDestination.navigationId: String
         SearchDestination -> "search"
         ProfileDestination -> "profile"
         PreferencesDestination -> "preferences"
+        LoginDestination -> "login"
+        RegisterDestination -> "register"
         NowPlayingDestination -> "now-playing"
     }
 
 val PandaWaveDestination.selectedRailDestination: PandaWaveDestination?
     get() = when (this) {
-        PreferencesDestination -> ProfileDestination
+        PreferencesDestination, LoginDestination, RegisterDestination -> ProfileDestination
         NowPlayingDestination -> null
         else -> this
     }

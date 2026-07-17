@@ -23,6 +23,19 @@ class PandaWaveNavigator(private val backStack: MutableList<NavKey>) {
         backStack += listOf(HomeDestination, ProfileDestination, PreferencesDestination)
     }
 
+    fun openLogin() {
+        openProfileChild(LoginDestination)
+    }
+
+    fun openRegister() {
+        openProfileChild(RegisterDestination)
+    }
+
+    private fun openProfileChild(destination: PandaWaveDestination) {
+        backStack.clear()
+        backStack += listOf(HomeDestination, ProfileDestination, destination)
+    }
+
     fun openNowPlaying() {
         val primaryDestination = backStack
             .asReversed()

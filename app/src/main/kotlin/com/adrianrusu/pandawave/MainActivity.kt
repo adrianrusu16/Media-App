@@ -21,6 +21,7 @@ import com.adrianrusu.pandawave.core.audio.visualizer.VisualizerPermissionReposi
 import com.adrianrusu.pandawave.core.designsystem.R as DesignSystemR
 import com.adrianrusu.pandawave.core.designsystem.theme.PandaWaveTheme
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
+import com.adrianrusu.pandawave.core.playback.BambooRestrictionState
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
 import com.adrianrusu.pandawave.core.telemetry.TelemetryModule
 import com.adrianrusu.pandawave.core.ui.interaction.UserInteractionTracker
@@ -117,6 +118,7 @@ class MainActivity : ComponentActivity() {
             val viewModel: AppShellViewModel = hiltViewModel()
             val themeViewModel: AppThemeViewModel = hiltViewModel()
             val state = viewModel.state.collectAsStateWithLifecycle()
+            val playbackState = playbackRepository.state.collectAsStateWithLifecycle()
             val themePreference = themeViewModel.preference.collectAsStateWithLifecycle()
 
             PandaWaveTheme(
@@ -125,6 +127,8 @@ class MainActivity : ComponentActivity() {
             ) {
                 AppShellScreen(
                     state = state.value,
+                    interactiveAccountActionsAllowed =
+                        playbackState.value.vehicleSafety.restrictionState != BambooRestrictionState.Restricted,
                     onIntent = viewModel::onIntent,
                     onMoveTaskToBack = { moveTaskToBack(true) }
                 )

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -20,6 +21,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
@@ -28,11 +31,13 @@ import com.adrianrusu.pandawave.appshell.domain.AppShellIntent
 import com.adrianrusu.pandawave.appshell.domain.AppShellState
 import com.adrianrusu.pandawave.appshell.navigation.HomeDestination
 import com.adrianrusu.pandawave.appshell.navigation.LibraryDestination
+import com.adrianrusu.pandawave.appshell.navigation.LoginDestination
 import com.adrianrusu.pandawave.appshell.navigation.NowPlayingDestination
 import com.adrianrusu.pandawave.appshell.navigation.PandaWaveDestination
 import com.adrianrusu.pandawave.appshell.navigation.PandaWaveNavigator
 import com.adrianrusu.pandawave.appshell.navigation.PreferencesDestination
 import com.adrianrusu.pandawave.appshell.navigation.ProfileDestination
+import com.adrianrusu.pandawave.appshell.navigation.RegisterDestination
 import com.adrianrusu.pandawave.appshell.navigation.SearchDestination
 import com.adrianrusu.pandawave.appshell.navigation.navigationId
 import com.adrianrusu.pandawave.appshell.navigation.primaryDestinations
@@ -47,16 +52,25 @@ import com.adrianrusu.pandawave.core.ui.navigation.BambooNavigationItemModel
 import com.adrianrusu.pandawave.core.ui.navigation.BambooNavigationRail
 import com.adrianrusu.pandawave.feature.appshell.R
 import com.adrianrusu.pandawave.feature.home.HomeRoute
+import com.adrianrusu.pandawave.feature.auth.LoginRoute
+import com.adrianrusu.pandawave.feature.auth.RegisterRoute
+import com.adrianrusu.pandawave.feature.auth.domain.LogoutPhase
+import com.adrianrusu.pandawave.feature.auth.domain.ProfileAccountUi
+import com.adrianrusu.pandawave.feature.auth.domain.ProfileAuthNotice
+import com.adrianrusu.pandawave.feature.auth.presentation.ProfileAuthViewModel
 import com.adrianrusu.pandawave.feature.library.LibraryRoute
 import com.adrianrusu.pandawave.feature.nowplaying.NowPlayingRoute
 import com.adrianrusu.pandawave.feature.profile.ProfileRoute
+import com.adrianrusu.pandawave.feature.profile.ProfileUiAccount
 import com.adrianrusu.pandawave.feature.search.SearchRoute
 import com.adrianrusu.pandawave.feature.settings.SettingsRoute
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AppShellScreen(
     state: AppShellState,
+    interactiveAccountActionsAllowed: Boolean,
     onIntent: (AppShellIntent) -> Unit,
     onMoveTaskToBack: () -> Unit,
     modifier: Modifier = Modifier
@@ -133,7 +147,8 @@ fun AppShellScreen(
                 applyContentPadding = chrome.applyContentPadding,
                 onAmbientVisibilityChanged = { visible ->
                     ambientVisible = visible && currentDestination == NowPlayingDestination
-                }
+                },
+                interactiveAccountActionsAllowed = interactiveAccountActionsAllowed
             )
         }
     }
@@ -147,6 +162,8 @@ private fun PandaWaveDestination.localizedLabel(): String = when (this) {
     ProfileDestination -> stringResource(R.string.pandawave_navigation_profile)
     NowPlayingDestination -> stringResource(R.string.pandawave_navigation_now_playing)
     PreferencesDestination -> stringResource(R.string.pandawave_navigation_settings)
+    LoginDestination -> stringResource(R.string.pandawave_auth_navigation_login)
+    RegisterDestination -> stringResource(R.string.pandawave_auth_navigation_register)
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -155,7 +172,8 @@ private fun AppShellContent(
     backStack: List<androidx.navigation3.runtime.NavKey>,
     navigator: PandaWaveNavigator,
     applyContentPadding: Boolean,
-    onAmbientVisibilityChanged: (Boolean) -> Unit
+    onAmbientVisibilityChanged: (Boolean) -> Unit,
+    interactiveAccountActionsAllowed: Boolean
 ) {
     val tokens = LocalPandaWaveDesignTokens.current
 
@@ -191,9 +209,51 @@ private fun AppShellContent(
                     SearchRoute(modifier = Modifier.fillMaxSize())
                 }
                 entry<ProfileDestination> {
+                    val profileViewModel: ProfileAuthViewModel = hiltViewModel()
+                    val profileState by profileViewModel.state.collectAsStateWithLifecycle()
+                    val authAvailable by profileViewModel.isAvailable.collectAsStateWithLifecycle()
+                    var logoutWarning by remember { mutableStateOf<String?>(null) }
+                    val remoteWarning = stringResource(R.string.pandawave_logout_remote_warning)
+                    val failedWarning = stringResource(R.string.pandawave_logout_failed_warning)
+                    LaunchedEffect(profileViewModel) {
+                        profileViewModel.effects.collect { effect ->
+                            logoutWarning = when (effect) {
+                                ProfileAuthNotice.REMOTE_LOGOUT_UNCONFIRMED -> remoteWarning
+                                ProfileAuthNotice.LOGOUT_FAILED -> failedWarning
+                                else -> null
+                            }
+                            delay(LOGOUT_WARNING_DURATION_MILLIS)
+                            logoutWarning = null
+                        }
+                    }
                     ProfileRoute(
                         modifier = Modifier.fillMaxSize(),
+                        account = profileState.account.toProfileUiAccount(),
+                        accountActionsEnabled = interactiveAccountActionsAllowed && authAvailable,
+                        logoutInProgress = profileState.logoutPhase != LogoutPhase.IDLE,
+                        logoutWarning = logoutWarning,
+                        onLoginClick = navigator::openLogin,
+                        onRegisterClick = navigator::openRegister,
+                        onLogoutClick = profileViewModel::logout,
                         onSettingsClick = navigator::openPreferences
+                    )
+                }
+                entry<LoginDestination> {
+                    LoginRoute(
+                        modifier = Modifier.fillMaxSize(),
+                        interactiveAllowed = interactiveAccountActionsAllowed,
+                        onClose = {
+                            if (navigator.currentDestination == LoginDestination) navigator.pop()
+                        }
+                    )
+                }
+                entry<RegisterDestination> {
+                    RegisterRoute(
+                        modifier = Modifier.fillMaxSize(),
+                        interactiveAllowed = interactiveAccountActionsAllowed,
+                        onClose = {
+                            if (navigator.currentDestination == RegisterDestination) navigator.pop()
+                        }
                     )
                 }
                 entry<PreferencesDestination> {
@@ -221,4 +281,18 @@ private val PandaWaveDestination.icon: ImageVector
         ProfileDestination -> PandaWaveIcons.Profile
         NowPlayingDestination -> PandaWaveIcons.NowPlaying
         PreferencesDestination -> PandaWaveIcons.Settings
+        LoginDestination, RegisterDestination -> PandaWaveIcons.Profile
     }
+
+private fun ProfileAccountUi.toProfileUiAccount(): ProfileUiAccount = when (this) {
+    ProfileAccountUi.Anonymous -> ProfileUiAccount.Anonymous
+    is ProfileAccountUi.Authenticated -> ProfileUiAccount.Authenticated(
+        email = email,
+        accountStatus = accountStatus,
+        deviceLabel = deviceLabel,
+        sessionCreatedAtEpochMillis = sessionCreatedAtEpochMillis,
+        sessionLastActiveAtEpochMillis = sessionLastActiveAtEpochMillis
+    )
+}
+
+private const val LOGOUT_WARNING_DURATION_MILLIS = 5_000L

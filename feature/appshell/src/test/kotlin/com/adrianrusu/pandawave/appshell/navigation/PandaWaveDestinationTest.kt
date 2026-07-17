@@ -31,6 +31,8 @@ class PandaWaveDestinationTest {
     @Test
     fun `preferences keeps profile selected in the rail`() {
         assertEquals(ProfileDestination, PreferencesDestination.selectedRailDestination)
+        assertEquals(ProfileDestination, LoginDestination.selectedRailDestination)
+        assertEquals(ProfileDestination, RegisterDestination.selectedRailDestination)
     }
 
     @Test
@@ -43,5 +45,7 @@ class PandaWaveDestinationTest {
         assertFalse(NowPlayingDestination.shouldShowMiniPlayer)
         assertTrue(HomeDestination.shouldShowMiniPlayer)
         assertTrue(PreferencesDestination.shouldShowMiniPlayer)
+        assertTrue(LoginDestination.shouldShowMiniPlayer)
+        assertTrue(RegisterDestination.shouldShowMiniPlayer)
     }
 }

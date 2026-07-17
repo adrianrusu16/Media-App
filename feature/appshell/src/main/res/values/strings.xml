@@ -7,4 +7,8 @@
     <string name="pandawave_navigation_now_playing">Now Playing</string>
     <string name="pandawave_navigation_settings">Settings</string>
     <string name="pandawave_navigation_open_now_playing">Open Now Playing</string>
+    <string name="pandawave_auth_navigation_login">Login</string>
+    <string name="pandawave_auth_navigation_register">Create account</string>
+    <string name="pandawave_logout_remote_warning">You are logged out locally, but remote revocation could not be confirmed.</string>
+    <string name="pandawave_logout_failed_warning">Logout could not clear the local session securely.</string>
 </resources>
