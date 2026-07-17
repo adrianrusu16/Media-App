@@ -1,7 +1,7 @@
 package com.adrianrusu.pandawave.core.rust.bridge.gateway
 
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthOperationResult
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
@@ -16,6 +16,19 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
 class AidlEngineGatewayTest {
+    @Test
+    fun `auth availability changes when the service connects without carrying credentials`() {
+        val connection = FakeEngineServiceConnection(service = null)
+        val gateway = AidlEngineGateway(connection = connection, clock = { 1L })
+        val availability = mutableListOf<Boolean>()
+
+        gateway.observeAuthAvailability(availability::add)
+        connection.connectService(RecordingEngineService(EngineSnapshot.idle(nowMillis = 2L)))
+
+        assertEquals(listOf(false, true), availability)
+        assertEquals(true, gateway.isAuthAvailable)
+    }
+
     @Test
     fun `login is never queued and wipes password while disconnected`() {
         val gateway = AidlEngineGateway(
@@ -512,11 +525,7 @@ private class RecordingEngineService(initialSnapshot: EngineSnapshot) : EngineSe
     var lastPassword: String? = null
         private set
 
-    override fun loginPassword(
-        email: String,
-        password: ByteArray,
-        deviceLabel: String
-    ): EngineAuthOperationResult {
+    override fun loginPassword(email: String, password: ByteArray, deviceLabel: String): EngineAuthOperationResult {
         lastPassword = password.decodeToString()
         return EngineAuthOperationResult.authenticated()
     }

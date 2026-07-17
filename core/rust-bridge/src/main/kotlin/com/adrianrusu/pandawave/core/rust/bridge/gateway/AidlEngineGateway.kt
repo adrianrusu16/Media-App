@@ -1,7 +1,7 @@
 package com.adrianrusu.pandawave.core.rust.bridge.gateway
 
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthOperationResult
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
@@ -27,6 +27,8 @@ class AidlEngineGateway(
     private var isDrainingPendingCommands = false
     private val listeners = mutableSetOf<(EngineSnapshot) -> Unit>()
     private val eventListeners = mutableSetOf<(EngineEvent) -> Unit>()
+    private val authAvailabilityListeners = mutableSetOf<(Boolean) -> Unit>()
+    private var lastAuthAvailability: Boolean? = null
     private val pendingCommands = ArrayDeque<EngineCommand>()
     private val pendingPlatformEvents = ArrayDeque<EnginePlatformEvent>()
 
@@ -34,10 +36,12 @@ class AidlEngineGateway(
         override fun onSnapshotChanged(snapshot: EngineSnapshot) {
             latestSnapshot = snapshot
             notifySnapshotChanged(snapshot)
+            notifyAuthAvailabilityChanged()
             drainPendingCommands()
         }
 
         override fun onEngineEvent(event: EngineEvent) {
+            notifyAuthAvailabilityChanged()
             logEngineEvent(event)
             notifyEngineEvent(event)
         }
@@ -64,38 +68,49 @@ class AidlEngineGateway(
 
     override fun searchResult(index: Int): EngineCatalogItem? = connection.service?.searchResult(index)
 
+    override val isAuthAvailable: Boolean
+        get() = !isClosed && connection.service != null
+
+    override fun observeAuthAvailability(listener: (Boolean) -> Unit): AutoCloseable {
+        authAvailabilityListeners += listener
+        listener(isAuthAvailable)
+        return AutoCloseable { authAvailabilityListeners -= listener }
+    }
+
     override fun registerPassword(email: String, password: ByteArray): EngineAuthOperationResult =
         withSecret(password) { connection.service?.registerPassword(email, password) }
 
-    override fun resendVerification(email: String): EngineAuthOperationResult =
-        if (isClosed) EngineAuthOperationResult.unavailable()
-        else connection.service?.resendVerification(email) ?: EngineAuthOperationResult.unavailable()
-
-    override fun verifyEmail(
-        verificationToken: ByteArray,
-        deviceLabel: String
-    ): EngineAuthOperationResult = withSecret(verificationToken) {
-        connection.service?.verifyEmail(verificationToken, deviceLabel)
+    override fun resendVerification(email: String): EngineAuthOperationResult = if (isClosed) {
+        EngineAuthOperationResult.unavailable()
+    } else {
+        connection.service?.resendVerification(email) ?: EngineAuthOperationResult.unavailable()
     }
 
-    override fun loginPassword(
-        email: String,
-        password: ByteArray,
-        deviceLabel: String
-    ): EngineAuthOperationResult = withSecret(password) {
-        connection.service?.loginPassword(email, password, deviceLabel)
-    }
+    override fun verifyEmail(verificationToken: ByteArray, deviceLabel: String): EngineAuthOperationResult =
+        withSecret(verificationToken) {
+            connection.service?.verifyEmail(verificationToken, deviceLabel)
+        }
 
-    override fun logout(): EngineAuthOperationResult =
-        if (isClosed) EngineAuthOperationResult.unavailable()
-        else connection.service?.logout() ?: EngineAuthOperationResult.unavailable()
+    override fun loginPassword(email: String, password: ByteArray, deviceLabel: String): EngineAuthOperationResult =
+        withSecret(password) {
+            connection.service?.loginPassword(email, password, deviceLabel)
+        }
+
+    override fun logout(): EngineAuthOperationResult = if (isClosed) {
+        EngineAuthOperationResult.unavailable()
+    } else {
+        connection.service?.logout() ?: EngineAuthOperationResult.unavailable()
+    }
 
     private inline fun withSecret(
         secret: ByteArray,
         operation: () -> EngineAuthOperationResult?
     ): EngineAuthOperationResult = try {
-        if (isClosed) EngineAuthOperationResult.unavailable()
-        else operation() ?: EngineAuthOperationResult.unavailable()
+        if (isClosed) {
+            EngineAuthOperationResult.unavailable()
+        } else {
+            operation() ?: EngineAuthOperationResult.unavailable()
+        }
     } finally {
         secret.fill(0)
     }
@@ -171,10 +186,12 @@ class AidlEngineGateway(
 
     override fun close() {
         isClosed = true
+        notifyAuthAvailabilityChanged()
         pendingCommands.clear()
         pendingPlatformEvents.clear()
         listeners.clear()
         eventListeners.clear()
+        authAvailabilityListeners.clear()
         connection.close()
     }
 
@@ -224,6 +241,13 @@ class AidlEngineGateway(
         eventListeners.toList().forEach { listener ->
             listener(event)
         }
+    }
+
+    private fun notifyAuthAvailabilityChanged() {
+        val available = isAuthAvailable
+        if (lastAuthAvailability == available) return
+        lastAuthAvailability = available
+        authAvailabilityListeners.toList().forEach { listener -> listener(available) }
     }
 
     private fun EngineService.effects(): List<EngineEffect> = List(

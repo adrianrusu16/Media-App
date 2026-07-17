@@ -28,6 +28,21 @@ variants must separately provide public TLS gRPC and HTTPS streaming/OpenAPI
 URLs, certificate trust requirements, verification/reset action URLs or deep
 links, and public Google OAuth client IDs when enabled.
 
+Release builds also require the public email-verification App Link host:
+
+```powershell
+.\gradlew.bat :app:assembleRelease `
+  '-Ppandawave.verificationAppLinkHost=accounts.example.com'
+```
+
+The value is a DNS hostname only, without a scheme or path. The resulting App
+Link is `https://<host>/verify-email?token=<opaque-token>`. Deployment must host
+a matching `assetlinks.json` for the release application ID and signing
+certificate. Debug builds additionally accept
+`pandawave-dev://verify-email?token=<opaque-token>`; that scheme is absent from
+release manifests. The dedicated Android activity sanitizes the incoming URI,
+does not persist it, and submits the token to PandaEngine at most once.
+
 Never place database addresses, SMTP credentials, signing or sealing keys,
 stream secrets, Mailpit, raw tokens, or Canopy's private stream-authorizer
 address in this asset.

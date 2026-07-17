@@ -23,6 +23,7 @@ import com.adrianrusu.pandawave.core.preferences.DefaultThemePreferenceCoordinat
 import com.adrianrusu.pandawave.core.preferences.ThemePreferenceCoordinator
 import com.adrianrusu.pandawave.core.rust.bridge.gateway.AidlEngineGateway
 import com.adrianrusu.pandawave.core.rust.bridge.gateway.AndroidEngineServiceConnection
+import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineAuthGateway
 import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineGateway
 import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineServiceConnection
 import com.adrianrusu.pandawave.core.telemetry.TelemetryBreadcrumbStore
@@ -90,11 +91,21 @@ object AppCoreModule {
 
     @Provides
     @Singleton
-    fun provideEngineGateway(connection: EngineServiceConnection, telemetryLogger: TelemetryLogger): EngineGateway =
-        AidlEngineGateway(
-            connection = connection,
-            telemetryLogger = telemetryLogger
-        )
+    fun provideAidlEngineGateway(
+        connection: EngineServiceConnection,
+        telemetryLogger: TelemetryLogger
+    ): AidlEngineGateway = AidlEngineGateway(
+        connection = connection,
+        telemetryLogger = telemetryLogger
+    )
+
+    @Provides
+    @Singleton
+    fun provideEngineGateway(gateway: AidlEngineGateway): EngineGateway = gateway
+
+    @Provides
+    @Singleton
+    fun provideEngineAuthGateway(gateway: AidlEngineGateway): EngineAuthGateway = gateway
 
     @Provides
     @Singleton

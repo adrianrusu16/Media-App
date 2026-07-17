@@ -1,3 +1,8 @@
+import org.gradle.api.DefaultTask
+import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.TaskAction
+
 plugins {
     id("pandawave.android.application")
     alias(libs.plugins.hilt)
@@ -5,10 +10,70 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+abstract class VerifyVerificationAppLinkHostTask : DefaultTask() {
+    @get:Input
+    abstract val appLinkHost: Property<String>
+
+    @TaskAction
+    fun verify() {
+        val host = appLinkHost.orNull
+        check(
+            !host.isNullOrBlank() &&
+                !host.endsWith(".invalid", ignoreCase = true) &&
+                !host.endsWith(".test", ignoreCase = true) &&
+                !host.endsWith(".example", ignoreCase = true) &&
+                !host.endsWith(".localhost", ignoreCase = true)
+        ) {
+            "Release builds require -Ppandawave.verificationAppLinkHost=<public-host>."
+        }
+    }
+}
+
+val configuredVerificationAppLinkHost = providers
+    .gradleProperty("pandawave.verificationAppLinkHost")
+    .orNull
+
 android {
+    val verificationAppLinkHost = configuredVerificationAppLinkHost ?: "verification.invalid"
+    require(
+        verificationAppLinkHost.matches(
+            Regex(
+                "(?=.{1,253}$)(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\\.)+" +
+                    "[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
+            )
+        )
+    ) { "pandawave.verificationAppLinkHost must be a DNS hostname without a scheme or path." }
+
+    defaultConfig {
+        manifestPlaceholders["verificationAppLinkHost"] = verificationAppLinkHost
+        buildConfigField("String", "VERIFICATION_APP_LINK_HOST", "\"$verificationAppLinkHost\"")
+        buildConfigField("String", "VERIFICATION_ACTION_PATH", "\"verify-email\"")
+        buildConfigField("String", "VERIFICATION_TOKEN_PARAMETER", "\"token\"")
+    }
+
+    buildTypes {
+        debug {
+            buildConfigField("String", "VERIFICATION_DEBUG_SCHEME", "\"pandawave-dev\"")
+        }
+        release {
+            buildConfigField("String", "VERIFICATION_DEBUG_SCHEME", "\"\"")
+        }
+    }
+
     buildFeatures {
         compose = true
+        buildConfig = true
     }
+}
+
+val verifyReleaseVerificationConfig by tasks.registering(VerifyVerificationAppLinkHostTask::class) {
+    group = "verification"
+    description = "Rejects release builds without a deployment-supplied verification App Link host."
+    appLinkHost.set(configuredVerificationAppLinkHost ?: "")
+}
+
+tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+    dependsOn(verifyReleaseVerificationConfig)
 }
 
 dependencies {
