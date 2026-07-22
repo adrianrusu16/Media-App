@@ -1,4 +1,5 @@
 use std::future::Future;
+use std::time::Duration;
 
 use tonic_014::metadata::MetadataValue;
 use tonic_014::{Code, Request, Response, Status};
@@ -7,6 +8,8 @@ use crate::{EngineError, EngineErrorType};
 
 use super::error::map_status;
 use super::session::{AccessSnapshot, SessionCoordinator};
+
+const RPC_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum ReplayPolicy {
@@ -124,6 +127,7 @@ fn authorized_request<T>(
     mut request: Request<T>,
     snapshot: &AccessSnapshot,
 ) -> Result<Request<T>, EngineError> {
+    request.set_timeout(RPC_TIMEOUT);
     if let AccessSnapshot::Authenticated { token, .. } = snapshot {
         let value = MetadataValue::try_from(format!("Bearer {token}"))
             .map_err(|_| invalid_authorization_metadata())?;
@@ -249,6 +253,35 @@ mod tests {
         .unwrap();
 
         assert_eq!(*seen.lock().unwrap(), [None]);
+    }
+
+    #[tokio::test]
+    async fn every_adapter_request_has_a_bounded_deadline() {
+        let (coordinator, _) = coordinator(None, envelope("unused", "unused", 20_000));
+        let timeout = Arc::new(Mutex::new(None));
+        let capture = timeout.clone();
+
+        execute_with_auth_at(
+            Some(&coordinator),
+            ReplayPolicy::Safe,
+            1_000,
+            || Request::new(()),
+            move |request| {
+                let capture = capture.clone();
+                async move {
+                    *capture.lock().unwrap() = request
+                        .metadata()
+                        .get("grpc-timeout")
+                        .and_then(|value| value.to_str().ok())
+                        .map(str::to_owned);
+                    Ok(Response::new(()))
+                }
+            },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(*timeout.lock().unwrap(), Some("5000000u".to_owned()));
     }
 
     #[tokio::test]

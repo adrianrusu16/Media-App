@@ -1,5 +1,6 @@
 package com.adrianrusu.pandawave.core.ui.components
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,7 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
@@ -93,7 +93,17 @@ fun BambooActionCard(
 ) {
     val tokens = LocalPandaWaveDesignTokens.current
 
-    BambooCard(modifier = modifier.heightIn(min = tokens.components.actionableCardMinHeight)) {
+    BambooCard(
+        modifier = modifier
+            .heightIn(min = tokens.components.actionableCardMinHeight)
+            .bambooFocusIndicator(enabled = actionEnabled)
+            .bambooBringIntoViewOnFocus()
+            .clickable(
+                enabled = actionEnabled,
+                role = Role.Button,
+                onClick = onActionClick
+            )
+    ) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(tokens.spacing.md),
             verticalAlignment = Alignment.CenterVertically
@@ -103,12 +113,27 @@ fun BambooActionCard(
                 body = body,
                 modifier = Modifier.weight(1f)
             )
-            Button(
-                modifier = Modifier.bambooBringIntoViewOnFocus(),
-                enabled = actionEnabled,
-                onClick = onActionClick
+            Surface(
+                color = if (actionEnabled) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.surfaceVariant
+                },
+                contentColor = if (actionEnabled) {
+                    MaterialTheme.colorScheme.onPrimary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                shape = MaterialTheme.shapes.extraLarge
             ) {
-                Text(text = actionLabel)
+                Text(
+                    text = actionLabel,
+                    modifier = Modifier.padding(
+                        horizontal = tokens.spacing.lg,
+                        vertical = tokens.spacing.sm
+                    ),
+                    style = MaterialTheme.typography.labelLarge
+                )
             }
         }
     }

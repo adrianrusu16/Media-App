@@ -41,11 +41,11 @@ class PandaWaveDestinationTest {
     }
 
     @Test
-    fun `mini player is hidden only on now playing`() {
+    fun `mini player is hidden on focused authentication and now playing destinations`() {
         assertFalse(NowPlayingDestination.shouldShowMiniPlayer)
         assertTrue(HomeDestination.shouldShowMiniPlayer)
         assertTrue(PreferencesDestination.shouldShowMiniPlayer)
-        assertTrue(LoginDestination.shouldShowMiniPlayer)
-        assertTrue(RegisterDestination.shouldShowMiniPlayer)
+        assertFalse(LoginDestination.shouldShowMiniPlayer)
+        assertFalse(RegisterDestination.shouldShowMiniPlayer)
     }
 }

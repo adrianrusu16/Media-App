@@ -4,6 +4,11 @@
     <string name="pandawave_auth_register_title">Create account</string>
     <string name="pandawave_auth_email">Email</string>
     <string name="pandawave_auth_password">Password</string>
+    <string name="pandawave_auth_email_required">Enter your email address.</string>
+    <string name="pandawave_auth_email_invalid">Enter a valid email address.</string>
+    <string name="pandawave_auth_password_required">Enter your password.</string>
+    <string name="pandawave_auth_password_too_short">Password must contain at least 8 characters.</string>
+    <string name="pandawave_auth_password_too_long">Password must contain no more than 64 characters.</string>
     <string name="pandawave_auth_submit_login">Login</string>
     <string name="pandawave_auth_submit_register">Create account</string>
     <string name="pandawave_auth_cancel">Cancel</string>
@@ -13,7 +18,7 @@
     <string name="pandawave_auth_resend">Resend email</string>
     <string name="pandawave_auth_unavailable">Account actions are unavailable while driving.</string>
     <string name="pandawave_auth_login_rejected">We couldn’t sign you in. Check your details and try again.</string>
-    <string name="pandawave_auth_review_input">Review the information and try again.</string>
+    <string name="pandawave_auth_policy_mismatch">PandaWave and Canopy disagree about the account requirements. Update the app or try again later.</string>
     <string name="pandawave_auth_rate_limited">Please wait before trying again.</string>
     <string name="pandawave_auth_try_later">Something went wrong. Try again later.</string>
     <string name="pandawave_auth_storage_failed">Sign-in could not be stored securely.</string>

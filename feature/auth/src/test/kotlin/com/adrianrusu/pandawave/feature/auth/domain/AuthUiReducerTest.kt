@@ -50,6 +50,24 @@ class AuthUiReducerTest {
     }
 
     @Test
+    fun `invalid input maps to a sanitized policy mismatch for login and registration`() {
+        val invalidInput = AuthUiEvent.CommandCompleted(
+            EngineAuthOperationResult.error(EngineAuthOperationResult.ERROR_INVALID_INPUT)
+        )
+        val login = AuthUiReducer.reduce(
+            AuthUiReducer.reduce(AuthFormState.login(), AuthUiEvent.Submit).state,
+            invalidInput
+        )
+        val registration = AuthUiReducer.reduce(
+            AuthUiReducer.reduce(AuthFormState.register(), AuthUiEvent.Submit).state,
+            invalidInput
+        )
+
+        assertEquals(AuthNotice.POLICY_MISMATCH, login.state.notice)
+        assertEquals(AuthNotice.POLICY_MISMATCH, registration.state.notice)
+    }
+
+    @Test
     fun `registration accepted enables one resend at a time`() {
         val pending = AuthUiReducer.reduce(
             AuthUiReducer.reduce(AuthFormState.register(), AuthUiEvent.Submit).state,

@@ -56,4 +56,8 @@ val PandaWaveDestination.selectedRailDestination: PandaWaveDestination?
     }
 
 val PandaWaveDestination.shouldShowMiniPlayer: Boolean
-    get() = this != NowPlayingDestination
+    get() = this !in setOf(
+        LoginDestination,
+        RegisterDestination,
+        NowPlayingDestination
+    )

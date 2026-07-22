@@ -17,7 +17,7 @@ enum class AuthFormPhase {
 
 enum class AuthNotice {
     LOGIN_REJECTED,
-    REVIEW_INPUT,
+    POLICY_MISMATCH,
     RATE_LIMITED,
     TRY_AGAIN_LATER,
     SESSION_STORAGE_FAILED,
@@ -134,7 +134,7 @@ object AuthUiReducer {
             state.copy(phase = AuthFormPhase.VERIFICATION_PENDING, notice = null)
         )
         result.errorType == EngineAuthOperationResult.ERROR_INVALID_INPUT -> AuthUiTransition(
-            state.copy(phase = AuthFormPhase.IDLE, notice = AuthNotice.REVIEW_INPUT)
+            state.copy(phase = AuthFormPhase.IDLE, notice = AuthNotice.POLICY_MISMATCH)
         )
         result.errorType == EngineAuthOperationResult.ERROR_RATE_LIMITED -> AuthUiTransition(
             state.copy(phase = AuthFormPhase.IDLE, notice = AuthNotice.RATE_LIMITED)
@@ -188,7 +188,7 @@ object AuthUiReducer {
     }
 
     private fun noticeFor(result: EngineAuthOperationResult, login: Boolean): AuthNotice = when (result.errorType) {
-        EngineAuthOperationResult.ERROR_INVALID_INPUT -> AuthNotice.REVIEW_INPUT
+        EngineAuthOperationResult.ERROR_INVALID_INPUT -> AuthNotice.POLICY_MISMATCH
         EngineAuthOperationResult.ERROR_RATE_LIMITED -> AuthNotice.RATE_LIMITED
         EngineAuthOperationResult.ERROR_SESSION_STORAGE -> AuthNotice.SESSION_STORAGE_FAILED
         EngineAuthOperationResult.ERROR_AUTHENTICATION,
