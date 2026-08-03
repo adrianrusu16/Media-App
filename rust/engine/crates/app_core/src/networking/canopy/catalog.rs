@@ -116,7 +116,7 @@ impl CatalogPort for CanopyCatalogClient {
     }
 }
 
-fn map_page_request(page: EnginePageRequest) -> PageRequest {
+pub(super) fn map_page_request(page: EnginePageRequest) -> PageRequest {
     PageRequest {
         page_size: page.page_size,
         page_token: page
@@ -138,7 +138,7 @@ fn map_browse_response(
     map_page(response.tracks, response.page_info)
 }
 
-fn map_page(
+pub(super) fn map_page(
     tracks: Vec<TrackSummary>,
     page_info: Option<PageInfo>,
 ) -> Result<EnginePagedResult<EngineTrack>, EngineError> {

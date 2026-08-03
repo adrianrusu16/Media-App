@@ -35,6 +35,21 @@ struct LoadNextCatalogPagePayload {
     operation_id: String,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DiscoveryFeedPayload {
+    version: u32,
+    #[serde(default)]
+    exclude_track_ids: Vec<String>,
+    page: InitialCatalogPagePayload,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct LoadNextDiscoveryPagePayload {
+    version: u32,
+}
+
 /// Represents the different types of commands the engine can process.
 #[derive(Clone, Debug, PartialEq)]
 pub enum EngineCommandType {
@@ -67,6 +82,13 @@ pub enum EngineCommandType {
     },
     /// Continues a previously dispatched catalog operation.
     LoadNextCatalogPage { operation_id: String },
+    /// Loads the first authenticated discovery-feed page.
+    LoadDiscoveryFeed {
+        excluded_track_ids: Vec<String>,
+        page: EnginePageRequest,
+    },
+    /// Continues a previously dispatched discovery-feed operation.
+    LoadNextDiscoveryPage,
     /// Changes the playback speed.
     SetSpeed { speed: f32 },
     /// Seeks to a specific position in milliseconds.
@@ -128,6 +150,10 @@ impl EngineCommandType {
     pub const BROWSE_WIRE: &'static str = "browse";
     /// Wire value for loading the next page of an active catalog operation.
     pub const LOAD_NEXT_CATALOG_PAGE_WIRE: &'static str = "load_next_catalog_page";
+    /// Wire value for loading the first discovery-feed page.
+    pub const LOAD_DISCOVERY_FEED_WIRE: &'static str = "load_discovery_feed";
+    /// Wire value for loading the next discovery-feed page.
+    pub const LOAD_NEXT_DISCOVERY_PAGE_WIRE: &'static str = "load_next_discovery_page";
     /// Wire value for SetSpeed command.
     pub const SET_SPEED_WIRE: &'static str = "set_speed";
     /// Wire value for Seek command.
@@ -179,6 +205,11 @@ impl EngineCommandType {
             Self::LOAD_NEXT_CATALOG_PAGE_WIRE => Self::LoadNextCatalogPage {
                 operation_id: String::new(),
             },
+            Self::LOAD_DISCOVERY_FEED_WIRE => Self::LoadDiscoveryFeed {
+                excluded_track_ids: Vec::new(),
+                page: EnginePageRequest::default(),
+            },
+            Self::LOAD_NEXT_DISCOVERY_PAGE_WIRE => Self::LoadNextDiscoveryPage,
             Self::SET_SPEED_WIRE => Self::SetSpeed { speed: 1.0 },
             Self::SEEK_WIRE => Self::Seek { position_millis: 0 },
             Self::UPDATE_CONFIG_WIRE => Self::UpdateConfig {
@@ -225,6 +256,8 @@ impl EngineCommandType {
             Self::SearchCatalog { .. } => Self::SEARCH_WIRE,
             Self::BrowseCatalog { .. } => Self::BROWSE_WIRE,
             Self::LoadNextCatalogPage { .. } => Self::LOAD_NEXT_CATALOG_PAGE_WIRE,
+            Self::LoadDiscoveryFeed { .. } => Self::LOAD_DISCOVERY_FEED_WIRE,
+            Self::LoadNextDiscoveryPage => Self::LOAD_NEXT_DISCOVERY_PAGE_WIRE,
             Self::SetSpeed { .. } => Self::SET_SPEED_WIRE,
             Self::Seek { .. } => Self::SEEK_WIRE,
             Self::UpdateConfig { .. } => Self::UPDATE_CONFIG_WIRE,
@@ -273,6 +306,12 @@ impl EngineCommand {
             EngineCommandType::LOAD_NEXT_CATALOG_PAGE_WIRE => payload
                 .as_deref()
                 .and_then(parse_load_next_catalog_page_payload),
+            EngineCommandType::LOAD_DISCOVERY_FEED_WIRE => {
+                payload.as_deref().and_then(parse_discovery_feed_payload)
+            }
+            EngineCommandType::LOAD_NEXT_DISCOVERY_PAGE_WIRE => payload
+                .as_deref()
+                .and_then(parse_load_next_discovery_page_payload),
             _ => Some(EngineCommandType::from_wire(command_type.clone())),
         };
         Self::new(
@@ -384,6 +423,37 @@ impl EngineCommand {
         )
     }
 
+    pub fn load_discovery_feed(excluded_track_ids: Vec<String>, page: EnginePageRequest) -> Self {
+        let page = EnginePageRequest {
+            page_size: page.page_size,
+            page_token: None,
+        };
+        let payload = DiscoveryFeedPayload {
+            version: CATALOG_PAYLOAD_VERSION,
+            exclude_track_ids: excluded_track_ids.clone(),
+            page: InitialCatalogPagePayload {
+                page_size: page.page_size,
+            },
+        };
+        Self::new(
+            EngineCommandType::LoadDiscoveryFeed {
+                excluded_track_ids,
+                page,
+            },
+            serde_json::to_string(&payload).ok(),
+        )
+    }
+
+    pub fn load_next_discovery_page() -> Self {
+        let payload = LoadNextDiscoveryPagePayload {
+            version: CATALOG_PAYLOAD_VERSION,
+        };
+        Self::new(
+            EngineCommandType::LoadNextDiscoveryPage,
+            serde_json::to_string(&payload).ok(),
+        )
+    }
+
     /// Creates a SetSpeed command.
     pub fn set_speed(speed: f32) -> Self {
         Self::new(EngineCommandType::SetSpeed { speed }, None)
@@ -487,6 +557,22 @@ fn parse_load_next_catalog_page_payload(payload: &str) -> Option<EngineCommandTy
         .then_some(EngineCommandType::LoadNextCatalogPage {
             operation_id: payload.operation_id,
         })
+}
+
+fn parse_discovery_feed_payload(payload: &str) -> Option<EngineCommandType> {
+    let payload: DiscoveryFeedPayload = serde_json::from_str(payload).ok()?;
+    (payload.version == CATALOG_PAYLOAD_VERSION).then_some(EngineCommandType::LoadDiscoveryFeed {
+        excluded_track_ids: payload.exclude_track_ids,
+        page: EnginePageRequest {
+            page_size: payload.page.page_size,
+            page_token: None,
+        },
+    })
+}
+
+fn parse_load_next_discovery_page_payload(payload: &str) -> Option<EngineCommandType> {
+    let payload: LoadNextDiscoveryPagePayload = serde_json::from_str(payload).ok()?;
+    (payload.version == CATALOG_PAYLOAD_VERSION).then_some(EngineCommandType::LoadNextDiscoveryPage)
 }
 
 #[cfg(test)]
@@ -606,6 +692,41 @@ mod tests {
             EngineCommandType::LoadNextCatalogPage {
                 operation_id: "catalog-42".into(),
             }
+        );
+    }
+    #[test]
+    fn discovery_commands_decode_versioned_engine_owned_pagination_payloads() {
+        let load = EngineCommand::from_wire(
+            "load_discovery_feed",
+            Some(
+                r#"{"version":1,"exclude_track_ids":["played-1"],"page":{"page_size":25}}"#.into(),
+            ),
+        );
+        assert_eq!(
+            load.command_type,
+            EngineCommandType::LoadDiscoveryFeed {
+                excluded_track_ids: vec!["played-1".into()],
+                page: EnginePageRequest {
+                    page_size: 25,
+                    page_token: None,
+                },
+            }
+        );
+
+        let next =
+            EngineCommand::from_wire("load_next_discovery_page", Some(r#"{"version":1}"#.into()));
+        assert_eq!(next.command_type, EngineCommandType::LoadNextDiscoveryPage);
+    }
+
+    #[test]
+    fn initial_discovery_payload_rejects_external_page_token() {
+        let payload =
+            r#"{"version":1,"exclude_track_ids":[],"page":{"page_size":25,"page_token":"opaque"}}"#;
+        let command = EngineCommand::from_wire("load_discovery_feed", Some(payload.into()));
+
+        assert_eq!(
+            command.command_type,
+            EngineCommandType::Unknown("invalid_load_discovery_feed_payload".into())
         );
     }
 }

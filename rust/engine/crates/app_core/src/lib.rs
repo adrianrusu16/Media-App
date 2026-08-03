@@ -73,6 +73,7 @@ pub use crate::model::backend::{
 };
 pub use crate::model::catalog::{EngineAlbum, EngineArtist, EngineTrack};
 pub use crate::model::command::{EngineCommand, EngineCommandType};
+pub use crate::model::discovery::DiscoveryPort;
 pub use crate::model::effect::EngineEffect;
 pub use crate::model::error::{EngineError, EngineErrorType};
 pub use crate::model::event::{EngineEvent, EngineEventType};
@@ -86,8 +87,8 @@ pub use crate::model::preferences::{PreferenceSource, ThemePreference, ThemePref
 pub use crate::model::snapshot::EngineSnapshot;
 pub use crate::networking::{
     AudioChunk, AudioSourceClient, AuthPort, AuthStateProvider, CanopyAuthClient,
-    CanopyCatalogClient, CanopyPlaybackClient, CatalogPort, PlaybackPort, PlaybackSource,
-    RemoteRepository, RetryingAudioSourceClient, SessionCoordinator, SystemPort,
+    CanopyCatalogClient, CanopyDiscoveryClient, CanopyPlaybackClient, CatalogPort, PlaybackPort,
+    PlaybackSource, RemoteRepository, RetryingAudioSourceClient, SessionCoordinator, SystemPort,
 };
 pub use crate::services::player::{MediaPlayer, MockPlayer};
 pub use crate::services::service::{EngineService, ServiceManager};

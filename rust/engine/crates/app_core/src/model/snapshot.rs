@@ -74,6 +74,9 @@ pub struct EngineSnapshot {
     pub search_results: Vec<MediaItem>,
     /// The results of the last browse operation.
     pub browse_results: Vec<MediaItem>,
+    /// The results of the latest authenticated discovery-feed operation.
+    #[serde(default)]
+    pub discovery_results: Vec<MediaItem>,
     /// The current playback speed (1.0 is normal).
     pub playback_speed: f32,
     /// The current playback position in milliseconds.
@@ -195,6 +198,13 @@ impl EngineSnapshot {
     #[must_use]
     pub fn with_browse_results(mut self, results: Vec<MediaItem>) -> Self {
         self.browse_results = results;
+        self
+    }
+
+    /// Functional update for discovery-feed results.
+    #[must_use]
+    pub fn with_discovery_results(mut self, results: Vec<MediaItem>) -> Self {
+        self.discovery_results = results;
         self
     }
 

@@ -3,6 +3,7 @@ pub mod backend;
 pub mod catalog;
 pub mod command;
 pub mod config;
+pub mod discovery;
 pub mod effect;
 pub mod error;
 pub mod event;

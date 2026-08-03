@@ -5,6 +5,7 @@ use crate::data::session::MediaSession;
 use crate::engine::state_machine::StateMachine;
 use crate::middleware::MiddlewarePipeline;
 use crate::model::command::{EngineCommand, EngineCommandType};
+use crate::model::discovery::DiscoveryPort;
 use crate::model::effect::EngineEffect;
 use crate::model::error::EngineError;
 use crate::model::event::EngineEvent;
@@ -36,6 +37,45 @@ enum CatalogOperation {
         next_page_token: Option<crate::EnginePageToken>,
         items: Vec<crate::MediaItem>,
     },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct AuthIdentity {
+    account_id: String,
+    session_id: String,
+}
+
+impl AuthIdentity {
+    fn from_state(state: &crate::AuthState) -> Option<Self> {
+        match state {
+            crate::AuthState::Authenticated { account, session } => Some(Self {
+                account_id: account.id.clone(),
+                session_id: session.id.clone(),
+            }),
+            crate::AuthState::Anonymous | crate::AuthState::LoginRequired => None,
+        }
+    }
+}
+
+#[derive(Clone)]
+struct DiscoveryOperation {
+    auth_identity: AuthIdentity,
+    excluded_track_ids: Vec<String>,
+    page_size: u32,
+    next_page_token: Option<crate::EnginePageToken>,
+    items: Vec<crate::MediaItem>,
+}
+
+fn project_discovery_track(track: crate::EngineTrack) -> crate::MediaItem {
+    crate::MediaItem {
+        id: track.id,
+        title: track.title,
+        artist: track.artist.name,
+        album: track.album.map(|album| album.title),
+        duration_millis: Some(track.duration_millis),
+        thumbnail_url: track.artwork_id,
+        ..Default::default()
+    }
 }
 
 // Core engine orchestration root:
@@ -75,8 +115,10 @@ pub struct Engine {
     playback_port: Option<Arc<dyn PlaybackPort>>,
     system_port: Option<Arc<dyn SystemPort>>,
     auth_state_provider: Option<Arc<dyn AuthStateProvider>>,
+    discovery_port: Option<Arc<dyn DiscoveryPort>>,
     catalog_operations: HashMap<String, CatalogOperation>,
     next_catalog_operation_sequence: u64,
+    discovery_operation: Option<DiscoveryOperation>,
     player: Option<Box<dyn MediaPlayer>>,
     voice_engine: Option<Box<dyn VoiceEngine>>,
 }
@@ -97,8 +139,11 @@ impl Default for Engine {
             playback_port: None,
             system_port: None,
             auth_state_provider: None,
+            discovery_port: None,
             catalog_operations: HashMap::new(),
             next_catalog_operation_sequence: 0,
+            discovery_operation: None,
+
             player: None,
             voice_engine: None,
         }
@@ -135,8 +180,11 @@ impl Engine {
             playback_port: None,
             system_port: None,
             auth_state_provider: None,
+            discovery_port: None,
             catalog_operations: HashMap::new(),
             next_catalog_operation_sequence: 0,
+            discovery_operation: None,
+
             player: None,
             voice_engine: None,
         };
@@ -200,6 +248,11 @@ impl Engine {
         self.playback_port = Some(port);
     }
 
+    /// Sets the authenticated discovery-feed boundary.
+    pub fn set_discovery_port(&mut self, port: Arc<dyn DiscoveryPort>) {
+        self.discovery_port = Some(port);
+    }
+
     /// Sets the backend-neutral public system status port.
     pub fn set_system_port(&mut self, port: Arc<dyn SystemPort>) {
         self.system_port = Some(port);
@@ -212,16 +265,42 @@ impl Engine {
 
     fn snapshot_projection(&self) -> EngineSnapshot {
         let mut snapshot = self.snapshot.clone();
-        if let Some(provider) = &self.auth_state_provider {
-            snapshot.auth_state = provider.current_auth_state();
+        snapshot.auth_state = self
+            .auth_state_provider
+            .as_ref()
+            .map(|provider| provider.current_auth_state())
+            .unwrap_or(crate::AuthState::Anonymous);
+        let current_identity = AuthIdentity::from_state(&snapshot.auth_state);
+        let operation_matches = self
+            .discovery_operation
+            .as_ref()
+            .is_some_and(|operation| Some(&operation.auth_identity) == current_identity.as_ref());
+        if !operation_matches {
+            snapshot.discovery_results.clear();
         }
         snapshot
     }
 
     pub(crate) fn sync_auth_state_projection(&mut self) {
-        if let Some(provider) = &self.auth_state_provider {
-            self.snapshot.auth_state = provider.current_auth_state();
+        self.snapshot.auth_state = self
+            .auth_state_provider
+            .as_ref()
+            .map(|provider| provider.current_auth_state())
+            .unwrap_or(crate::AuthState::Anonymous);
+        let current_identity = AuthIdentity::from_state(&self.snapshot.auth_state);
+        let operation_matches = self
+            .discovery_operation
+            .as_ref()
+            .is_some_and(|operation| Some(&operation.auth_identity) == current_identity.as_ref());
+        if !operation_matches {
+            self.discovery_operation = None;
+            self.snapshot.discovery_results.clear();
         }
+    }
+
+    fn publish_intermediate_snapshot(&mut self, snapshot: EngineSnapshot) {
+        self.snapshot = snapshot;
+        self.event_bus.notify_state_changed(&self.snapshot);
     }
 
     /// Sets the media player for the engine.

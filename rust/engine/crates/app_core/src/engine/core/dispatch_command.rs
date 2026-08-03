@@ -30,6 +30,8 @@ impl Engine {
             };
         }
 
+        self.sync_auth_state_projection();
+
         let prev_playback_state = self.snapshot.playback_state;
 
         let next_playback_state =
@@ -288,6 +290,132 @@ impl Engine {
                 }
                 next_snapshot = next_snapshot.with_busy(false);
             }
+            EngineCommandType::LoadDiscoveryFeed {
+                excluded_track_ids,
+                page,
+            } => {
+                self.discovery_operation = None;
+                next_snapshot = next_snapshot.with_discovery_results(Vec::new());
+                let auth_identity = AuthIdentity::from_state(&next_snapshot.auth_state);
+                let result = match (auth_identity.clone(), self.discovery_port.clone()) {
+                    (Some(_), Some(port)) => {
+                        next_snapshot = next_snapshot.with_busy(true);
+                        self.publish_intermediate_snapshot(next_snapshot.clone());
+                        port.get_feed(excluded_track_ids, page.clone()).await
+                    }
+                    (None, _) => Err(EngineError::new(
+                        crate::EngineErrorType::LoginRequired,
+                        "discovery requires an authenticated session",
+                        false,
+                    )),
+                    (Some(_), None) => Err(EngineError::new(
+                        crate::EngineErrorType::FailedPrecondition,
+                        "discovery service is not configured",
+                        false,
+                    )),
+                };
+                match result {
+                    Ok(result) => {
+                        let items: Vec<_> = result
+                            .items
+                            .into_iter()
+                            .map(project_discovery_track)
+                            .collect();
+                        self.discovery_operation = Some(DiscoveryOperation {
+                            auth_identity: auth_identity.expect("authenticated discovery result"),
+                            excluded_track_ids: excluded_track_ids.clone(),
+                            page_size: page.page_size,
+                            next_page_token: result.next_page_token,
+                            items: items.clone(),
+                        });
+                        next_snapshot = next_snapshot.with_discovery_results(items);
+                    }
+                    Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
+                }
+                next_snapshot = next_snapshot.with_busy(false);
+            }
+            EngineCommandType::LoadNextDiscoveryPage => {
+                let auth_identity = AuthIdentity::from_state(&next_snapshot.auth_state);
+                let operation = self.discovery_operation.clone();
+                match (auth_identity, operation) {
+                    (None, _) => {
+                        self.discovery_operation = None;
+                        next_snapshot = next_snapshot
+                            .with_discovery_results(Vec::new())
+                            .with_error(Some(EngineError::new(
+                                crate::EngineErrorType::LoginRequired,
+                                "discovery requires an authenticated session",
+                                false,
+                            )));
+                    }
+                    (Some(identity), Some(operation))
+                        if identity == operation.auth_identity
+                            && operation.next_page_token.is_some() =>
+                    {
+                        let page_token = operation.next_page_token.clone().unwrap();
+                        next_snapshot = next_snapshot.with_busy(true);
+                        self.publish_intermediate_snapshot(next_snapshot.clone());
+                        let result = match self.discovery_port.clone() {
+                            Some(port) => {
+                                port.get_feed(
+                                    &operation.excluded_track_ids,
+                                    crate::EnginePageRequest {
+                                        page_size: operation.page_size,
+                                        page_token: Some(page_token),
+                                    },
+                                )
+                                .await
+                            }
+                            None => Err(EngineError::new(
+                                crate::EngineErrorType::FailedPrecondition,
+                                "discovery service is not configured",
+                                false,
+                            )),
+                        };
+                        match result {
+                            Ok(result) => {
+                                let mut accumulated_items = operation.items;
+                                accumulated_items
+                                    .extend(result.items.into_iter().map(project_discovery_track));
+                                next_snapshot =
+                                    next_snapshot.with_discovery_results(accumulated_items.clone());
+                                if let Some(active) = self.discovery_operation.as_mut() {
+                                    active.next_page_token = result.next_page_token;
+                                    active.items = accumulated_items;
+                                }
+                            }
+                            Err(error) => {
+                                next_snapshot = next_snapshot.with_error(Some(error));
+                            }
+                        }
+                    }
+                    (Some(identity), Some(operation)) if identity == operation.auth_identity => {
+                        next_snapshot = next_snapshot.with_error(Some(EngineError::new(
+                            crate::EngineErrorType::FailedPrecondition,
+                            "discovery operation has no next page",
+                            false,
+                        )));
+                    }
+                    (Some(_), Some(_)) => {
+                        self.discovery_operation = None;
+                        next_snapshot = next_snapshot
+                            .with_discovery_results(Vec::new())
+                            .with_error(Some(EngineError::new(
+                                crate::EngineErrorType::LoginRequired,
+                                "discovery session changed",
+                                false,
+                            )));
+                    }
+                    (Some(_), None) => {
+                        next_snapshot = next_snapshot.with_error(Some(EngineError::new(
+                            crate::EngineErrorType::InvalidInput,
+                            "no active discovery operation",
+                            false,
+                        )));
+                    }
+                }
+                next_snapshot = next_snapshot.with_busy(false);
+            }
             EngineCommandType::SetSpeed { speed } => {
                 next_snapshot = next_snapshot.with_speed(*speed);
                 effects.push(EngineEffect::SetSpeed(*speed));
@@ -508,7 +636,6 @@ impl Engine {
 
         self.snapshot = next_snapshot;
         self.snapshot.controls = self.derive_controls(&self.snapshot);
-        self.sync_auth_state_projection();
 
         if self.snapshot.playback_state != prev_playback_state {
             info!(
