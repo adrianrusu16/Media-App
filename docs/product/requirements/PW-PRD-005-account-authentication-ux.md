@@ -1,8 +1,8 @@
 # PW-PRD-005: Account Authentication UX
 
-**Status:** Approved
+**Status:** Implemented
 **Owners:** Product, Design, Engineering
-**Last updated:** 2026-07-17
+**Last updated:** 2026-08-03
 **Related:** `PW-PRD-001-adaptive-app-shell.md`, Canopy `client-integration.md`, canopy-api `consumer-guide.md`
 
 ## Problem
@@ -82,14 +82,14 @@ Authentication also needs an explicit reliability and abuse-control boundary. Cl
 
 ## Acceptance Criteria
 
-- [ ] Tapping anywhere on Login, Create account, Logout, Settings, or another enabled action card invokes exactly one action.
-- [ ] `foo` cannot be submitted as an email and receives an inline correction after blur or submit.
-- [ ] Account creation accepts exactly 8 and 64-character passwords and rejects 7 and 65-character passwords before transport.
-- [ ] Focusing or editing an invalid field removes its visible error until it is revalidated.
-- [ ] IME Done submits a valid form once and does not submit an invalid form.
-- [ ] Login and Create account hide the mini-player without stopping playback.
-- [ ] A Canopy `INVALID_ARGUMENT` after local validation produces the sanitized policy-mismatch message.
-- [ ] Authentication and adapter deadlines, no-replay behavior, backend hashing bounds, and operator DDoS responsibilities are covered by tests or documented deployment assertions.
+- [x] Tapping anywhere on Login, Create account, Logout, Settings, or another enabled action card invokes exactly one action.
+- [x] `foo` cannot be submitted as an email and receives an inline correction after blur or submit.
+- [x] Account creation accepts exactly 8 and 64-character passwords and rejects 7 and 65-character passwords before transport.
+- [x] Focusing or editing an invalid field removes its visible error until it is revalidated.
+- [x] IME Done submits a valid form once and does not submit an invalid form.
+- [x] Login and Create account hide the mini-player without stopping playback.
+- [x] A Canopy `INVALID_ARGUMENT` after local validation produces the sanitized policy-mismatch message.
+- [x] Authentication and adapter deadlines, no-replay behavior, backend hashing bounds, and operator DDoS responsibilities are covered by tests or documented deployment assertions.
 
 ## Dependencies
 
