@@ -116,6 +116,7 @@ pub struct Engine {
     system_port: Option<Arc<dyn SystemPort>>,
     auth_state_provider: Option<Arc<dyn AuthStateProvider>>,
     discovery_port: Option<Arc<dyn DiscoveryPort>>,
+    profile_port: Option<Arc<dyn crate::ProfilePort>>,
     catalog_operations: HashMap<String, CatalogOperation>,
     next_catalog_operation_sequence: u64,
     discovery_operation: Option<DiscoveryOperation>,
@@ -140,6 +141,7 @@ impl Default for Engine {
             system_port: None,
             auth_state_provider: None,
             discovery_port: None,
+            profile_port: None,
             catalog_operations: HashMap::new(),
             next_catalog_operation_sequence: 0,
             discovery_operation: None,
@@ -181,6 +183,7 @@ impl Engine {
             system_port: None,
             auth_state_provider: None,
             discovery_port: None,
+            profile_port: None,
             catalog_operations: HashMap::new(),
             next_catalog_operation_sequence: 0,
             discovery_operation: None,
@@ -251,6 +254,11 @@ impl Engine {
     /// Sets the authenticated discovery-feed boundary.
     pub fn set_discovery_port(&mut self, port: Arc<dyn DiscoveryPort>) {
         self.discovery_port = Some(port);
+    }
+
+    /// Sets the authenticated backend-neutral profile boundary.
+    pub fn set_profile_port(&mut self, port: Arc<dyn crate::ProfilePort>) {
+        self.profile_port = Some(port);
     }
 
     /// Sets the backend-neutral public system status port.

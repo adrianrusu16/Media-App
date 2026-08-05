@@ -485,6 +485,55 @@ impl Engine {
                         };
                 }
             }
+            EngineCommandType::LoadProfilePreferences => {
+                let result = match (
+                    AuthIdentity::from_state(&next_snapshot.auth_state),
+                    self.profile_port.clone(),
+                ) {
+                    (None, _) => Err(EngineError::new(
+                        crate::EngineErrorType::LoginRequired,
+                        "profile preferences require an authenticated session",
+                        false,
+                    )),
+                    (Some(_), None) => Err(EngineError::new(
+                        crate::EngineErrorType::FailedPrecondition,
+                        "profile service is not configured",
+                        false,
+                    )),
+                    (Some(_), Some(port)) => match port.get().await {
+                        Ok(profile) => port.get_preferences().await.map(|values| (profile, values)),
+                        Err(error) => Err(error),
+                    },
+                };
+                match result {
+                    Ok((profile, values)) => {
+                        let baseline_revision = next_snapshot.theme_preference.revision;
+                        let active_user_id = match &next_snapshot.auth_state {
+                            crate::AuthState::Authenticated { account, .. } => {
+                                Some(account.id.clone())
+                            }
+                            _ => None,
+                        };
+                        if let (Some(theme), Some(user_id)) = (
+                            values
+                                .get("theme")
+                                .and_then(|value| value.as_str())
+                                .and_then(crate::ThemePreference::from_wire),
+                            active_user_id,
+                        ) {
+                            next_snapshot.theme_preference = crate::ThemePreferenceState {
+                                theme,
+                                source: crate::PreferenceSource::RemoteProfile,
+                                revision: baseline_revision.saturating_add(1),
+                                session_user_id: Some(user_id),
+                            };
+                        }
+                        next_snapshot.profile = Some(profile);
+                        next_snapshot.profile_preferences = values;
+                    }
+                    Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
+                }
+            }
             EngineCommandType::StartVoiceInteraction => {
                 if let Some(ve) = &mut self.voice_engine {
                     ve.reset();

@@ -95,3 +95,7 @@ pub use crate::services::service::{EngineService, ServiceManager};
 pub use crate::services::voice::{
     MockVoiceEngine, VoiceEngine, VoiceInteractionResult, VoskVoiceEngine,
 };
+
+pub use crate::model::profile::{EngineProfile, EngineProfileUpdate, ProfilePort};
+
+pub use crate::networking::CanopyProfileClient;

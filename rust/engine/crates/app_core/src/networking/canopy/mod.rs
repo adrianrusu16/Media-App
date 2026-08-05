@@ -24,3 +24,6 @@ pub use discovery::CanopyDiscoveryClient;
 pub use playback::CanopyPlaybackClient;
 pub use session::SessionCoordinator;
 pub use system::CanopySystemClient;
+
+mod profile;
+pub use profile::CanopyProfileClient;

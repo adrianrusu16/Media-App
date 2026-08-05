@@ -12,3 +12,5 @@ pub mod platform_event;
 pub mod playback;
 pub mod preferences;
 pub mod snapshot;
+
+pub mod profile;

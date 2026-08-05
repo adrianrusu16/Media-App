@@ -111,6 +111,8 @@ pub enum EngineCommandType {
         user_id: String,
         baseline_revision: u64,
     },
+    /// Fetches authenticated profile preferences and projects known values into engine state.
+    LoadProfilePreferences,
     /// Voice-based search and play command.
     VoicePlay { query: String },
     /// Start a new voice interaction (ASR/NLU).
@@ -166,6 +168,8 @@ impl EngineCommandType {
     pub const SET_THEME_PREFERENCE_WIRE: &'static str = "set_theme_preference";
     /// Wire value for ApplyRemoteThemePreference command.
     pub const APPLY_REMOTE_THEME_PREFERENCE_WIRE: &'static str = "apply_remote_theme_preference";
+    /// Wire value for loading authenticated profile preferences.
+    pub const LOAD_PROFILE_PREFERENCES_WIRE: &'static str = "load_profile_preferences";
     /// Wire value for VoicePlay command.
     pub const VOICE_PLAY_WIRE: &'static str = "voice_play";
     /// Wire value for StartVoiceInteraction command.
@@ -226,6 +230,7 @@ impl EngineCommandType {
                 user_id: String::new(),
                 baseline_revision: 0,
             },
+            Self::LOAD_PROFILE_PREFERENCES_WIRE => Self::LoadProfilePreferences,
             Self::VOICE_PLAY_WIRE => Self::VoicePlay {
                 query: "".to_string(),
             },
@@ -264,6 +269,7 @@ impl EngineCommandType {
             Self::HydrateThemePreference { .. } => Self::HYDRATE_THEME_PREFERENCE_WIRE,
             Self::SetThemePreference { .. } => Self::SET_THEME_PREFERENCE_WIRE,
             Self::ApplyRemoteThemePreference { .. } => Self::APPLY_REMOTE_THEME_PREFERENCE_WIRE,
+            Self::LoadProfilePreferences => Self::LOAD_PROFILE_PREFERENCES_WIRE,
             Self::VoicePlay { .. } => Self::VOICE_PLAY_WIRE,
             Self::StartVoiceInteraction => Self::START_VOICE_INTERACTION_WIRE,
             Self::StopVoiceInteraction => Self::STOP_VOICE_INTERACTION_WIRE,
@@ -493,6 +499,11 @@ impl EngineCommand {
             },
             None,
         )
+    }
+
+    /// Creates a command to load authenticated profile preferences.
+    pub fn load_profile_preferences() -> Self {
+        Self::new(EngineCommandType::LoadProfilePreferences, None)
     }
 
     /// Creates a VoicePlay command.

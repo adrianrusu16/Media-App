@@ -6,7 +6,8 @@ use panda_engine_core::networking::canopy::{
 };
 use panda_engine_core::{
     CanopyAuthClient, CanopyCatalogClient, CanopyDiscoveryClient, CanopyPlaybackClient,
-    EngineError, EngineErrorType, RemoteRepository, SessionCoordinator, SessionStore,
+    CanopyProfileClient, EngineError, EngineErrorType, RemoteRepository, SessionCoordinator,
+    SessionStore,
 };
 
 use crate::engine_handle::{BackendConfigurationState, PandaEngine};
@@ -106,6 +107,7 @@ fn finish_configuration(
         inner.set_repository(Box::new(composition.repository));
         inner.set_playback_port(composition.playback);
         inner.set_discovery_port(composition.discovery);
+        inner.set_profile_port(composition.profile);
         inner.set_system_port(composition.system);
         inner.set_auth_state_provider(session.clone());
     });
@@ -124,6 +126,7 @@ struct BackendComposition {
     playback: Arc<CanopyPlaybackClient>,
     discovery: Arc<CanopyDiscoveryClient>,
     system: Arc<CanopySystemClient>,
+    profile: Arc<CanopyProfileClient>,
 }
 
 fn compose_backend(channel: &CanopyChannel, store: Arc<dyn SessionStore>) -> BackendComposition {
@@ -140,6 +143,7 @@ fn compose_backend(channel: &CanopyChannel, store: Arc<dyn SessionStore>) -> Bac
     ));
     let discovery = Arc::new(CanopyDiscoveryClient::new(channel, session.clone()));
     let system = Arc::new(CanopySystemClient::new(channel));
+    let profile = Arc::new(CanopyProfileClient::new(channel, session.clone()));
 
     BackendComposition {
         session,
@@ -147,6 +151,7 @@ fn compose_backend(channel: &CanopyChannel, store: Arc<dyn SessionStore>) -> Bac
         playback,
         discovery,
         system,
+        profile,
     }
 }
 
@@ -216,7 +221,7 @@ mod concurrency_tests {
             composition.session.auth_state().unwrap(),
             AuthState::Anonymous
         );
-        assert_eq!(std::sync::Arc::strong_count(&composition.session), 4);
+        assert_eq!(std::sync::Arc::strong_count(&composition.session), 5);
     }
 
     #[test]

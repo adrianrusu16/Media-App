@@ -48,6 +48,12 @@ pub struct EngineSnapshot {
     /// Theme preference projected from local cache, local input, or an authenticated profile.
     #[serde(default)]
     pub theme_preference: ThemePreferenceState,
+    /// Credential-free protected profile projection for the active account.
+    #[serde(default)]
+    pub profile: Option<crate::model::profile::EngineProfile>,
+    /// Complete remote profile preference document, including unknown application keys.
+    #[serde(default)]
+    pub profile_preferences: serde_json::Map<String, serde_json::Value>,
     /// Current restrictions applied to the media (e.g., UX restrictions).
     pub restriction_state: RestrictionState,
     /// Current vehicle motion state reported by the platform.
