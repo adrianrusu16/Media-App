@@ -56,6 +56,16 @@ pub(crate) fn command_from_ffi(command_type: i32) -> EngineCommandType {
             }
         }
         FFI_COMMAND_REFRESH_BACKEND_STATUS => EngineCommandType::RefreshBackendStatus,
+        FFI_COMMAND_UPSERT_PROFILE => EngineCommandType::UpsertProfile { display_name: None },
+        FFI_COMMAND_GET_PROFILE => EngineCommandType::GetProfile,
+        FFI_COMMAND_UPDATE_PROFILE => EngineCommandType::UpdateProfile {
+            update: panda_engine_core::EngineProfileUpdate::default(),
+        },
+        FFI_COMMAND_DELETE_PROFILE => EngineCommandType::DeleteProfile,
+        FFI_COMMAND_LOAD_PROFILE_PREFERENCES => EngineCommandType::LoadProfilePreferences,
+        FFI_COMMAND_UPDATE_PROFILE_PREFERENCES => EngineCommandType::UpdateProfilePreferences {
+            values: serde_json::Map::new(),
+        },
         _ => EngineCommandType::Unknown(command_type.to_string()),
     }
 }

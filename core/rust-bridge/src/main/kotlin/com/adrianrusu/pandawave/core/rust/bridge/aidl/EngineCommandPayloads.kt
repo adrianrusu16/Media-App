@@ -56,6 +56,24 @@ object EngineCommandPayloads {
 
     fun themePreference(themeId: String): String = buildThemePreferencePayload(themeId).toString()
 
+    fun upsertProfile(displayName: String?): String = buildJsonObject {
+        put(KEY_VERSION, PAYLOAD_VERSION)
+        put(KEY_DISPLAY_NAME, displayName)
+    }.toString()
+
+    fun updateProfileDisplayName(displayName: String?): String = buildJsonObject {
+        put(KEY_VERSION, PAYLOAD_VERSION)
+        put(KEY_UPDATE_DISPLAY_NAME, true)
+        put(KEY_DISPLAY_NAME, displayName)
+    }.toString()
+
+    fun updateProfileTheme(themeId: String): String = buildJsonObject {
+        put(KEY_VERSION, PAYLOAD_VERSION)
+        putJsonObject(KEY_VALUES) {
+            put(KEY_THEME, themeId)
+        }
+    }.toString()
+
     fun remoteThemePreference(themeId: String, userId: String, baselineRevision: Long): String =
         buildThemePreferencePayload(themeId) {
             put(KEY_USER_ID, userId)
@@ -121,6 +139,10 @@ object EngineCommandPayloads {
     private const val KEY_THEME_ID = "theme_id"
     private const val KEY_USER_ID = "user_id"
     private const val KEY_BASELINE_REVISION = "baseline_revision"
+    private const val KEY_DISPLAY_NAME = "display_name"
+    private const val KEY_UPDATE_DISPLAY_NAME = "update_display_name"
+    private const val KEY_VALUES = "values"
+    private const val KEY_THEME = "theme"
     private const val KEY_QUERY = "query"
     private const val KEY_PARENT_ID = "parent_id"
     private const val KEY_GENRES = "genres"

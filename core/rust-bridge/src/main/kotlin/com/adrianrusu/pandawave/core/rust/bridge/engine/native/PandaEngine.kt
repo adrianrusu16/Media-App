@@ -219,6 +219,8 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
 
     private external fun nativeAuthStateValues(handle: Long): Array<String>?
 
+    private external fun nativeProfileValues(handle: Long): Array<String>?
+
     private external fun nativeEffectCount(handle: Long): Int
 
     private external fun nativeEffectType(handle: Long, index: Int): Int
@@ -290,7 +292,12 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         val authState = nativeAuthStateValues(nativeHandle)
             ?.let(PandaEngineNativeAuthStateMapper::toDomain)
             ?: EngineAuthState.loginRequired()
-        return snapshot.copy(backendStatus = backendStatus, authState = authState)
+        val profile = PandaEngineNativeProfileMapper.toDomain(nativeProfileValues(nativeHandle))
+        return snapshot.copy(
+            backendStatus = backendStatus,
+            authState = authState,
+            profile = profile
+        )
     }
 
     private fun queryNativeMetadata(): NativeEngineMetadata = NativeEngineMetadata(
@@ -383,6 +390,12 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         private const val COMMAND_APPLY_REMOTE_THEME_PREFERENCE = 17
         private const val COMMAND_REFRESH_BACKEND_STATUS = 18
         private const val COMMAND_LOAD_NEXT_CATALOG_PAGE = 19
+        private const val COMMAND_UPSERT_PROFILE = 20
+        private const val COMMAND_GET_PROFILE = 21
+        private const val COMMAND_UPDATE_PROFILE = 22
+        private const val COMMAND_DELETE_PROFILE = 23
+        private const val COMMAND_LOAD_PROFILE_PREFERENCES = 24
+        private const val COMMAND_UPDATE_PROFILE_PREFERENCES = 25
         private const val COMMAND_UNKNOWN = -1
 
         private const val PLATFORM_EVENT_APP_FOREGROUNDED = 0
@@ -431,6 +444,12 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             EngineCommand.TYPE_APPLY_REMOTE_THEME_PREFERENCE -> COMMAND_APPLY_REMOTE_THEME_PREFERENCE
             EngineCommand.TYPE_REFRESH_BACKEND_STATUS -> COMMAND_REFRESH_BACKEND_STATUS
             EngineCommand.TYPE_LOAD_NEXT_CATALOG_PAGE -> COMMAND_LOAD_NEXT_CATALOG_PAGE
+            EngineCommand.TYPE_UPSERT_PROFILE -> COMMAND_UPSERT_PROFILE
+            EngineCommand.TYPE_GET_PROFILE -> COMMAND_GET_PROFILE
+            EngineCommand.TYPE_UPDATE_PROFILE -> COMMAND_UPDATE_PROFILE
+            EngineCommand.TYPE_DELETE_PROFILE -> COMMAND_DELETE_PROFILE
+            EngineCommand.TYPE_LOAD_PROFILE_PREFERENCES -> COMMAND_LOAD_PROFILE_PREFERENCES
+            EngineCommand.TYPE_UPDATE_PROFILE_PREFERENCES -> COMMAND_UPDATE_PROFILE_PREFERENCES
             else -> COMMAND_UNKNOWN
         }
 

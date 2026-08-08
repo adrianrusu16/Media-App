@@ -31,6 +31,55 @@ fn parse_theme_payload(payload: Option<&str>) -> Option<ThemePreferencePayload> 
         .then_some(payload)
 }
 
+#[derive(Deserialize)]
+struct UpsertProfilePayload {
+    version: u32,
+    #[serde(default)]
+    display_name: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct UpdateProfilePayload {
+    version: u32,
+    update_display_name: bool,
+    #[serde(default)]
+    display_name: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct UpdateProfilePreferencesPayload {
+    version: u32,
+    values: serde_json::Map<String, serde_json::Value>,
+}
+
+fn profile_command_from_ffi(command_type: i32, payload: Option<&str>) -> Option<EngineCommand> {
+    match command_type {
+        crate::FFI_COMMAND_UPSERT_PROFILE => {
+            let payload: UpsertProfilePayload = serde_json::from_str(payload?).ok()?;
+            (payload.version == 1).then(|| EngineCommand::upsert_profile(payload.display_name))
+        }
+        crate::FFI_COMMAND_GET_PROFILE => Some(EngineCommand::get_profile()),
+        crate::FFI_COMMAND_UPDATE_PROFILE => {
+            let payload: UpdateProfilePayload = serde_json::from_str(payload?).ok()?;
+            (payload.version == 1 && payload.update_display_name).then(|| {
+                EngineCommand::update_profile(panda_engine_core::EngineProfileUpdate::display_name(
+                    payload.display_name,
+                ))
+            })
+        }
+        crate::FFI_COMMAND_DELETE_PROFILE => Some(EngineCommand::delete_profile()),
+        crate::FFI_COMMAND_LOAD_PROFILE_PREFERENCES => {
+            Some(EngineCommand::load_profile_preferences())
+        }
+        crate::FFI_COMMAND_UPDATE_PROFILE_PREFERENCES => {
+            let payload: UpdateProfilePreferencesPayload = serde_json::from_str(payload?).ok()?;
+            (payload.version == 1)
+                .then(|| EngineCommand::update_profile_preferences(payload.values))
+        }
+        _ => None,
+    }
+}
+
 fn run_future_safely<T>(
     runtime: &tokio::runtime::Runtime,
     future: impl std::future::Future<Output = T>,
@@ -155,6 +204,16 @@ pub unsafe extern "C" fn panda_engine_dispatch(
                         None => EngineCommand::from_wire("invalid_theme_payload", None),
                     }
                 }
+                crate::FFI_COMMAND_UPSERT_PROFILE
+                | crate::FFI_COMMAND_GET_PROFILE
+                | crate::FFI_COMMAND_UPDATE_PROFILE
+                | crate::FFI_COMMAND_DELETE_PROFILE
+                | crate::FFI_COMMAND_LOAD_PROFILE_PREFERENCES
+                | crate::FFI_COMMAND_UPDATE_PROFILE_PREFERENCES => {
+                    profile_command_from_ffi(command_type, payload_str.as_deref()).unwrap_or_else(
+                        || EngineCommand::from_wire("invalid_profile_payload", None),
+                    )
+                }
                 FFI_COMMAND_PROCESS_VOICE => return FfiEngineOutcome::invalid(),
                 _ => EngineCommand::new(command_from_ffi(command_type), payload_str),
             };
@@ -241,5 +300,48 @@ pub unsafe extern "C" fn panda_engine_dispatch_platform_event(
             FfiEngineOutcome::from((&outcome, FFI_COMMAND_UNKNOWN))
         }
         None => FfiEngineOutcome::invalid(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn profile_update_payload_preserves_clear_distinct_from_empty_text() {
+        let clear = profile_command_from_ffi(
+            crate::FFI_COMMAND_UPDATE_PROFILE,
+            Some(r#"{"version":1,"update_display_name":true,"display_name":null}"#),
+        )
+        .unwrap();
+        let empty = profile_command_from_ffi(
+            crate::FFI_COMMAND_UPDATE_PROFILE,
+            Some(r#"{"version":1,"update_display_name":true,"display_name":""}"#),
+        )
+        .unwrap();
+
+        match clear.command_type {
+            EngineCommandType::UpdateProfile { update } => {
+                assert_eq!(update.display_name, Some(None));
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+        match empty.command_type {
+            EngineCommandType::UpdateProfile { update } => {
+                assert_eq!(update.display_name, Some(Some(String::new())));
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn invalid_profile_payload_is_rejected_before_dispatch() {
+        assert!(
+            profile_command_from_ffi(
+                crate::FFI_COMMAND_UPDATE_PROFILE,
+                Some(r#"{"version":2,"update_display_name":true}"#),
+            )
+            .is_none()
+        );
     }
 }

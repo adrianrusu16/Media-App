@@ -73,21 +73,6 @@ impl ThemePreferenceState {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use serde_json::json;
-
-    use super::merge_preferences;
-
-    #[test]
-    fn updating_known_theme_preserves_unknown_keys() {
-        let current = json!({"theme":"dark","future_key":{"nested":7}});
-        let updated = merge_preferences(current, json!({"theme":"light"}));
-
-        assert_eq!(updated["future_key"]["nested"], 7);
-    }
-}
-
 /// Applies application-owned preference values without discarding keys that a newer server
 /// schema may have stored alongside them.
 pub fn merge_preferences(
@@ -106,5 +91,20 @@ pub fn merge_preferences(
             serde_json::Value::Object(current)
         }
         (_, updates) => updates,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::merge_preferences;
+
+    #[test]
+    fn updating_known_theme_preserves_unknown_keys() {
+        let current = json!({"theme":"dark","future_key":{"nested":7}});
+        let updated = merge_preferences(current, json!({"theme":"light"}));
+
+        assert_eq!(updated["future_key"]["nested"], 7);
     }
 }

@@ -10,6 +10,7 @@ mod catalog_and_effects;
 mod controls_and_config;
 mod discovery;
 mod preferences;
+mod profile;
 mod state_transitions;
 mod timers_and_persistence;
 mod voice;

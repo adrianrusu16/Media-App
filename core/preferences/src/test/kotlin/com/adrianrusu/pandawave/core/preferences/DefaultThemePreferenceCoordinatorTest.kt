@@ -3,6 +3,7 @@ package com.adrianrusu.pandawave.core.preferences
 import com.adrianrusu.pandawave.core.model.theme.PandaWaveThemePreference
 import com.adrianrusu.pandawave.core.model.theme.ThemePreferenceRepository
 import com.adrianrusu.pandawave.core.model.theme.ThemePreferenceState
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthState
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
@@ -25,7 +26,7 @@ import kotlinx.coroutines.test.runTest
 @OptIn(ExperimentalCoroutinesApi::class)
 class DefaultThemePreferenceCoordinatorTest {
     @Test
-    fun `starting coordinator hydrates engine from datastore`() = runTest {
+    fun `starting anonymous coordinator hydrates engine from datastore`() = runTest {
         val repository = RecordingThemePreferenceRepository(PandaWaveThemePreference.ForestTechDark)
         val engine = RecordingEngineGateway()
         val coordinator = DefaultThemePreferenceCoordinator(repository, engine, backgroundScope)
@@ -38,7 +39,45 @@ class DefaultThemePreferenceCoordinatorTest {
     }
 
     @Test
-    fun `local selection is durable before engine dispatch`() = runTest {
+    fun `starting authenticated coordinator hydrates cache then loads remote preferences`() = runTest {
+        val repository = RecordingThemePreferenceRepository(PandaWaveThemePreference.ForestTechDark)
+        val engine = RecordingEngineGateway(authenticatedSnapshot())
+        val coordinator = DefaultThemePreferenceCoordinator(repository, engine, backgroundScope)
+
+        coordinator.start()
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf(
+                EngineCommand.TYPE_HYDRATE_THEME_PREFERENCE,
+                EngineCommand.TYPE_LOAD_PROFILE_PREFERENCES
+            ),
+            engine.commands.map(EngineCommand::type)
+        )
+    }
+
+    @Test
+    fun `authenticated selection is sent to remote profile before cache projection`() = runTest {
+        val repository = RecordingThemePreferenceRepository(PandaWaveThemePreference.SystemDefault)
+        val engine = RecordingEngineGateway(authenticatedSnapshot())
+        val coordinator = DefaultThemePreferenceCoordinator(repository, engine, backgroundScope)
+        coordinator.start()
+        advanceUntilIdle()
+        engine.commands.clear()
+
+        coordinator.select(PandaWaveThemePreference.BambooGroveLight)
+
+        assertEquals(PandaWaveThemePreference.SystemDefault, repository.currentPreference())
+        assertEquals(0, repository.writeCount)
+        assertEquals(EngineCommand.TYPE_UPDATE_PROFILE_PREFERENCES, engine.commands.single().type)
+        assertEquals(
+            """{"version":1,"values":{"theme":"bamboo_grove_light"}}""",
+            engine.commands.single().payload
+        )
+    }
+
+    @Test
+    fun `anonymous selection stays local and durable`() = runTest {
         val repository = RecordingThemePreferenceRepository(PandaWaveThemePreference.SystemDefault)
         val engine = RecordingEngineGateway()
         val coordinator = DefaultThemePreferenceCoordinator(repository, engine, backgroundScope)
@@ -55,7 +94,7 @@ class DefaultThemePreferenceCoordinatorTest {
     @Test
     fun `accepted remote theme is persisted locally once`() = runTest {
         val repository = RecordingThemePreferenceRepository(PandaWaveThemePreference.BambooGroveLight)
-        val engine = RecordingEngineGateway()
+        val engine = RecordingEngineGateway(authenticatedSnapshot())
         val coordinator = DefaultThemePreferenceCoordinator(repository, engine, backgroundScope)
         coordinator.start()
         advanceUntilIdle()
@@ -79,7 +118,7 @@ class DefaultThemePreferenceCoordinatorTest {
     @Test
     fun `invalid remote theme is ignored`() = runTest {
         val repository = RecordingThemePreferenceRepository(PandaWaveThemePreference.BambooGroveLight)
-        val engine = RecordingEngineGateway()
+        val engine = RecordingEngineGateway(authenticatedSnapshot())
         val coordinator = DefaultThemePreferenceCoordinator(repository, engine, backgroundScope)
         coordinator.start()
         advanceUntilIdle()
@@ -99,6 +138,10 @@ class DefaultThemePreferenceCoordinatorTest {
         assertEquals(PandaWaveThemePreference.BambooGroveLight, repository.currentPreference())
         assertEquals(0, repository.writeCount)
     }
+
+    private fun authenticatedSnapshot(): EngineSnapshot = EngineSnapshot.idle(0L).copy(
+        authState = EngineAuthState(EngineAuthState.AUTHENTICATED)
+    )
 }
 
 private class RecordingThemePreferenceRepository(initial: PandaWaveThemePreference) : ThemePreferenceRepository {
@@ -115,10 +158,10 @@ private class RecordingThemePreferenceRepository(initial: PandaWaveThemePreferen
     fun currentPreference(): PandaWaveThemePreference = (state.value as ThemePreferenceState.Ready).preference
 }
 
-private class RecordingEngineGateway : EngineGateway {
+private class RecordingEngineGateway(initialSnapshot: EngineSnapshot = EngineSnapshot.idle(0L)) : EngineGateway {
     val commands = mutableListOf<EngineCommand>()
     private val snapshotListeners = mutableListOf<(EngineSnapshot) -> Unit>()
-    private var currentSnapshot = EngineSnapshot.idle(0L)
+    private var currentSnapshot = initialSnapshot
 
     override fun snapshot(): EngineSnapshot = currentSnapshot
 

@@ -18,4 +18,20 @@
     <string name="pandawave_profile_preferences_title">Preferences</string>
     <string name="pandawave_profile_preferences_body">Appearance, privacy, content, and diagnostics.</string>
     <string name="pandawave_profile_open">Open</string>
-</resources>
+    <string name="pandawave_profile_canopy_title">Canopy profile</string>
+    <string name="pandawave_profile_loading">Loading the server profile.</string>
+    <string name="pandawave_profile_refresh">Refresh</string>
+    <string name="pandawave_profile_missing">No server profile exists yet.</string>
+    <string name="pandawave_profile_create_action">Create profile</string>
+    <string name="pandawave_profile_error">Profile unavailable: %1$s</string>
+    <string name="pandawave_profile_retry">Retry</string>
+    <string name="pandawave_profile_display_name">Display name</string>
+    <string name="pandawave_profile_display_name_absent">Not set</string>
+    <string name="pandawave_profile_display_name_body">Update the display name stored by Canopy.</string>
+    <string name="pandawave_profile_save">Save display name</string>
+    <string name="pandawave_profile_clear_display_name">Clear display name</string>
+    <string name="pandawave_profile_clear_display_name_body">Store the display name as absent instead of empty text.</string>
+    <string name="pandawave_profile_clear">Clear</string>
+    <string name="pandawave_profile_delete_title">Delete profile</string>
+    <string name="pandawave_profile_delete_body">Remove the Canopy profile and its preferences.</string>
+    <string name="pandawave_profile_delete_action">Delete</string></resources>

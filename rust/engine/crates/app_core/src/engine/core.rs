@@ -48,10 +48,17 @@ struct AuthIdentity {
 impl AuthIdentity {
     fn from_state(state: &crate::AuthState) -> Option<Self> {
         match state {
-            crate::AuthState::Authenticated { account, session } => Some(Self {
-                account_id: account.id.clone(),
-                session_id: session.id.clone(),
-            }),
+            crate::AuthState::Authenticated { account, session }
+                if !account.id.trim().is_empty()
+                    && !session.id.trim().is_empty()
+                    && session.current =>
+            {
+                Some(Self {
+                    account_id: account.id.clone(),
+                    session_id: session.id.clone(),
+                })
+            }
+            crate::AuthState::Authenticated { .. } => None,
             crate::AuthState::Anonymous | crate::AuthState::LoginRequired => None,
         }
     }

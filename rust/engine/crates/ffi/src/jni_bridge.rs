@@ -319,6 +319,20 @@ pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_eng
 }
 
 #[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeProfileValues(
+    mut env: JNIEnv,
+    _this: JObject,
+    handle: jlong,
+) -> jobjectArray {
+    let Some(snapshot) =
+        (unsafe { (handle as *const PandaEngine).as_ref() }).map(|engine| engine.engine.snapshot())
+    else {
+        return ptr::null_mut();
+    };
+    strings_to_jobject_array(&mut env, profile_to_strings(snapshot.profile.as_ref()))
+}
+
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeRegisterPassword(
     mut env: JNIEnv,
     _this: JObject,
@@ -810,6 +824,31 @@ fn backend_status_to_strings(status: &panda_engine_core::EngineBackendStatus) ->
     values
 }
 
+fn profile_to_strings(profile: Option<&panda_engine_core::EngineProfile>) -> Vec<String> {
+    let Some(profile) = profile else {
+        return Vec::new();
+    };
+    vec![
+        profile.id.clone(),
+        profile.external_user_id.clone(),
+        if profile.display_name.is_some() {
+            "1"
+        } else {
+            "0"
+        }
+        .into(),
+        profile.display_name.clone().unwrap_or_default(),
+        profile
+            .created_at_epoch_millis
+            .map(|value| value.to_string())
+            .unwrap_or_default(),
+        profile
+            .updated_at_epoch_millis
+            .map(|value| value.to_string())
+            .unwrap_or_default(),
+    ]
+}
+
 fn auth_state_to_strings(state: &panda_engine_core::AuthState) -> Vec<String> {
     match state {
         panda_engine_core::AuthState::Anonymous => vec!["anonymous".into()],
@@ -1054,5 +1093,29 @@ mod tests {
                 "available",
             ]
         );
+    }
+    #[test]
+    fn profile_values_preserve_absent_display_name_distinct_from_empty_text() {
+        let base = panda_engine_core::EngineProfile {
+            id: "profile-1".into(),
+            external_user_id: "account-1".into(),
+            display_name: None,
+            created_at_epoch_millis: Some(100),
+            updated_at_epoch_millis: None,
+        };
+        let empty = panda_engine_core::EngineProfile {
+            display_name: Some(String::new()),
+            ..base.clone()
+        };
+
+        assert_eq!(
+            profile_to_strings(Some(&base)),
+            vec!["profile-1", "account-1", "0", "", "100", ""]
+        );
+        assert_eq!(
+            profile_to_strings(Some(&empty)),
+            vec!["profile-1", "account-1", "1", "", "100", ""]
+        );
+        assert!(profile_to_strings(None).is_empty());
     }
 }

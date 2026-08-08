@@ -158,6 +158,33 @@ class PandaEngineNativeSnapshotMapperTest {
         assertEquals(null, missingSession.session)
     }
 
+    @Test
+    fun `profile mapper preserves absent display name distinctly from empty text`() {
+        val absent = PandaEngineNativeProfileMapper.toDomain(
+            arrayOf("profile-1", "account-1", "0", "", "100", "")
+        )
+        val empty = PandaEngineNativeProfileMapper.toDomain(
+            arrayOf("profile-1", "account-1", "1", "", "100", "200")
+        )
+
+        assertEquals(null, absent?.displayName)
+        assertEquals("", empty?.displayName)
+        assertEquals(100L, absent?.createdAtEpochMillis)
+        assertEquals(null, absent?.updatedAtEpochMillis)
+        assertEquals(200L, empty?.updatedAtEpochMillis)
+    }
+
+    @Test
+    fun `malformed profile projection fails closed`() {
+        assertEquals(
+            null,
+            PandaEngineNativeProfileMapper.toDomain(
+                arrayOf("", "account-1", "0", "", "100", "200")
+            )
+        )
+        assertEquals(null, PandaEngineNativeProfileMapper.toDomain(arrayOf("profile-1")))
+    }
+
     private fun Boolean.toLong(): Long = if (this) 1L else 0L
 
     private companion object {

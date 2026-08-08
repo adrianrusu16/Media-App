@@ -62,6 +62,7 @@ import com.adrianrusu.pandawave.feature.library.LibraryRoute
 import com.adrianrusu.pandawave.feature.nowplaying.NowPlayingRoute
 import com.adrianrusu.pandawave.feature.profile.ProfileRoute
 import com.adrianrusu.pandawave.feature.profile.ProfileUiAccount
+import com.adrianrusu.pandawave.feature.profile.presentation.ProfileViewModel
 import com.adrianrusu.pandawave.feature.search.SearchRoute
 import com.adrianrusu.pandawave.feature.settings.SettingsRoute
 import kotlinx.coroutines.delay
@@ -212,6 +213,8 @@ private fun AppShellContent(
                     val profileViewModel: ProfileAuthViewModel = hiltViewModel()
                     val profileState by profileViewModel.state.collectAsStateWithLifecycle()
                     val authAvailable by profileViewModel.isAvailable.collectAsStateWithLifecycle()
+                    val canopyProfileViewModel: ProfileViewModel = hiltViewModel()
+                    val canopyProfileState by canopyProfileViewModel.state.collectAsStateWithLifecycle()
                     var logoutWarning by remember { mutableStateOf<String?>(null) }
                     val remoteWarning = stringResource(R.string.pandawave_logout_remote_warning)
                     val failedWarning = stringResource(R.string.pandawave_logout_failed_warning)
@@ -235,7 +238,12 @@ private fun AppShellContent(
                         onLoginClick = navigator::openLogin,
                         onRegisterClick = navigator::openRegister,
                         onLogoutClick = profileViewModel::logout,
-                        onSettingsClick = navigator::openPreferences
+                        onSettingsClick = navigator::openPreferences,
+                        profileState = canopyProfileState,
+                        onRefreshProfile = canopyProfileViewModel::refresh,
+                        onUpsertProfile = canopyProfileViewModel::upsert,
+                        onUpdateProfileDisplayName = canopyProfileViewModel::updateDisplayName,
+                        onDeleteProfile = canopyProfileViewModel::delete
                     )
                 }
                 entry<LoginDestination> {

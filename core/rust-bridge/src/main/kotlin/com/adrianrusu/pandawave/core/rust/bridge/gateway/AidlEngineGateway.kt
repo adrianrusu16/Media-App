@@ -121,6 +121,8 @@ class AidlEngineGateway(
         return when {
             isClosed -> unavailableResult(command)
 
+            service == null && !command.isReplayableAfterReconnect() -> unavailableResult(command)
+
             service == null -> queuedResult(command)
 
             else -> {
@@ -321,6 +323,12 @@ class AidlEngineGateway(
                 message = event.type
             )
         )
+    }
+
+    private fun EngineCommand.isReplayableAfterReconnect(): Boolean = when (type) {
+        EngineCommand.TYPE_UPDATE_PROFILE,
+        EngineCommand.TYPE_DELETE_PROFILE -> false
+        else -> true
     }
 
     private fun logCommand(command: EngineCommand, status: String) {

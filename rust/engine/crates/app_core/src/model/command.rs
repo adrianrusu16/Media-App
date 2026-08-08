@@ -111,8 +111,22 @@ pub enum EngineCommandType {
         user_id: String,
         baseline_revision: u64,
     },
+    /// Creates or replaces the authenticated account profile.
+    UpsertProfile { display_name: Option<String> },
+    /// Fetches the authenticated account profile.
+    GetProfile,
+    /// Applies a typed patch to the authenticated account profile.
+    UpdateProfile {
+        update: crate::model::profile::EngineProfileUpdate,
+    },
+    /// Deletes the authenticated account profile.
+    DeleteProfile,
     /// Fetches authenticated profile preferences and projects known values into engine state.
     LoadProfilePreferences,
+    /// Merges application-owned preference values into the full remote document.
+    UpdateProfilePreferences {
+        values: serde_json::Map<String, serde_json::Value>,
+    },
     /// Voice-based search and play command.
     VoicePlay { query: String },
     /// Start a new voice interaction (ASR/NLU).
@@ -168,8 +182,18 @@ impl EngineCommandType {
     pub const SET_THEME_PREFERENCE_WIRE: &'static str = "set_theme_preference";
     /// Wire value for ApplyRemoteThemePreference command.
     pub const APPLY_REMOTE_THEME_PREFERENCE_WIRE: &'static str = "apply_remote_theme_preference";
+    /// Wire value for creating or replacing the authenticated profile.
+    pub const UPSERT_PROFILE_WIRE: &'static str = "upsert_profile";
+    /// Wire value for loading the authenticated profile.
+    pub const GET_PROFILE_WIRE: &'static str = "get_profile";
+    /// Wire value for applying a typed profile patch.
+    pub const UPDATE_PROFILE_WIRE: &'static str = "update_profile";
+    /// Wire value for deleting the authenticated profile.
+    pub const DELETE_PROFILE_WIRE: &'static str = "delete_profile";
     /// Wire value for loading authenticated profile preferences.
     pub const LOAD_PROFILE_PREFERENCES_WIRE: &'static str = "load_profile_preferences";
+    /// Wire value for merging authenticated profile preferences.
+    pub const UPDATE_PROFILE_PREFERENCES_WIRE: &'static str = "update_profile_preferences";
     /// Wire value for VoicePlay command.
     pub const VOICE_PLAY_WIRE: &'static str = "voice_play";
     /// Wire value for StartVoiceInteraction command.
@@ -230,7 +254,16 @@ impl EngineCommandType {
                 user_id: String::new(),
                 baseline_revision: 0,
             },
+            Self::UPSERT_PROFILE_WIRE => Self::UpsertProfile { display_name: None },
+            Self::GET_PROFILE_WIRE => Self::GetProfile,
+            Self::UPDATE_PROFILE_WIRE => Self::UpdateProfile {
+                update: crate::model::profile::EngineProfileUpdate::default(),
+            },
+            Self::DELETE_PROFILE_WIRE => Self::DeleteProfile,
             Self::LOAD_PROFILE_PREFERENCES_WIRE => Self::LoadProfilePreferences,
+            Self::UPDATE_PROFILE_PREFERENCES_WIRE => Self::UpdateProfilePreferences {
+                values: serde_json::Map::new(),
+            },
             Self::VOICE_PLAY_WIRE => Self::VoicePlay {
                 query: "".to_string(),
             },
@@ -269,7 +302,12 @@ impl EngineCommandType {
             Self::HydrateThemePreference { .. } => Self::HYDRATE_THEME_PREFERENCE_WIRE,
             Self::SetThemePreference { .. } => Self::SET_THEME_PREFERENCE_WIRE,
             Self::ApplyRemoteThemePreference { .. } => Self::APPLY_REMOTE_THEME_PREFERENCE_WIRE,
+            Self::UpsertProfile { .. } => Self::UPSERT_PROFILE_WIRE,
+            Self::GetProfile => Self::GET_PROFILE_WIRE,
+            Self::UpdateProfile { .. } => Self::UPDATE_PROFILE_WIRE,
+            Self::DeleteProfile => Self::DELETE_PROFILE_WIRE,
             Self::LoadProfilePreferences => Self::LOAD_PROFILE_PREFERENCES_WIRE,
+            Self::UpdateProfilePreferences { .. } => Self::UPDATE_PROFILE_PREFERENCES_WIRE,
             Self::VoicePlay { .. } => Self::VOICE_PLAY_WIRE,
             Self::StartVoiceInteraction => Self::START_VOICE_INTERACTION_WIRE,
             Self::StopVoiceInteraction => Self::STOP_VOICE_INTERACTION_WIRE,
@@ -501,9 +539,34 @@ impl EngineCommand {
         )
     }
 
+    /// Creates a command to create or replace the authenticated profile.
+    pub fn upsert_profile(display_name: Option<String>) -> Self {
+        Self::new(EngineCommandType::UpsertProfile { display_name }, None)
+    }
+
+    /// Creates a command to load the authenticated profile.
+    pub fn get_profile() -> Self {
+        Self::new(EngineCommandType::GetProfile, None)
+    }
+
+    /// Creates a command to apply a typed authenticated profile patch.
+    pub fn update_profile(update: crate::model::profile::EngineProfileUpdate) -> Self {
+        Self::new(EngineCommandType::UpdateProfile { update }, None)
+    }
+
+    /// Creates a command to delete the authenticated profile.
+    pub fn delete_profile() -> Self {
+        Self::new(EngineCommandType::DeleteProfile, None)
+    }
+
     /// Creates a command to load authenticated profile preferences.
     pub fn load_profile_preferences() -> Self {
         Self::new(EngineCommandType::LoadProfilePreferences, None)
+    }
+
+    /// Creates a command to merge authenticated profile preferences.
+    pub fn update_profile_preferences(values: serde_json::Map<String, serde_json::Value>) -> Self {
+        Self::new(EngineCommandType::UpdateProfilePreferences { values }, None)
     }
 
     /// Creates a VoicePlay command.

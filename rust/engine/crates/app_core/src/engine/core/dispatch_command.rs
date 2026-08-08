@@ -485,51 +485,140 @@ impl Engine {
                         };
                 }
             }
-            EngineCommandType::LoadProfilePreferences => {
-                let result = match (
-                    AuthIdentity::from_state(&next_snapshot.auth_state),
-                    self.profile_port.clone(),
-                ) {
-                    (None, _) => Err(EngineError::new(
-                        crate::EngineErrorType::LoginRequired,
-                        "profile preferences require an authenticated session",
-                        false,
-                    )),
-                    (Some(_), None) => Err(EngineError::new(
-                        crate::EngineErrorType::FailedPrecondition,
-                        "profile service is not configured",
-                        false,
-                    )),
-                    (Some(_), Some(port)) => match port.get().await {
-                        Ok(profile) => port.get_preferences().await.map(|values| (profile, values)),
-                        Err(error) => Err(error),
+            EngineCommandType::UpsertProfile { display_name } => {
+                match Self::profile_context(&next_snapshot, self.profile_port.clone()) {
+                    Ok((identity, port)) => match port.upsert(display_name.as_deref()).await {
+                        Ok(profile) => match Self::validate_profile_owner(&identity, &profile) {
+                            Ok(()) => next_snapshot.profile = Some(profile),
+                            Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
+                        },
+                        Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
                     },
-                };
-                match result {
-                    Ok((profile, values)) => {
-                        let baseline_revision = next_snapshot.theme_preference.revision;
-                        let active_user_id = match &next_snapshot.auth_state {
-                            crate::AuthState::Authenticated { account, .. } => {
-                                Some(account.id.clone())
+                    Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
+                }
+            }
+            EngineCommandType::GetProfile => {
+                match Self::profile_context(&next_snapshot, self.profile_port.clone()) {
+                    Ok((identity, port)) => match port.get().await {
+                        Ok(profile) => match Self::validate_profile_owner(&identity, &profile) {
+                            Ok(()) => next_snapshot.profile = Some(profile),
+                            Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
+                        },
+                        Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
+                    },
+                    Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
+                }
+            }
+            EngineCommandType::UpdateProfile { update } => {
+                match Self::profile_context(&next_snapshot, self.profile_port.clone()) {
+                    Ok((identity, port)) => {
+                        let result = match port.get().await {
+                            Ok(current) => {
+                                Self::validate_profile_owner(&identity, &current).map(|()| current)
                             }
-                            _ => None,
+                            Err(error) => Err(error),
                         };
-                        if let (Some(theme), Some(user_id)) = (
-                            values
-                                .get("theme")
-                                .and_then(|value| value.as_str())
-                                .and_then(crate::ThemePreference::from_wire),
-                            active_user_id,
-                        ) {
-                            next_snapshot.theme_preference = crate::ThemePreferenceState {
-                                theme,
-                                source: crate::PreferenceSource::RemoteProfile,
-                                revision: baseline_revision.saturating_add(1),
-                                session_user_id: Some(user_id),
-                            };
+                        match result {
+                            Ok(_) => match port.update(update.clone()).await {
+                                Ok(profile) => {
+                                    match Self::validate_profile_owner(&identity, &profile) {
+                                        Ok(()) => next_snapshot.profile = Some(profile),
+                                        Err(error) => {
+                                            next_snapshot = next_snapshot.with_error(Some(error))
+                                        }
+                                    }
+                                }
+                                Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
+                            },
+                            Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
                         }
-                        next_snapshot.profile = Some(profile);
-                        next_snapshot.profile_preferences = values;
+                    }
+                    Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
+                }
+            }
+            EngineCommandType::DeleteProfile => {
+                match Self::profile_context(&next_snapshot, self.profile_port.clone()) {
+                    Ok((identity, port)) => {
+                        let result = match port.get().await {
+                            Ok(profile) => Self::validate_profile_owner(&identity, &profile),
+                            Err(error) => Err(error),
+                        };
+                        match result {
+                            Ok(()) => match port.delete().await {
+                                Ok(()) => {
+                                    next_snapshot.profile = None;
+                                    next_snapshot.profile_preferences.clear();
+                                }
+                                Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
+                            },
+                            Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
+                        }
+                    }
+                    Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
+                }
+            }
+            EngineCommandType::LoadProfilePreferences => {
+                match Self::profile_context(&next_snapshot, self.profile_port.clone()) {
+                    Ok((identity, port)) => {
+                        let result = match port.get().await {
+                            Ok(profile) => {
+                                match Self::validate_profile_owner(&identity, &profile) {
+                                    Ok(()) => {
+                                        port.get_preferences().await.map(|values| (profile, values))
+                                    }
+                                    Err(error) => Err(error),
+                                }
+                            }
+                            Err(error) => Err(error),
+                        };
+                        match result {
+                            Ok((profile, values)) => Self::project_profile_preferences(
+                                &mut next_snapshot,
+                                &identity,
+                                profile,
+                                values,
+                            ),
+                            Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
+                        }
+                    }
+                    Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
+                }
+            }
+            EngineCommandType::UpdateProfilePreferences { values } => {
+                match Self::profile_context(&next_snapshot, self.profile_port.clone()) {
+                    Ok((identity, port)) => {
+                        let result = match port.get().await {
+                            Ok(profile) => {
+                                match Self::validate_profile_owner(&identity, &profile) {
+                                    Ok(()) => match port.get_preferences().await {
+                                        Ok(current) => {
+                                            let merged =
+                                                crate::model::preferences::merge_preferences(
+                                                    serde_json::Value::Object(current),
+                                                    serde_json::Value::Object(values.clone()),
+                                                );
+                                            let merged =
+                                                merged.as_object().cloned().unwrap_or_default();
+                                            port.update_preferences(merged)
+                                                .await
+                                                .map(|updated| (profile, updated))
+                                        }
+                                        Err(error) => Err(error),
+                                    },
+                                    Err(error) => Err(error),
+                                }
+                            }
+                            Err(error) => Err(error),
+                        };
+                        match result {
+                            Ok((profile, updated)) => Self::project_profile_preferences(
+                                &mut next_snapshot,
+                                &identity,
+                                profile,
+                                updated,
+                            ),
+                            Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
+                        }
                     }
                     Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
                 }
@@ -707,5 +796,63 @@ impl Engine {
         self.execute_effects(&outcome.effects);
 
         outcome
+    }
+    fn profile_context(
+        snapshot: &EngineSnapshot,
+        port: Option<Arc<dyn crate::ProfilePort>>,
+    ) -> Result<(AuthIdentity, Arc<dyn crate::ProfilePort>), EngineError> {
+        let identity = AuthIdentity::from_state(&snapshot.auth_state).ok_or_else(|| {
+            EngineError::new(
+                crate::EngineErrorType::LoginRequired,
+                "profile operation requires an authenticated session",
+                false,
+            )
+        })?;
+        let port = port.ok_or_else(|| {
+            EngineError::new(
+                crate::EngineErrorType::FailedPrecondition,
+                "profile service is not configured",
+                false,
+            )
+        })?;
+        Ok((identity, port))
+    }
+
+    fn validate_profile_owner(
+        identity: &AuthIdentity,
+        profile: &crate::EngineProfile,
+    ) -> Result<(), EngineError> {
+        if profile.external_user_id == identity.account_id {
+            Ok(())
+        } else {
+            Err(EngineError::new(
+                crate::EngineErrorType::Forbidden,
+                "profile does not belong to the authenticated account",
+                false,
+            ))
+        }
+    }
+
+    fn project_profile_preferences(
+        snapshot: &mut EngineSnapshot,
+        identity: &AuthIdentity,
+        profile: crate::EngineProfile,
+        values: serde_json::Map<String, serde_json::Value>,
+    ) {
+        if let Some(theme) = values
+            .get("theme")
+            .and_then(|value| value.as_str())
+            .and_then(crate::ThemePreference::from_wire)
+        {
+            let current = &snapshot.theme_preference;
+            snapshot.theme_preference = crate::ThemePreferenceState {
+                theme,
+                source: crate::PreferenceSource::RemoteProfile,
+                revision: current.revision.saturating_add(1),
+                session_user_id: Some(identity.account_id.clone()),
+            };
+        }
+        snapshot.profile = Some(profile);
+        snapshot.profile_preferences = values;
     }
 }

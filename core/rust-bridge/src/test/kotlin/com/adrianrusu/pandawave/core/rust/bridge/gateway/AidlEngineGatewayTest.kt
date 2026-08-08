@@ -482,6 +482,25 @@ class AidlEngineGatewayTest {
         assertFalse(event.attributes.containsKey("message"))
         assertEquals(TelemetryModule.RustBridge, event.module)
     }
+
+    @Test
+    fun `non replayable profile mutation is unavailable and never replayed`() {
+        val connection = FakeEngineServiceConnection(service = null)
+        val gateway = AidlEngineGateway(connection = connection, clock = { 25L })
+        val service = RecordingEngineService(EngineSnapshot.idle(nowMillis = 100L))
+
+        val result = gateway.dispatch(
+            EngineCommand(
+                type = EngineCommand.TYPE_UPDATE_PROFILE,
+                payload = """{"version":1,"update_display_name":true,"display_name":"Driver"}"""
+            )
+        )
+        connection.connectService(service)
+
+        assertEquals(EngineEvent.TYPE_GATEWAY_UNAVAILABLE, result.event.type)
+        assertEquals(emptyList(), service.commandTypes)
+    }
+
 }
 
 private class FakeEngineServiceConnection(override var service: EngineService?) : EngineServiceConnection {

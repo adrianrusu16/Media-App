@@ -35,7 +35,8 @@ class DataStoreThemePreferenceRepository(
             emit(emptyPreferences())
         }
         .map { preferences ->
-            val preference = preferences[ThemePreferenceKey]
+            val preference = (preferences[ThemePreferenceProjectionKey]
+                ?: preferences[LegacyThemePreferenceKey])
                 ?.let(PandaWaveThemePreference::fromWireOrNull)
                 ?: PandaWaveThemePreference.SystemDefault
             ThemePreferenceState.Ready(preference)
@@ -48,12 +49,14 @@ class DataStoreThemePreferenceRepository(
 
     override suspend fun setPreference(preference: PandaWaveThemePreference) {
         dataStore.edit { preferences ->
-            preferences[ThemePreferenceKey] = preference.wireValue
+            preferences[ThemePreferenceProjectionKey] = preference.wireValue
+            preferences.remove(LegacyThemePreferenceKey)
         }
     }
 
     private companion object {
-        val ThemePreferenceKey = stringPreferencesKey("theme_preference")
+        val ThemePreferenceProjectionKey = stringPreferencesKey("theme_preference_projection")
+        val LegacyThemePreferenceKey = stringPreferencesKey("theme_preference")
         const val EVENT_THEME_PREFERENCE_READ_FAILED = "theme_preferences.read_failed"
     }
 }

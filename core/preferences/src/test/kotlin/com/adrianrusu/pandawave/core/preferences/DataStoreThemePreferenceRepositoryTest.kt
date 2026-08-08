@@ -17,6 +17,7 @@ import java.io.IOException
 import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -76,6 +77,27 @@ class DataStoreThemePreferenceRepositoryTest {
         scope.cancel()
     }
 
+    @Test
+    fun `write migrates legacy authority value into cache projection key`() = runTest {
+        val file = tempDirectory.resolve("projection.preferences_pb").toFile()
+        val scope = repositoryScope(testScheduler)
+        val dataStore = createDataStore(file, scope)
+        dataStore.edit { preferences ->
+            preferences[stringPreferencesKey("theme_preference")] = "bamboo_grove_light"
+        }
+        val repository = DataStoreThemePreferenceRepository(
+            dataStore = dataStore,
+            scope = scope,
+            telemetryLogger = telemetryLogger()
+        )
+
+        repository.setPreference(PandaWaveThemePreference.ForestTechDark)
+
+        val preferences = dataStore.data.first()
+        assertEquals("forest_tech_dark", preferences[stringPreferencesKey("theme_preference_projection")])
+        assertNull(preferences[stringPreferencesKey("theme_preference")])
+        scope.cancel()
+    }
     @Test
     fun `read failure records a preferences breadcrumb without blocking fallback`() = runTest {
         val telemetrySink = RecordingTelemetrySink()

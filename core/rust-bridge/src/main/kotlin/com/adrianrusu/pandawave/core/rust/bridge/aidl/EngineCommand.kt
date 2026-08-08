@@ -34,6 +34,12 @@ data class EngineCommand(val type: String, val payload: String?) : Parcelable {
         const val TYPE_SET_THEME_PREFERENCE = "set_theme_preference"
         const val TYPE_APPLY_REMOTE_THEME_PREFERENCE = "apply_remote_theme_preference"
         const val TYPE_REFRESH_BACKEND_STATUS = "refresh_backend_status"
+        const val TYPE_UPSERT_PROFILE = "upsert_profile"
+        const val TYPE_GET_PROFILE = "get_profile"
+        const val TYPE_UPDATE_PROFILE = "update_profile"
+        const val TYPE_DELETE_PROFILE = "delete_profile"
+        const val TYPE_LOAD_PROFILE_PREFERENCES = "load_profile_preferences"
+        const val TYPE_UPDATE_PROFILE_PREFERENCES = "update_profile_preferences"
 
         @JvmField
         val CREATOR: Parcelable.Creator<EngineCommand> =

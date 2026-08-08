@@ -31,7 +31,8 @@ data class EngineSnapshot(
     val themePreference: EngineThemePreference = EngineThemePreference.uninitialized(),
     val drivingState: String = DRIVING_UNKNOWN,
     val backendStatus: EngineBackendStatus? = null,
-    val authState: EngineAuthState = EngineAuthState.anonymous()
+    val authState: EngineAuthState = EngineAuthState.anonymous(),
+    val profile: EngineProfile? = null
 ) : Parcelable {
     constructor(parcel: Parcel) : this(
         playbackState = parcel.readString().orEmpty(),
@@ -71,7 +72,8 @@ data class EngineSnapshot(
         ),
         drivingState = parcel.readString() ?: DRIVING_UNKNOWN,
         backendStatus = parcel.readBackendStatus(),
-        authState = parcel.readEngineAuthState()
+        authState = parcel.readEngineAuthState(),
+        profile = parcel.readEngineProfile()
     )
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
@@ -109,6 +111,7 @@ data class EngineSnapshot(
         parcel.writeString(drivingState)
         parcel.writeBackendStatus(backendStatus)
         parcel.writeEngineAuthState(authState)
+        parcel.writeEngineProfile(profile)
     }
 
     override fun describeContents(): Int = 0
@@ -324,6 +327,33 @@ private fun Parcel.writeBackendStatus(status: EngineBackendStatus?) {
         writeString(dependency.status)
         writeString(dependency.message)
     }
+}
+
+private fun Parcel.readEngineProfile(): EngineProfile? {
+    if (!readBooleanValue()) return null
+    val id = readString().orEmpty()
+    val externalUserId = readString().orEmpty()
+    val displayName = if (readBooleanValue()) readString().orEmpty() else null
+    val createdAtEpochMillis = readNullableLong()
+    val updatedAtEpochMillis = readNullableLong()
+    return EngineProfile(
+        id = id,
+        externalUserId = externalUserId,
+        displayName = displayName,
+        createdAtEpochMillis = createdAtEpochMillis,
+        updatedAtEpochMillis = updatedAtEpochMillis
+    ).takeIf { it.id.isNotBlank() && it.externalUserId.isNotBlank() }
+}
+
+private fun Parcel.writeEngineProfile(profile: EngineProfile?) {
+    writeBooleanValue(profile != null)
+    if (profile == null) return
+    writeString(profile.id)
+    writeString(profile.externalUserId)
+    writeBooleanValue(profile.displayName != null)
+    if (profile.displayName != null) writeString(profile.displayName)
+    writeNullableLong(profile.createdAtEpochMillis)
+    writeNullableLong(profile.updatedAtEpochMillis)
 }
 
 internal fun Parcel.readEngineAuthState(): EngineAuthState {

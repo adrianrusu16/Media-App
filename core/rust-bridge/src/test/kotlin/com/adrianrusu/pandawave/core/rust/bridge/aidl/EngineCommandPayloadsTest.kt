@@ -38,4 +38,39 @@ class EngineCommandPayloadsTest {
 
         assertEquals(19, PandaEngine.nativeCommandType(command))
     }
+
+    @Test
+    fun profilePayloadsPreserveNullableDisplayNameAndTypedThemeUpdate() {
+        assertEquals(
+            """{"version":1,"display_name":null}""",
+            EngineCommandPayloads.upsertProfile(displayName = null)
+        )
+        assertEquals(
+            """{"version":1,"update_display_name":true,"display_name":""}""",
+            EngineCommandPayloads.updateProfileDisplayName(displayName = "")
+        )
+        assertEquals(
+            """{"version":1,"values":{"theme":"forest_tech_dark"}}""",
+            EngineCommandPayloads.updateProfileTheme("forest_tech_dark")
+        )
+    }
+
+    @Test
+    fun profileCommandsMapToStableNativeIds() {
+        assertEquals(
+            20,
+            PandaEngine.nativeCommandType(
+                EngineCommand(EngineCommand.TYPE_UPSERT_PROFILE, EngineCommandPayloads.upsertProfile(null))
+            )
+        )
+        assertEquals(
+            25,
+            PandaEngine.nativeCommandType(
+                EngineCommand(
+                    EngineCommand.TYPE_UPDATE_PROFILE_PREFERENCES,
+                    EngineCommandPayloads.updateProfileTheme("system_default")
+                )
+            )
+        )
+    }
 }

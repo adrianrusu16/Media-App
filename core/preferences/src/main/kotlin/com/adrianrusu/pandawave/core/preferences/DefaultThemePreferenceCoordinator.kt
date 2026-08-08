@@ -3,6 +3,7 @@ package com.adrianrusu.pandawave.core.preferences
 import com.adrianrusu.pandawave.core.model.theme.PandaWaveThemePreference
 import com.adrianrusu.pandawave.core.model.theme.ThemePreferenceRepository
 import com.adrianrusu.pandawave.core.model.theme.ThemePreferenceState
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthState
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommandPayloads
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
@@ -39,12 +40,26 @@ class DefaultThemePreferenceCoordinator(
                 .first()
                 .preference
             dispatchThemeCommand(EngineCommand.TYPE_HYDRATE_THEME_PREFERENCE, preference)
+            if (isAuthenticated()) {
+                engineGateway.dispatch(
+                    EngineCommand(EngineCommand.TYPE_LOAD_PROFILE_PREFERENCES, null)
+                )
+            }
         }
     }
 
     override suspend fun select(preference: PandaWaveThemePreference) {
-        repository.setPreference(preference)
-        dispatchThemeCommand(EngineCommand.TYPE_SET_THEME_PREFERENCE, preference)
+        if (isAuthenticated()) {
+            engineGateway.dispatch(
+                EngineCommand(
+                    type = EngineCommand.TYPE_UPDATE_PROFILE_PREFERENCES,
+                    payload = EngineCommandPayloads.updateProfileTheme(preference.wireValue)
+                )
+            )
+        } else {
+            repository.setPreference(preference)
+            dispatchThemeCommand(EngineCommand.TYPE_SET_THEME_PREFERENCE, preference)
+        }
     }
 
     override fun close() {
@@ -73,6 +88,9 @@ class DefaultThemePreferenceCoordinator(
     private fun shouldApplyRemote(preference: EngineThemePreference): Boolean = preference.initialized &&
         preference.source == EngineThemePreference.SOURCE_REMOTE_PROFILE &&
         preference.revision > lastAppliedRemoteRevision
+
+    private fun isAuthenticated(): Boolean =
+        engineGateway.snapshot().authState.state == EngineAuthState.AUTHENTICATED
 
     private fun dispatchThemeCommand(type: String, preference: PandaWaveThemePreference) {
         engineGateway.dispatch(
