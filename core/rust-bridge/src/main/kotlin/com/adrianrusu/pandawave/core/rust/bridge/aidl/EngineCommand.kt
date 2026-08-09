@@ -40,6 +40,12 @@ data class EngineCommand(val type: String, val payload: String?) : Parcelable {
         const val TYPE_DELETE_PROFILE = "delete_profile"
         const val TYPE_LOAD_PROFILE_PREFERENCES = "load_profile_preferences"
         const val TYPE_UPDATE_PROFILE_PREFERENCES = "update_profile_preferences"
+        const val TYPE_LOAD_HISTORY_SETTINGS = "load_history_settings"
+        const val TYPE_UPDATE_HISTORY_SETTINGS = "update_history_settings"
+        const val TYPE_LIST_HISTORY = "list_history"
+        const val TYPE_LOAD_NEXT_HISTORY_PAGE = "load_next_history_page"
+        const val TYPE_DELETE_HISTORY_ENTRY = "delete_history_entry"
+        const val TYPE_CLEAR_HISTORY = "clear_history"
 
         @JvmField
         val CREATOR: Parcelable.Creator<EngineCommand> =

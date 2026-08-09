@@ -21,6 +21,8 @@ pub enum EnginePlatformEventType {
     MediaLoaded,
     /// An error occurred in the platform media player.
     MediaError,
+    /// The platform player reached a terminal playback position.
+    PlaybackCompleted,
     /// An event not recognized by this version of the engine.
     Unknown(String),
 }
@@ -46,6 +48,7 @@ impl EnginePlatformEventType {
     pub const MEDIA_LOADED_WIRE: &'static str = "media_loaded";
     /// Wire value for MediaError event.
     pub const MEDIA_ERROR_WIRE: &'static str = "media_error";
+    pub const PLAYBACK_COMPLETED_WIRE: &'static str = "playback_completed";
 
     /// Maps a wire string value to its corresponding enum variant.
     pub fn from_wire(value: impl Into<String>) -> Self {
@@ -61,6 +64,7 @@ impl EnginePlatformEventType {
             Self::MEDIA_BUTTON_PRESSED_WIRE => Self::MediaButtonPressed,
             Self::MEDIA_LOADED_WIRE => Self::MediaLoaded,
             Self::MEDIA_ERROR_WIRE => Self::MediaError,
+            Self::PLAYBACK_COMPLETED_WIRE => Self::PlaybackCompleted,
             _ => Self::Unknown(value),
         }
     }
@@ -78,6 +82,7 @@ impl EnginePlatformEventType {
             Self::MediaButtonPressed => Self::MEDIA_BUTTON_PRESSED_WIRE,
             Self::MediaLoaded => Self::MEDIA_LOADED_WIRE,
             Self::MediaError => Self::MEDIA_ERROR_WIRE,
+            Self::PlaybackCompleted => Self::PLAYBACK_COMPLETED_WIRE,
             Self::Unknown(value) => value.as_str(),
         }
     }
@@ -104,5 +109,22 @@ impl EnginePlatformEvent {
     /// Convenience method to create a platform event from wire values.
     pub fn from_wire(event_type: impl Into<String>, payload: Option<String>) -> Self {
         Self::new(EnginePlatformEventType::from_wire(event_type), payload)
+    }
+
+    pub fn playback_completed(
+        track_id: impl Into<String>,
+        duration_millis: u64,
+        completion_ratio: f32,
+    ) -> Self {
+        let payload = serde_json::json!({
+            "version": 1,
+            "track_id": track_id.into(),
+            "duration_ms": duration_millis,
+            "completion_ratio": completion_ratio,
+        });
+        Self::new(
+            EnginePlatformEventType::PlaybackCompleted,
+            Some(payload.to_string()),
+        )
     }
 }

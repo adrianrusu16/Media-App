@@ -66,6 +66,18 @@ pub(crate) fn command_from_ffi(command_type: i32) -> EngineCommandType {
         FFI_COMMAND_UPDATE_PROFILE_PREFERENCES => EngineCommandType::UpdateProfilePreferences {
             values: serde_json::Map::new(),
         },
+        FFI_COMMAND_LOAD_HISTORY_SETTINGS => EngineCommandType::LoadHistorySettings,
+        FFI_COMMAND_UPDATE_HISTORY_SETTINGS => {
+            EngineCommandType::UpdateHistorySettings { enabled: false }
+        }
+        FFI_COMMAND_LIST_HISTORY => EngineCommandType::ListHistory {
+            page: panda_engine_core::EnginePageRequest::default(),
+        },
+        FFI_COMMAND_LOAD_NEXT_HISTORY_PAGE => EngineCommandType::LoadNextHistoryPage,
+        FFI_COMMAND_DELETE_HISTORY_ENTRY => EngineCommandType::DeleteHistoryEntry {
+            history_id: String::new(),
+        },
+        FFI_COMMAND_CLEAR_HISTORY => EngineCommandType::ClearHistory,
         _ => EngineCommandType::Unknown(command_type.to_string()),
     }
 }
@@ -89,6 +101,7 @@ pub(crate) fn platform_event_from_ffi(
         FFI_PLATFORM_EVENT_VEHICLE_DRIVING_STATE_CHANGED => {
             EnginePlatformEventType::VehicleDrivingStateChanged
         }
+        FFI_PLATFORM_EVENT_PLAYBACK_COMPLETED => EnginePlatformEventType::PlaybackCompleted,
         _ => EnginePlatformEventType::Unknown(event_type.to_string()),
     }
 }

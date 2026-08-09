@@ -16,6 +16,28 @@ impl Engine {
                 .await;
         }
 
+        if event.event_type == EnginePlatformEventType::PlaybackCompleted {
+            self.sync_auth_state_projection();
+            let mut next_snapshot = self
+                .snapshot
+                .clone()
+                .with_playback_state(self.snapshot.playback_state, now_epoch_millis)
+                .with_error(None);
+            self.record_playback_completion(event.payload.as_deref(), &mut next_snapshot)
+                .await;
+            self.snapshot = next_snapshot;
+            let mut outcome = EngineOutcome {
+                snapshot: self.snapshot.clone(),
+                event: EngineEvent::platform_event_applied(Some(
+                    EnginePlatformEventType::PLAYBACK_COMPLETED_WIRE.to_owned(),
+                )),
+                effects: Vec::new(),
+            };
+            let middleware = Arc::clone(&self.middleware);
+            middleware.after_dispatch(self, &mut outcome);
+            return outcome;
+        }
+
         let prev_playback_state = self.snapshot.playback_state;
 
         let next_playback_state =

@@ -5,7 +5,7 @@ use tokio::sync::Mutex;
 
 use crate::{
     AuthPort, AuthRequestAcceptance, AuthState, AuthStateProvider, EngineError, EngineErrorType,
-    SessionStore,
+    EngineHistoryIdentity, SessionStore,
 };
 
 use super::clock::current_epoch_millis;
@@ -28,7 +28,11 @@ impl ExpiryClock {
 #[derive(Clone, Eq, PartialEq)]
 pub(crate) enum AccessSnapshot {
     Anonymous,
-    Authenticated { token: String, generation: u64 },
+    Authenticated {
+        token: String,
+        generation: u64,
+        identity: EngineHistoryIdentity,
+    },
 }
 
 impl std::fmt::Debug for AccessSnapshot {
@@ -430,9 +434,16 @@ impl SessionCoordinator {
     }
 
     fn access_snapshot(&self, envelope: &crate::AuthSessionEnvelope) -> AccessSnapshot {
+        let crate::AuthState::Authenticated { account, session } = envelope.state() else {
+            unreachable!("credential envelope always has an authenticated identity")
+        };
         AccessSnapshot::Authenticated {
             token: envelope.credentials().access_token.to_owned(),
             generation: self.generation.load(Ordering::Acquire),
+            identity: EngineHistoryIdentity {
+                account_id: account.id,
+                session_id: session.id,
+            },
         }
     }
 
@@ -507,8 +518,8 @@ mod tests {
 
     use super::{AccessSnapshot, SessionCoordinator};
     use crate::{
-        Account, AuthPort, AuthSession, AuthSessionEnvelope, EngineError, InMemorySessionStore,
-        SessionStore, SessionStoreError, SessionStoreSecurity,
+        Account, AuthPort, AuthSession, AuthSessionEnvelope, EngineError, EngineHistoryIdentity,
+        InMemorySessionStore, SessionStore, SessionStoreError, SessionStoreSecurity,
     };
 
     struct UnusedAuthPort;
@@ -585,6 +596,10 @@ mod tests {
         let rejected = AccessSnapshot::Authenticated {
             token: "current-access".into(),
             generation: 0,
+            identity: EngineHistoryIdentity {
+                account_id: "account-1".into(),
+                session_id: "session-1".into(),
+            },
         };
         let newer = AuthSessionEnvelope::new(
             "current-access".into(),
@@ -625,6 +640,10 @@ mod tests {
         let snapshot = AccessSnapshot::Authenticated {
             token: "raw-access-secret".into(),
             generation: 42,
+            identity: EngineHistoryIdentity {
+                account_id: "account-1".into(),
+                session_id: "session-1".into(),
+            },
         };
 
         let rendered = format!("{snapshot:?}");

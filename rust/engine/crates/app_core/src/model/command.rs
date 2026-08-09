@@ -50,6 +50,27 @@ struct LoadNextDiscoveryPagePayload {
     version: u32,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct UpdateHistorySettingsPayload {
+    version: u32,
+    enabled: bool,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ListHistoryPayload {
+    version: u32,
+    page: InitialCatalogPagePayload,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DeleteHistoryEntryPayload {
+    version: u32,
+    history_id: String,
+}
+
 /// Represents the different types of commands the engine can process.
 #[derive(Clone, Debug, PartialEq)]
 pub enum EngineCommandType {
@@ -89,6 +110,18 @@ pub enum EngineCommandType {
     },
     /// Continues a previously dispatched discovery-feed operation.
     LoadNextDiscoveryPage,
+    /// Loads server-backed history consent for the current account and session.
+    LoadHistorySettings,
+    /// Updates server-backed history consent.
+    UpdateHistorySettings { enabled: bool },
+    /// Loads the first playback-history page.
+    ListHistory { page: EnginePageRequest },
+    /// Continues the current playback-history page operation.
+    LoadNextHistoryPage,
+    /// Deletes one playback-history entry.
+    DeleteHistoryEntry { history_id: String },
+    /// Clears all playback history for the current account.
+    ClearHistory,
     /// Changes the playback speed.
     SetSpeed { speed: f32 },
     /// Seeks to a specific position in milliseconds.
@@ -170,6 +203,12 @@ impl EngineCommandType {
     pub const LOAD_DISCOVERY_FEED_WIRE: &'static str = "load_discovery_feed";
     /// Wire value for loading the next discovery-feed page.
     pub const LOAD_NEXT_DISCOVERY_PAGE_WIRE: &'static str = "load_next_discovery_page";
+    pub const LOAD_HISTORY_SETTINGS_WIRE: &'static str = "load_history_settings";
+    pub const UPDATE_HISTORY_SETTINGS_WIRE: &'static str = "update_history_settings";
+    pub const LIST_HISTORY_WIRE: &'static str = "list_history";
+    pub const LOAD_NEXT_HISTORY_PAGE_WIRE: &'static str = "load_next_history_page";
+    pub const DELETE_HISTORY_ENTRY_WIRE: &'static str = "delete_history_entry";
+    pub const CLEAR_HISTORY_WIRE: &'static str = "clear_history";
     /// Wire value for SetSpeed command.
     pub const SET_SPEED_WIRE: &'static str = "set_speed";
     /// Wire value for Seek command.
@@ -238,6 +277,16 @@ impl EngineCommandType {
                 page: EnginePageRequest::default(),
             },
             Self::LOAD_NEXT_DISCOVERY_PAGE_WIRE => Self::LoadNextDiscoveryPage,
+            Self::LOAD_HISTORY_SETTINGS_WIRE => Self::LoadHistorySettings,
+            Self::UPDATE_HISTORY_SETTINGS_WIRE => Self::UpdateHistorySettings { enabled: false },
+            Self::LIST_HISTORY_WIRE => Self::ListHistory {
+                page: EnginePageRequest::default(),
+            },
+            Self::LOAD_NEXT_HISTORY_PAGE_WIRE => Self::LoadNextHistoryPage,
+            Self::DELETE_HISTORY_ENTRY_WIRE => Self::DeleteHistoryEntry {
+                history_id: String::new(),
+            },
+            Self::CLEAR_HISTORY_WIRE => Self::ClearHistory,
             Self::SET_SPEED_WIRE => Self::SetSpeed { speed: 1.0 },
             Self::SEEK_WIRE => Self::Seek { position_millis: 0 },
             Self::UPDATE_CONFIG_WIRE => Self::UpdateConfig {
@@ -296,6 +345,12 @@ impl EngineCommandType {
             Self::LoadNextCatalogPage { .. } => Self::LOAD_NEXT_CATALOG_PAGE_WIRE,
             Self::LoadDiscoveryFeed { .. } => Self::LOAD_DISCOVERY_FEED_WIRE,
             Self::LoadNextDiscoveryPage => Self::LOAD_NEXT_DISCOVERY_PAGE_WIRE,
+            Self::LoadHistorySettings => Self::LOAD_HISTORY_SETTINGS_WIRE,
+            Self::UpdateHistorySettings { .. } => Self::UPDATE_HISTORY_SETTINGS_WIRE,
+            Self::ListHistory { .. } => Self::LIST_HISTORY_WIRE,
+            Self::LoadNextHistoryPage => Self::LOAD_NEXT_HISTORY_PAGE_WIRE,
+            Self::DeleteHistoryEntry { .. } => Self::DELETE_HISTORY_ENTRY_WIRE,
+            Self::ClearHistory => Self::CLEAR_HISTORY_WIRE,
             Self::SetSpeed { .. } => Self::SET_SPEED_WIRE,
             Self::Seek { .. } => Self::SEEK_WIRE,
             Self::UpdateConfig { .. } => Self::UPDATE_CONFIG_WIRE,
@@ -356,6 +411,15 @@ impl EngineCommand {
             EngineCommandType::LOAD_NEXT_DISCOVERY_PAGE_WIRE => payload
                 .as_deref()
                 .and_then(parse_load_next_discovery_page_payload),
+            EngineCommandType::UPDATE_HISTORY_SETTINGS_WIRE => payload
+                .as_deref()
+                .and_then(parse_update_history_settings_payload),
+            EngineCommandType::LIST_HISTORY_WIRE => {
+                payload.as_deref().and_then(parse_list_history_payload)
+            }
+            EngineCommandType::DELETE_HISTORY_ENTRY_WIRE => payload
+                .as_deref()
+                .and_then(parse_delete_history_entry_payload),
             _ => Some(EngineCommandType::from_wire(command_type.clone())),
         };
         Self::new(
@@ -496,6 +560,43 @@ impl EngineCommand {
             EngineCommandType::LoadNextDiscoveryPage,
             serde_json::to_string(&payload).ok(),
         )
+    }
+
+    pub fn load_history_settings() -> Self {
+        Self::new(EngineCommandType::LoadHistorySettings, None)
+    }
+
+    pub fn update_history_settings(enabled: bool) -> Self {
+        Self::new(EngineCommandType::UpdateHistorySettings { enabled }, None)
+    }
+
+    pub fn list_history(page_size: u32) -> Self {
+        Self::new(
+            EngineCommandType::ListHistory {
+                page: EnginePageRequest {
+                    page_size,
+                    page_token: None,
+                },
+            },
+            None,
+        )
+    }
+
+    pub fn load_next_history_page() -> Self {
+        Self::new(EngineCommandType::LoadNextHistoryPage, None)
+    }
+
+    pub fn delete_history_entry(history_id: impl Into<String>) -> Self {
+        Self::new(
+            EngineCommandType::DeleteHistoryEntry {
+                history_id: history_id.into(),
+            },
+            None,
+        )
+    }
+
+    pub fn clear_history() -> Self {
+        Self::new(EngineCommandType::ClearHistory, None)
     }
 
     /// Creates a SetSpeed command.
@@ -647,6 +748,33 @@ fn parse_discovery_feed_payload(payload: &str) -> Option<EngineCommandType> {
 fn parse_load_next_discovery_page_payload(payload: &str) -> Option<EngineCommandType> {
     let payload: LoadNextDiscoveryPagePayload = serde_json::from_str(payload).ok()?;
     (payload.version == CATALOG_PAYLOAD_VERSION).then_some(EngineCommandType::LoadNextDiscoveryPage)
+}
+
+fn parse_update_history_settings_payload(payload: &str) -> Option<EngineCommandType> {
+    let payload: UpdateHistorySettingsPayload = serde_json::from_str(payload).ok()?;
+    (payload.version == CATALOG_PAYLOAD_VERSION).then_some(
+        EngineCommandType::UpdateHistorySettings {
+            enabled: payload.enabled,
+        },
+    )
+}
+
+fn parse_list_history_payload(payload: &str) -> Option<EngineCommandType> {
+    let payload: ListHistoryPayload = serde_json::from_str(payload).ok()?;
+    (payload.version == CATALOG_PAYLOAD_VERSION).then_some(EngineCommandType::ListHistory {
+        page: EnginePageRequest {
+            page_size: payload.page.page_size,
+            page_token: None,
+        },
+    })
+}
+fn parse_delete_history_entry_payload(payload: &str) -> Option<EngineCommandType> {
+    let payload: DeleteHistoryEntryPayload = serde_json::from_str(payload).ok()?;
+    (payload.version == CATALOG_PAYLOAD_VERSION && !payload.history_id.trim().is_empty()).then_some(
+        EngineCommandType::DeleteHistoryEntry {
+            history_id: payload.history_id,
+        },
+    )
 }
 
 #[cfg(test)]

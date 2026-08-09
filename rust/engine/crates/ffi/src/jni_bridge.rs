@@ -883,7 +883,7 @@ fn snapshot_to_jlong_array(env: &mut JNIEnv, snapshot: FfiEngineSnapshot) -> jlo
     array.into_raw()
 }
 
-fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 36] {
+fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 40] {
     [
         snapshot.playback_state as jlong,
         snapshot.restriction_state as jlong,
@@ -921,6 +921,10 @@ fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 36] {
         snapshot.backend_dependencies_count as jlong,
         snapshot.playback_expires_at_epoch_millis as jlong,
         snapshot.auth_state as jlong,
+        bool_to_jlong(snapshot.has_history_settings),
+        bool_to_jlong(snapshot.history_enabled),
+        snapshot.history_deleted_count as jlong,
+        snapshot.history_entries_count as jlong,
     ]
 }
 
@@ -978,6 +982,10 @@ mod tests {
     fn snapshot_values_match_kotlin_compact_layout() {
         let snapshot = FfiEngineSnapshot {
             auth_state: crate::FFI_AUTH_AUTHENTICATED,
+            has_history_settings: true,
+            history_enabled: true,
+            history_deleted_count: 7,
+            history_entries_count: 2,
             playback_state: FFI_PLAYBACK_PLAYING,
             restriction_state: FFI_RESTRICTION_UNKNOWN,
             updated_at_epoch_millis: 42,
@@ -1061,6 +1069,10 @@ mod tests {
                 2,
                 1_750_000_000_250,
                 crate::FFI_AUTH_AUTHENTICATED as jlong,
+                1,
+                1,
+                7,
+                2,
             ],
             snapshot_to_jlong_values(snapshot)
         );

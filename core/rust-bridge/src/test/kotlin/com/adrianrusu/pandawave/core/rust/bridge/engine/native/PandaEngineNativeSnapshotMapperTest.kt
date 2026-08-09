@@ -47,7 +47,11 @@ class PandaEngineNativeSnapshotMapperTest {
                 1_725_000_000_000L,
                 2L,
                 1_750_000_000_250L,
-                AUTH_AUTHENTICATED.toLong()
+                AUTH_AUTHENTICATED.toLong(),
+                true.toLong(),
+                true.toLong(),
+                3L,
+                4L
             )
         )
         val snapshot = projection.snapshot
@@ -92,6 +96,10 @@ class PandaEngineNativeSnapshotMapperTest {
             projection.backendStatus
         )
         assertEquals(EngineAuthState.AUTHENTICATED, snapshot.authState.state)
+        assertTrue(snapshot.hasHistorySettings)
+        assertTrue(snapshot.historyEnabled)
+        assertEquals(3L, snapshot.historyDeletedCount)
+        assertEquals(4, snapshot.historyEntriesCount)
     }
 
     @Test

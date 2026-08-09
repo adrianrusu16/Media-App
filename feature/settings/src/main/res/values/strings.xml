@@ -2,6 +2,11 @@
 <resources>
     <string name="pandawave_settings_diagnostics_title">Diagnostics</string>
     <string name="pandawave_settings_diagnostics_body">Share redacted reliability events and playback health signals.</string>
+    <string name="pandawave_settings_history_title">Playback history</string>
+    <string name="pandawave_settings_history_body">Save completed listening activity to your account for history and recommendations.</string>
+    <string name="pandawave_settings_history_clear_title">Clear playback history</string>
+    <string name="pandawave_settings_history_clear_body">Remove all %1$d history entries from your account.</string>
+    <string name="pandawave_settings_history_clear_action">Clear history</string>
     <string name="pandawave_settings_personalization_title">Personalization</string>
     <string name="pandawave_settings_personalization_body">Let the Rust engine use recent listening state to shape recommendations.</string>
     <string name="pandawave_settings_explicit_title">Explicit content</string>

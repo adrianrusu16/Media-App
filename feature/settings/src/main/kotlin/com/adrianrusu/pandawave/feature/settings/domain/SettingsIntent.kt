@@ -7,6 +7,11 @@ sealed interface SettingsIntent {
     data object TogglePersonalization : SettingsIntent
     data object ToggleExplicitContent : SettingsIntent
     data object AcknowledgePrivacyNotice : SettingsIntent
+    data class SetHistoryEnabled(val enabled: Boolean) : SettingsIntent
+    data object RefreshHistory : SettingsIntent
+    data object LoadNextHistoryPage : SettingsIntent
+    data class DeleteHistoryEntry(val historyId: String) : SettingsIntent
+    data object ClearHistory : SettingsIntent
     data class SelectThemePreference(val preference: PandaWaveThemePreference) : SettingsIntent
     data class SetAmbientModeEnabled(val enabled: Boolean) : SettingsIntent
     data class SetAmbientTimeoutSeconds(val timeoutSeconds: Int) : SettingsIntent

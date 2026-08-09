@@ -396,6 +396,12 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         private const val COMMAND_DELETE_PROFILE = 23
         private const val COMMAND_LOAD_PROFILE_PREFERENCES = 24
         private const val COMMAND_UPDATE_PROFILE_PREFERENCES = 25
+        private const val COMMAND_LOAD_HISTORY_SETTINGS = 26
+        private const val COMMAND_UPDATE_HISTORY_SETTINGS = 27
+        private const val COMMAND_LIST_HISTORY = 28
+        private const val COMMAND_LOAD_NEXT_HISTORY_PAGE = 29
+        private const val COMMAND_DELETE_HISTORY_ENTRY = 30
+        private const val COMMAND_CLEAR_HISTORY = 31
         private const val COMMAND_UNKNOWN = -1
 
         private const val PLATFORM_EVENT_APP_FOREGROUNDED = 0
@@ -407,6 +413,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         private const val PLATFORM_EVENT_MEDIA_LOADED = 6
         private const val PLATFORM_EVENT_MEDIA_ERROR = 7
         private const val PLATFORM_EVENT_VEHICLE_DRIVING_STATE_CHANGED = 8
+        private const val PLATFORM_EVENT_PLAYBACK_COMPLETED = 9
         private const val PLATFORM_EVENT_UNKNOWN = -1
 
         private const val EFFECT_PLAY = 0
@@ -450,6 +457,12 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             EngineCommand.TYPE_DELETE_PROFILE -> COMMAND_DELETE_PROFILE
             EngineCommand.TYPE_LOAD_PROFILE_PREFERENCES -> COMMAND_LOAD_PROFILE_PREFERENCES
             EngineCommand.TYPE_UPDATE_PROFILE_PREFERENCES -> COMMAND_UPDATE_PROFILE_PREFERENCES
+            EngineCommand.TYPE_LOAD_HISTORY_SETTINGS -> COMMAND_LOAD_HISTORY_SETTINGS
+            EngineCommand.TYPE_UPDATE_HISTORY_SETTINGS -> COMMAND_UPDATE_HISTORY_SETTINGS
+            EngineCommand.TYPE_LIST_HISTORY -> COMMAND_LIST_HISTORY
+            EngineCommand.TYPE_LOAD_NEXT_HISTORY_PAGE -> COMMAND_LOAD_NEXT_HISTORY_PAGE
+            EngineCommand.TYPE_DELETE_HISTORY_ENTRY -> COMMAND_DELETE_HISTORY_ENTRY
+            EngineCommand.TYPE_CLEAR_HISTORY -> COMMAND_CLEAR_HISTORY
             else -> COMMAND_UNKNOWN
         }
 
@@ -487,6 +500,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             EnginePlatformEvent.TYPE_MEDIA_LOADED -> PLATFORM_EVENT_MEDIA_LOADED
             EnginePlatformEvent.TYPE_MEDIA_ERROR -> PLATFORM_EVENT_MEDIA_ERROR
             EnginePlatformEvent.TYPE_VEHICLE_DRIVING_STATE_CHANGED -> PLATFORM_EVENT_VEHICLE_DRIVING_STATE_CHANGED
+            EnginePlatformEvent.TYPE_PLAYBACK_COMPLETED -> PLATFORM_EVENT_PLAYBACK_COMPLETED
             else -> PLATFORM_EVENT_UNKNOWN
         }
 
@@ -689,7 +703,11 @@ internal object PandaEngineNativeSnapshotMapper {
                     AUTH_ANONYMOUS -> EngineAuthState.anonymous()
                     AUTH_AUTHENTICATED -> EngineAuthState(EngineAuthState.AUTHENTICATED)
                     else -> EngineAuthState.loginRequired()
-                }
+                },
+                hasHistorySettings = nativeValues[SNAPSHOT_HAS_HISTORY_SETTINGS_INDEX].toBoolean(),
+                historyEnabled = nativeValues[SNAPSHOT_HISTORY_ENABLED_INDEX].toBoolean(),
+                historyDeletedCount = nativeValues[SNAPSHOT_HISTORY_DELETED_COUNT_INDEX],
+                historyEntriesCount = nativeValues[SNAPSHOT_HISTORY_ENTRIES_COUNT_INDEX].toInt()
             ),
             metadataRevision = nativeValues[SNAPSHOT_METADATA_REVISION_INDEX],
             backendStatus = nativeValues[SNAPSHOT_HAS_BACKEND_STATUS_INDEX]
@@ -788,7 +806,7 @@ internal object PandaEngineNativeSnapshotMapper {
     private const val PREFERENCE_SOURCE_LOCAL_USER = 2
     private const val PREFERENCE_SOURCE_REMOTE_PROFILE = 3
 
-    private const val SNAPSHOT_VALUE_COUNT = 36
+    private const val SNAPSHOT_VALUE_COUNT = 40
     private const val SNAPSHOT_PLAYBACK_INDEX = 0
     private const val SNAPSHOT_RESTRICTION_INDEX = 1
     private const val SNAPSHOT_UPDATED_AT_INDEX = 2
@@ -825,6 +843,10 @@ internal object PandaEngineNativeSnapshotMapper {
     private const val SNAPSHOT_BACKEND_DEPENDENCY_COUNT_INDEX = 33
     private const val SNAPSHOT_PLAYBACK_EXPIRY_INDEX = 34
     private const val SNAPSHOT_AUTH_STATE_INDEX = 35
+    private const val SNAPSHOT_HAS_HISTORY_SETTINGS_INDEX = 36
+    private const val SNAPSHOT_HISTORY_ENABLED_INDEX = 37
+    private const val SNAPSHOT_HISTORY_DELETED_COUNT_INDEX = 38
+    private const val SNAPSHOT_HISTORY_ENTRIES_COUNT_INDEX = 39
     private const val AUTH_ANONYMOUS = 0
     private const val AUTH_AUTHENTICATED = 1
 }

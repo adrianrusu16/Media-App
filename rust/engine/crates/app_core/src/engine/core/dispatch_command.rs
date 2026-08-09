@@ -417,6 +417,15 @@ impl Engine {
                 }
                 next_snapshot = next_snapshot.with_busy(false);
             }
+            history_command @ (EngineCommandType::LoadHistorySettings
+            | EngineCommandType::UpdateHistorySettings { .. }
+            | EngineCommandType::ListHistory { .. }
+            | EngineCommandType::LoadNextHistoryPage
+            | EngineCommandType::DeleteHistoryEntry { .. }
+            | EngineCommandType::ClearHistory) => {
+                self.dispatch_history_command(history_command, &mut next_snapshot)
+                    .await;
+            }
             EngineCommandType::SetSpeed { speed } => {
                 next_snapshot = next_snapshot.with_speed(*speed);
                 effects.push(EngineEffect::SetSpeed(*speed));

@@ -80,6 +80,33 @@ fn profile_command_from_ffi(command_type: i32, payload: Option<&str>) -> Option<
     }
 }
 
+fn parsed_history_wire_command(command_type: &str, payload: Option<&str>) -> Option<EngineCommand> {
+    let command = EngineCommand::from_wire(command_type, payload.map(str::to_owned));
+    if matches!(command.command_type, EngineCommandType::Unknown(_)) {
+        None
+    } else {
+        Some(command)
+    }
+}
+
+fn history_command_from_ffi(command_type: i32, payload: Option<&str>) -> Option<EngineCommand> {
+    match command_type {
+        crate::FFI_COMMAND_LOAD_HISTORY_SETTINGS => Some(EngineCommand::load_history_settings()),
+        crate::FFI_COMMAND_UPDATE_HISTORY_SETTINGS => {
+            parsed_history_wire_command(EngineCommandType::UPDATE_HISTORY_SETTINGS_WIRE, payload)
+        }
+        crate::FFI_COMMAND_LIST_HISTORY => {
+            parsed_history_wire_command(EngineCommandType::LIST_HISTORY_WIRE, payload)
+        }
+        crate::FFI_COMMAND_LOAD_NEXT_HISTORY_PAGE => Some(EngineCommand::load_next_history_page()),
+        crate::FFI_COMMAND_DELETE_HISTORY_ENTRY => {
+            parsed_history_wire_command(EngineCommandType::DELETE_HISTORY_ENTRY_WIRE, payload)
+        }
+        crate::FFI_COMMAND_CLEAR_HISTORY => Some(EngineCommand::clear_history()),
+        _ => None,
+    }
+}
+
 fn run_future_safely<T>(
     runtime: &tokio::runtime::Runtime,
     future: impl std::future::Future<Output = T>,
@@ -214,6 +241,16 @@ pub unsafe extern "C" fn panda_engine_dispatch(
                         || EngineCommand::from_wire("invalid_profile_payload", None),
                     )
                 }
+                crate::FFI_COMMAND_LOAD_HISTORY_SETTINGS
+                | crate::FFI_COMMAND_UPDATE_HISTORY_SETTINGS
+                | crate::FFI_COMMAND_LIST_HISTORY
+                | crate::FFI_COMMAND_LOAD_NEXT_HISTORY_PAGE
+                | crate::FFI_COMMAND_DELETE_HISTORY_ENTRY
+                | crate::FFI_COMMAND_CLEAR_HISTORY => {
+                    history_command_from_ffi(command_type, payload_str.as_deref()).unwrap_or_else(
+                        || EngineCommand::from_wire("invalid_history_payload", None),
+                    )
+                }
                 FFI_COMMAND_PROCESS_VOICE => return FfiEngineOutcome::invalid(),
                 _ => EngineCommand::new(command_from_ffi(command_type), payload_str),
             };
@@ -334,6 +371,24 @@ mod tests {
         }
     }
 
+    #[test]
+    fn nested_history_page_payload_reaches_engine_command() {
+        let command = history_command_from_ffi(
+            crate::FFI_COMMAND_LIST_HISTORY,
+            Some(r#"{"version":1,"page":{"page_size":37}}"#),
+        )
+        .expect("canonical nested history page payload");
+
+        assert_eq!(
+            command.command_type,
+            EngineCommandType::ListHistory {
+                page: panda_engine_core::EnginePageRequest {
+                    page_size: 37,
+                    page_token: None,
+                },
+            },
+        );
+    }
     #[test]
     fn invalid_profile_payload_is_rejected_before_dispatch() {
         assert!(

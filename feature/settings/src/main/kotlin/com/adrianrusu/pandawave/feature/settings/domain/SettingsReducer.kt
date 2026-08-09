@@ -18,6 +18,11 @@ internal object SettingsReducer {
             state.copy(themePreference = intent.preference)
 
         is SettingsIntent.SetAmbientModeEnabled,
-        is SettingsIntent.SetAmbientTimeoutSeconds -> state
+        is SettingsIntent.SetAmbientTimeoutSeconds,
+        is SettingsIntent.SetHistoryEnabled,
+        SettingsIntent.RefreshHistory,
+        SettingsIntent.LoadNextHistoryPage,
+        is SettingsIntent.DeleteHistoryEntry,
+        SettingsIntent.ClearHistory -> state
     }
 }

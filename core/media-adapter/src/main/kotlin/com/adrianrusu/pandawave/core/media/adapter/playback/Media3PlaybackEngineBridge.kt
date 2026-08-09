@@ -5,6 +5,7 @@ import com.adrianrusu.pandawave.core.playback.BambooPlaybackIntent
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackTelemetryAttributes
 import com.adrianrusu.pandawave.core.playback.telemetryName
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommandPayloads
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
 import com.adrianrusu.pandawave.core.telemetry.TelemetryModule
@@ -12,10 +13,21 @@ import com.adrianrusu.pandawave.core.telemetry.TelemetryModule
 /**
  * Projects Media3 playback requests into the shared Bamboo playback source of truth.
  */
+data class PlaybackCompletionMetrics(
+    val positionMillis: Long,
+    val durationMillis: Long,
+)
+
+fun interface PlaybackCompletionMetricsProvider {
+    fun currentMetrics(): PlaybackCompletionMetrics?
+}
+
 class Media3PlaybackEngineBridge(
     private val playbackRepository: BambooPlaybackRepository,
     telemetryLogger: TelemetryLogger,
-    private val effectExecutor: BambooPlaybackEffectExecutor = NoOpBambooPlaybackEffectExecutor
+    private val effectExecutor: BambooPlaybackEffectExecutor = NoOpBambooPlaybackEffectExecutor,
+    private val playbackMetricsProvider: PlaybackCompletionMetricsProvider =
+        PlaybackCompletionMetricsProvider { null },
 ) : Player.Listener,
     AutoCloseable {
     private val telemetryLogger = telemetryLogger.forModule(TelemetryModule.Media3)
@@ -88,9 +100,27 @@ class Media3PlaybackEngineBridge(
                 // We could dispatch a buffering event if needed, but Rust handles this via commands
             }
 
-            Player.STATE_IDLE,
-            Player.STATE_ENDED -> Unit
+            Player.STATE_ENDED -> reportPlaybackCompletion()
+
+            Player.STATE_IDLE -> Unit
         }
+    }
+
+    private fun reportPlaybackCompletion() {
+        val playbackState = playbackRepository.state.value
+        val trackId = playbackState.mediaId?.trim()?.takeIf(String::isNotBlank) ?: return
+        val metrics = playbackMetricsProvider.currentMetrics() ?: return
+        val durationMillis = metrics.durationMillis.takeIf { it >= 0L } ?: return
+        val positionMillis = metrics.positionMillis.takeIf { it >= 0L } ?: return
+        val completionRatio = if (durationMillis == 0L) {
+            0.0
+        } else {
+            positionMillis.toDouble().div(durationMillis.toDouble()).coerceIn(0.0, 1.0)
+        }
+        dispatchPlatformEvent(
+            EnginePlatformEvent.TYPE_PLAYBACK_COMPLETED,
+            EngineCommandPayloads.playbackCompleted(trackId, durationMillis, completionRatio),
+        )
     }
 
     override fun onPlayerError(error: androidx.media3.common.PlaybackException) {

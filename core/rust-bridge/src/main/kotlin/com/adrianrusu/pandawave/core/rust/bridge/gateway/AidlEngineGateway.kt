@@ -149,6 +149,8 @@ class AidlEngineGateway(
         return when {
             isClosed -> unavailableResult(event)
 
+            service == null && !event.isReplayableAfterReconnect() -> unavailableResult(event)
+
             service == null -> queuedResult(event)
 
             else -> {
@@ -329,9 +331,15 @@ class AidlEngineGateway(
         EngineCommand.TYPE_UPSERT_PROFILE,
         EngineCommand.TYPE_UPDATE_PROFILE,
         EngineCommand.TYPE_DELETE_PROFILE,
-        EngineCommand.TYPE_UPDATE_PROFILE_PREFERENCES -> false
+        EngineCommand.TYPE_UPDATE_PROFILE_PREFERENCES,
+        EngineCommand.TYPE_UPDATE_HISTORY_SETTINGS,
+        EngineCommand.TYPE_DELETE_HISTORY_ENTRY,
+        EngineCommand.TYPE_CLEAR_HISTORY -> false
         else -> true
     }
+
+    private fun EnginePlatformEvent.isReplayableAfterReconnect(): Boolean =
+        type != EnginePlatformEvent.TYPE_PLAYBACK_COMPLETED
 
     private fun logCommand(command: EngineCommand, status: String) {
         telemetryLogger?.debug(

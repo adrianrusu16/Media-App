@@ -74,6 +74,10 @@ pub struct FfiEngineSnapshot {
     /// Credential-free auth-state discriminant. Appended to preserve the
     /// offsets of the pre-existing C snapshot fields.
     pub auth_state: i32,
+    pub has_history_settings: bool,
+    pub history_enabled: bool,
+    pub history_deleted_count: u64,
+    pub history_entries_count: usize,
 }
 
 /// C-compatible representation of the engine outcome.
@@ -89,6 +93,10 @@ impl FfiEngineSnapshot {
     pub(crate) fn invalid() -> Self {
         Self {
             auth_state: crate::FFI_AUTH_ANONYMOUS,
+            has_history_settings: false,
+            history_enabled: false,
+            history_deleted_count: 0,
+            history_entries_count: 0,
             playback_state: FFI_COMMAND_UNKNOWN,
             restriction_state: FFI_COMMAND_UNKNOWN,
             updated_at_epoch_millis: 0,
@@ -154,6 +162,12 @@ impl From<&EngineSnapshot> for FfiEngineSnapshot {
                 panda_engine_core::AuthState::Authenticated { .. } => crate::FFI_AUTH_AUTHENTICATED,
                 panda_engine_core::AuthState::LoginRequired => crate::FFI_AUTH_LOGIN_REQUIRED,
             },
+            has_history_settings: snapshot.history_settings.is_some(),
+            history_enabled: snapshot
+                .history_settings
+                .is_some_and(|settings| settings.enabled),
+            history_deleted_count: snapshot.history_deleted_count,
+            history_entries_count: snapshot.history_entries.len(),
             playback_state: playback_to_ffi(snapshot.playback_state),
             restriction_state: restriction_to_ffi(snapshot.restriction_state),
             updated_at_epoch_millis: snapshot.updated_at_epoch_millis,

@@ -32,7 +32,11 @@ data class EngineSnapshot(
     val drivingState: String = DRIVING_UNKNOWN,
     val backendStatus: EngineBackendStatus? = null,
     val authState: EngineAuthState = EngineAuthState.anonymous(),
-    val profile: EngineProfile? = null
+    val profile: EngineProfile? = null,
+    val hasHistorySettings: Boolean = false,
+    val historyEnabled: Boolean = false,
+    val historyDeletedCount: Long = 0L,
+    val historyEntriesCount: Int = 0
 ) : Parcelable {
     constructor(parcel: Parcel) : this(
         playbackState = parcel.readString().orEmpty(),
@@ -73,7 +77,11 @@ data class EngineSnapshot(
         drivingState = parcel.readString() ?: DRIVING_UNKNOWN,
         backendStatus = parcel.readBackendStatus(),
         authState = parcel.readEngineAuthState(),
-        profile = parcel.readEngineProfile()
+        profile = parcel.readEngineProfile(),
+        hasHistorySettings = parcel.readBooleanValue(),
+        historyEnabled = parcel.readBooleanValue(),
+        historyDeletedCount = parcel.readLong(),
+        historyEntriesCount = parcel.readInt()
     )
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
@@ -112,6 +120,10 @@ data class EngineSnapshot(
         parcel.writeBackendStatus(backendStatus)
         parcel.writeEngineAuthState(authState)
         parcel.writeEngineProfile(profile)
+        parcel.writeBooleanValue(hasHistorySettings)
+        parcel.writeBooleanValue(historyEnabled)
+        parcel.writeLong(historyDeletedCount)
+        parcel.writeInt(historyEntriesCount)
     }
 
     override fun describeContents(): Int = 0

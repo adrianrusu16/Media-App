@@ -4,6 +4,7 @@ import com.adrianrusu.pandawave.core.audio.visualizer.VisualizerPermissionReposi
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
 import com.adrianrusu.pandawave.core.preferences.AmbientModePreferenceRepository
 import com.adrianrusu.pandawave.core.preferences.ThemePreferenceCoordinator
+import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineGateway
 import com.adrianrusu.pandawave.feature.settings.data.InMemorySettingsRepository
 import com.adrianrusu.pandawave.feature.settings.domain.DispatchSettingsIntentUseCase
 import com.adrianrusu.pandawave.feature.settings.domain.ObserveSettingsStateUseCase
@@ -23,12 +24,14 @@ object SettingsModule {
         playbackRepository: BambooPlaybackRepository,
         themePreferenceCoordinator: ThemePreferenceCoordinator,
         ambientModePreferenceRepository: AmbientModePreferenceRepository,
-        visualizerPermissionRepository: VisualizerPermissionRepository
+        visualizerPermissionRepository: VisualizerPermissionRepository,
+        engineGateway: EngineGateway
     ): SettingsRepository = InMemorySettingsRepository(
         playbackRepository = playbackRepository,
         themePreferenceCoordinator = themePreferenceCoordinator,
         ambientModePreferenceRepository = ambientModePreferenceRepository,
-        visualizerPermissionRepository = visualizerPermissionRepository
+        visualizerPermissionRepository = visualizerPermissionRepository,
+        engineGateway = engineGateway
     )
 
     @Provides

@@ -51,6 +51,18 @@ pub struct EngineSnapshot {
     /// Credential-free protected profile projection for the active account.
     #[serde(default)]
     pub profile: Option<crate::model::profile::EngineProfile>,
+    /// Server-backed playback-history consent for the current authenticated identity.
+    #[serde(default)]
+    pub history_settings: Option<crate::EngineHistorySettings>,
+    /// Current engine-owned playback-history page projection.
+    #[serde(default)]
+    pub history_entries: Vec<crate::EngineHistoryEntry>,
+    /// Opaque continuation token retained by PandaEngine.
+    #[serde(default)]
+    pub history_next_page_token: Option<crate::EnginePageToken>,
+    /// Deleted count returned by the latest history purge operation.
+    #[serde(default)]
+    pub history_deleted_count: u64,
     /// Complete remote profile preference document, including unknown application keys.
     #[serde(default)]
     pub profile_preferences: serde_json::Map<String, serde_json::Value>,

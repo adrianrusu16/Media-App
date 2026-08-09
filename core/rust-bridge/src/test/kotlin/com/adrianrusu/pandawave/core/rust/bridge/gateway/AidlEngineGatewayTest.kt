@@ -525,6 +525,32 @@ class AidlEngineGatewayTest {
         assertEquals(emptyList(), service.commandTypes)
     }
 
+    @Test
+    fun `history mutations and completion are unavailable and never replayed after reconnect`() {
+        val connection = FakeEngineServiceConnection(null)
+        val gateway = AidlEngineGateway(connection)
+        val historyMutations = listOf(
+            EngineCommand(EngineCommand.TYPE_UPDATE_HISTORY_SETTINGS, "{\"version\":1,\"enabled\":false}"),
+            EngineCommand(EngineCommand.TYPE_DELETE_HISTORY_ENTRY, "{\"version\":1,\"history_id\":\"history-1\"}"),
+            EngineCommand(EngineCommand.TYPE_CLEAR_HISTORY, null),
+        )
+
+        val commandResults = historyMutations.map(gateway::dispatch)
+        val completionResult = gateway.dispatchPlatformEvent(
+            EnginePlatformEvent(
+                EnginePlatformEvent.TYPE_PLAYBACK_COMPLETED,
+                "{\"version\":1,\"track_id\":\"track-1\",\"duration_ms\":1000,\"completion_ratio\":1.0}",
+            ),
+        )
+        val service = RecordingEngineService(EngineSnapshot.idle(nowMillis = 100L))
+        connection.connectService(service)
+
+        assertEquals(List(historyMutations.size) { EngineEvent.TYPE_GATEWAY_UNAVAILABLE }, commandResults.map { it.event.type })
+        assertEquals(EngineEvent.TYPE_GATEWAY_UNAVAILABLE, completionResult.event.type)
+        assertEquals(emptyList(), service.commandTypes)
+        assertEquals(emptyList(), service.platformEventTypes)
+    }
+
     private fun protectedProfileMutations(): List<EngineCommand> = listOf(
         EngineCommand(EngineCommand.TYPE_UPSERT_PROFILE, "{\"display_name\":\"Canopy\"}"),
         EngineCommand(EngineCommand.TYPE_UPDATE_PROFILE, "{\"display_name\":\"Canopy\"}"),

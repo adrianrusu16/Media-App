@@ -67,6 +67,29 @@ object EngineCommandPayloads {
         put(KEY_DISPLAY_NAME, displayName)
     }.toString()
 
+    fun historyEnabled(enabled: Boolean): String = buildJsonObject {
+        put(KEY_VERSION, PAYLOAD_VERSION)
+        put(KEY_ENABLED, enabled)
+    }.toString()
+
+    fun historyEntry(historyId: String): String = buildJsonObject {
+        put(KEY_VERSION, PAYLOAD_VERSION)
+        put(KEY_HISTORY_ID, historyId.trim())
+    }.toString()
+
+    fun historyPage(pageSize: Int): String = buildJsonObject {
+        put(KEY_VERSION, PAYLOAD_VERSION)
+        putJsonObject(KEY_PAGE) { put(KEY_PAGE_SIZE, pageSize.coerceAtLeast(0)) }
+    }.toString()
+
+    fun playbackCompleted(trackId: String, durationMillis: Long, completionRatio: Double): String =
+        buildJsonObject {
+            put(KEY_VERSION, PAYLOAD_VERSION)
+            put(KEY_TRACK_ID, trackId.trim())
+            put(KEY_DURATION_MILLIS, durationMillis.coerceAtLeast(0L))
+            put(KEY_COMPLETION_RATIO, completionRatio.takeIf(Double::isFinite)?.coerceIn(0.0, 1.0) ?: 0.0)
+        }.toString()
+
     fun updateProfileTheme(themeId: String): String = buildJsonObject {
         put(KEY_VERSION, PAYLOAD_VERSION)
         putJsonObject(KEY_VALUES) {
@@ -149,4 +172,9 @@ object EngineCommandPayloads {
     private const val KEY_PAGE = "page"
     private const val KEY_PAGE_SIZE = "page_size"
     private const val KEY_OPERATION_ID = "operation_id"
+    private const val KEY_ENABLED = "enabled"
+    private const val KEY_HISTORY_ID = "history_id"
+    private const val KEY_TRACK_ID = "track_id"
+    private const val KEY_DURATION_MILLIS = "duration_ms"
+    private const val KEY_COMPLETION_RATIO = "completion_ratio"
 }

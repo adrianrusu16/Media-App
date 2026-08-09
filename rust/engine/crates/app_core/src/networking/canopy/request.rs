@@ -4,7 +4,7 @@ use std::time::Duration;
 use tonic_014::metadata::MetadataValue;
 use tonic_014::{Code, Request, Response, Status};
 
-use crate::{EngineError, EngineErrorType};
+use crate::{EngineError, EngineErrorType, EngineHistoryIdentity};
 
 use super::error::map_status;
 use super::session::{AccessSnapshot, SessionCoordinator};
@@ -39,6 +39,36 @@ where
 {
     execute_with_auth_with_clock(
         coordinator,
+        None,
+        policy,
+        ExecutionClock::System,
+        make_request,
+        execute,
+    )
+    .await
+}
+
+pub(crate) async fn execute_with_bound_auth<
+    TRequest,
+    TResponse,
+    MakeRequest,
+    Execute,
+    ExecuteFuture,
+>(
+    coordinator: &SessionCoordinator,
+    identity: &EngineHistoryIdentity,
+    policy: ReplayPolicy,
+    make_request: MakeRequest,
+    execute: Execute,
+) -> Result<Response<TResponse>, EngineError>
+where
+    MakeRequest: Fn() -> Request<TRequest>,
+    Execute: Fn(Request<TRequest>) -> ExecuteFuture,
+    ExecuteFuture: Future<Output = Result<Response<TResponse>, Status>>,
+{
+    execute_with_auth_with_clock(
+        Some(coordinator),
+        Some(identity),
         policy,
         ExecutionClock::System,
         make_request,
@@ -62,6 +92,7 @@ where
 {
     execute_with_auth_with_clock(
         coordinator,
+        None,
         policy,
         ExecutionClock::Fixed(now_epoch_millis),
         make_request,
@@ -72,6 +103,7 @@ where
 
 async fn execute_with_auth_with_clock<TRequest, TResponse, MakeRequest, Execute, ExecuteFuture>(
     coordinator: Option<&SessionCoordinator>,
+    expected_identity: Option<&EngineHistoryIdentity>,
     policy: ReplayPolicy,
     clock: ExecutionClock,
     make_request: MakeRequest,
@@ -90,6 +122,7 @@ where
         }
         (None, _) => AccessSnapshot::Anonymous,
     };
+    verify_bound_identity(&snapshot, expected_identity)?;
 
     let first = execute(authorized_request(make_request(), &snapshot)?).await;
     let status = match first {
@@ -113,6 +146,7 @@ where
                 .await?
         }
     };
+    verify_bound_identity(&replacement, expected_identity)?;
     match execute(authorized_request(make_request(), &replacement)?).await {
         Ok(response) => Ok(response),
         Err(status) if status.code() == Code::Unauthenticated => {
@@ -120,6 +154,25 @@ where
             Err(map_status(status))
         }
         Err(status) => Err(map_status(status)),
+    }
+}
+
+fn verify_bound_identity(
+    snapshot: &AccessSnapshot,
+    expected: Option<&EngineHistoryIdentity>,
+) -> Result<(), EngineError> {
+    match (snapshot, expected) {
+        (_, None) => Ok(()),
+        (AccessSnapshot::Authenticated { identity, .. }, Some(expected))
+            if identity == expected =>
+        {
+            Ok(())
+        }
+        _ => Err(EngineError::new(
+            EngineErrorType::LoginRequired,
+            "protected request identity no longer matches the current session",
+            false,
+        )),
     }
 }
 
@@ -151,10 +204,10 @@ mod tests {
 
     use tonic_014::{Code, Request, Response, Status};
 
-    use super::{ReplayPolicy, execute_with_auth_at};
+    use super::{AccessSnapshot, ReplayPolicy, execute_with_auth_at, verify_bound_identity};
     use crate::{
         Account, AuthPort, AuthSession, AuthSessionEnvelope, EngineError, EngineErrorType,
-        InMemorySessionStore, SessionCoordinator, SessionStore,
+        EngineHistoryIdentity, InMemorySessionStore, SessionCoordinator, SessionStore,
     };
 
     struct RotatingAuth {
@@ -222,6 +275,29 @@ mod tests {
             replacement,
         });
         (Arc::new(SessionCoordinator::new(store, auth.clone())), auth)
+    }
+
+    #[test]
+    fn bound_authorization_rejects_a_different_account_or_session() {
+        let snapshot = AccessSnapshot::Authenticated {
+            token: "replacement-token".into(),
+            generation: 2,
+            identity: EngineHistoryIdentity {
+                account_id: "account-2".into(),
+                session_id: "session-2".into(),
+            },
+        };
+        let expected = EngineHistoryIdentity {
+            account_id: "account-1".into(),
+            session_id: "session-1".into(),
+        };
+
+        assert_eq!(
+            verify_bound_identity(&snapshot, Some(&expected))
+                .unwrap_err()
+                .error_type,
+            EngineErrorType::LoginRequired,
+        );
     }
 
     #[tokio::test]

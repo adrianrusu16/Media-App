@@ -62,6 +62,13 @@ impl AuthIdentity {
             crate::AuthState::Anonymous | crate::AuthState::LoginRequired => None,
         }
     }
+
+    fn history_identity(&self) -> crate::EngineHistoryIdentity {
+        crate::EngineHistoryIdentity {
+            account_id: self.account_id.clone(),
+            session_id: self.session_id.clone(),
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -71,6 +78,12 @@ struct DiscoveryOperation {
     page_size: u32,
     next_page_token: Option<crate::EnginePageToken>,
     items: Vec<crate::MediaItem>,
+}
+
+#[derive(Clone)]
+struct HistoryOperation {
+    auth_identity: AuthIdentity,
+    page_size: u32,
 }
 
 fn project_discovery_track(track: crate::EngineTrack) -> crate::MediaItem {
@@ -92,6 +105,7 @@ mod controls;
 mod dispatch_command;
 mod dispatch_platform_event;
 mod effects;
+mod history;
 mod persistence_state;
 
 /// Result of an engine operation, containing the new state and an event to be broadcasted.
@@ -123,8 +137,11 @@ pub struct Engine {
     system_port: Option<Arc<dyn SystemPort>>,
     auth_state_provider: Option<Arc<dyn AuthStateProvider>>,
     discovery_port: Option<Arc<dyn DiscoveryPort>>,
+    history_port: Option<Arc<dyn crate::HistoryPort>>,
     profile_port: Option<Arc<dyn crate::ProfilePort>>,
     profile_projection_identity: Option<AuthIdentity>,
+    history_projection_identity: Option<AuthIdentity>,
+    history_operation: Option<HistoryOperation>,
     catalog_operations: HashMap<String, CatalogOperation>,
     next_catalog_operation_sequence: u64,
     discovery_operation: Option<DiscoveryOperation>,
@@ -151,6 +168,9 @@ impl Default for Engine {
             discovery_port: None,
             profile_port: None,
             profile_projection_identity: None,
+            history_port: None,
+            history_projection_identity: None,
+            history_operation: None,
             catalog_operations: HashMap::new(),
             next_catalog_operation_sequence: 0,
             discovery_operation: None,
@@ -194,6 +214,9 @@ impl Engine {
             discovery_port: None,
             profile_port: None,
             profile_projection_identity: None,
+            history_port: None,
+            history_projection_identity: None,
+            history_operation: None,
             catalog_operations: HashMap::new(),
             next_catalog_operation_sequence: 0,
             discovery_operation: None,
@@ -266,6 +289,11 @@ impl Engine {
         self.discovery_port = Some(port);
     }
 
+    /// Sets the authenticated backend-neutral playback-history boundary.
+    pub fn set_history_port(&mut self, port: Arc<dyn crate::HistoryPort>) {
+        self.history_port = Some(port);
+    }
+
     /// Sets the authenticated backend-neutral profile boundary.
     pub fn set_profile_port(&mut self, port: Arc<dyn crate::ProfilePort>) {
         self.profile_port = Some(port);
@@ -303,6 +331,13 @@ impl Engine {
         {
             Self::clear_profile_projection(&mut snapshot);
         }
+        if self
+            .history_projection_identity
+            .as_ref()
+            .is_some_and(|identity| Some(identity) != current_identity.as_ref())
+        {
+            Self::clear_history_projection(&mut snapshot);
+        }
         snapshot
     }
 
@@ -329,6 +364,15 @@ impl Engine {
             self.profile_projection_identity = None;
             Self::clear_profile_projection(&mut self.snapshot);
         }
+        if self
+            .history_projection_identity
+            .as_ref()
+            .is_some_and(|identity| Some(identity) != current_identity.as_ref())
+        {
+            self.history_projection_identity = None;
+            self.history_operation = None;
+            Self::clear_history_projection(&mut self.snapshot);
+        }
     }
 
     fn clear_profile_projection(snapshot: &mut EngineSnapshot) {
@@ -337,6 +381,13 @@ impl Engine {
         if snapshot.theme_preference.source == crate::PreferenceSource::RemoteProfile {
             snapshot.theme_preference = crate::ThemePreferenceState::default();
         }
+    }
+
+    fn clear_history_projection(snapshot: &mut EngineSnapshot) {
+        snapshot.history_settings = None;
+        snapshot.history_entries.clear();
+        snapshot.history_next_page_token = None;
+        snapshot.history_deleted_count = 0;
     }
 
     fn publish_intermediate_snapshot(&mut self, snapshot: EngineSnapshot) {

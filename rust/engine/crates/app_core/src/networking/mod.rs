@@ -25,8 +25,8 @@ pub use auth_port::AuthPort;
 pub use auth_state_provider::AuthStateProvider;
 pub use backend_client::CatalogPort;
 pub use canopy::{
-    CanopyAuthClient, CanopyCatalogClient, CanopyDiscoveryClient, CanopyPlaybackClient,
-    SessionCoordinator,
+    CanopyAuthClient, CanopyCatalogClient, CanopyDiscoveryClient, CanopyHistoryClient,
+    CanopyPlaybackClient, SessionCoordinator,
 };
 pub use canopy_tonic_transport::CanopyTonicTransport;
 pub use remote_repository::RemoteRepository;

@@ -66,7 +66,13 @@ class BambooMediaLibraryService : MediaLibraryService() {
         playbackEngineBridge = Media3PlaybackEngineBridge(
             playbackRepository = playbackRepository,
             telemetryLogger = telemetryLogger,
-            effectExecutor = effectExecutor
+            effectExecutor = effectExecutor,
+            playbackMetricsProvider = PlaybackCompletionMetricsProvider {
+                PlaybackCompletionMetrics(
+                    positionMillis = exoPlayer.currentPosition,
+                    durationMillis = exoPlayer.duration,
+                )
+            },
         )
         val sessionPlayer = BambooMediaSessionPlayer(
             delegate = exoPlayer,

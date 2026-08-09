@@ -95,6 +95,25 @@ private fun SettingsScreen(
             onCheckedChange = { onIntent(SettingsIntent.ToggleDiagnostics) }
         )
         SettingsSwitchRow(
+            title = stringResource(R.string.pandawave_settings_history_title),
+            body = stringResource(R.string.pandawave_settings_history_body),
+            checked = state.historyEnabled,
+            enabled = state.hasHistorySettings && !state.restriction.isRestricted,
+            onCheckedChange = { onIntent(SettingsIntent.SetHistoryEnabled(!state.historyEnabled)) }
+        )
+        if (state.historyEntriesCount > 0) {
+            BambooActionCard(
+                title = stringResource(R.string.pandawave_settings_history_clear_title),
+                body = stringResource(
+                    R.string.pandawave_settings_history_clear_body,
+                    state.historyEntriesCount,
+                ),
+                actionLabel = stringResource(R.string.pandawave_settings_history_clear_action),
+                actionEnabled = !state.restriction.isRestricted,
+                onActionClick = { onIntent(SettingsIntent.ClearHistory) },
+            )
+        }
+        SettingsSwitchRow(
             title = stringResource(R.string.pandawave_settings_personalization_title),
             body = stringResource(R.string.pandawave_settings_personalization_body),
             checked = state.personalizationEnabled,
@@ -190,12 +209,18 @@ private fun Context.openApplicationPermissionSettings() {
 }
 
 @Composable
-private fun SettingsSwitchRow(title: String, body: String, checked: Boolean, onCheckedChange: () -> Unit) {
+private fun SettingsSwitchRow(
+    title: String,
+    body: String,
+    checked: Boolean,
+    enabled: Boolean = true,
+    onCheckedChange: () -> Unit,
+) {
     BambooSwitchRow(
         title = title,
         body = body,
         checked = checked,
-        enabled = true,
+        enabled = enabled,
         onCheckedChange = { onCheckedChange() }
     )
 }

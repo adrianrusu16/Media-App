@@ -165,7 +165,7 @@ fn map_track(track: Track) -> Result<EngineTrack, EngineError> {
     map_track_summary(summary, track.genres)
 }
 
-fn map_track_summary(
+pub(super) fn map_track_summary(
     summary: TrackSummary,
     genres: Vec<String>,
 ) -> Result<EngineTrack, EngineError> {
