@@ -78,6 +78,26 @@ pub(crate) fn command_from_ffi(command_type: i32) -> EngineCommandType {
             history_id: String::new(),
         },
         FFI_COMMAND_CLEAR_HISTORY => EngineCommandType::ClearHistory,
+        FFI_COMMAND_SAVE_TRACK => EngineCommandType::SaveTrack {
+            track_id: String::new(),
+        },
+        FFI_COMMAND_REMOVE_SAVED_TRACK => EngineCommandType::RemoveSavedTrack {
+            track_id: String::new(),
+        },
+        FFI_COMMAND_LIST_SAVED_TRACKS => EngineCommandType::ListSavedTracks {
+            page: panda_engine_core::EnginePageRequest::default(),
+        },
+        FFI_COMMAND_LOAD_NEXT_SAVED_TRACKS_PAGE => EngineCommandType::LoadNextSavedTracksPage,
+        FFI_COMMAND_LIKE_TRACK => EngineCommandType::LikeTrack {
+            track_id: String::new(),
+        },
+        FFI_COMMAND_UNLIKE_TRACK => EngineCommandType::UnlikeTrack {
+            track_id: String::new(),
+        },
+        FFI_COMMAND_LIST_LIKED_TRACKS => EngineCommandType::ListLikedTracks {
+            page: panda_engine_core::EnginePageRequest::default(),
+        },
+        FFI_COMMAND_LOAD_NEXT_LIKED_TRACKS_PAGE => EngineCommandType::LoadNextLikedTracksPage,
         _ => EngineCommandType::Unknown(command_type.to_string()),
     }
 }

@@ -426,6 +426,17 @@ impl Engine {
                 self.dispatch_history_command(history_command, &mut next_snapshot)
                     .await;
             }
+            library_command @ (EngineCommandType::SaveTrack { .. }
+            | EngineCommandType::RemoveSavedTrack { .. }
+            | EngineCommandType::ListSavedTracks { .. }
+            | EngineCommandType::LoadNextSavedTracksPage
+            | EngineCommandType::LikeTrack { .. }
+            | EngineCommandType::UnlikeTrack { .. }
+            | EngineCommandType::ListLikedTracks { .. }
+            | EngineCommandType::LoadNextLikedTracksPage) => {
+                self.dispatch_library_command(library_command, &mut next_snapshot)
+                    .await;
+            }
             EngineCommandType::SetSpeed { speed } => {
                 next_snapshot = next_snapshot.with_speed(*speed);
                 effects.push(EngineEffect::SetSpeed(*speed));

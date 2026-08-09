@@ -169,6 +169,29 @@ pub unsafe extern "C" fn panda_engine_get_current_user_id(
 }
 
 #[unsafe(no_mangle)]
+/// Returns the pending library track identity at `index`.
+///
+/// # Safety
+/// - `engine` must be null or a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The returned string pointer must be released with `panda_engine_free_string`.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
+pub unsafe extern "C" fn panda_engine_get_pending_library_track_id(
+    engine: *const PandaEngine,
+    index: usize,
+) -> *const c_char {
+    let Some(engine) = (unsafe { engine.as_ref() }) else {
+        return ptr::null();
+    };
+    engine
+        .engine
+        .snapshot()
+        .library_pending_track_ids
+        .get(index)
+        .and_then(|track_id| CString::new(track_id.as_str()).ok())
+        .map_or(ptr::null(), |value| value.into_raw() as *const c_char)
+}
+
+#[unsafe(no_mangle)]
 /// # Safety
 /// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
 /// - The returned string pointer must be released with `panda_engine_free_string`.

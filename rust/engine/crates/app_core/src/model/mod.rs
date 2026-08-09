@@ -8,6 +8,7 @@ pub mod effect;
 pub mod error;
 pub mod event;
 pub mod history;
+pub mod library;
 pub mod page;
 pub mod platform_event;
 pub mod playback;

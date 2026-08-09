@@ -22,4 +22,18 @@
     <string name="pandawave_library_downloaded_calm_title">Downloaded Calm</string>
     <string name="pandawave_library_offline">Offline</string>
     <string name="pandawave_library_downloaded_calm_description">Available without a connection.</string>
+    <string name="pandawave_library_saved">Saved</string>
+    <string name="pandawave_library_liked">Liked</string>
+    <string name="pandawave_library_signed_out">Sign in to view saved and liked tracks.</string>
+    <string name="pandawave_library_empty_saved">No saved tracks yet.</string>
+    <string name="pandawave_library_empty_liked">No liked tracks yet.</string>
+    <string name="pandawave_library_network_error">Library is temporarily unavailable.</string>
+    <string name="pandawave_library_error">Library could not be updated.</string>
+    <string name="pandawave_library_retry">Retry</string>
+    <string name="pandawave_library_load_more">Load more</string>
+    <string name="pandawave_library_pending">Updating...</string>
+    <string name="pandawave_library_remove_saved">Remove</string>
+    <string name="pandawave_library_save">Save</string>
+    <string name="pandawave_library_like">Like</string>
+    <string name="pandawave_library_unlike">Unlike</string>
 </resources>

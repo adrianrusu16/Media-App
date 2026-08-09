@@ -67,6 +67,9 @@ class AidlEngineGateway(
     override fun browseResult(index: Int): EngineCatalogItem? = connection.service?.browseResult(index)
 
     override fun searchResult(index: Int): EngineCatalogItem? = connection.service?.searchResult(index)
+    override fun savedTrack(index: Int) = connection.service?.savedTrack(index)
+    override fun likedTrack(index: Int) = connection.service?.likedTrack(index)
+    override fun pendingLibraryTrackId(index: Int) = connection.service?.pendingLibraryTrackId(index)
 
     override val isAuthAvailable: Boolean
         get() = !isClosed && connection.service != null
@@ -334,7 +337,11 @@ class AidlEngineGateway(
         EngineCommand.TYPE_UPDATE_PROFILE_PREFERENCES,
         EngineCommand.TYPE_UPDATE_HISTORY_SETTINGS,
         EngineCommand.TYPE_DELETE_HISTORY_ENTRY,
-        EngineCommand.TYPE_CLEAR_HISTORY -> false
+        EngineCommand.TYPE_CLEAR_HISTORY,
+        EngineCommand.TYPE_SAVE_TRACK,
+        EngineCommand.TYPE_REMOVE_SAVED_TRACK,
+        EngineCommand.TYPE_LIKE_TRACK,
+        EngineCommand.TYPE_UNLIKE_TRACK -> false
         else -> true
     }
 

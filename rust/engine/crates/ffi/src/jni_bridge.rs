@@ -333,6 +333,70 @@ pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_eng
 }
 
 #[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeSavedTrackValues(
+    mut env: JNIEnv,
+    _this: JObject,
+    handle: jlong,
+    index: jint,
+) -> jobjectArray {
+    let Some(snapshot) =
+        (unsafe { (handle as *const PandaEngine).as_ref() }).map(|engine| engine.engine.snapshot())
+    else {
+        return ptr::null_mut();
+    };
+    let Some(item) = usize::try_from(index)
+        .ok()
+        .and_then(|index| snapshot.saved_tracks.get(index))
+    else {
+        return ptr::null_mut();
+    };
+    strings_to_jobject_array(&mut env, library_track_to_strings(item))
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeLikedTrackValues(
+    mut env: JNIEnv,
+    _this: JObject,
+    handle: jlong,
+    index: jint,
+) -> jobjectArray {
+    let Some(snapshot) =
+        (unsafe { (handle as *const PandaEngine).as_ref() }).map(|engine| engine.engine.snapshot())
+    else {
+        return ptr::null_mut();
+    };
+    let Some(item) = usize::try_from(index)
+        .ok()
+        .and_then(|index| snapshot.liked_tracks.get(index))
+    else {
+        return ptr::null_mut();
+    };
+    strings_to_jobject_array(&mut env, library_track_to_strings(item))
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativePendingLibraryTrackId(
+    env: JNIEnv,
+    _this: JObject,
+    handle: jlong,
+    index: jint,
+) -> jstring {
+    let Some(snapshot) =
+        (unsafe { (handle as *const PandaEngine).as_ref() }).map(|engine| engine.engine.snapshot())
+    else {
+        return ptr::null_mut();
+    };
+    let Some(track_id) = usize::try_from(index)
+        .ok()
+        .and_then(|index| snapshot.library_pending_track_ids.get(index))
+    else {
+        return ptr::null_mut();
+    };
+    env.new_string(track_id)
+        .map_or(ptr::null_mut(), JString::into_raw)
+}
+
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeRegisterPassword(
     mut env: JNIEnv,
     _this: JObject,
@@ -804,6 +868,25 @@ fn strings_to_jobject_array(env: &mut JNIEnv, values: Vec<String>) -> jobjectArr
     array.into_raw()
 }
 
+fn library_track_to_strings(item: &panda_engine_core::EngineLibraryTrack) -> Vec<String> {
+    vec![
+        item.relationship_id.clone(),
+        item.track.id.clone(),
+        item.track.title.clone(),
+        item.track.artist.id.clone(),
+        item.track.artist.name.clone(),
+        item.track
+            .album
+            .as_ref()
+            .map(|album| album.title.clone())
+            .unwrap_or_default(),
+        item.track.duration_millis.to_string(),
+        if item.track.explicit { "1" } else { "0" }.into(),
+        item.track.artwork_id.clone().unwrap_or_default(),
+        item.relationship_at_epoch_millis.to_string(),
+    ]
+}
+
 fn backend_status_to_strings(status: &panda_engine_core::EngineBackendStatus) -> Vec<String> {
     let mut values = Vec::with_capacity(5 + status.dependencies.len() * 3);
     values.push(if status.healthy { "1" } else { "0" }.into());
@@ -883,7 +966,7 @@ fn snapshot_to_jlong_array(env: &mut JNIEnv, snapshot: FfiEngineSnapshot) -> jlo
     array.into_raw()
 }
 
-fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 40] {
+fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 45] {
     [
         snapshot.playback_state as jlong,
         snapshot.restriction_state as jlong,
@@ -925,6 +1008,11 @@ fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 40] {
         bool_to_jlong(snapshot.history_enabled),
         snapshot.history_deleted_count as jlong,
         snapshot.history_entries_count as jlong,
+        snapshot.saved_tracks_count as jlong,
+        snapshot.liked_tracks_count as jlong,
+        snapshot.library_pending_count as jlong,
+        bool_to_jlong(snapshot.has_saved_tracks_next_page),
+        bool_to_jlong(snapshot.has_liked_tracks_next_page),
     ]
 }
 
@@ -986,6 +1074,11 @@ mod tests {
             history_enabled: true,
             history_deleted_count: 7,
             history_entries_count: 2,
+            saved_tracks_count: 3,
+            liked_tracks_count: 4,
+            library_pending_count: 1,
+            has_saved_tracks_next_page: true,
+            has_liked_tracks_next_page: false,
             playback_state: FFI_PLAYBACK_PLAYING,
             restriction_state: FFI_RESTRICTION_UNKNOWN,
             updated_at_epoch_millis: 42,
@@ -1073,6 +1166,11 @@ mod tests {
                 1,
                 7,
                 2,
+                3,
+                4,
+                1,
+                1,
+                0,
             ],
             snapshot_to_jlong_values(snapshot)
         );

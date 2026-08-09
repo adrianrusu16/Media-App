@@ -75,6 +75,9 @@ class MediaEngineService : Service() {
         override fun getBrowseResult(index: Int): EngineCatalogItem? = engine?.browseResult(index)
 
         override fun getSearchResult(index: Int): EngineCatalogItem? = engine?.searchResult(index)
+        override fun getSavedTrack(index: Int) = engine?.savedTrack(index)
+        override fun getLikedTrack(index: Int) = engine?.likedTrack(index)
+        override fun getPendingLibraryTrackId(index: Int) = engine?.pendingLibraryTrackId(index)
 
         override fun getEffectCount(): Int = engine?.effectCount() ?: 0
 

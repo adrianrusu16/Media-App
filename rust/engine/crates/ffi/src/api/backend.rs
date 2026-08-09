@@ -6,8 +6,8 @@ use panda_engine_core::networking::canopy::{
 };
 use panda_engine_core::{
     CanopyAuthClient, CanopyCatalogClient, CanopyDiscoveryClient, CanopyHistoryClient,
-    CanopyPlaybackClient, CanopyProfileClient, EngineError, EngineErrorType, RemoteRepository,
-    SessionCoordinator, SessionStore,
+    CanopyLibraryClient, CanopyPlaybackClient, CanopyProfileClient, EngineError, EngineErrorType,
+    RemoteRepository, SessionCoordinator, SessionStore,
 };
 
 use crate::engine_handle::{BackendConfigurationState, PandaEngine};
@@ -109,6 +109,7 @@ fn finish_configuration(
         inner.set_discovery_port(composition.discovery);
         inner.set_profile_port(composition.profile);
         inner.set_history_port(composition.history);
+        inner.set_library_port(composition.library);
         inner.set_system_port(composition.system);
         inner.set_auth_state_provider(session.clone());
     });
@@ -129,6 +130,7 @@ struct BackendComposition {
     system: Arc<CanopySystemClient>,
     profile: Arc<CanopyProfileClient>,
     history: Arc<CanopyHistoryClient>,
+    library: Arc<CanopyLibraryClient>,
 }
 
 fn compose_backend(channel: &CanopyChannel, store: Arc<dyn SessionStore>) -> BackendComposition {
@@ -147,6 +149,7 @@ fn compose_backend(channel: &CanopyChannel, store: Arc<dyn SessionStore>) -> Bac
     let system = Arc::new(CanopySystemClient::new(channel));
     let profile = Arc::new(CanopyProfileClient::new(channel, session.clone()));
     let history = Arc::new(CanopyHistoryClient::new(channel, session.clone()));
+    let library = Arc::new(CanopyLibraryClient::new(channel, session.clone()));
 
     BackendComposition {
         session,
@@ -156,6 +159,7 @@ fn compose_backend(channel: &CanopyChannel, store: Arc<dyn SessionStore>) -> Bac
         system,
         profile,
         history,
+        library,
     }
 }
 
@@ -225,7 +229,7 @@ mod concurrency_tests {
             composition.session.auth_state().unwrap(),
             AuthState::Anonymous
         );
-        assert_eq!(std::sync::Arc::strong_count(&composition.session), 6);
+        assert_eq!(std::sync::Arc::strong_count(&composition.session), 7);
     }
 
     #[test]

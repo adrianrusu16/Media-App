@@ -82,6 +82,16 @@ object EngineCommandPayloads {
         putJsonObject(KEY_PAGE) { put(KEY_PAGE_SIZE, pageSize.coerceAtLeast(0)) }
     }.toString()
 
+    fun libraryTrack(trackId: String): String = buildJsonObject {
+        put(KEY_VERSION, PAYLOAD_VERSION)
+        put(KEY_TRACK_ID, trackId.trim())
+    }.toString()
+
+    fun libraryPage(pageSize: Int): String = buildJsonObject {
+        put(KEY_VERSION, PAYLOAD_VERSION)
+        putJsonObject(KEY_PAGE) { put(KEY_PAGE_SIZE, pageSize.coerceAtLeast(0)) }
+    }.toString()
+
     fun playbackCompleted(trackId: String, durationMillis: Long, completionRatio: Double): String =
         buildJsonObject {
             put(KEY_VERSION, PAYLOAD_VERSION)

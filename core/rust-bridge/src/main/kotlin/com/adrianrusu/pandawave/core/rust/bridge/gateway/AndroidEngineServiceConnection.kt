@@ -156,6 +156,9 @@ class AndroidEngineServiceConnection(
         override fun browseResult(index: Int): EngineCatalogItem? = remote.getBrowseResult(index)
 
         override fun searchResult(index: Int): EngineCatalogItem? = remote.getSearchResult(index)
+        override fun savedTrack(index: Int) = remote.getSavedTrack(index)
+        override fun likedTrack(index: Int) = remote.getLikedTrack(index)
+        override fun pendingLibraryTrackId(index: Int) = remote.getPendingLibraryTrackId(index)
 
         override fun effectCount(): Int = remote.effectCount
 

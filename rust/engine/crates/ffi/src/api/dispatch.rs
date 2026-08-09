@@ -107,6 +107,26 @@ fn history_command_from_ffi(command_type: i32, payload: Option<&str>) -> Option<
     }
 }
 
+fn library_command_from_ffi(command_type: i32, payload: Option<&str>) -> Option<EngineCommand> {
+    let wire = match command_type {
+        crate::FFI_COMMAND_SAVE_TRACK => EngineCommandType::SAVE_TRACK_WIRE,
+        crate::FFI_COMMAND_REMOVE_SAVED_TRACK => EngineCommandType::REMOVE_SAVED_TRACK_WIRE,
+        crate::FFI_COMMAND_LIST_SAVED_TRACKS => EngineCommandType::LIST_SAVED_TRACKS_WIRE,
+        crate::FFI_COMMAND_LOAD_NEXT_SAVED_TRACKS_PAGE => {
+            EngineCommandType::LOAD_NEXT_SAVED_TRACKS_PAGE_WIRE
+        }
+        crate::FFI_COMMAND_LIKE_TRACK => EngineCommandType::LIKE_TRACK_WIRE,
+        crate::FFI_COMMAND_UNLIKE_TRACK => EngineCommandType::UNLIKE_TRACK_WIRE,
+        crate::FFI_COMMAND_LIST_LIKED_TRACKS => EngineCommandType::LIST_LIKED_TRACKS_WIRE,
+        crate::FFI_COMMAND_LOAD_NEXT_LIKED_TRACKS_PAGE => {
+            EngineCommandType::LOAD_NEXT_LIKED_TRACKS_PAGE_WIRE
+        }
+        _ => return None,
+    };
+    let command = EngineCommand::from_wire(wire, payload.map(str::to_owned));
+    (!matches!(command.command_type, EngineCommandType::Unknown(_))).then_some(command)
+}
+
 fn run_future_safely<T>(
     runtime: &tokio::runtime::Runtime,
     future: impl std::future::Future<Output = T>,
@@ -249,6 +269,18 @@ pub unsafe extern "C" fn panda_engine_dispatch(
                 | crate::FFI_COMMAND_CLEAR_HISTORY => {
                     history_command_from_ffi(command_type, payload_str.as_deref()).unwrap_or_else(
                         || EngineCommand::from_wire("invalid_history_payload", None),
+                    )
+                }
+                crate::FFI_COMMAND_SAVE_TRACK
+                | crate::FFI_COMMAND_REMOVE_SAVED_TRACK
+                | crate::FFI_COMMAND_LIST_SAVED_TRACKS
+                | crate::FFI_COMMAND_LOAD_NEXT_SAVED_TRACKS_PAGE
+                | crate::FFI_COMMAND_LIKE_TRACK
+                | crate::FFI_COMMAND_UNLIKE_TRACK
+                | crate::FFI_COMMAND_LIST_LIKED_TRACKS
+                | crate::FFI_COMMAND_LOAD_NEXT_LIKED_TRACKS_PAGE => {
+                    library_command_from_ffi(command_type, payload_str.as_deref()).unwrap_or_else(
+                        || EngineCommand::from_wire("invalid_library_payload", None),
                     )
                 }
                 FFI_COMMAND_PROCESS_VOICE => return FfiEngineOutcome::invalid(),

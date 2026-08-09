@@ -551,6 +551,25 @@ class AidlEngineGatewayTest {
         assertEquals(emptyList(), service.platformEventTypes)
     }
 
+    @Test
+    fun `library mutations are unavailable and never replayed after reconnect`() {
+        val connection = FakeEngineServiceConnection(null)
+        val gateway = AidlEngineGateway(connection)
+        val mutations = listOf(
+            EngineCommand(EngineCommand.TYPE_SAVE_TRACK, """{"version":1,"track_id":"track-1"}"""),
+            EngineCommand(EngineCommand.TYPE_REMOVE_SAVED_TRACK, """{"version":1,"track_id":"track-1"}"""),
+            EngineCommand(EngineCommand.TYPE_LIKE_TRACK, """{"version":1,"track_id":"track-1"}"""),
+            EngineCommand(EngineCommand.TYPE_UNLIKE_TRACK, """{"version":1,"track_id":"track-1"}"""),
+        )
+
+        val results = mutations.map(gateway::dispatch)
+        val service = RecordingEngineService(EngineSnapshot.idle(nowMillis = 100L))
+        connection.connectService(service)
+
+        assertEquals(List(mutations.size) { EngineEvent.TYPE_GATEWAY_UNAVAILABLE }, results.map { it.event.type })
+        assertEquals(emptyList(), service.commandTypes)
+    }
+
     private fun protectedProfileMutations(): List<EngineCommand> = listOf(
         EngineCommand(EngineCommand.TYPE_UPSERT_PROFILE, "{\"display_name\":\"Canopy\"}"),
         EngineCommand(EngineCommand.TYPE_UPDATE_PROFILE, "{\"display_name\":\"Canopy\"}"),

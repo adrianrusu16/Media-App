@@ -11,6 +11,7 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineControlState
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineLibraryItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlayerControls
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
@@ -98,6 +99,12 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         mimeType = nativeBrowseResultMimeType(nativeHandle, index),
         itemType = nativeBrowseResultItemType(nativeHandle, index)
     )
+
+    override fun savedTrack(index: Int): EngineLibraryItem? = PandaEngineNativeLibraryItemMapper.toDomain(nativeSavedTrackValues(nativeHandle, index))
+
+    override fun likedTrack(index: Int): EngineLibraryItem? = PandaEngineNativeLibraryItemMapper.toDomain(nativeLikedTrackValues(nativeHandle, index))
+
+    override fun pendingLibraryTrackId(index: Int): String? = nativePendingLibraryTrackId(nativeHandle, index)
 
     override fun searchResult(index: Int): EngineCatalogItem? = resultItem(
         id = nativeSearchResultId(nativeHandle, index),
@@ -220,6 +227,9 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     private external fun nativeAuthStateValues(handle: Long): Array<String>?
 
     private external fun nativeProfileValues(handle: Long): Array<String>?
+    private external fun nativeSavedTrackValues(handle: Long, index: Int): Array<String>?
+    private external fun nativeLikedTrackValues(handle: Long, index: Int): Array<String>?
+    private external fun nativePendingLibraryTrackId(handle: Long, index: Int): String?
 
     private external fun nativeEffectCount(handle: Long): Int
 
@@ -402,6 +412,14 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         private const val COMMAND_LOAD_NEXT_HISTORY_PAGE = 29
         private const val COMMAND_DELETE_HISTORY_ENTRY = 30
         private const val COMMAND_CLEAR_HISTORY = 31
+        private const val COMMAND_SAVE_TRACK = 32
+        private const val COMMAND_REMOVE_SAVED_TRACK = 33
+        private const val COMMAND_LIST_SAVED_TRACKS = 34
+        private const val COMMAND_LOAD_NEXT_SAVED_TRACKS_PAGE = 35
+        private const val COMMAND_LIKE_TRACK = 36
+        private const val COMMAND_UNLIKE_TRACK = 37
+        private const val COMMAND_LIST_LIKED_TRACKS = 38
+        private const val COMMAND_LOAD_NEXT_LIKED_TRACKS_PAGE = 39
         private const val COMMAND_UNKNOWN = -1
 
         private const val PLATFORM_EVENT_APP_FOREGROUNDED = 0
@@ -463,6 +481,14 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             EngineCommand.TYPE_LOAD_NEXT_HISTORY_PAGE -> COMMAND_LOAD_NEXT_HISTORY_PAGE
             EngineCommand.TYPE_DELETE_HISTORY_ENTRY -> COMMAND_DELETE_HISTORY_ENTRY
             EngineCommand.TYPE_CLEAR_HISTORY -> COMMAND_CLEAR_HISTORY
+            EngineCommand.TYPE_SAVE_TRACK -> COMMAND_SAVE_TRACK
+            EngineCommand.TYPE_REMOVE_SAVED_TRACK -> COMMAND_REMOVE_SAVED_TRACK
+            EngineCommand.TYPE_LIST_SAVED_TRACKS -> COMMAND_LIST_SAVED_TRACKS
+            EngineCommand.TYPE_LOAD_NEXT_SAVED_TRACKS_PAGE -> COMMAND_LOAD_NEXT_SAVED_TRACKS_PAGE
+            EngineCommand.TYPE_LIKE_TRACK -> COMMAND_LIKE_TRACK
+            EngineCommand.TYPE_UNLIKE_TRACK -> COMMAND_UNLIKE_TRACK
+            EngineCommand.TYPE_LIST_LIKED_TRACKS -> COMMAND_LIST_LIKED_TRACKS
+            EngineCommand.TYPE_LOAD_NEXT_LIKED_TRACKS_PAGE -> COMMAND_LOAD_NEXT_LIKED_TRACKS_PAGE
             else -> COMMAND_UNKNOWN
         }
 
@@ -640,6 +666,20 @@ internal object PandaEngineNativeAuthStateMapper {
     private const val AUTHENTICATED_VALUE_COUNT = 11
 }
 
+internal object PandaEngineNativeLibraryItemMapper {
+    fun toDomain(values: Array<String>?): EngineLibraryItem? {
+        if (values == null || values.size != 10) return null
+        return runCatching {
+            EngineLibraryItem(
+                relationshipId = values[0], mediaId = values[1], title = values[2],
+                artistId = values[3], artist = values[4], album = values[5].ifEmpty { null },
+                durationMillis = values[6].toLong(), explicit = values[7] == "1",
+                artworkId = values[8].ifEmpty { null }, relationshipAtEpochMillis = values[9].toLong()
+            )
+        }.getOrNull()
+    }
+}
+
 internal object PandaEngineNativeSnapshotMapper {
     fun toProjection(nativeValues: LongArray): NativeEngineSnapshotProjection {
         require(nativeValues.size >= SNAPSHOT_VALUE_COUNT) {
@@ -707,7 +747,12 @@ internal object PandaEngineNativeSnapshotMapper {
                 hasHistorySettings = nativeValues[SNAPSHOT_HAS_HISTORY_SETTINGS_INDEX].toBoolean(),
                 historyEnabled = nativeValues[SNAPSHOT_HISTORY_ENABLED_INDEX].toBoolean(),
                 historyDeletedCount = nativeValues[SNAPSHOT_HISTORY_DELETED_COUNT_INDEX],
-                historyEntriesCount = nativeValues[SNAPSHOT_HISTORY_ENTRIES_COUNT_INDEX].toInt()
+                historyEntriesCount = nativeValues[SNAPSHOT_HISTORY_ENTRIES_COUNT_INDEX].toInt(),
+                savedTracksCount = nativeValues[SNAPSHOT_SAVED_TRACKS_COUNT_INDEX].toInt(),
+                likedTracksCount = nativeValues[SNAPSHOT_LIKED_TRACKS_COUNT_INDEX].toInt(),
+                libraryPendingCount = nativeValues[SNAPSHOT_LIBRARY_PENDING_COUNT_INDEX].toInt(),
+                hasSavedTracksNextPage = nativeValues[SNAPSHOT_HAS_SAVED_NEXT_PAGE_INDEX].toBoolean(),
+                hasLikedTracksNextPage = nativeValues[SNAPSHOT_HAS_LIKED_NEXT_PAGE_INDEX].toBoolean()
             ),
             metadataRevision = nativeValues[SNAPSHOT_METADATA_REVISION_INDEX],
             backendStatus = nativeValues[SNAPSHOT_HAS_BACKEND_STATUS_INDEX]
@@ -806,7 +851,7 @@ internal object PandaEngineNativeSnapshotMapper {
     private const val PREFERENCE_SOURCE_LOCAL_USER = 2
     private const val PREFERENCE_SOURCE_REMOTE_PROFILE = 3
 
-    private const val SNAPSHOT_VALUE_COUNT = 40
+    private const val SNAPSHOT_VALUE_COUNT = 45
     private const val SNAPSHOT_PLAYBACK_INDEX = 0
     private const val SNAPSHOT_RESTRICTION_INDEX = 1
     private const val SNAPSHOT_UPDATED_AT_INDEX = 2
@@ -847,6 +892,11 @@ internal object PandaEngineNativeSnapshotMapper {
     private const val SNAPSHOT_HISTORY_ENABLED_INDEX = 37
     private const val SNAPSHOT_HISTORY_DELETED_COUNT_INDEX = 38
     private const val SNAPSHOT_HISTORY_ENTRIES_COUNT_INDEX = 39
+    private const val SNAPSHOT_SAVED_TRACKS_COUNT_INDEX = 40
+    private const val SNAPSHOT_LIKED_TRACKS_COUNT_INDEX = 41
+    private const val SNAPSHOT_LIBRARY_PENDING_COUNT_INDEX = 42
+    private const val SNAPSHOT_HAS_SAVED_NEXT_PAGE_INDEX = 43
+    private const val SNAPSHOT_HAS_LIKED_NEXT_PAGE_INDEX = 44
     private const val AUTH_ANONYMOUS = 0
     private const val AUTH_AUTHENTICATED = 1
 }

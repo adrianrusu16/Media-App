@@ -51,7 +51,12 @@ class PandaEngineNativeSnapshotMapperTest {
                 true.toLong(),
                 true.toLong(),
                 3L,
-                4L
+                4L,
+                3L,
+                4L,
+                1L,
+                1L,
+                0L
             )
         )
         val snapshot = projection.snapshot
@@ -100,6 +105,11 @@ class PandaEngineNativeSnapshotMapperTest {
         assertTrue(snapshot.historyEnabled)
         assertEquals(3L, snapshot.historyDeletedCount)
         assertEquals(4, snapshot.historyEntriesCount)
+        assertEquals(3, snapshot.savedTracksCount)
+        assertEquals(4, snapshot.likedTracksCount)
+        assertEquals(1, snapshot.libraryPendingCount)
+        assertTrue(snapshot.hasSavedTracksNextPage)
+        assertFalse(snapshot.hasLikedTracksNextPage)
     }
 
     @Test

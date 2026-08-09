@@ -63,6 +63,13 @@ impl AuthIdentity {
         }
     }
 
+    fn library_identity(&self) -> crate::EngineLibraryIdentity {
+        crate::EngineLibraryIdentity {
+            account_id: self.account_id.clone(),
+            session_id: self.session_id.clone(),
+        }
+    }
+
     fn history_identity(&self) -> crate::EngineHistoryIdentity {
         crate::EngineHistoryIdentity {
             account_id: self.account_id.clone(),
@@ -78,6 +85,12 @@ struct DiscoveryOperation {
     page_size: u32,
     next_page_token: Option<crate::EnginePageToken>,
     items: Vec<crate::MediaItem>,
+}
+
+#[derive(Clone)]
+struct LibraryPageOperation {
+    auth_identity: AuthIdentity,
+    page_size: u32,
 }
 
 #[derive(Clone)]
@@ -106,6 +119,7 @@ mod dispatch_command;
 mod dispatch_platform_event;
 mod effects;
 mod history;
+mod library;
 mod persistence_state;
 
 /// Result of an engine operation, containing the new state and an event to be broadcasted.
@@ -138,10 +152,14 @@ pub struct Engine {
     auth_state_provider: Option<Arc<dyn AuthStateProvider>>,
     discovery_port: Option<Arc<dyn DiscoveryPort>>,
     history_port: Option<Arc<dyn crate::HistoryPort>>,
+    library_port: Option<Arc<dyn crate::LibraryPort>>,
     profile_port: Option<Arc<dyn crate::ProfilePort>>,
     profile_projection_identity: Option<AuthIdentity>,
     history_projection_identity: Option<AuthIdentity>,
     history_operation: Option<HistoryOperation>,
+    library_projection_identity: Option<AuthIdentity>,
+    saved_library_operation: Option<LibraryPageOperation>,
+    liked_library_operation: Option<LibraryPageOperation>,
     catalog_operations: HashMap<String, CatalogOperation>,
     next_catalog_operation_sequence: u64,
     discovery_operation: Option<DiscoveryOperation>,
@@ -171,6 +189,10 @@ impl Default for Engine {
             history_port: None,
             history_projection_identity: None,
             history_operation: None,
+            library_port: None,
+            library_projection_identity: None,
+            saved_library_operation: None,
+            liked_library_operation: None,
             catalog_operations: HashMap::new(),
             next_catalog_operation_sequence: 0,
             discovery_operation: None,
@@ -217,6 +239,10 @@ impl Engine {
             history_port: None,
             history_projection_identity: None,
             history_operation: None,
+            library_port: None,
+            library_projection_identity: None,
+            saved_library_operation: None,
+            liked_library_operation: None,
             catalog_operations: HashMap::new(),
             next_catalog_operation_sequence: 0,
             discovery_operation: None,
@@ -294,6 +320,11 @@ impl Engine {
         self.history_port = Some(port);
     }
 
+    /// Sets the authenticated backend-neutral saved/liked library boundary.
+    pub fn set_library_port(&mut self, port: Arc<dyn crate::LibraryPort>) {
+        self.library_port = Some(port);
+    }
+
     /// Sets the authenticated backend-neutral profile boundary.
     pub fn set_profile_port(&mut self, port: Arc<dyn crate::ProfilePort>) {
         self.profile_port = Some(port);
@@ -338,6 +369,13 @@ impl Engine {
         {
             Self::clear_history_projection(&mut snapshot);
         }
+        if self
+            .library_projection_identity
+            .as_ref()
+            .is_some_and(|identity| Some(identity) != current_identity.as_ref())
+        {
+            Self::clear_library_projection(&mut snapshot);
+        }
         snapshot
     }
 
@@ -373,6 +411,16 @@ impl Engine {
             self.history_operation = None;
             Self::clear_history_projection(&mut self.snapshot);
         }
+        if self
+            .library_projection_identity
+            .as_ref()
+            .is_some_and(|identity| Some(identity) != current_identity.as_ref())
+        {
+            self.library_projection_identity = None;
+            self.saved_library_operation = None;
+            self.liked_library_operation = None;
+            Self::clear_library_projection(&mut self.snapshot);
+        }
     }
 
     fn clear_profile_projection(snapshot: &mut EngineSnapshot) {
@@ -388,6 +436,14 @@ impl Engine {
         snapshot.history_entries.clear();
         snapshot.history_next_page_token = None;
         snapshot.history_deleted_count = 0;
+    }
+
+    fn clear_library_projection(snapshot: &mut EngineSnapshot) {
+        snapshot.saved_tracks.clear();
+        snapshot.saved_tracks_next_page_token = None;
+        snapshot.liked_tracks.clear();
+        snapshot.liked_tracks_next_page_token = None;
+        snapshot.library_pending_track_ids.clear();
     }
 
     fn publish_intermediate_snapshot(&mut self, snapshot: EngineSnapshot) {

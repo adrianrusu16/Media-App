@@ -1,6 +1,7 @@
 package com.adrianrusu.pandawave.core.rust.bridge.engine
 
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineLibraryItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthOperationResult
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
@@ -34,6 +35,12 @@ interface RustEngine {
     fun browseResult(index: Int): EngineCatalogItem?
 
     fun searchResult(index: Int): EngineCatalogItem?
+
+    fun savedTrack(index: Int): EngineLibraryItem? = null
+
+    fun likedTrack(index: Int): EngineLibraryItem? = null
+
+    fun pendingLibraryTrackId(index: Int): String? = null
 
     fun effectCount(): Int
 

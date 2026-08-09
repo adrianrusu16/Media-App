@@ -81,6 +81,9 @@ pub use crate::model::history::{
     EngineHistoryEntry, EngineHistoryIdentity, EngineHistorySettings, EngineHistorySettingsUpdate,
     EnginePlaybackRecord, HistoryPort, normalize_completion_ratio,
 };
+pub use crate::model::library::{
+    EngineLibraryIdentity, EngineLibraryRelationshipKind, EngineLibraryTrack, LibraryPort,
+};
 pub use crate::model::page::{EnginePageRequest, EnginePageToken, EnginePagedResult};
 pub use crate::model::platform_event::{EnginePlatformEvent, EnginePlatformEventType};
 pub use crate::model::playback::{
@@ -91,9 +94,9 @@ pub use crate::model::preferences::{PreferenceSource, ThemePreference, ThemePref
 pub use crate::model::snapshot::EngineSnapshot;
 pub use crate::networking::{
     AudioChunk, AudioSourceClient, AuthPort, AuthStateProvider, CanopyAuthClient,
-    CanopyCatalogClient, CanopyDiscoveryClient, CanopyHistoryClient, CanopyPlaybackClient,
-    CatalogPort, PlaybackPort, PlaybackSource, RemoteRepository, RetryingAudioSourceClient,
-    SessionCoordinator, SystemPort,
+    CanopyCatalogClient, CanopyDiscoveryClient, CanopyHistoryClient, CanopyLibraryClient,
+    CanopyPlaybackClient, CatalogPort, PlaybackPort, PlaybackSource, RemoteRepository,
+    RetryingAudioSourceClient, SessionCoordinator, SystemPort,
 };
 pub use crate::services::player::{MediaPlayer, MockPlayer};
 pub use crate::services::service::{EngineService, ServiceManager};

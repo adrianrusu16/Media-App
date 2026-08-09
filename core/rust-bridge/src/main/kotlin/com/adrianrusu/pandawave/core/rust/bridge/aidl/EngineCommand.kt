@@ -46,6 +46,14 @@ data class EngineCommand(val type: String, val payload: String?) : Parcelable {
         const val TYPE_LOAD_NEXT_HISTORY_PAGE = "load_next_history_page"
         const val TYPE_DELETE_HISTORY_ENTRY = "delete_history_entry"
         const val TYPE_CLEAR_HISTORY = "clear_history"
+        const val TYPE_SAVE_TRACK = "save_track"
+        const val TYPE_REMOVE_SAVED_TRACK = "remove_saved_track"
+        const val TYPE_LIST_SAVED_TRACKS = "list_saved_tracks"
+        const val TYPE_LOAD_NEXT_SAVED_TRACKS_PAGE = "load_next_saved_tracks_page"
+        const val TYPE_LIKE_TRACK = "like_track"
+        const val TYPE_UNLIKE_TRACK = "unlike_track"
+        const val TYPE_LIST_LIKED_TRACKS = "list_liked_tracks"
+        const val TYPE_LOAD_NEXT_LIKED_TRACKS_PAGE = "load_next_liked_tracks_page"
 
         @JvmField
         val CREATOR: Parcelable.Creator<EngineCommand> =

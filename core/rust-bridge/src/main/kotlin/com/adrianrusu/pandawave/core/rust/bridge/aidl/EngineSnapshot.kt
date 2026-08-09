@@ -36,7 +36,12 @@ data class EngineSnapshot(
     val hasHistorySettings: Boolean = false,
     val historyEnabled: Boolean = false,
     val historyDeletedCount: Long = 0L,
-    val historyEntriesCount: Int = 0
+    val historyEntriesCount: Int = 0,
+    val savedTracksCount: Int = 0,
+    val likedTracksCount: Int = 0,
+    val libraryPendingCount: Int = 0,
+    val hasSavedTracksNextPage: Boolean = false,
+    val hasLikedTracksNextPage: Boolean = false
 ) : Parcelable {
     constructor(parcel: Parcel) : this(
         playbackState = parcel.readString().orEmpty(),
@@ -81,7 +86,12 @@ data class EngineSnapshot(
         hasHistorySettings = parcel.readBooleanValue(),
         historyEnabled = parcel.readBooleanValue(),
         historyDeletedCount = parcel.readLong(),
-        historyEntriesCount = parcel.readInt()
+        historyEntriesCount = parcel.readInt(),
+        savedTracksCount = parcel.readInt(),
+        likedTracksCount = parcel.readInt(),
+        libraryPendingCount = parcel.readInt(),
+        hasSavedTracksNextPage = parcel.readBooleanValue(),
+        hasLikedTracksNextPage = parcel.readBooleanValue()
     )
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
@@ -124,6 +134,11 @@ data class EngineSnapshot(
         parcel.writeBooleanValue(historyEnabled)
         parcel.writeLong(historyDeletedCount)
         parcel.writeInt(historyEntriesCount)
+        parcel.writeInt(savedTracksCount)
+        parcel.writeInt(likedTracksCount)
+        parcel.writeInt(libraryPendingCount)
+        parcel.writeBooleanValue(hasSavedTracksNextPage)
+        parcel.writeBooleanValue(hasLikedTracksNextPage)
     }
 
     override fun describeContents(): Int = 0

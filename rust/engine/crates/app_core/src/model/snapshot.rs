@@ -63,6 +63,19 @@ pub struct EngineSnapshot {
     /// Deleted count returned by the latest history purge operation.
     #[serde(default)]
     pub history_deleted_count: u64,
+    /// Engine-authoritative saved relationships for the active identity.
+    #[serde(default)]
+    pub saved_tracks: Vec<crate::EngineLibraryTrack>,
+    #[serde(default)]
+    pub saved_tracks_next_page_token: Option<crate::EnginePageToken>,
+    /// Engine-authoritative liked relationships for the active identity.
+    #[serde(default)]
+    pub liked_tracks: Vec<crate::EngineLibraryTrack>,
+    #[serde(default)]
+    pub liked_tracks_next_page_token: Option<crate::EnginePageToken>,
+    /// Track ids with a protected mutation awaiting server acknowledgement.
+    #[serde(default)]
+    pub library_pending_track_ids: Vec<String>,
     /// Complete remote profile preference document, including unknown application keys.
     #[serde(default)]
     pub profile_preferences: serde_json::Map<String, serde_json::Value>,

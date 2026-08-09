@@ -66,6 +66,20 @@ struct ListHistoryPayload {
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+struct TrackRelationshipPayload {
+    version: u32,
+    track_id: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ListLibraryPayload {
+    version: u32,
+    page: InitialCatalogPagePayload,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct DeleteHistoryEntryPayload {
     version: u32,
     history_id: String,
@@ -85,7 +99,9 @@ pub enum EngineCommandType {
     /// Skips to the next track or item.
     SkipNext,
     /// Starts a new media session.
-    StartSession { user_id: String },
+    StartSession {
+        user_id: String,
+    },
     /// Ends the current media session.
     EndSession,
     /// Refreshes the public backend health projection.
@@ -102,7 +118,9 @@ pub enum EngineCommandType {
         page: EnginePageRequest,
     },
     /// Continues a previously dispatched catalog operation.
-    LoadNextCatalogPage { operation_id: String },
+    LoadNextCatalogPage {
+        operation_id: String,
+    },
     /// Loads the first authenticated discovery-feed page.
     LoadDiscoveryFeed {
         excluded_track_ids: Vec<String>,
@@ -113,19 +131,49 @@ pub enum EngineCommandType {
     /// Loads server-backed history consent for the current account and session.
     LoadHistorySettings,
     /// Updates server-backed history consent.
-    UpdateHistorySettings { enabled: bool },
+    UpdateHistorySettings {
+        enabled: bool,
+    },
     /// Loads the first playback-history page.
-    ListHistory { page: EnginePageRequest },
+    ListHistory {
+        page: EnginePageRequest,
+    },
     /// Continues the current playback-history page operation.
     LoadNextHistoryPage,
     /// Deletes one playback-history entry.
-    DeleteHistoryEntry { history_id: String },
+    DeleteHistoryEntry {
+        history_id: String,
+    },
     /// Clears all playback history for the current account.
     ClearHistory,
+    SaveTrack {
+        track_id: String,
+    },
+    RemoveSavedTrack {
+        track_id: String,
+    },
+    ListSavedTracks {
+        page: EnginePageRequest,
+    },
+    LoadNextSavedTracksPage,
+    LikeTrack {
+        track_id: String,
+    },
+    UnlikeTrack {
+        track_id: String,
+    },
+    ListLikedTracks {
+        page: EnginePageRequest,
+    },
+    LoadNextLikedTracksPage,
     /// Changes the playback speed.
-    SetSpeed { speed: f32 },
+    SetSpeed {
+        speed: f32,
+    },
     /// Seeks to a specific position in milliseconds.
-    Seek { position_millis: u64 },
+    Seek {
+        position_millis: u64,
+    },
     /// Updates the engine's configuration.
     UpdateConfig {
         config: crate::model::config::EngineConfig,
@@ -145,7 +193,9 @@ pub enum EngineCommandType {
         baseline_revision: u64,
     },
     /// Creates or replaces the authenticated account profile.
-    UpsertProfile { display_name: Option<String> },
+    UpsertProfile {
+        display_name: Option<String>,
+    },
     /// Fetches the authenticated account profile.
     GetProfile,
     /// Applies a typed patch to the authenticated account profile.
@@ -161,17 +211,25 @@ pub enum EngineCommandType {
         values: serde_json::Map<String, serde_json::Value>,
     },
     /// Voice-based search and play command.
-    VoicePlay { query: String },
+    VoicePlay {
+        query: String,
+    },
     /// Start a new voice interaction (ASR/NLU).
     StartVoiceInteraction,
     /// Finalize and stop current voice interaction.
     StopVoiceInteraction,
     /// Process a chunk of audio for the current voice interaction.
-    ProcessVoiceAudio { chunk: Vec<i16> },
+    ProcessVoiceAudio {
+        chunk: Vec<i16>,
+    },
     /// Plays a specific media item by its ID.
-    PlayMediaById { media_id: String },
+    PlayMediaById {
+        media_id: String,
+    },
     /// Sets a sleep timer for a specific duration in milliseconds.
-    SetSleepTimer { duration_millis: Option<u64> },
+    SetSleepTimer {
+        duration_millis: Option<u64>,
+    },
     /// A command not recognized by this version of the engine.
     Unknown(String),
 }
@@ -209,6 +267,14 @@ impl EngineCommandType {
     pub const LOAD_NEXT_HISTORY_PAGE_WIRE: &'static str = "load_next_history_page";
     pub const DELETE_HISTORY_ENTRY_WIRE: &'static str = "delete_history_entry";
     pub const CLEAR_HISTORY_WIRE: &'static str = "clear_history";
+    pub const SAVE_TRACK_WIRE: &'static str = "save_track";
+    pub const REMOVE_SAVED_TRACK_WIRE: &'static str = "remove_saved_track";
+    pub const LIST_SAVED_TRACKS_WIRE: &'static str = "list_saved_tracks";
+    pub const LOAD_NEXT_SAVED_TRACKS_PAGE_WIRE: &'static str = "load_next_saved_tracks_page";
+    pub const LIKE_TRACK_WIRE: &'static str = "like_track";
+    pub const UNLIKE_TRACK_WIRE: &'static str = "unlike_track";
+    pub const LIST_LIKED_TRACKS_WIRE: &'static str = "list_liked_tracks";
+    pub const LOAD_NEXT_LIKED_TRACKS_PAGE_WIRE: &'static str = "load_next_liked_tracks_page";
     /// Wire value for SetSpeed command.
     pub const SET_SPEED_WIRE: &'static str = "set_speed";
     /// Wire value for Seek command.
@@ -287,6 +353,26 @@ impl EngineCommandType {
                 history_id: String::new(),
             },
             Self::CLEAR_HISTORY_WIRE => Self::ClearHistory,
+            Self::SAVE_TRACK_WIRE => Self::SaveTrack {
+                track_id: String::new(),
+            },
+            Self::REMOVE_SAVED_TRACK_WIRE => Self::RemoveSavedTrack {
+                track_id: String::new(),
+            },
+            Self::LIST_SAVED_TRACKS_WIRE => Self::ListSavedTracks {
+                page: EnginePageRequest::default(),
+            },
+            Self::LOAD_NEXT_SAVED_TRACKS_PAGE_WIRE => Self::LoadNextSavedTracksPage,
+            Self::LIKE_TRACK_WIRE => Self::LikeTrack {
+                track_id: String::new(),
+            },
+            Self::UNLIKE_TRACK_WIRE => Self::UnlikeTrack {
+                track_id: String::new(),
+            },
+            Self::LIST_LIKED_TRACKS_WIRE => Self::ListLikedTracks {
+                page: EnginePageRequest::default(),
+            },
+            Self::LOAD_NEXT_LIKED_TRACKS_PAGE_WIRE => Self::LoadNextLikedTracksPage,
             Self::SET_SPEED_WIRE => Self::SetSpeed { speed: 1.0 },
             Self::SEEK_WIRE => Self::Seek { position_millis: 0 },
             Self::UPDATE_CONFIG_WIRE => Self::UpdateConfig {
@@ -351,6 +437,14 @@ impl EngineCommandType {
             Self::LoadNextHistoryPage => Self::LOAD_NEXT_HISTORY_PAGE_WIRE,
             Self::DeleteHistoryEntry { .. } => Self::DELETE_HISTORY_ENTRY_WIRE,
             Self::ClearHistory => Self::CLEAR_HISTORY_WIRE,
+            Self::SaveTrack { .. } => Self::SAVE_TRACK_WIRE,
+            Self::RemoveSavedTrack { .. } => Self::REMOVE_SAVED_TRACK_WIRE,
+            Self::ListSavedTracks { .. } => Self::LIST_SAVED_TRACKS_WIRE,
+            Self::LoadNextSavedTracksPage => Self::LOAD_NEXT_SAVED_TRACKS_PAGE_WIRE,
+            Self::LikeTrack { .. } => Self::LIKE_TRACK_WIRE,
+            Self::UnlikeTrack { .. } => Self::UNLIKE_TRACK_WIRE,
+            Self::ListLikedTracks { .. } => Self::LIST_LIKED_TRACKS_WIRE,
+            Self::LoadNextLikedTracksPage => Self::LOAD_NEXT_LIKED_TRACKS_PAGE_WIRE,
             Self::SetSpeed { .. } => Self::SET_SPEED_WIRE,
             Self::Seek { .. } => Self::SEEK_WIRE,
             Self::UpdateConfig { .. } => Self::UPDATE_CONFIG_WIRE,
@@ -420,6 +514,20 @@ impl EngineCommand {
             EngineCommandType::DELETE_HISTORY_ENTRY_WIRE => payload
                 .as_deref()
                 .and_then(parse_delete_history_entry_payload),
+            EngineCommandType::SAVE_TRACK_WIRE
+            | EngineCommandType::REMOVE_SAVED_TRACK_WIRE
+            | EngineCommandType::LIKE_TRACK_WIRE
+            | EngineCommandType::UNLIKE_TRACK_WIRE => payload
+                .as_deref()
+                .and_then(|payload| parse_track_relationship_payload(&command_type, payload)),
+            EngineCommandType::LIST_SAVED_TRACKS_WIRE
+            | EngineCommandType::LIST_LIKED_TRACKS_WIRE => payload
+                .as_deref()
+                .and_then(|payload| parse_list_library_payload(&command_type, payload)),
+            EngineCommandType::LOAD_NEXT_SAVED_TRACKS_PAGE_WIRE
+            | EngineCommandType::LOAD_NEXT_LIKED_TRACKS_PAGE_WIRE => payload
+                .is_none()
+                .then(|| EngineCommandType::from_wire(command_type.clone())),
             _ => Some(EngineCommandType::from_wire(command_type.clone())),
         };
         Self::new(
@@ -599,6 +707,74 @@ impl EngineCommand {
         Self::new(EngineCommandType::ClearHistory, None)
     }
 
+    pub fn save_track(track_id: impl Into<String>) -> Self {
+        Self::new(
+            EngineCommandType::SaveTrack {
+                track_id: track_id.into(),
+            },
+            None,
+        )
+    }
+
+    pub fn remove_saved_track(track_id: impl Into<String>) -> Self {
+        Self::new(
+            EngineCommandType::RemoveSavedTrack {
+                track_id: track_id.into(),
+            },
+            None,
+        )
+    }
+
+    pub fn list_saved_tracks(page_size: u32) -> Self {
+        Self::new(
+            EngineCommandType::ListSavedTracks {
+                page: EnginePageRequest {
+                    page_size,
+                    page_token: None,
+                },
+            },
+            None,
+        )
+    }
+
+    pub fn load_next_saved_tracks_page() -> Self {
+        Self::new(EngineCommandType::LoadNextSavedTracksPage, None)
+    }
+
+    pub fn like_track(track_id: impl Into<String>) -> Self {
+        Self::new(
+            EngineCommandType::LikeTrack {
+                track_id: track_id.into(),
+            },
+            None,
+        )
+    }
+
+    pub fn unlike_track(track_id: impl Into<String>) -> Self {
+        Self::new(
+            EngineCommandType::UnlikeTrack {
+                track_id: track_id.into(),
+            },
+            None,
+        )
+    }
+
+    pub fn list_liked_tracks(page_size: u32) -> Self {
+        Self::new(
+            EngineCommandType::ListLikedTracks {
+                page: EnginePageRequest {
+                    page_size,
+                    page_token: None,
+                },
+            },
+            None,
+        )
+    }
+
+    pub fn load_next_liked_tracks_page() -> Self {
+        Self::new(EngineCommandType::LoadNextLikedTracksPage, None)
+    }
+
     /// Creates a SetSpeed command.
     pub fn set_speed(speed: f32) -> Self {
         Self::new(EngineCommandType::SetSpeed { speed }, None)
@@ -775,6 +951,51 @@ fn parse_delete_history_entry_payload(payload: &str) -> Option<EngineCommandType
             history_id: payload.history_id,
         },
     )
+}
+
+fn parse_track_relationship_payload(
+    command_type: &str,
+    payload: &str,
+) -> Option<EngineCommandType> {
+    let payload: TrackRelationshipPayload = serde_json::from_str(payload).ok()?;
+    if payload.version != CATALOG_PAYLOAD_VERSION || payload.track_id.trim().is_empty() {
+        return None;
+    }
+    match command_type {
+        EngineCommandType::SAVE_TRACK_WIRE => Some(EngineCommandType::SaveTrack {
+            track_id: payload.track_id,
+        }),
+        EngineCommandType::REMOVE_SAVED_TRACK_WIRE => Some(EngineCommandType::RemoveSavedTrack {
+            track_id: payload.track_id,
+        }),
+        EngineCommandType::LIKE_TRACK_WIRE => Some(EngineCommandType::LikeTrack {
+            track_id: payload.track_id,
+        }),
+        EngineCommandType::UNLIKE_TRACK_WIRE => Some(EngineCommandType::UnlikeTrack {
+            track_id: payload.track_id,
+        }),
+        _ => None,
+    }
+}
+
+fn parse_list_library_payload(command_type: &str, payload: &str) -> Option<EngineCommandType> {
+    let payload: ListLibraryPayload = serde_json::from_str(payload).ok()?;
+    if payload.version != CATALOG_PAYLOAD_VERSION {
+        return None;
+    }
+    let page = EnginePageRequest {
+        page_size: payload.page.page_size,
+        page_token: None,
+    };
+    match command_type {
+        EngineCommandType::LIST_SAVED_TRACKS_WIRE => {
+            Some(EngineCommandType::ListSavedTracks { page })
+        }
+        EngineCommandType::LIST_LIKED_TRACKS_WIRE => {
+            Some(EngineCommandType::ListLikedTracks { page })
+        }
+        _ => None,
+    }
 }
 
 #[cfg(test)]
