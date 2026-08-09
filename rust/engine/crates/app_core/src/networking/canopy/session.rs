@@ -219,7 +219,7 @@ impl SessionCoordinator {
         let current = self
             .fresh_envelope_locked(current, clock, now_epoch_millis)
             .await?;
-        Ok(self.access_snapshot(&current))
+        self.access_snapshot(&current)
     }
 
     pub(crate) async fn refresh_after_rejection(
@@ -270,7 +270,7 @@ impl SessionCoordinator {
             let current = self
                 .fresh_envelope_locked(current, clock, now_epoch_millis)
                 .await?;
-            return Ok(self.access_snapshot(&current));
+            return self.access_snapshot(&current);
         }
 
         let current = match self.store.read() {
@@ -288,7 +288,7 @@ impl SessionCoordinator {
         let replacement = self
             .refresh_locked(current, clock, now_epoch_millis)
             .await?;
-        Ok(self.access_snapshot(&replacement))
+        self.access_snapshot(&replacement)
     }
 
     pub(crate) async fn invalidate_if_current(
@@ -433,18 +433,25 @@ impl SessionCoordinator {
         Ok(())
     }
 
-    fn access_snapshot(&self, envelope: &crate::AuthSessionEnvelope) -> AccessSnapshot {
+    fn access_snapshot(
+        &self,
+        envelope: &crate::AuthSessionEnvelope,
+    ) -> Result<AccessSnapshot, EngineError> {
         let crate::AuthState::Authenticated { account, session } = envelope.state() else {
             unreachable!("credential envelope always has an authenticated identity")
         };
-        AccessSnapshot::Authenticated {
+        if !session.current {
+            self.invalidate();
+            return Err(login_required());
+        }
+        Ok(AccessSnapshot::Authenticated {
             token: envelope.credentials().access_token.to_owned(),
             generation: self.generation.load(Ordering::Acquire),
             identity: EngineHistoryIdentity {
                 account_id: account.id,
                 session_id: session.id,
             },
-        }
+        })
     }
 
     fn advance_generation(&self) -> Result<u64, EngineError> {

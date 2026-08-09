@@ -240,6 +240,15 @@ mod tests {
     }
 
     fn envelope(access: &str, refresh: &str, access_expiry: u64) -> AuthSessionEnvelope {
+        envelope_with_current(access, refresh, access_expiry, true)
+    }
+
+    fn envelope_with_current(
+        access: &str,
+        refresh: &str,
+        access_expiry: u64,
+        current: bool,
+    ) -> AuthSessionEnvelope {
         AuthSessionEnvelope::new(
             access.into(),
             access_expiry,
@@ -257,7 +266,7 @@ mod tests {
                 created_at_epoch_millis: 1,
                 last_used_at_epoch_millis: 1,
                 expires_at_epoch_millis: 50_000,
-                current: true,
+                current,
             },
         )
     }
@@ -397,6 +406,38 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn non_current_initial_session_is_rejected_before_protected_rpc() {
+        let (coordinator, auth) = coordinator(
+            Some(envelope_with_current(
+                "non-current-access",
+                "refresh-1",
+                20_000,
+                false,
+            )),
+            envelope("unused", "unused", 30_000),
+        );
+        let attempts = Arc::new(AtomicUsize::new(0));
+        let counter = attempts.clone();
+
+        let error = execute_with_auth_at(
+            Some(&coordinator),
+            ReplayPolicy::Safe,
+            1_000,
+            || Request::new(()),
+            move |_| {
+                counter.fetch_add(1, Ordering::SeqCst);
+                async { Ok::<_, Status>(Response::new(())) }
+            },
+        )
+        .await
+        .unwrap_err();
+
+        assert_eq!(error.error_type, EngineErrorType::LoginRequired);
+        assert_eq!(attempts.load(Ordering::SeqCst), 0);
+        assert_eq!(auth.refreshes.load(Ordering::SeqCst), 0);
+    }
+
+    #[tokio::test]
     async fn safe_authenticated_request_refreshes_and_retries_exactly_once() {
         let (coordinator, auth) = coordinator(
             Some(envelope("rejected-access", "refresh-1", 20_000)),
@@ -442,6 +483,39 @@ mod tests {
             *seen.lock().unwrap(),
             ["Bearer rejected-access", "Bearer rotated-access"]
         );
+    }
+
+    #[tokio::test]
+    async fn non_current_refresh_is_rejected_before_safe_replay() {
+        let (coordinator, auth) = coordinator(
+            Some(envelope("rejected-access", "refresh-1", 20_000)),
+            envelope_with_current("rotated-access", "refresh-2", 30_000, false),
+        );
+        let attempts = Arc::new(AtomicUsize::new(0));
+        let counter = attempts.clone();
+
+        let error = execute_with_auth_at(
+            Some(&coordinator),
+            ReplayPolicy::Safe,
+            1_000,
+            || Request::new(()),
+            move |_| {
+                let attempt = counter.fetch_add(1, Ordering::SeqCst);
+                async move {
+                    if attempt == 0 {
+                        Err(Status::unauthenticated("refresh required"))
+                    } else {
+                        Ok(Response::new(()))
+                    }
+                }
+            },
+        )
+        .await
+        .unwrap_err();
+
+        assert_eq!(error.error_type, EngineErrorType::LoginRequired);
+        assert_eq!(attempts.load(Ordering::SeqCst), 1);
+        assert_eq!(auth.refreshes.load(Ordering::SeqCst), 1);
     }
 
     #[tokio::test]
