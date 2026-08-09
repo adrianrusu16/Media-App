@@ -488,39 +488,61 @@ impl Engine {
             }
             EngineCommandType::UpsertProfile { display_name } => {
                 match Self::profile_context(&next_snapshot, self.profile_port.clone()) {
-                    Ok((identity, port)) => match port.upsert(display_name.as_deref()).await {
-                        Ok(profile) => match Self::validate_profile_owner(&identity, &profile) {
-                            Ok(()) => {
-                                self.profile_projection_identity = Some(identity);
-                                next_snapshot.profile = Some(profile);
+                    Ok((identity, port)) => {
+                        let result = port.upsert(display_name.as_deref()).await;
+                        match self.profile_result_for_current_identity(
+                            &mut next_snapshot,
+                            &identity,
+                            result,
+                        ) {
+                            Ok(profile) => {
+                                match Self::validate_profile_owner(&identity, &profile) {
+                                    Ok(()) => {
+                                        self.profile_projection_identity = Some(identity);
+                                        next_snapshot.profile = Some(profile);
+                                    }
+                                    Err(error) => {
+                                        next_snapshot = next_snapshot.with_error(Some(error))
+                                    }
+                                }
                             }
                             Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
-                        },
-                        Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
-                    },
+                        }
+                    }
                     Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
                 }
             }
             EngineCommandType::GetProfile => {
                 match Self::profile_context(&next_snapshot, self.profile_port.clone()) {
-                    Ok((identity, port)) => match port.get().await {
-                        Ok(profile) => match Self::validate_profile_owner(&identity, &profile) {
-                            Ok(()) => {
-                                self.profile_projection_identity = Some(identity);
-                                next_snapshot.profile = Some(profile);
+                    Ok((identity, port)) => {
+                        let result = port.get().await;
+                        match self.profile_result_for_current_identity(
+                            &mut next_snapshot,
+                            &identity,
+                            result,
+                        ) {
+                            Ok(profile) => {
+                                match Self::validate_profile_owner(&identity, &profile) {
+                                    Ok(()) => {
+                                        self.profile_projection_identity = Some(identity);
+                                        next_snapshot.profile = Some(profile);
+                                    }
+                                    Err(error) if error.error_type == EngineErrorType::NotFound => {
+                                        self.profile_projection_identity = None;
+                                        Self::clear_profile_projection(&mut next_snapshot);
+                                    }
+                                    Err(error) => {
+                                        next_snapshot = next_snapshot.with_error(Some(error))
+                                    }
+                                }
                             }
                             Err(error) if error.error_type == EngineErrorType::NotFound => {
                                 self.profile_projection_identity = None;
                                 Self::clear_profile_projection(&mut next_snapshot);
                             }
                             Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
-                        },
-                        Err(error) if error.error_type == EngineErrorType::NotFound => {
-                            self.profile_projection_identity = None;
-                            Self::clear_profile_projection(&mut next_snapshot);
                         }
-                        Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
-                    },
+                    }
                     Err(error) if error.error_type == EngineErrorType::NotFound => {
                         self.profile_projection_identity = None;
                         Self::clear_profile_projection(&mut next_snapshot);
@@ -531,27 +553,41 @@ impl Engine {
             EngineCommandType::UpdateProfile { update } => {
                 match Self::profile_context(&next_snapshot, self.profile_port.clone()) {
                     Ok((identity, port)) => {
-                        let result = match port.get().await {
-                            Ok(current) => {
+                        let current = port.get().await;
+                        let result = self
+                            .profile_result_for_current_identity(
+                                &mut next_snapshot,
+                                &identity,
+                                current,
+                            )
+                            .and_then(|current| {
                                 Self::validate_profile_owner(&identity, &current).map(|()| current)
-                            }
-                            Err(error) => Err(error),
-                        };
+                            });
                         match result {
-                            Ok(_) => match port.update(update.clone()).await {
-                                Ok(profile) => {
-                                    match Self::validate_profile_owner(&identity, &profile) {
-                                        Ok(()) => {
-                                            self.profile_projection_identity = Some(identity);
-                                            next_snapshot.profile = Some(profile);
-                                        }
-                                        Err(error) => {
-                                            next_snapshot = next_snapshot.with_error(Some(error))
+                            Ok(_) => {
+                                let updated = port.update(update.clone()).await;
+                                match self.profile_result_for_current_identity(
+                                    &mut next_snapshot,
+                                    &identity,
+                                    updated,
+                                ) {
+                                    Ok(profile) => {
+                                        match Self::validate_profile_owner(&identity, &profile) {
+                                            Ok(()) => {
+                                                self.profile_projection_identity = Some(identity);
+                                                next_snapshot.profile = Some(profile);
+                                            }
+                                            Err(error) => {
+                                                next_snapshot =
+                                                    next_snapshot.with_error(Some(error));
+                                            }
                                         }
                                     }
+                                    Err(error) => {
+                                        next_snapshot = next_snapshot.with_error(Some(error));
+                                    }
                                 }
-                                Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
-                            },
+                            }
                             Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
                         }
                     }
@@ -561,18 +597,31 @@ impl Engine {
             EngineCommandType::DeleteProfile => {
                 match Self::profile_context(&next_snapshot, self.profile_port.clone()) {
                     Ok((identity, port)) => {
-                        let result = match port.get().await {
-                            Ok(profile) => Self::validate_profile_owner(&identity, &profile),
-                            Err(error) => Err(error),
-                        };
+                        let current = port.get().await;
+                        let result = self
+                            .profile_result_for_current_identity(
+                                &mut next_snapshot,
+                                &identity,
+                                current,
+                            )
+                            .and_then(|profile| Self::validate_profile_owner(&identity, &profile));
                         match result {
-                            Ok(()) => match port.delete().await {
-                                Ok(()) => {
-                                    self.profile_projection_identity = None;
-                                    Self::clear_profile_projection(&mut next_snapshot);
+                            Ok(()) => {
+                                let deleted = port.delete().await;
+                                match self.profile_result_for_current_identity(
+                                    &mut next_snapshot,
+                                    &identity,
+                                    deleted,
+                                ) {
+                                    Ok(()) => {
+                                        self.profile_projection_identity = None;
+                                        Self::clear_profile_projection(&mut next_snapshot);
+                                    }
+                                    Err(error) => {
+                                        next_snapshot = next_snapshot.with_error(Some(error));
+                                    }
                                 }
-                                Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
-                            },
+                            }
                             Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
                         }
                     }
@@ -582,11 +631,22 @@ impl Engine {
             EngineCommandType::LoadProfilePreferences => {
                 match Self::profile_context(&next_snapshot, self.profile_port.clone()) {
                     Ok((identity, port)) => {
-                        let result = match port.get().await {
+                        let current = port.get().await;
+                        let result = match self.profile_result_for_current_identity(
+                            &mut next_snapshot,
+                            &identity,
+                            current,
+                        ) {
                             Ok(profile) => {
                                 match Self::validate_profile_owner(&identity, &profile) {
                                     Ok(()) => {
-                                        port.get_preferences().await.map(|values| (profile, values))
+                                        let preferences = port.get_preferences().await;
+                                        self.profile_result_for_current_identity(
+                                            &mut next_snapshot,
+                                            &identity,
+                                            preferences,
+                                        )
+                                        .map(|values| (profile, values))
                                     }
                                     Err(error) => Err(error),
                                 }
@@ -620,24 +680,40 @@ impl Engine {
             EngineCommandType::UpdateProfilePreferences { values } => {
                 match Self::profile_context(&next_snapshot, self.profile_port.clone()) {
                     Ok((identity, port)) => {
-                        let result = match port.get().await {
+                        let current_profile = port.get().await;
+                        let result = match self.profile_result_for_current_identity(
+                            &mut next_snapshot,
+                            &identity,
+                            current_profile,
+                        ) {
                             Ok(profile) => {
                                 match Self::validate_profile_owner(&identity, &profile) {
-                                    Ok(()) => match port.get_preferences().await {
-                                        Ok(current) => {
-                                            let merged =
-                                                crate::model::preferences::merge_preferences(
-                                                    serde_json::Value::Object(current),
-                                                    serde_json::Value::Object(values.clone()),
-                                                );
-                                            let merged =
-                                                merged.as_object().cloned().unwrap_or_default();
-                                            port.update_preferences(merged)
-                                                .await
+                                    Ok(()) => {
+                                        let current_preferences = port.get_preferences().await;
+                                        match self.profile_result_for_current_identity(
+                                            &mut next_snapshot,
+                                            &identity,
+                                            current_preferences,
+                                        ) {
+                                            Ok(current) => {
+                                                let merged =
+                                                    crate::model::preferences::merge_preferences(
+                                                        serde_json::Value::Object(current),
+                                                        serde_json::Value::Object(values.clone()),
+                                                    );
+                                                let merged =
+                                                    merged.as_object().cloned().unwrap_or_default();
+                                                let updated = port.update_preferences(merged).await;
+                                                self.profile_result_for_current_identity(
+                                                    &mut next_snapshot,
+                                                    &identity,
+                                                    updated,
+                                                )
                                                 .map(|updated| (profile, updated))
+                                            }
+                                            Err(error) => Err(error),
                                         }
-                                        Err(error) => Err(error),
-                                    },
+                                    }
                                     Err(error) => Err(error),
                                 }
                             }
@@ -854,6 +930,31 @@ impl Engine {
         Ok((identity, port))
     }
 
+    fn profile_result_for_current_identity<T>(
+        &mut self,
+        snapshot: &mut EngineSnapshot,
+        expected: &AuthIdentity,
+        result: Result<T, EngineError>,
+    ) -> Result<T, EngineError> {
+        let auth_state = self
+            .auth_state_provider
+            .as_ref()
+            .map(|provider| provider.current_auth_state())
+            .unwrap_or(crate::AuthState::Anonymous);
+        let current = AuthIdentity::from_state(&auth_state);
+        snapshot.auth_state = auth_state;
+        if current.as_ref() == Some(expected) {
+            result
+        } else {
+            self.profile_projection_identity = None;
+            Self::clear_profile_projection(snapshot);
+            Err(EngineError::new(
+                EngineErrorType::LoginRequired,
+                "profile session changed while the operation was in flight",
+                false,
+            ))
+        }
+    }
     fn validate_profile_owner(
         identity: &AuthIdentity,
         profile: &crate::EngineProfile,

@@ -2,6 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use serde_json::{Map, Value, json};
+use tokio::sync::Notify;
 
 use super::*;
 use crate::{
@@ -343,6 +344,132 @@ async fn session_replacement_hides_profile_projection_and_mutable_sync_clears_it
 
     engine.dispatch(EngineCommand::pause(), 2).await;
     auth.set_identity("account-1", "session-1");
+    assert!(engine.snapshot().profile.is_none());
+    assert!(engine.snapshot().profile_preferences.is_empty());
+}
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum BlockingProfileCall {
+    Get,
+    GetPreferences,
+}
+
+struct BlockingProfilePort {
+    inner: RecordingProfilePort,
+    block_at: BlockingProfileCall,
+    started: Notify,
+    release: Notify,
+}
+
+impl BlockingProfilePort {
+    fn new(block_at: BlockingProfileCall) -> Self {
+        Self {
+            inner: RecordingProfilePort::new("account-1"),
+            block_at,
+            started: Notify::new(),
+            release: Notify::new(),
+        }
+    }
+
+    async fn block_if(&self, call: BlockingProfileCall) {
+        if self.block_at == call {
+            self.started.notify_one();
+            self.release.notified().await;
+        }
+    }
+}
+
+#[async_trait]
+impl ProfilePort for BlockingProfilePort {
+    async fn upsert(&self, display_name: Option<&str>) -> Result<EngineProfile, EngineError> {
+        self.inner.upsert(display_name).await
+    }
+
+    async fn get(&self) -> Result<EngineProfile, EngineError> {
+        self.block_if(BlockingProfileCall::Get).await;
+        self.inner.get().await
+    }
+
+    async fn update(&self, update: EngineProfileUpdate) -> Result<EngineProfile, EngineError> {
+        self.inner.update(update).await
+    }
+
+    async fn delete(&self) -> Result<(), EngineError> {
+        self.inner.delete().await
+    }
+
+    async fn get_preferences(&self) -> Result<Map<String, Value>, EngineError> {
+        self.block_if(BlockingProfileCall::GetPreferences).await;
+        self.inner.get_preferences().await
+    }
+
+    async fn update_preferences(
+        &self,
+        values: Map<String, Value>,
+    ) -> Result<Map<String, Value>, EngineError> {
+        self.inner.update_preferences(values).await
+    }
+}
+
+fn engine_with_blocking_profile_port(
+    auth: Arc<MutableProfileAuthState>,
+    port: Arc<BlockingProfilePort>,
+) -> Engine {
+    let mut engine = Engine::new(0);
+    engine.set_auth_state_provider(auth);
+    engine.set_profile_port(port);
+    engine
+}
+
+#[tokio::test]
+async fn in_flight_profile_get_does_not_publish_after_auth_identity_changes() {
+    let auth = Arc::new(MutableProfileAuthState::new("account-1", "session-1"));
+    let port = Arc::new(BlockingProfilePort::new(BlockingProfileCall::Get));
+    let mut engine = engine_with_blocking_profile_port(auth.clone(), port.clone());
+
+    let dispatch = engine.dispatch(EngineCommand::get_profile(), 1);
+    let change_auth = async {
+        port.started.notified().await;
+        auth.set_identity("account-2", "session-2");
+        port.release.notify_one();
+    };
+    let (outcome, ()) = tokio::join!(dispatch, change_auth);
+
+    assert!(outcome.snapshot.profile.is_none());
+    assert!(outcome.snapshot.profile_preferences.is_empty());
+    assert_eq!(
+        outcome.snapshot.last_error.unwrap().error_type,
+        EngineErrorType::LoginRequired
+    );
+    assert!(engine.snapshot().profile.is_none());
+    assert!(engine.snapshot().profile_preferences.is_empty());
+}
+
+#[tokio::test]
+async fn in_flight_preferences_load_does_not_publish_after_auth_identity_changes() {
+    let auth = Arc::new(MutableProfileAuthState::new("account-1", "session-1"));
+    let port = Arc::new(BlockingProfilePort::new(
+        BlockingProfileCall::GetPreferences,
+    ));
+    let mut engine = engine_with_blocking_profile_port(auth.clone(), port.clone());
+
+    let dispatch = engine.dispatch(EngineCommand::load_profile_preferences(), 1);
+    let change_auth = async {
+        port.started.notified().await;
+        auth.set_identity("account-1", "session-2");
+        port.release.notify_one();
+    };
+    let (outcome, ()) = tokio::join!(dispatch, change_auth);
+
+    assert!(outcome.snapshot.profile.is_none());
+    assert!(outcome.snapshot.profile_preferences.is_empty());
+    assert_ne!(
+        outcome.snapshot.theme_preference.source,
+        crate::PreferenceSource::RemoteProfile
+    );
+    assert_eq!(
+        outcome.snapshot.last_error.unwrap().error_type,
+        EngineErrorType::LoginRequired
+    );
     assert!(engine.snapshot().profile.is_none());
     assert!(engine.snapshot().profile_preferences.is_empty());
 }
