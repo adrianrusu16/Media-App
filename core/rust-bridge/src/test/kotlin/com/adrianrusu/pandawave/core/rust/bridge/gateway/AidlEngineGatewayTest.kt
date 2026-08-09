@@ -501,6 +501,39 @@ class AidlEngineGatewayTest {
         assertEquals(emptyList(), service.commandTypes)
     }
 
+    @Test
+    fun `all protected profile mutations are unavailable while disconnected`() {
+        val gateway = AidlEngineGateway(FakeEngineServiceConnection(null))
+
+        val results = protectedProfileMutations().map { command -> gateway.dispatch(command) }
+
+        assertEquals(
+            List(protectedProfileMutations().size) { EngineEvent.TYPE_GATEWAY_UNAVAILABLE },
+            results.map { result -> result.event.type },
+        )
+    }
+
+    @Test
+    fun `protected profile mutations are never replayed after reconnect`() {
+        val connection = FakeEngineServiceConnection(null)
+        val gateway = AidlEngineGateway(connection)
+        protectedProfileMutations().forEach { command -> gateway.dispatch(command) }
+        val service = RecordingEngineService(EngineSnapshot.idle(nowMillis = 100L))
+
+        connection.connectService(service)
+
+        assertEquals(emptyList(), service.commandTypes)
+    }
+
+    private fun protectedProfileMutations(): List<EngineCommand> = listOf(
+        EngineCommand(EngineCommand.TYPE_UPSERT_PROFILE, "{\"display_name\":\"Canopy\"}"),
+        EngineCommand(EngineCommand.TYPE_UPDATE_PROFILE, "{\"display_name\":\"Canopy\"}"),
+        EngineCommand(EngineCommand.TYPE_DELETE_PROFILE, null),
+        EngineCommand(
+            EngineCommand.TYPE_UPDATE_PROFILE_PREFERENCES,
+            "{\"preferences\":{\"theme\":\"dark\"}}",
+        ),
+    )
 }
 
 private class FakeEngineServiceConnection(override var service: EngineService?) : EngineServiceConnection {

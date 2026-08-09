@@ -93,6 +93,14 @@ class PandaEngineProfileRepository @Inject constructor(
             mutableState.value = ProfileState.SignedOut
             return
         }
+        if (
+            snapshot.profile == null &&
+            snapshot.hasError &&
+            snapshot.errorType == EngineSnapshot.ERROR_NOT_FOUND
+        ) {
+            mutableState.value = ProfileState.Missing
+            return
+        }
         if (snapshot.hasError) {
             mutableState.value = ProfileState.Failure(
                 errorType = snapshot.errorType,

@@ -1,4 +1,5 @@
 use super::*;
+use crate::EngineErrorType;
 
 impl Engine {
     pub(super) async fn dispatch_command(
@@ -489,7 +490,10 @@ impl Engine {
                 match Self::profile_context(&next_snapshot, self.profile_port.clone()) {
                     Ok((identity, port)) => match port.upsert(display_name.as_deref()).await {
                         Ok(profile) => match Self::validate_profile_owner(&identity, &profile) {
-                            Ok(()) => next_snapshot.profile = Some(profile),
+                            Ok(()) => {
+                                self.profile_projection_identity = Some(identity);
+                                next_snapshot.profile = Some(profile);
+                            }
                             Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
                         },
                         Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
@@ -501,11 +505,26 @@ impl Engine {
                 match Self::profile_context(&next_snapshot, self.profile_port.clone()) {
                     Ok((identity, port)) => match port.get().await {
                         Ok(profile) => match Self::validate_profile_owner(&identity, &profile) {
-                            Ok(()) => next_snapshot.profile = Some(profile),
+                            Ok(()) => {
+                                self.profile_projection_identity = Some(identity);
+                                next_snapshot.profile = Some(profile);
+                            }
+                            Err(error) if error.error_type == EngineErrorType::NotFound => {
+                                self.profile_projection_identity = None;
+                                Self::clear_profile_projection(&mut next_snapshot);
+                            }
                             Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
                         },
+                        Err(error) if error.error_type == EngineErrorType::NotFound => {
+                            self.profile_projection_identity = None;
+                            Self::clear_profile_projection(&mut next_snapshot);
+                        }
                         Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
                     },
+                    Err(error) if error.error_type == EngineErrorType::NotFound => {
+                        self.profile_projection_identity = None;
+                        Self::clear_profile_projection(&mut next_snapshot);
+                    }
                     Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
                 }
             }
@@ -522,7 +541,10 @@ impl Engine {
                             Ok(_) => match port.update(update.clone()).await {
                                 Ok(profile) => {
                                     match Self::validate_profile_owner(&identity, &profile) {
-                                        Ok(()) => next_snapshot.profile = Some(profile),
+                                        Ok(()) => {
+                                            self.profile_projection_identity = Some(identity);
+                                            next_snapshot.profile = Some(profile);
+                                        }
                                         Err(error) => {
                                             next_snapshot = next_snapshot.with_error(Some(error))
                                         }
@@ -546,8 +568,8 @@ impl Engine {
                         match result {
                             Ok(()) => match port.delete().await {
                                 Ok(()) => {
-                                    next_snapshot.profile = None;
-                                    next_snapshot.profile_preferences.clear();
+                                    self.profile_projection_identity = None;
+                                    Self::clear_profile_projection(&mut next_snapshot);
                                 }
                                 Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
                             },
@@ -572,14 +594,25 @@ impl Engine {
                             Err(error) => Err(error),
                         };
                         match result {
-                            Ok((profile, values)) => Self::project_profile_preferences(
-                                &mut next_snapshot,
-                                &identity,
-                                profile,
-                                values,
-                            ),
+                            Ok((profile, values)) => {
+                                Self::project_profile_preferences(
+                                    &mut next_snapshot,
+                                    &identity,
+                                    profile,
+                                    values,
+                                );
+                                self.profile_projection_identity = Some(identity);
+                            }
+                            Err(error) if error.error_type == EngineErrorType::NotFound => {
+                                self.profile_projection_identity = None;
+                                Self::clear_profile_projection(&mut next_snapshot);
+                            }
                             Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
                         }
+                    }
+                    Err(error) if error.error_type == EngineErrorType::NotFound => {
+                        self.profile_projection_identity = None;
+                        Self::clear_profile_projection(&mut next_snapshot);
                     }
                     Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
                 }
@@ -611,12 +644,15 @@ impl Engine {
                             Err(error) => Err(error),
                         };
                         match result {
-                            Ok((profile, updated)) => Self::project_profile_preferences(
-                                &mut next_snapshot,
-                                &identity,
-                                profile,
-                                updated,
-                            ),
+                            Ok((profile, updated)) => {
+                                Self::project_profile_preferences(
+                                    &mut next_snapshot,
+                                    &identity,
+                                    profile,
+                                    updated,
+                                );
+                                self.profile_projection_identity = Some(identity);
+                            }
                             Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
                         }
                     }

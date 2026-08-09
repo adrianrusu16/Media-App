@@ -124,6 +124,7 @@ pub struct Engine {
     auth_state_provider: Option<Arc<dyn AuthStateProvider>>,
     discovery_port: Option<Arc<dyn DiscoveryPort>>,
     profile_port: Option<Arc<dyn crate::ProfilePort>>,
+    profile_projection_identity: Option<AuthIdentity>,
     catalog_operations: HashMap<String, CatalogOperation>,
     next_catalog_operation_sequence: u64,
     discovery_operation: Option<DiscoveryOperation>,
@@ -149,6 +150,7 @@ impl Default for Engine {
             auth_state_provider: None,
             discovery_port: None,
             profile_port: None,
+            profile_projection_identity: None,
             catalog_operations: HashMap::new(),
             next_catalog_operation_sequence: 0,
             discovery_operation: None,
@@ -191,6 +193,7 @@ impl Engine {
             auth_state_provider: None,
             discovery_port: None,
             profile_port: None,
+            profile_projection_identity: None,
             catalog_operations: HashMap::new(),
             next_catalog_operation_sequence: 0,
             discovery_operation: None,
@@ -293,6 +296,13 @@ impl Engine {
         if !operation_matches {
             snapshot.discovery_results.clear();
         }
+        if self
+            .profile_projection_identity
+            .as_ref()
+            .is_some_and(|identity| Some(identity) != current_identity.as_ref())
+        {
+            Self::clear_profile_projection(&mut snapshot);
+        }
         snapshot
     }
 
@@ -310,6 +320,22 @@ impl Engine {
         if !operation_matches {
             self.discovery_operation = None;
             self.snapshot.discovery_results.clear();
+        }
+        if self
+            .profile_projection_identity
+            .as_ref()
+            .is_some_and(|identity| Some(identity) != current_identity.as_ref())
+        {
+            self.profile_projection_identity = None;
+            Self::clear_profile_projection(&mut self.snapshot);
+        }
+    }
+
+    fn clear_profile_projection(snapshot: &mut EngineSnapshot) {
+        snapshot.profile = None;
+        snapshot.profile_preferences.clear();
+        if snapshot.theme_preference.source == crate::PreferenceSource::RemoteProfile {
+            snapshot.theme_preference = crate::ThemePreferenceState::default();
         }
     }
 

@@ -92,6 +92,19 @@ class PandaEngineProfileRepositoryTest {
         assertIs<ProfileState.Missing>(repository.state.value)
     }
     @Test
+    fun `authenticated profile not found is an actionable missing state`() {
+        val snapshot = authenticatedSnapshot().copy(
+            profile = null,
+            hasError = true,
+            errorType = EngineSnapshot.ERROR_NOT_FOUND,
+        )
+        val repository = PandaEngineProfileRepository(RecordingEngineGateway(snapshot))
+
+        repository.start()
+
+        assertIs<ProfileState.Missing>(repository.state.value)
+    }
+    @Test
     fun `unavailable non replayable mutation exposes retry classification`() {
         val engine = RecordingEngineGateway(
             initialSnapshot = authenticatedSnapshot().copy(profile = profile("Driver")),

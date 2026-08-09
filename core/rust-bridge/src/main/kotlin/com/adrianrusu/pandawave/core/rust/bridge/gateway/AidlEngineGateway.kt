@@ -326,8 +326,10 @@ class AidlEngineGateway(
     }
 
     private fun EngineCommand.isReplayableAfterReconnect(): Boolean = when (type) {
+        EngineCommand.TYPE_UPSERT_PROFILE,
         EngineCommand.TYPE_UPDATE_PROFILE,
-        EngineCommand.TYPE_DELETE_PROFILE -> false
+        EngineCommand.TYPE_DELETE_PROFILE,
+        EngineCommand.TYPE_UPDATE_PROFILE_PREFERENCES -> false
         else -> true
     }
 

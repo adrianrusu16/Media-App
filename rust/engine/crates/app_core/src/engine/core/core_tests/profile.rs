@@ -5,8 +5,8 @@ use serde_json::{Map, Value, json};
 
 use super::*;
 use crate::{
-    Account, AuthSession, AuthState, AuthStateProvider, EngineError, EngineProfile,
-    EngineProfileUpdate, ProfilePort,
+    Account, AuthSession, AuthState, AuthStateProvider, EngineError, EngineErrorType,
+    EngineProfile, EngineProfileUpdate, ProfilePort,
 };
 
 #[derive(Clone)]
@@ -23,6 +23,7 @@ struct RecordingProfilePort {
     preferences: Mutex<Map<String, Value>>,
     updates: Mutex<Vec<Map<String, Value>>>,
     deletes: Mutex<usize>,
+    missing: bool,
 }
 
 impl RecordingProfilePort {
@@ -41,6 +42,14 @@ impl RecordingProfilePort {
             ])),
             updates: Mutex::new(Vec::new()),
             deletes: Mutex::new(0),
+            missing: false,
+        }
+    }
+
+    fn missing(external_user_id: &str) -> Self {
+        Self {
+            missing: true,
+            ..Self::new(external_user_id)
         }
     }
 }
@@ -54,6 +63,13 @@ impl ProfilePort for RecordingProfilePort {
     }
 
     async fn get(&self) -> Result<EngineProfile, EngineError> {
+        if self.missing {
+            return Err(EngineError::new(
+                EngineErrorType::NotFound,
+                "profile not found",
+                false,
+            ));
+        }
         Ok(self.profile.lock().unwrap().clone())
     }
 
@@ -69,6 +85,13 @@ impl ProfilePort for RecordingProfilePort {
     }
 
     async fn get_preferences(&self) -> Result<Map<String, Value>, EngineError> {
+        if self.missing {
+            return Err(EngineError::new(
+                EngineErrorType::NotFound,
+                "profile not found",
+                false,
+            ));
+        }
         Ok(self.preferences.lock().unwrap().clone())
     }
 
@@ -110,6 +133,23 @@ fn authenticated_engine_with_current_session(
     engine.set_auth_state_provider(Arc::new(FixedAuthState(auth)));
     engine.set_profile_port(profile_port);
     engine
+}
+
+#[tokio::test]
+async fn profile_not_found_projects_authorized_absence_for_get_and_preferences_load() {
+    let port = Arc::new(RecordingProfilePort::missing("account-1"));
+    let mut engine = authenticated_engine(port);
+
+    let get = engine.dispatch(EngineCommand::get_profile(), 1).await;
+    assert!(get.snapshot.profile.is_none());
+    assert!(get.snapshot.last_error.is_none());
+
+    let preferences = engine
+        .dispatch(EngineCommand::load_profile_preferences(), 2)
+        .await;
+    assert!(preferences.snapshot.profile.is_none());
+    assert!(preferences.snapshot.profile_preferences.is_empty());
+    assert!(preferences.snapshot.last_error.is_none());
 }
 
 #[tokio::test]
@@ -210,4 +250,99 @@ async fn profile_commands_reject_a_non_current_authenticated_session() {
         outcome.snapshot.last_error.unwrap().error_type,
         crate::EngineErrorType::LoginRequired
     );
+}
+struct MutableProfileAuthState {
+    state: Mutex<AuthState>,
+}
+
+impl MutableProfileAuthState {
+    fn new(account_id: &str, session_id: &str) -> Self {
+        Self {
+            state: Mutex::new(profile_auth_state(account_id, session_id)),
+        }
+    }
+
+    fn set_identity(&self, account_id: &str, session_id: &str) {
+        *self.state.lock().unwrap() = profile_auth_state(account_id, session_id);
+    }
+}
+
+impl AuthStateProvider for MutableProfileAuthState {
+    fn current_auth_state(&self) -> AuthState {
+        self.state.lock().unwrap().clone()
+    }
+}
+
+fn profile_auth_state(account_id: &str, session_id: &str) -> AuthState {
+    AuthState::Authenticated {
+        account: Account {
+            id: account_id.into(),
+            primary_email: format!("{account_id}@example.com"),
+            status: "active".into(),
+            created_at_epoch_millis: 1,
+        },
+        session: AuthSession {
+            id: session_id.into(),
+            device_label: "PandaWave".into(),
+            created_at_epoch_millis: 1,
+            last_used_at_epoch_millis: 2,
+            expires_at_epoch_millis: 10_000,
+            current: true,
+        },
+    }
+}
+
+async fn engine_with_projected_profile(
+    auth: Arc<MutableProfileAuthState>,
+    port: Arc<RecordingProfilePort>,
+) -> Engine {
+    let mut engine = Engine::new(0);
+    engine.set_auth_state_provider(auth);
+    engine.set_profile_port(port);
+    engine
+        .dispatch(EngineCommand::load_profile_preferences(), 1)
+        .await;
+    assert!(engine.snapshot().profile.is_some());
+    assert!(!engine.snapshot().profile_preferences.is_empty());
+    engine
+}
+
+#[tokio::test]
+async fn account_switch_hides_profile_projection_and_mutable_sync_clears_it_durably() {
+    let auth = Arc::new(MutableProfileAuthState::new("account-1", "session-1"));
+    let port = Arc::new(RecordingProfilePort::new("account-1"));
+    let mut engine = engine_with_projected_profile(auth.clone(), port).await;
+
+    auth.set_identity("account-2", "session-2");
+
+    let switched = engine.snapshot();
+    assert!(switched.profile.is_none());
+    assert!(switched.profile_preferences.is_empty());
+    assert_ne!(
+        switched.theme_preference.source,
+        crate::PreferenceSource::RemoteProfile
+    );
+
+    engine.dispatch(EngineCommand::pause(), 2).await;
+    auth.set_identity("account-1", "session-1");
+    assert!(engine.snapshot().profile.is_none());
+    assert!(engine.snapshot().profile_preferences.is_empty());
+}
+
+#[tokio::test]
+async fn session_replacement_hides_profile_projection_and_mutable_sync_clears_it_durably() {
+    let auth = Arc::new(MutableProfileAuthState::new("account-1", "session-1"));
+    let port = Arc::new(RecordingProfilePort::new("account-1"));
+    let mut engine = engine_with_projected_profile(auth.clone(), port).await;
+
+    auth.set_identity("account-1", "session-2");
+
+    let replaced = engine.snapshot();
+    assert!(replaced.profile.is_none());
+    assert!(replaced.profile_preferences.is_empty());
+
+    engine.dispatch(EngineCommand::pause(), 2).await;
+    auth.set_identity("account-1", "session-1");
+    assert!(engine.snapshot().profile.is_none());
+    assert!(engine.snapshot().profile_preferences.is_empty());
 }
