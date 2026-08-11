@@ -1,6 +1,8 @@
 package com.adrianrusu.pandawave.feature.library.data
 
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthState
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAccount
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthSession
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
@@ -81,14 +83,44 @@ class PandaEngineLibraryRepositoryTest {
         assertTrue(repository.state.value.isRetryableError)
     }
 
+    @Test
+    fun `authenticated snapshot transitions hydrate each identity exactly once`() {
+        val gateway = RecordingLibraryGateway(EngineSnapshot.idle(1L))
+        val repository = PandaEngineLibraryRepository(gateway)
+
+        repository.start()
+        assertTrue(gateway.commands.isEmpty())
+
+        gateway.emit(authenticatedSnapshot(accountId = "account-1", sessionId = "session-1"))
+        assertEquals(
+            listOf(EngineCommand.TYPE_LIST_SAVED_TRACKS, EngineCommand.TYPE_LIST_LIKED_TRACKS),
+            gateway.commands.map(EngineCommand::type),
+        )
+
+        gateway.emit(authenticatedSnapshot(accountId = "account-1", sessionId = "session-1"))
+        assertEquals(2, gateway.commands.size)
+
+        gateway.emit(authenticatedSnapshot(accountId = "account-2", sessionId = "session-2"))
+        assertEquals(4, gateway.commands.size)
+
+        gateway.emit(authenticatedSnapshot(accountId = "account-2", sessionId = "session-3"))
+        assertEquals(6, gateway.commands.size)
+    }
+
     private fun authenticatedSnapshot(
         savedTracksCount: Int = 0,
         likedTracksCount: Int = 0,
         libraryPendingCount: Int = 0,
         hasSavedTracksNextPage: Boolean = false,
         hasLikedTracksNextPage: Boolean = false,
+        accountId: String = "account-1",
+        sessionId: String = "session-1",
     ): EngineSnapshot = EngineSnapshot.idle(1L).copy(
-        authState = EngineAuthState(EngineAuthState.AUTHENTICATED),
+        authState = EngineAuthState(
+            state = EngineAuthState.AUTHENTICATED,
+            account = EngineAccount(accountId, "$accountId@example.com", "active", 1L),
+            session = EngineAuthSession(sessionId, "PandaWave", 1L, 1L, 10_000L, true),
+        ),
         savedTracksCount = savedTracksCount,
         likedTracksCount = likedTracksCount,
         libraryPendingCount = libraryPendingCount,
@@ -144,6 +176,11 @@ private class RecordingLibraryGateway(
         listeners += listener
         listener(current)
         return AutoCloseable { listeners -= listener }
+    }
+
+    fun emit(snapshot: EngineSnapshot) {
+        current = snapshot
+        listeners.forEach { it(snapshot) }
     }
 
     override fun observeEngineEvents(listener: (EngineEvent) -> Unit): AutoCloseable = AutoCloseable { }

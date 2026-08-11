@@ -177,6 +177,33 @@ class PandaEngineNativeSnapshotMapperTest {
     }
 
     @Test
+    fun `saved and liked item payloads round trip without credentials`() {
+        val saved = PandaEngineNativeLibraryItemMapper.toDomain(
+            arrayOf("saved-1", "track-1", "Saved", "artist-1", "Artist", "Album", "120000", "1", "art-1", "1000")
+        )
+        val liked = PandaEngineNativeLibraryItemMapper.toDomain(
+            arrayOf("liked-1", "track-2", "Liked", "artist-2", "Other", "", "240000", "0", "", "2000")
+        )
+
+        assertEquals("saved-1", saved?.relationshipId)
+        assertEquals("track-1", saved?.mediaId)
+        assertEquals("Saved", saved?.title)
+        assertEquals("Album", saved?.album)
+        assertEquals(120_000L, saved?.durationMillis)
+        assertTrue(saved?.explicit == true)
+        assertEquals("liked-1", liked?.relationshipId)
+        assertEquals("track-2", liked?.mediaId)
+        assertEquals(null, liked?.album)
+        assertFalse(liked?.explicit == true)
+        assertEquals(null, liked?.artworkId)
+
+        val publicSurface = com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineLibraryItem::class.java
+            .declaredFields.joinToString(" ") { it.name }.lowercase()
+        assertFalse(publicSurface.contains("token"))
+        assertFalse(publicSurface.contains("credential"))
+    }
+
+    @Test
     fun `profile mapper preserves absent display name distinctly from empty text`() {
         val absent = PandaEngineNativeProfileMapper.toDomain(
             arrayOf("profile-1", "account-1", "0", "", "100", "")

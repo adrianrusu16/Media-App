@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -54,6 +55,8 @@ class LibraryRouteTest {
 
         compose.onNodeWithText("Saved Song").assertIsDisplayed()
         compose.onNodeWithTag("library-pending-pending-1").assertIsDisplayed()
+        compose.onNodeWithTag("library-remove-pending-1").performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithTag("library-like-pending-1").performScrollTo().assertIsNotEnabled()
         compose.onNodeWithTag("library-next-page").performScrollTo().performClick()
         compose.onNodeWithTag("library-remove-saved-1").performScrollTo().performClick()
         compose.onNodeWithTag("library-like-saved-1").performScrollTo().performClick()
@@ -67,6 +70,42 @@ class LibraryRouteTest {
             listOf("next", "remove:saved-1", "like:saved-1", "unlike:liked-1", "save:liked-1"),
             actions,
         )
+    }
+
+    @Test
+    fun libraryRouteRendersSignedOutLoadingEmptyAndTypedErrorStates() {
+        setRoute(LibraryState(isSignedOut = true, isLoading = false))
+        compose.onNodeWithTag("library-signed-out").assertIsDisplayed()
+
+        setRoute(LibraryState(isLoading = true))
+        compose.onNodeWithTag("library-loading").assertIsDisplayed()
+
+        setRoute(LibraryState(isLoading = false))
+        compose.onNodeWithTag("library-empty").assertIsDisplayed()
+
+        setRoute(LibraryState(isLoading = false, errorType = "network", isRetryableError = true))
+        compose.onNodeWithTag("library-error").assertIsDisplayed()
+        compose.onNodeWithTag("library-retry").assertIsDisplayed()
+
+        setRoute(LibraryState(isLoading = false, errorType = "unknown", isRetryableError = false))
+        compose.onNodeWithTag("library-error").assertIsDisplayed()
+    }
+
+    private fun setRoute(state: LibraryState) {
+        compose.setContent {
+            PandaWaveTheme(darkTheme = true) {
+                LibraryRoute(
+                    state = state,
+                    onSelectTab = {},
+                    onRefresh = {},
+                    onLoadNext = {},
+                    onSave = {},
+                    onRemoveSaved = {},
+                    onLike = {},
+                    onUnlike = {},
+                )
+            }
+        }
     }
 
     private fun track(mediaId: String, title: String) = LibraryTrack(

@@ -25,14 +25,12 @@ class PandaEngineLibraryRepository @Inject constructor(
 
     private val started = AtomicBoolean(false)
     private var subscription: AutoCloseable? = null
+    private var hydratedIdentity: LibraryIdentity? = null
 
     override fun start() {
         if (!started.compareAndSet(false, true)) return
         subscription = engineGateway.observeSnapshots(::project)
-        if (engineGateway.snapshot().authState.state == EngineAuthState.AUTHENTICATED) {
-            dispatch(EngineCommand(EngineCommand.TYPE_LIST_SAVED_TRACKS, EngineCommandPayloads.libraryPage(PAGE_SIZE)))
-            dispatch(EngineCommand(EngineCommand.TYPE_LIST_LIKED_TRACKS, EngineCommandPayloads.libraryPage(PAGE_SIZE)))
-        }
+        project(engineGateway.snapshot())
     }
 
     override fun selectTab(tab: LibraryTab) {
@@ -60,6 +58,7 @@ class PandaEngineLibraryRepository @Inject constructor(
     override fun close() {
         subscription?.close()
         subscription = null
+        hydratedIdentity = null
         started.set(false)
     }
 
@@ -83,7 +82,9 @@ class PandaEngineLibraryRepository @Inject constructor(
 
     private fun project(snapshot: EngineSnapshot) {
         val selectedTab = mutableState.value.selectedTab
-        if (snapshot.authState.state != EngineAuthState.AUTHENTICATED) {
+        val identity = snapshot.libraryIdentity()
+        if (identity == null) {
+            hydratedIdentity = null
             mutableState.value = LibraryState(selectedTab = selectedTab, isLoading = false, isSignedOut = true)
             return
         }
@@ -108,6 +109,23 @@ class PandaEngineLibraryRepository @Inject constructor(
             errorType = errorType,
             isRetryableError = errorType == EngineSnapshot.ERROR_NETWORK,
         )
+        hydrateFor(identity)
+    }
+
+    private fun hydrateFor(identity: LibraryIdentity) {
+        if (hydratedIdentity == identity) return
+        hydratedIdentity = identity
+        dispatch(EngineCommand(EngineCommand.TYPE_LIST_SAVED_TRACKS, EngineCommandPayloads.libraryPage(PAGE_SIZE)))
+        dispatch(EngineCommand(EngineCommand.TYPE_LIST_LIKED_TRACKS, EngineCommandPayloads.libraryPage(PAGE_SIZE)))
+    }
+
+    private fun EngineSnapshot.libraryIdentity(): LibraryIdentity? {
+        val auth = authState
+        val accountId = auth.account?.id?.takeIf(String::isNotBlank) ?: return null
+        val sessionId = auth.session?.id?.takeIf(String::isNotBlank) ?: return null
+        return LibraryIdentity(accountId, sessionId).takeIf {
+            auth.state == EngineAuthState.AUTHENTICATED && auth.session?.current == true
+        }
     }
 
     private fun EngineLibraryItem.toLibraryTrack() = LibraryTrack(
@@ -125,4 +143,6 @@ class PandaEngineLibraryRepository @Inject constructor(
     private companion object {
         const val PAGE_SIZE = 25
     }
+
+    private data class LibraryIdentity(val accountId: String, val sessionId: String)
 }

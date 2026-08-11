@@ -225,8 +225,10 @@ impl Engine {
             },
             Ok(None) => {}
             Err(error) => {
-                snapshot.saved_tracks = previous_saved;
-                snapshot.liked_tracks = previous_liked;
+                if AuthIdentity::from_state(&snapshot.auth_state).as_ref() == Some(&identity) {
+                    snapshot.saved_tracks = previous_saved;
+                    snapshot.liked_tracks = previous_liked;
+                }
                 snapshot.last_error = Some(error);
             }
         }

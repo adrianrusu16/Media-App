@@ -59,3 +59,34 @@ The repository-wide Spotless check has a known baseline of 73 unrelated pre-exis
 The required `apply_patch` operation was attempted before edits. On existing files the Windows helper repeatedly failed with `helper_unknown_error`, so edits used narrow, exact-path, occurrence-counted PowerShell fallbacks. One Gradle fallback stopped safely because its CRLF anchor count was zero; a normalized exact-anchor retry succeeded. One pending-bridge fallback applied the C query then stopped at a zero-count JNI anchor; a normalized exact-anchor retry completed it. The first encoding helper failed to parse its mojibake literal; an ASCII resource-name match corrected the string to `Updating...`. All temporary Task 4 helper scripts were removed after use.
 
 The pre-existing untracked `.codex`, `.serena`, `AGENTS.md`, graphify outputs, IDE/target directories, crash log, and archive remain untouched and unstaged. Graphify outputs were updated as required but remain unstaged because they were untracked before this task.
+
+## Fix round 1
+
+### RED evidence
+
+- `cargo test -p panda_engine_core --test library_engine_contracts in_flight_library_mutations_never_restore_previous_owner_projections -- --exact` failed as expected before the Rust fix: `save leaked saved tracks after account switch`.
+- `gradlew.bat --no-configuration-cache :feature:library:testDebugUnitTest --tests '*PandaEngineLibraryRepositoryTest.authenticated snapshot transitions hydrate each identity exactly once*' --no-daemon --console=plain` failed as expected against the previous repository behavior: expected `[list_saved_tracks, list_liked_tracks]`, but received `[]` after an anonymous-to-authenticated transition.
+
+### GREEN verification
+
+- `cargo test -p panda_engine_core --test library_engine_contracts` passed (5 tests), covering save/remove-saved/like/unlike across account replacement, session replacement, `current=false`, logout, both outcome and engine snapshots, and same-owner typed rollback.
+- `cargo test -p panda_engine_ffi library_boundary` passed (3 tests), including all eight appended Library FFI command discriminants.
+- `cargo fmt --all -- --check` passed.
+- `gradlew.bat --no-configuration-cache :feature:library:testDebugUnitTest --tests '*PandaEngineLibraryRepositoryTest*' --rerun-tasks --no-daemon --console=plain` passed (4 tests), including transition-driven per-identity hydration dedupe.
+- `gradlew.bat --no-configuration-cache :core:rust-bridge:testDebugUnitTest :feature:library:testDebugUnitTest :feature:library:compileDebugAndroidTestKotlin --no-daemon --console=plain` passed after correcting the Compose assertion API; the bridge mapper test passed and Library device tests compiled.
+- `graphify update .` completed after the changes.
+
+### Files changed
+
+- `rust/engine/crates/app_core/src/engine/core/library.rs`
+- `rust/engine/crates/app_core/tests/library_engine_contracts.rs`
+- `rust/engine/crates/ffi/src/tests/library_boundary.rs`
+- `core/rust-bridge/src/test/kotlin/com/adrianrusu/pandawave/core/rust/bridge/engine/native/PandaEngineNativeSnapshotMapperTest.kt`
+- `feature/library/src/main/kotlin/com/adrianrusu/pandawave/feature/library/data/PandaEngineLibraryRepository.kt`
+- `feature/library/src/test/kotlin/com/adrianrusu/pandawave/feature/library/data/PandaEngineLibraryRepositoryTest.kt`
+- `feature/library/src/androidTest/kotlin/com/adrianrusu/pandawave/feature/library/LibraryRouteTest.kt`
+
+### Remaining concerns
+
+- The Compose route additions were compiled but not run on a connected device in this fix round.
+- Gradle reports an existing deprecation warning for `createComposeRule`; it is unrelated to this change.

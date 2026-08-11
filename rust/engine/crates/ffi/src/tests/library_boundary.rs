@@ -1,5 +1,6 @@
 use crate::{
     FFI_COMMAND_LIKE_TRACK, FFI_COMMAND_LIST_LIKED_TRACKS, FFI_COMMAND_LIST_SAVED_TRACKS,
+    FFI_COMMAND_LOAD_NEXT_LIKED_TRACKS_PAGE, FFI_COMMAND_LOAD_NEXT_SAVED_TRACKS_PAGE,
     FFI_COMMAND_REMOVE_SAVED_TRACK, FFI_COMMAND_SAVE_TRACK, FFI_COMMAND_UNLIKE_TRACK,
     FfiEngineSnapshot, panda_engine_create, panda_engine_destroy,
     panda_engine_get_pending_library_track_id,
@@ -59,7 +60,9 @@ fn ffi_library_discriminants_are_append_only() {
     assert_eq!(FFI_COMMAND_SAVE_TRACK, 32);
     assert_eq!(FFI_COMMAND_REMOVE_SAVED_TRACK, 33);
     assert_eq!(FFI_COMMAND_LIST_SAVED_TRACKS, 34);
+    assert_eq!(FFI_COMMAND_LOAD_NEXT_SAVED_TRACKS_PAGE, 35);
     assert_eq!(FFI_COMMAND_LIKE_TRACK, 36);
     assert_eq!(FFI_COMMAND_UNLIKE_TRACK, 37);
     assert_eq!(FFI_COMMAND_LIST_LIKED_TRACKS, 38);
+    assert_eq!(FFI_COMMAND_LOAD_NEXT_LIKED_TRACKS_PAGE, 39);
 }
