@@ -90,3 +90,24 @@ The pre-existing untracked `.codex`, `.serena`, `AGENTS.md`, graphify outputs, I
 
 - The Compose route additions were compiled but not run on a connected device in this fix round.
 - Gradle reports an existing deprecation warning for `createComposeRule`; it is unrelated to this change.
+
+## Fix round 2
+
+### RED evidence
+
+- `gradlew.bat --no-configuration-cache :feature:library:testDebugUnitTest --tests '*PandaEngineLibraryRepositoryTest.synchronous identity replacement cancels stale hydration and dedupes replacement loads*' --no-daemon --console=plain` failed before the sequencing guard. It issued Saved for `account-1/session-1`, Saved for `account-2/session-2`, then Liked twice for `account-2/session-2`.
+
+### GREEN verification
+
+- `gradlew.bat --no-configuration-cache :feature:library:testDebugUnitTest --tests '*PandaEngineLibraryRepositoryTest*' --no-daemon --console=plain` passed (5 tests), including synchronous callback replacement without a stale or duplicate Liked load.
+- `gradlew.bat --no-configuration-cache :core:rust-bridge:testDebugUnitTest --tests '*AidlEngineGatewayTest*' :feature:library:compileDebugAndroidTestKotlin --no-daemon --console=plain` passed after adding the missing test import. The bridge suite passed 25 tests, including saved, liked, and actual pending-ID service-gateway round trip plus credential-free transport-surface checks; Compose tests compiled.
+
+### Files changed
+
+- `feature/library/src/main/kotlin/com/adrianrusu/pandawave/feature/library/data/PandaEngineLibraryRepository.kt`
+- `feature/library/src/test/kotlin/com/adrianrusu/pandawave/feature/library/data/PandaEngineLibraryRepositoryTest.kt`
+- `core/rust-bridge/src/test/kotlin/com/adrianrusu/pandawave/core/rust/bridge/gateway/AidlEngineGatewayTest.kt`
+
+### Remaining concerns
+
+- The Compose route tests were compiled but not run on a connected device in this round.

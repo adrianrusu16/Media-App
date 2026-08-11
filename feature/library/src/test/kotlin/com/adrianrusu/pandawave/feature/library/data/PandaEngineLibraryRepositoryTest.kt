@@ -107,6 +107,27 @@ class PandaEngineLibraryRepositoryTest {
         assertEquals(6, gateway.commands.size)
     }
 
+    @Test
+    fun `synchronous identity replacement cancels stale hydration and dedupes replacement loads`() {
+        val replacement = authenticatedSnapshot(accountId = "account-2", sessionId = "session-2")
+        val gateway = RecordingLibraryGateway(
+            snapshot = authenticatedSnapshot(accountId = "account-1", sessionId = "session-1"),
+            replaceOnFirstSavedLoad = replacement,
+        )
+        val repository = PandaEngineLibraryRepository(gateway)
+
+        repository.start()
+
+        assertEquals(
+            listOf(
+                LibraryLoad(EngineCommand.TYPE_LIST_SAVED_TRACKS, "account-1", "session-1"),
+                LibraryLoad(EngineCommand.TYPE_LIST_SAVED_TRACKS, "account-2", "session-2"),
+                LibraryLoad(EngineCommand.TYPE_LIST_LIKED_TRACKS, "account-2", "session-2"),
+            ),
+            gateway.libraryLoads,
+        )
+    }
+
     private fun authenticatedSnapshot(
         savedTracksCount: Int = 0,
         likedTracksCount: Int = 0,
@@ -145,10 +166,13 @@ private class RecordingLibraryGateway(
     private val liked: List<EngineLibraryItem> = emptyList(),
     private val pending: List<String> = emptyList(),
     private val dispatchEventType: String = EngineEvent.TYPE_COMMAND_APPLIED,
+    private val replaceOnFirstSavedLoad: EngineSnapshot? = null,
 ) : EngineGateway {
     private var current = snapshot
+    private var replacedDuringSavedLoad = false
     private val listeners = mutableListOf<(EngineSnapshot) -> Unit>()
     val commands = mutableListOf<EngineCommand>()
+    val libraryLoads = mutableListOf<LibraryLoad>()
 
     override fun snapshot(): EngineSnapshot = current
     override fun browseResult(index: Int): EngineCatalogItem? = null
@@ -159,6 +183,19 @@ private class RecordingLibraryGateway(
 
     override fun dispatch(command: EngineCommand): EngineDispatchResult {
         commands += command
+        if (command.type in setOf(EngineCommand.TYPE_LIST_SAVED_TRACKS, EngineCommand.TYPE_LIST_LIKED_TRACKS)) {
+            libraryLoads += LibraryLoad(
+                type = command.type,
+                accountId = current.authState.account?.id.orEmpty(),
+                sessionId = current.authState.session?.id.orEmpty(),
+            )
+        }
+        if (!replacedDuringSavedLoad && command.type == EngineCommand.TYPE_LIST_SAVED_TRACKS) {
+            replaceOnFirstSavedLoad?.let { replacement ->
+                replacedDuringSavedLoad = true
+                emit(replacement)
+            }
+        }
         return EngineDispatchResult(
             snapshot = current,
             event = EngineEvent(dispatchEventType, command.type),
@@ -185,3 +222,5 @@ private class RecordingLibraryGateway(
 
     override fun observeEngineEvents(listener: (EngineEvent) -> Unit): AutoCloseable = AutoCloseable { }
 }
+
+private data class LibraryLoad(val type: String, val accountId: String, val sessionId: String)

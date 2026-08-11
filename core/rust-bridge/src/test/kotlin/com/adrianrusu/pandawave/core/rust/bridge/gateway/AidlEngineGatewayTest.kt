@@ -5,6 +5,7 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineLibraryItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.pandawave.core.telemetry.TelemetryEvent
@@ -16,6 +17,43 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
 class AidlEngineGatewayTest {
+    @Test
+    fun `saved liked and pending library projections round trip without credentials`() {
+        val saved = EngineLibraryItem(
+            relationshipId = "saved-1",
+            mediaId = "track-1",
+            title = "Saved",
+            artistId = "artist-1",
+            artist = "Artist",
+            durationMillis = 120_000,
+            relationshipAtEpochMillis = 1_000,
+        )
+        val liked = saved.copy(relationshipId = "liked-1", mediaId = "track-2", title = "Liked")
+        val service = RecordingEngineService(
+            initialSnapshot = EngineSnapshot.idle(1L).copy(
+                savedTracksCount = 1,
+                likedTracksCount = 1,
+                libraryPendingCount = 1,
+            ),
+            saved = listOf(saved),
+            liked = listOf(liked),
+            pending = listOf("track-pending"),
+        )
+        val gateway = AidlEngineGateway(FakeEngineServiceConnection(service))
+
+        assertEquals(saved, gateway.savedTrack(0))
+        assertEquals(liked, gateway.likedTrack(0))
+        assertEquals("track-pending", gateway.pendingLibraryTrackId(0))
+
+        val publicSurface = listOf(EngineLibraryItem::class.java, EngineService::class.java, EngineGateway::class.java)
+            .flatMap { type -> type.declaredFields.map { it.name } + type.methods.map { it.name } }
+            .joinToString(" ")
+            .lowercase()
+        for (forbidden in listOf("access_token", "refresh_token", "credential", "canopy")) {
+            assertFalse(publicSurface.contains(forbidden), "library transport leaked $forbidden")
+        }
+    }
+
     @Test
     fun `auth availability changes when the service connects without carrying credentials`() {
         val connection = FakeEngineServiceConnection(service = null)
@@ -607,7 +645,12 @@ private class FakeEngineServiceConnection(override var service: EngineService?) 
     }
 }
 
-private class RecordingEngineService(initialSnapshot: EngineSnapshot) : EngineService {
+private class RecordingEngineService(
+    initialSnapshot: EngineSnapshot,
+    private val saved: List<EngineLibraryItem> = emptyList(),
+    private val liked: List<EngineLibraryItem> = emptyList(),
+    private val pending: List<String> = emptyList(),
+) : EngineService {
     private var currentSnapshot = initialSnapshot
     private var currentEffects: List<EngineEffect> = emptyList()
     private val commands = mutableListOf<EngineCommand>()
@@ -632,6 +675,12 @@ private class RecordingEngineService(initialSnapshot: EngineSnapshot) : EngineSe
     override fun browseResult(index: Int): EngineCatalogItem? = null
 
     override fun searchResult(index: Int): EngineCatalogItem? = null
+
+    override fun savedTrack(index: Int): EngineLibraryItem? = saved.getOrNull(index)
+
+    override fun likedTrack(index: Int): EngineLibraryItem? = liked.getOrNull(index)
+
+    override fun pendingLibraryTrackId(index: Int): String? = pending.getOrNull(index)
 
     override fun effectCount(): Int = currentEffects.size
 

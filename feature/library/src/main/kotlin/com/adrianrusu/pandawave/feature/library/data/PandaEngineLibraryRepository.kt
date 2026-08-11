@@ -116,6 +116,7 @@ class PandaEngineLibraryRepository @Inject constructor(
         if (hydratedIdentity == identity) return
         hydratedIdentity = identity
         dispatch(EngineCommand(EngineCommand.TYPE_LIST_SAVED_TRACKS, EngineCommandPayloads.libraryPage(PAGE_SIZE)))
+        if (hydratedIdentity != identity) return
         dispatch(EngineCommand(EngineCommand.TYPE_LIST_LIKED_TRACKS, EngineCommandPayloads.libraryPage(PAGE_SIZE)))
     }
 
