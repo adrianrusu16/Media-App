@@ -12,6 +12,7 @@ pub mod library;
 pub mod page;
 pub mod platform_event;
 pub mod playback;
+pub mod playlist;
 pub mod preferences;
 pub mod snapshot;
 

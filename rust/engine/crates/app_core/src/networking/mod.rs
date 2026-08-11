@@ -24,6 +24,7 @@ pub use audio_source_client::{AudioChunk, AudioSourceClient, PlaybackPort, Playb
 pub use auth_port::AuthPort;
 pub use auth_state_provider::AuthStateProvider;
 pub use backend_client::CatalogPort;
+pub use canopy::CanopyPlaylistClient;
 pub use canopy::{
     CanopyAuthClient, CanopyCatalogClient, CanopyDiscoveryClient, CanopyHistoryClient,
     CanopyLibraryClient, CanopyPlaybackClient, SessionCoordinator,

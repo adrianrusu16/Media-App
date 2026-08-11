@@ -90,15 +90,20 @@ pub use crate::model::playback::{
     ControlState, DrivingState, EnginePlaybackSource, PlaybackState, PlayerControls,
     RestrictionState,
 };
+pub use crate::model::playlist::{
+    EngineCreatePlaylist, EnginePlaylist, EnginePlaylistIdentity, EnginePlaylistTrack,
+    EngineUpdatePlaylist, PlaylistPort, PlaylistReconciliation,
+};
 pub use crate::model::preferences::{PreferenceSource, ThemePreference, ThemePreferenceState};
 pub use crate::model::snapshot::EngineSnapshot;
 pub use crate::networking::{
     AudioChunk, AudioSourceClient, AuthPort, AuthStateProvider, CanopyAuthClient,
     CanopyCatalogClient, CanopyDiscoveryClient, CanopyHistoryClient, CanopyLibraryClient,
-    CanopyPlaybackClient, CatalogPort, PlaybackPort, PlaybackSource, RemoteRepository,
-    RetryingAudioSourceClient, SessionCoordinator, SystemPort,
+    CanopyPlaybackClient, CanopyPlaylistClient, CatalogPort, PlaybackPort, PlaybackSource,
+    RemoteRepository, RetryingAudioSourceClient, SessionCoordinator, SystemPort,
 };
 pub use crate::services::player::{MediaPlayer, MockPlayer};
+pub use crate::services::playlist_reconciler::PlaylistReconciler;
 pub use crate::services::service::{EngineService, ServiceManager};
 pub use crate::services::voice::{
     MockVoiceEngine, VoiceEngine, VoiceInteractionResult, VoskVoiceEngine,

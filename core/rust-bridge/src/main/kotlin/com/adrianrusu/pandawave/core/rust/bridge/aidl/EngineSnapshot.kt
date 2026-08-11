@@ -42,6 +42,11 @@ data class EngineSnapshot(
     val libraryPendingCount: Int = 0,
     val hasSavedTracksNextPage: Boolean = false,
     val hasLikedTracksNextPage: Boolean = false
+    ,val playlistsCount: Int = 0
+    ,val playlistTracksCount: Int = 0
+    ,val hasPlaylistsNextPage: Boolean = false
+    ,val hasPlaylistTracksNextPage: Boolean = false
+    ,val hasPlaylistReconciliation: Boolean = false
 ) : Parcelable {
     constructor(parcel: Parcel) : this(
         playbackState = parcel.readString().orEmpty(),
@@ -92,6 +97,11 @@ data class EngineSnapshot(
         libraryPendingCount = parcel.readInt(),
         hasSavedTracksNextPage = parcel.readBooleanValue(),
         hasLikedTracksNextPage = parcel.readBooleanValue()
+        ,playlistsCount = parcel.readInt()
+        ,playlistTracksCount = parcel.readInt()
+        ,hasPlaylistsNextPage = parcel.readBooleanValue()
+        ,hasPlaylistTracksNextPage = parcel.readBooleanValue()
+        ,hasPlaylistReconciliation = parcel.readBooleanValue()
     )
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
@@ -139,6 +149,11 @@ data class EngineSnapshot(
         parcel.writeInt(libraryPendingCount)
         parcel.writeBooleanValue(hasSavedTracksNextPage)
         parcel.writeBooleanValue(hasLikedTracksNextPage)
+        parcel.writeInt(playlistsCount)
+        parcel.writeInt(playlistTracksCount)
+        parcel.writeBooleanValue(hasPlaylistsNextPage)
+        parcel.writeBooleanValue(hasPlaylistTracksNextPage)
+        parcel.writeBooleanValue(hasPlaylistReconciliation)
     }
 
     override fun describeContents(): Int = 0

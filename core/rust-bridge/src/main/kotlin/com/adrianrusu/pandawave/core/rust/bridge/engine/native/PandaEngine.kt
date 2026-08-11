@@ -12,6 +12,9 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineControlState
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineLibraryItem
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistItem
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistTrackItem
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistReconciliation
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlayerControls
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
@@ -105,6 +108,10 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     override fun likedTrack(index: Int): EngineLibraryItem? = PandaEngineNativeLibraryItemMapper.toDomain(nativeLikedTrackValues(nativeHandle, index))
 
     override fun pendingLibraryTrackId(index: Int): String? = nativePendingLibraryTrackId(nativeHandle, index)
+    override fun playlist(index: Int): EnginePlaylistItem? = nativePlaylistValues(nativeHandle, index)?.takeIf { it.size == 6 }?.let { EnginePlaylistItem(it[0], it[1], it[2].ifEmpty { null }, it[3].toLong(), it[4].toLong(), it[5].toLong()) }
+    override fun playlistTrack(index: Int): EnginePlaylistTrackItem? = nativePlaylistTrackValues(nativeHandle, index)?.takeIf { it.size == 12 }?.let { EnginePlaylistTrackItem(it[0],it[1],it[2],it[3],it[4],it[5],it[6].ifEmpty { null },it[7].toLong(),it[8]=="1",it[9].ifEmpty { null },it[10].toInt(),it[11].toLong()) }
+    override fun selectedPlaylistId(): String? = nativePlaylistSelectionValues(nativeHandle)?.getOrNull(0)?.ifEmpty { null }
+    override fun playlistReconciliation(): EnginePlaylistReconciliation? = nativePlaylistSelectionValues(nativeHandle)?.takeIf { it.size == 6 && it[1].isNotEmpty() }?.let { EnginePlaylistReconciliation(it[1],it[2].toLong(),it[3].toLong(),it[4].split('\u001f').filter(String::isNotEmpty),it[5].split('\u001f').filter(String::isNotEmpty)) }
 
     override fun searchResult(index: Int): EngineCatalogItem? = resultItem(
         id = nativeSearchResultId(nativeHandle, index),
@@ -230,6 +237,9 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     private external fun nativeSavedTrackValues(handle: Long, index: Int): Array<String>?
     private external fun nativeLikedTrackValues(handle: Long, index: Int): Array<String>?
     private external fun nativePendingLibraryTrackId(handle: Long, index: Int): String?
+    private external fun nativePlaylistValues(handle: Long, index: Int): Array<String>?
+    private external fun nativePlaylistTrackValues(handle: Long, index: Int): Array<String>?
+    private external fun nativePlaylistSelectionValues(handle: Long): Array<String>?
 
     private external fun nativeEffectCount(handle: Long): Int
 
@@ -753,6 +763,7 @@ internal object PandaEngineNativeSnapshotMapper {
                 libraryPendingCount = nativeValues[SNAPSHOT_LIBRARY_PENDING_COUNT_INDEX].toInt(),
                 hasSavedTracksNextPage = nativeValues[SNAPSHOT_HAS_SAVED_NEXT_PAGE_INDEX].toBoolean(),
                 hasLikedTracksNextPage = nativeValues[SNAPSHOT_HAS_LIKED_NEXT_PAGE_INDEX].toBoolean()
+                ,playlistsCount = nativeValues[45].toInt(), playlistTracksCount = nativeValues[46].toInt(), hasPlaylistsNextPage = nativeValues[47].toBoolean(), hasPlaylistTracksNextPage = nativeValues[48].toBoolean(), hasPlaylistReconciliation = nativeValues[49].toBoolean()
             ),
             metadataRevision = nativeValues[SNAPSHOT_METADATA_REVISION_INDEX],
             backendStatus = nativeValues[SNAPSHOT_HAS_BACKEND_STATUS_INDEX]
@@ -851,7 +862,7 @@ internal object PandaEngineNativeSnapshotMapper {
     private const val PREFERENCE_SOURCE_LOCAL_USER = 2
     private const val PREFERENCE_SOURCE_REMOTE_PROFILE = 3
 
-    private const val SNAPSHOT_VALUE_COUNT = 45
+    private const val SNAPSHOT_VALUE_COUNT = 50
     private const val SNAPSHOT_PLAYBACK_INDEX = 0
     private const val SNAPSHOT_RESTRICTION_INDEX = 1
     private const val SNAPSHOT_UPDATED_AT_INDEX = 2

@@ -4,6 +4,9 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand;
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthOperationResult;
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem;
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineLibraryItem;
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistItem;
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistTrackItem;
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistReconciliation;
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect;
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent;
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot;
@@ -27,4 +30,8 @@ interface IMediaEngineService {
     EngineLibraryItem getSavedTrack(int index);
     EngineLibraryItem getLikedTrack(int index);
     String getPendingLibraryTrackId(int index);
+    EnginePlaylistItem getPlaylist(int index);
+    EnginePlaylistTrackItem getPlaylistTrack(int index);
+    String getSelectedPlaylistId();
+    EnginePlaylistReconciliation getPlaylistReconciliation();
 }

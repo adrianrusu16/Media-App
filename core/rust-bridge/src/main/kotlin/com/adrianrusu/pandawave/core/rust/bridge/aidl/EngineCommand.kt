@@ -54,6 +54,16 @@ data class EngineCommand(val type: String, val payload: String?) : Parcelable {
         const val TYPE_UNLIKE_TRACK = "unlike_track"
         const val TYPE_LIST_LIKED_TRACKS = "list_liked_tracks"
         const val TYPE_LOAD_NEXT_LIKED_TRACKS_PAGE = "load_next_liked_tracks_page"
+        const val TYPE_CREATE_PLAYLIST = "create_playlist"
+        const val TYPE_UPDATE_PLAYLIST = "update_playlist"
+        const val TYPE_DELETE_PLAYLIST = "delete_playlist"
+        const val TYPE_LIST_PLAYLISTS = "list_playlists"
+        const val TYPE_LOAD_NEXT_PLAYLISTS_PAGE = "load_next_playlists_page"
+        const val TYPE_ADD_PLAYLIST_TRACK = "add_playlist_track"
+        const val TYPE_REMOVE_PLAYLIST_TRACK = "remove_playlist_track"
+        const val TYPE_LIST_PLAYLIST_TRACKS = "list_playlist_tracks"
+        const val TYPE_LOAD_NEXT_PLAYLIST_TRACKS_PAGE = "load_next_playlist_tracks_page"
+        const val TYPE_REORDER_PLAYLIST_TRACKS = "reorder_playlist_tracks"
 
         @JvmField
         val CREATOR: Parcelable.Creator<EngineCommand> =

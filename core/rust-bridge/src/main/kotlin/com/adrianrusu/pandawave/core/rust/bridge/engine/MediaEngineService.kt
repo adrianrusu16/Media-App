@@ -11,6 +11,9 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistItem
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistReconciliation
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistTrackItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.IEngineListener
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.IMediaEngineService
@@ -78,6 +81,10 @@ class MediaEngineService : Service() {
         override fun getSavedTrack(index: Int) = engine?.savedTrack(index)
         override fun getLikedTrack(index: Int) = engine?.likedTrack(index)
         override fun getPendingLibraryTrackId(index: Int) = engine?.pendingLibraryTrackId(index)
+        override fun getPlaylist(index: Int): EnginePlaylistItem? = engine?.playlist(index)
+        override fun getPlaylistTrack(index: Int): EnginePlaylistTrackItem? = engine?.playlistTrack(index)
+        override fun getSelectedPlaylistId(): String? = engine?.selectedPlaylistId()
+        override fun getPlaylistReconciliation(): EnginePlaylistReconciliation? = engine?.playlistReconciliation()
 
         override fun getEffectCount(): Int = engine?.effectCount() ?: 0
 

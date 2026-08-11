@@ -37,6 +37,10 @@ interface RustEngine {
     fun searchResult(index: Int): EngineCatalogItem?
 
     fun savedTrack(index: Int): EngineLibraryItem? = null
+    fun playlist(index: Int): com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistItem? = null
+    fun playlistTrack(index: Int): com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistTrackItem? = null
+    fun selectedPlaylistId(): String? = null
+    fun playlistReconciliation(): com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistReconciliation? = null
 
     fun likedTrack(index: Int): EngineLibraryItem? = null
 

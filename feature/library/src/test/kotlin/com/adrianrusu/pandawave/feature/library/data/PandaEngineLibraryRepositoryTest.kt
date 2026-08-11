@@ -8,6 +8,9 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineLibraryItem
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistItem
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistReconciliation
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistTrackItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.pandawave.core.rust.bridge.engine.EngineDispatchResult
@@ -35,7 +38,11 @@ class PandaEngineLibraryRepositoryTest {
         repository.start()
 
         assertEquals(
-            listOf(EngineCommand.TYPE_LIST_SAVED_TRACKS, EngineCommand.TYPE_LIST_LIKED_TRACKS),
+            listOf(
+                EngineCommand.TYPE_LIST_SAVED_TRACKS,
+                EngineCommand.TYPE_LIST_LIKED_TRACKS,
+                EngineCommand.TYPE_LIST_PLAYLISTS,
+            ),
             gateway.commands.map(EngineCommand::type),
         )
         assertEquals(listOf("saved-1", "saved-2"), repository.state.value.savedTracks.map { it.mediaId })
@@ -62,6 +69,47 @@ class PandaEngineLibraryRepositoryTest {
             gateway.commands.map(EngineCommand::type),
         )
         assertEquals(listOf(null, null), gateway.commands.map(EngineCommand::payload))
+    }
+
+    @Test
+    fun `playlist projection exposes selected tracks pagination and reconciliation revisions`() {
+        val gateway = RecordingLibraryGateway(
+            snapshot = authenticatedSnapshot(
+                playlistsCount = 1,
+                playlistTracksCount = 1,
+                hasPlaylistsNextPage = true,
+                hasPlaylistTracksNextPage = true,
+                hasPlaylistReconciliation = true,
+            ),
+            playlists = listOf(EnginePlaylistItem("playlist-1", "Road trip", "Summer", 7, 1_000, 2_000)),
+            playlistTracks = listOf(
+                EnginePlaylistTrackItem(
+                    membershipId = "membership-1", playlistId = "playlist-1", mediaId = "track-1",
+                    title = "Track", artistId = "artist-1", artist = "Artist", album = "Album",
+                    durationMillis = 120_000, explicit = false, artworkId = "artwork-1", position = 0,
+                    addedAtEpochMillis = 1_500,
+                )
+            ),
+            selectedPlaylistId = "playlist-1",
+            reconciliation = EnginePlaylistReconciliation(
+                playlistId = "playlist-1", expectedRevision = 7, serverRevision = 8,
+                serverMembershipIds = listOf("membership-server"),
+                proposedMembershipIds = listOf("membership-local"),
+            ),
+        )
+        val repository = PandaEngineLibraryRepository(gateway)
+
+        repository.start()
+
+        assertEquals(listOf("playlist-1"), repository.state.value.playlists.map { it.id })
+        assertEquals("playlist-1", repository.state.value.selectedPlaylistId)
+        assertEquals(listOf("membership-1"), repository.state.value.playlistTracks.map { it.relationshipId })
+        assertTrue(repository.state.value.hasPlaylistsNextPage)
+        assertTrue(repository.state.value.hasPlaylistTracksNextPage)
+        assertEquals(7, repository.state.value.playlistConflict?.expectedRevision)
+        assertEquals(8, repository.state.value.playlistConflict?.serverRevision)
+        assertEquals(listOf("membership-server"), repository.state.value.playlistConflict?.serverMembershipIds)
+        assertEquals(listOf("membership-local"), repository.state.value.playlistConflict?.proposedMembershipIds)
     }
 
     @Test
@@ -93,18 +141,22 @@ class PandaEngineLibraryRepositoryTest {
 
         gateway.emit(authenticatedSnapshot(accountId = "account-1", sessionId = "session-1"))
         assertEquals(
-            listOf(EngineCommand.TYPE_LIST_SAVED_TRACKS, EngineCommand.TYPE_LIST_LIKED_TRACKS),
+            listOf(
+                EngineCommand.TYPE_LIST_SAVED_TRACKS,
+                EngineCommand.TYPE_LIST_LIKED_TRACKS,
+                EngineCommand.TYPE_LIST_PLAYLISTS,
+            ),
             gateway.commands.map(EngineCommand::type),
         )
 
         gateway.emit(authenticatedSnapshot(accountId = "account-1", sessionId = "session-1"))
-        assertEquals(2, gateway.commands.size)
+        assertEquals(3, gateway.commands.size)
 
         gateway.emit(authenticatedSnapshot(accountId = "account-2", sessionId = "session-2"))
-        assertEquals(4, gateway.commands.size)
+        assertEquals(6, gateway.commands.size)
 
         gateway.emit(authenticatedSnapshot(accountId = "account-2", sessionId = "session-3"))
-        assertEquals(6, gateway.commands.size)
+        assertEquals(9, gateway.commands.size)
     }
 
     @Test
@@ -123,6 +175,7 @@ class PandaEngineLibraryRepositoryTest {
                 LibraryLoad(EngineCommand.TYPE_LIST_SAVED_TRACKS, "account-1", "session-1"),
                 LibraryLoad(EngineCommand.TYPE_LIST_SAVED_TRACKS, "account-2", "session-2"),
                 LibraryLoad(EngineCommand.TYPE_LIST_LIKED_TRACKS, "account-2", "session-2"),
+                LibraryLoad(EngineCommand.TYPE_LIST_PLAYLISTS, "account-2", "session-2"),
             ),
             gateway.libraryLoads,
         )
@@ -134,6 +187,11 @@ class PandaEngineLibraryRepositoryTest {
         libraryPendingCount: Int = 0,
         hasSavedTracksNextPage: Boolean = false,
         hasLikedTracksNextPage: Boolean = false,
+        playlistsCount: Int = 0,
+        playlistTracksCount: Int = 0,
+        hasPlaylistsNextPage: Boolean = false,
+        hasPlaylistTracksNextPage: Boolean = false,
+        hasPlaylistReconciliation: Boolean = false,
         accountId: String = "account-1",
         sessionId: String = "session-1",
     ): EngineSnapshot = EngineSnapshot.idle(1L).copy(
@@ -147,6 +205,11 @@ class PandaEngineLibraryRepositoryTest {
         libraryPendingCount = libraryPendingCount,
         hasSavedTracksNextPage = hasSavedTracksNextPage,
         hasLikedTracksNextPage = hasLikedTracksNextPage,
+        playlistsCount = playlistsCount,
+        playlistTracksCount = playlistTracksCount,
+        hasPlaylistsNextPage = hasPlaylistsNextPage,
+        hasPlaylistTracksNextPage = hasPlaylistTracksNextPage,
+        hasPlaylistReconciliation = hasPlaylistReconciliation,
     )
 
     private fun item(mediaId: String) = EngineLibraryItem(
@@ -165,6 +228,10 @@ private class RecordingLibraryGateway(
     private val saved: List<EngineLibraryItem> = emptyList(),
     private val liked: List<EngineLibraryItem> = emptyList(),
     private val pending: List<String> = emptyList(),
+    private val playlists: List<EnginePlaylistItem> = emptyList(),
+    private val playlistTracks: List<EnginePlaylistTrackItem> = emptyList(),
+    private val selectedPlaylistId: String? = null,
+    private val reconciliation: EnginePlaylistReconciliation? = null,
     private val dispatchEventType: String = EngineEvent.TYPE_COMMAND_APPLIED,
     private val replaceOnFirstSavedLoad: EngineSnapshot? = null,
 ) : EngineGateway {
@@ -180,10 +247,14 @@ private class RecordingLibraryGateway(
     override fun savedTrack(index: Int): EngineLibraryItem? = saved.getOrNull(index)
     override fun likedTrack(index: Int): EngineLibraryItem? = liked.getOrNull(index)
     override fun pendingLibraryTrackId(index: Int): String? = pending.getOrNull(index)
+    override fun playlist(index: Int): EnginePlaylistItem? = playlists.getOrNull(index)
+    override fun playlistTrack(index: Int): EnginePlaylistTrackItem? = playlistTracks.getOrNull(index)
+    override fun selectedPlaylistId(): String? = selectedPlaylistId
+    override fun playlistReconciliation(): EnginePlaylistReconciliation? = reconciliation
 
     override fun dispatch(command: EngineCommand): EngineDispatchResult {
         commands += command
-        if (command.type in setOf(EngineCommand.TYPE_LIST_SAVED_TRACKS, EngineCommand.TYPE_LIST_LIKED_TRACKS)) {
+        if (command.type in setOf(EngineCommand.TYPE_LIST_SAVED_TRACKS, EngineCommand.TYPE_LIST_LIKED_TRACKS, EngineCommand.TYPE_LIST_PLAYLISTS)) {
             libraryLoads += LibraryLoad(
                 type = command.type,
                 accountId = current.authState.account?.id.orEmpty(),

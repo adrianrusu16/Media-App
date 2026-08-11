@@ -6,6 +6,9 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistItem
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistReconciliation
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistTrackItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.pandawave.core.rust.bridge.engine.EngineDispatchResult
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
@@ -70,6 +73,10 @@ class AidlEngineGateway(
     override fun savedTrack(index: Int) = connection.service?.savedTrack(index)
     override fun likedTrack(index: Int) = connection.service?.likedTrack(index)
     override fun pendingLibraryTrackId(index: Int) = connection.service?.pendingLibraryTrackId(index)
+    override fun playlist(index: Int): EnginePlaylistItem? = connection.service?.playlist(index)
+    override fun playlistTrack(index: Int): EnginePlaylistTrackItem? = connection.service?.playlistTrack(index)
+    override fun selectedPlaylistId(): String? = connection.service?.selectedPlaylistId()
+    override fun playlistReconciliation(): EnginePlaylistReconciliation? = connection.service?.playlistReconciliation()
 
     override val isAuthAvailable: Boolean
         get() = !isClosed && connection.service != null
@@ -341,7 +348,13 @@ class AidlEngineGateway(
         EngineCommand.TYPE_SAVE_TRACK,
         EngineCommand.TYPE_REMOVE_SAVED_TRACK,
         EngineCommand.TYPE_LIKE_TRACK,
-        EngineCommand.TYPE_UNLIKE_TRACK -> false
+        EngineCommand.TYPE_UNLIKE_TRACK,
+        EngineCommand.TYPE_CREATE_PLAYLIST,
+        EngineCommand.TYPE_UPDATE_PLAYLIST,
+        EngineCommand.TYPE_DELETE_PLAYLIST,
+        EngineCommand.TYPE_ADD_PLAYLIST_TRACK,
+        EngineCommand.TYPE_REMOVE_PLAYLIST_TRACK,
+        EngineCommand.TYPE_REORDER_PLAYLIST_TRACKS -> false
         else -> true
     }
 

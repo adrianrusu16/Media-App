@@ -437,6 +437,19 @@ impl Engine {
                 self.dispatch_library_command(library_command, &mut next_snapshot)
                     .await;
             }
+            playlist_command @ (EngineCommandType::CreatePlaylist { .. }
+            | EngineCommandType::UpdatePlaylist { .. }
+            | EngineCommandType::DeletePlaylist { .. }
+            | EngineCommandType::ListPlaylists { .. }
+            | EngineCommandType::LoadNextPlaylistsPage
+            | EngineCommandType::AddPlaylistTrack { .. }
+            | EngineCommandType::RemovePlaylistTrack { .. }
+            | EngineCommandType::ListPlaylistTracks { .. }
+            | EngineCommandType::LoadNextPlaylistTracksPage
+            | EngineCommandType::ReorderPlaylistTracks { .. }) => {
+                self.dispatch_playlist_command(playlist_command, &mut next_snapshot)
+                    .await;
+            }
             EngineCommandType::SetSpeed { speed } => {
                 next_snapshot = next_snapshot.with_speed(*speed);
                 effects.push(EngineEffect::SetSpeed(*speed));

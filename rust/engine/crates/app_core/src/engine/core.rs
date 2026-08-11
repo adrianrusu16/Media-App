@@ -70,6 +70,13 @@ impl AuthIdentity {
         }
     }
 
+    fn playlist_identity(&self) -> crate::EnginePlaylistIdentity {
+        crate::EnginePlaylistIdentity {
+            account_id: self.account_id.clone(),
+            session_id: self.session_id.clone(),
+        }
+    }
+
     fn history_identity(&self) -> crate::EngineHistoryIdentity {
         crate::EngineHistoryIdentity {
             account_id: self.account_id.clone(),
@@ -90,6 +97,13 @@ struct DiscoveryOperation {
 #[derive(Clone)]
 struct LibraryPageOperation {
     auth_identity: AuthIdentity,
+    page_size: u32,
+}
+
+#[derive(Clone)]
+struct PlaylistPageOperation {
+    auth_identity: AuthIdentity,
+    playlist_id: Option<String>,
     page_size: u32,
 }
 
@@ -121,6 +135,7 @@ mod effects;
 mod history;
 mod library;
 mod persistence_state;
+mod playlist;
 
 /// Result of an engine operation, containing the new state and an event to be broadcasted.
 #[derive(Clone, Debug, PartialEq)]
@@ -153,6 +168,7 @@ pub struct Engine {
     discovery_port: Option<Arc<dyn DiscoveryPort>>,
     history_port: Option<Arc<dyn crate::HistoryPort>>,
     library_port: Option<Arc<dyn crate::LibraryPort>>,
+    playlist_port: Option<Arc<dyn crate::PlaylistPort>>,
     profile_port: Option<Arc<dyn crate::ProfilePort>>,
     profile_projection_identity: Option<AuthIdentity>,
     history_projection_identity: Option<AuthIdentity>,
@@ -160,6 +176,9 @@ pub struct Engine {
     library_projection_identity: Option<AuthIdentity>,
     saved_library_operation: Option<LibraryPageOperation>,
     liked_library_operation: Option<LibraryPageOperation>,
+    playlist_projection_identity: Option<AuthIdentity>,
+    playlists_operation: Option<PlaylistPageOperation>,
+    playlist_tracks_operation: Option<PlaylistPageOperation>,
     catalog_operations: HashMap<String, CatalogOperation>,
     next_catalog_operation_sequence: u64,
     discovery_operation: Option<DiscoveryOperation>,
@@ -190,9 +209,13 @@ impl Default for Engine {
             history_projection_identity: None,
             history_operation: None,
             library_port: None,
+            playlist_port: None,
             library_projection_identity: None,
             saved_library_operation: None,
             liked_library_operation: None,
+            playlist_projection_identity: None,
+            playlists_operation: None,
+            playlist_tracks_operation: None,
             catalog_operations: HashMap::new(),
             next_catalog_operation_sequence: 0,
             discovery_operation: None,
@@ -240,9 +263,13 @@ impl Engine {
             history_projection_identity: None,
             history_operation: None,
             library_port: None,
+            playlist_port: None,
             library_projection_identity: None,
             saved_library_operation: None,
             liked_library_operation: None,
+            playlist_projection_identity: None,
+            playlists_operation: None,
+            playlist_tracks_operation: None,
             catalog_operations: HashMap::new(),
             next_catalog_operation_sequence: 0,
             discovery_operation: None,
@@ -325,6 +352,11 @@ impl Engine {
         self.library_port = Some(port);
     }
 
+    /// Sets the authenticated backend-neutral playlist boundary.
+    pub fn set_playlist_port(&mut self, port: Arc<dyn crate::PlaylistPort>) {
+        self.playlist_port = Some(port);
+    }
+
     /// Sets the authenticated backend-neutral profile boundary.
     pub fn set_profile_port(&mut self, port: Arc<dyn crate::ProfilePort>) {
         self.profile_port = Some(port);
@@ -376,6 +408,13 @@ impl Engine {
         {
             Self::clear_library_projection(&mut snapshot);
         }
+        if self
+            .playlist_projection_identity
+            .as_ref()
+            .is_some_and(|identity| Some(identity) != current_identity.as_ref())
+        {
+            Self::clear_playlist_projection(&mut snapshot);
+        }
         snapshot
     }
 
@@ -421,6 +460,16 @@ impl Engine {
             self.liked_library_operation = None;
             Self::clear_library_projection(&mut self.snapshot);
         }
+        if self
+            .playlist_projection_identity
+            .as_ref()
+            .is_some_and(|identity| Some(identity) != current_identity.as_ref())
+        {
+            self.playlist_projection_identity = None;
+            self.playlists_operation = None;
+            self.playlist_tracks_operation = None;
+            Self::clear_playlist_projection(&mut self.snapshot);
+        }
     }
 
     fn clear_profile_projection(snapshot: &mut EngineSnapshot) {
@@ -444,6 +493,15 @@ impl Engine {
         snapshot.liked_tracks.clear();
         snapshot.liked_tracks_next_page_token = None;
         snapshot.library_pending_track_ids.clear();
+    }
+
+    fn clear_playlist_projection(snapshot: &mut EngineSnapshot) {
+        snapshot.playlists.clear();
+        snapshot.playlists_next_page_token = None;
+        snapshot.playlist_tracks.clear();
+        snapshot.playlist_tracks_playlist_id = None;
+        snapshot.playlist_tracks_next_page_token = None;
+        snapshot.playlist_reconciliation = None;
     }
 
     fn publish_intermediate_snapshot(&mut self, snapshot: EngineSnapshot) {

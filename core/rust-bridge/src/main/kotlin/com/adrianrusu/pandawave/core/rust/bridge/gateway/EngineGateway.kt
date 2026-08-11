@@ -3,6 +3,9 @@ package com.adrianrusu.pandawave.core.rust.bridge.gateway
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineLibraryItem
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistItem
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistTrackItem
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistReconciliation
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
@@ -23,6 +26,10 @@ interface EngineGateway {
     fun likedTrack(index: Int): EngineLibraryItem? = null
 
     fun pendingLibraryTrackId(index: Int): String? = null
+    fun playlist(index: Int): EnginePlaylistItem? = null
+    fun playlistTrack(index: Int): EnginePlaylistTrackItem? = null
+    fun selectedPlaylistId(): String? = null
+    fun playlistReconciliation(): EnginePlaylistReconciliation? = null
 
     fun dispatch(command: EngineCommand): EngineDispatchResult
 

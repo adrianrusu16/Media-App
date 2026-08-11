@@ -11,6 +11,9 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistItem
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistReconciliation
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistTrackItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.IEngineListener
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.IMediaEngineService
@@ -159,6 +162,10 @@ class AndroidEngineServiceConnection(
         override fun savedTrack(index: Int) = remote.getSavedTrack(index)
         override fun likedTrack(index: Int) = remote.getLikedTrack(index)
         override fun pendingLibraryTrackId(index: Int) = remote.getPendingLibraryTrackId(index)
+        override fun playlist(index: Int): EnginePlaylistItem? = remote.getPlaylist(index)
+        override fun playlistTrack(index: Int): EnginePlaylistTrackItem? = remote.getPlaylistTrack(index)
+        override fun selectedPlaylistId(): String? = remote.selectedPlaylistId
+        override fun playlistReconciliation(): EnginePlaylistReconciliation? = remote.playlistReconciliation
 
         override fun effectCount(): Int = remote.effectCount
 

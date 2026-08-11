@@ -85,6 +85,44 @@ struct DeleteHistoryEntryPayload {
     history_id: String,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct PlaylistPayload {
+    version: u32,
+    playlist_id: String,
+}
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct PlaylistPagePayload {
+    version: u32,
+    playlist_id: Option<String>,
+    page: InitialCatalogPagePayload,
+}
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct PlaylistDetailsPayload {
+    version: u32,
+    playlist_id: Option<String>,
+    name: String,
+    description: Option<String>,
+    expected_revision: Option<u64>,
+}
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct PlaylistTrackPayload {
+    version: u32,
+    playlist_id: String,
+    track_id: String,
+}
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct PlaylistReorderPayload {
+    version: u32,
+    playlist_id: String,
+    ordered_membership_ids: Vec<String>,
+    expected_revision: u64,
+}
+
 /// Represents the different types of commands the engine can process.
 #[derive(Clone, Debug, PartialEq)]
 pub enum EngineCommandType {
@@ -166,6 +204,37 @@ pub enum EngineCommandType {
         page: EnginePageRequest,
     },
     LoadNextLikedTracksPage,
+    CreatePlaylist {
+        input: crate::EngineCreatePlaylist,
+    },
+    UpdatePlaylist {
+        input: crate::EngineUpdatePlaylist,
+    },
+    DeletePlaylist {
+        playlist_id: String,
+    },
+    ListPlaylists {
+        page: EnginePageRequest,
+    },
+    LoadNextPlaylistsPage,
+    AddPlaylistTrack {
+        playlist_id: String,
+        track_id: String,
+    },
+    RemovePlaylistTrack {
+        playlist_id: String,
+        track_id: String,
+    },
+    ListPlaylistTracks {
+        playlist_id: String,
+        page: EnginePageRequest,
+    },
+    LoadNextPlaylistTracksPage,
+    ReorderPlaylistTracks {
+        playlist_id: String,
+        ordered_membership_ids: Vec<String>,
+        expected_revision: u64,
+    },
     /// Changes the playback speed.
     SetSpeed {
         speed: f32,
@@ -275,6 +344,16 @@ impl EngineCommandType {
     pub const UNLIKE_TRACK_WIRE: &'static str = "unlike_track";
     pub const LIST_LIKED_TRACKS_WIRE: &'static str = "list_liked_tracks";
     pub const LOAD_NEXT_LIKED_TRACKS_PAGE_WIRE: &'static str = "load_next_liked_tracks_page";
+    pub const CREATE_PLAYLIST_WIRE: &'static str = "create_playlist";
+    pub const UPDATE_PLAYLIST_WIRE: &'static str = "update_playlist";
+    pub const DELETE_PLAYLIST_WIRE: &'static str = "delete_playlist";
+    pub const LIST_PLAYLISTS_WIRE: &'static str = "list_playlists";
+    pub const LOAD_NEXT_PLAYLISTS_PAGE_WIRE: &'static str = "load_next_playlists_page";
+    pub const ADD_PLAYLIST_TRACK_WIRE: &'static str = "add_playlist_track";
+    pub const REMOVE_PLAYLIST_TRACK_WIRE: &'static str = "remove_playlist_track";
+    pub const LIST_PLAYLIST_TRACKS_WIRE: &'static str = "list_playlist_tracks";
+    pub const LOAD_NEXT_PLAYLIST_TRACKS_PAGE_WIRE: &'static str = "load_next_playlist_tracks_page";
+    pub const REORDER_PLAYLIST_TRACKS_WIRE: &'static str = "reorder_playlist_tracks";
     /// Wire value for SetSpeed command.
     pub const SET_SPEED_WIRE: &'static str = "set_speed";
     /// Wire value for Seek command.
@@ -373,6 +452,45 @@ impl EngineCommandType {
                 page: EnginePageRequest::default(),
             },
             Self::LOAD_NEXT_LIKED_TRACKS_PAGE_WIRE => Self::LoadNextLikedTracksPage,
+            Self::CREATE_PLAYLIST_WIRE => Self::CreatePlaylist {
+                input: crate::EngineCreatePlaylist {
+                    name: String::new(),
+                    description: None,
+                },
+            },
+            Self::UPDATE_PLAYLIST_WIRE => Self::UpdatePlaylist {
+                input: crate::EngineUpdatePlaylist {
+                    id: String::new(),
+                    name: String::new(),
+                    description: None,
+                    expected_revision: 0,
+                },
+            },
+            Self::DELETE_PLAYLIST_WIRE => Self::DeletePlaylist {
+                playlist_id: String::new(),
+            },
+            Self::LIST_PLAYLISTS_WIRE => Self::ListPlaylists {
+                page: EnginePageRequest::default(),
+            },
+            Self::LOAD_NEXT_PLAYLISTS_PAGE_WIRE => Self::LoadNextPlaylistsPage,
+            Self::ADD_PLAYLIST_TRACK_WIRE => Self::AddPlaylistTrack {
+                playlist_id: String::new(),
+                track_id: String::new(),
+            },
+            Self::REMOVE_PLAYLIST_TRACK_WIRE => Self::RemovePlaylistTrack {
+                playlist_id: String::new(),
+                track_id: String::new(),
+            },
+            Self::LIST_PLAYLIST_TRACKS_WIRE => Self::ListPlaylistTracks {
+                playlist_id: String::new(),
+                page: EnginePageRequest::default(),
+            },
+            Self::LOAD_NEXT_PLAYLIST_TRACKS_PAGE_WIRE => Self::LoadNextPlaylistTracksPage,
+            Self::REORDER_PLAYLIST_TRACKS_WIRE => Self::ReorderPlaylistTracks {
+                playlist_id: String::new(),
+                ordered_membership_ids: vec![],
+                expected_revision: 0,
+            },
             Self::SET_SPEED_WIRE => Self::SetSpeed { speed: 1.0 },
             Self::SEEK_WIRE => Self::Seek { position_millis: 0 },
             Self::UPDATE_CONFIG_WIRE => Self::UpdateConfig {
@@ -445,6 +563,16 @@ impl EngineCommandType {
             Self::UnlikeTrack { .. } => Self::UNLIKE_TRACK_WIRE,
             Self::ListLikedTracks { .. } => Self::LIST_LIKED_TRACKS_WIRE,
             Self::LoadNextLikedTracksPage => Self::LOAD_NEXT_LIKED_TRACKS_PAGE_WIRE,
+            Self::CreatePlaylist { .. } => Self::CREATE_PLAYLIST_WIRE,
+            Self::UpdatePlaylist { .. } => Self::UPDATE_PLAYLIST_WIRE,
+            Self::DeletePlaylist { .. } => Self::DELETE_PLAYLIST_WIRE,
+            Self::ListPlaylists { .. } => Self::LIST_PLAYLISTS_WIRE,
+            Self::LoadNextPlaylistsPage => Self::LOAD_NEXT_PLAYLISTS_PAGE_WIRE,
+            Self::AddPlaylistTrack { .. } => Self::ADD_PLAYLIST_TRACK_WIRE,
+            Self::RemovePlaylistTrack { .. } => Self::REMOVE_PLAYLIST_TRACK_WIRE,
+            Self::ListPlaylistTracks { .. } => Self::LIST_PLAYLIST_TRACKS_WIRE,
+            Self::LoadNextPlaylistTracksPage => Self::LOAD_NEXT_PLAYLIST_TRACKS_PAGE_WIRE,
+            Self::ReorderPlaylistTracks { .. } => Self::REORDER_PLAYLIST_TRACKS_WIRE,
             Self::SetSpeed { .. } => Self::SET_SPEED_WIRE,
             Self::Seek { .. } => Self::SEEK_WIRE,
             Self::UpdateConfig { .. } => Self::UPDATE_CONFIG_WIRE,
@@ -528,6 +656,32 @@ impl EngineCommand {
             | EngineCommandType::LOAD_NEXT_LIKED_TRACKS_PAGE_WIRE => payload
                 .is_none()
                 .then(|| EngineCommandType::from_wire(command_type.clone())),
+            EngineCommandType::CREATE_PLAYLIST_WIRE => {
+                payload.as_deref().and_then(parse_create_playlist_payload)
+            }
+            EngineCommandType::UPDATE_PLAYLIST_WIRE => {
+                payload.as_deref().and_then(parse_update_playlist_payload)
+            }
+            EngineCommandType::DELETE_PLAYLIST_WIRE => {
+                payload.as_deref().and_then(parse_delete_playlist_payload)
+            }
+            EngineCommandType::LIST_PLAYLISTS_WIRE => {
+                payload.as_deref().and_then(parse_list_playlists_payload)
+            }
+            EngineCommandType::LOAD_NEXT_PLAYLISTS_PAGE_WIRE
+            | EngineCommandType::LOAD_NEXT_PLAYLIST_TRACKS_PAGE_WIRE => payload
+                .is_none()
+                .then(|| EngineCommandType::from_wire(command_type.clone())),
+            EngineCommandType::ADD_PLAYLIST_TRACK_WIRE
+            | EngineCommandType::REMOVE_PLAYLIST_TRACK_WIRE => payload
+                .as_deref()
+                .and_then(|payload| parse_playlist_track_payload(&command_type, payload)),
+            EngineCommandType::LIST_PLAYLIST_TRACKS_WIRE => payload
+                .as_deref()
+                .and_then(parse_list_playlist_tracks_payload),
+            EngineCommandType::REORDER_PLAYLIST_TRACKS_WIRE => payload
+                .as_deref()
+                .and_then(parse_reorder_playlist_tracks_payload),
             _ => Some(EngineCommandType::from_wire(command_type.clone())),
         };
         Self::new(
@@ -996,6 +1150,102 @@ fn parse_list_library_payload(command_type: &str, payload: &str) -> Option<Engin
         }
         _ => None,
     }
+}
+
+fn parse_create_playlist_payload(payload: &str) -> Option<EngineCommandType> {
+    let payload: PlaylistDetailsPayload = serde_json::from_str(payload).ok()?;
+    (payload.version == CATALOG_PAYLOAD_VERSION
+        && payload.playlist_id.is_none()
+        && !payload.name.trim().is_empty())
+    .then_some(EngineCommandType::CreatePlaylist {
+        input: crate::EngineCreatePlaylist {
+            name: payload.name,
+            description: payload.description,
+        },
+    })
+}
+fn parse_update_playlist_payload(payload: &str) -> Option<EngineCommandType> {
+    let payload: PlaylistDetailsPayload = serde_json::from_str(payload).ok()?;
+    let id = payload.playlist_id?;
+    (payload.version == CATALOG_PAYLOAD_VERSION
+        && !id.trim().is_empty()
+        && !payload.name.trim().is_empty())
+    .then_some(EngineCommandType::UpdatePlaylist {
+        input: crate::EngineUpdatePlaylist {
+            id,
+            name: payload.name,
+            description: payload.description,
+            expected_revision: payload.expected_revision?,
+        },
+    })
+}
+fn parse_delete_playlist_payload(payload: &str) -> Option<EngineCommandType> {
+    let payload: PlaylistPayload = serde_json::from_str(payload).ok()?;
+    (payload.version == CATALOG_PAYLOAD_VERSION && !payload.playlist_id.trim().is_empty())
+        .then_some(EngineCommandType::DeletePlaylist {
+            playlist_id: payload.playlist_id,
+        })
+}
+fn parse_list_playlists_payload(payload: &str) -> Option<EngineCommandType> {
+    let payload: PlaylistPagePayload = serde_json::from_str(payload).ok()?;
+    (payload.version == CATALOG_PAYLOAD_VERSION && payload.playlist_id.is_none()).then_some(
+        EngineCommandType::ListPlaylists {
+            page: EnginePageRequest {
+                page_size: payload.page.page_size,
+                page_token: None,
+            },
+        },
+    )
+}
+fn parse_list_playlist_tracks_payload(payload: &str) -> Option<EngineCommandType> {
+    let payload: PlaylistPagePayload = serde_json::from_str(payload).ok()?;
+    let playlist_id = payload.playlist_id?;
+    (payload.version == CATALOG_PAYLOAD_VERSION && !playlist_id.trim().is_empty()).then_some(
+        EngineCommandType::ListPlaylistTracks {
+            playlist_id,
+            page: EnginePageRequest {
+                page_size: payload.page.page_size,
+                page_token: None,
+            },
+        },
+    )
+}
+fn parse_playlist_track_payload(command_type: &str, payload: &str) -> Option<EngineCommandType> {
+    let payload: PlaylistTrackPayload = serde_json::from_str(payload).ok()?;
+    if payload.version != CATALOG_PAYLOAD_VERSION
+        || payload.playlist_id.trim().is_empty()
+        || payload.track_id.trim().is_empty()
+    {
+        return None;
+    }
+    match command_type {
+        EngineCommandType::ADD_PLAYLIST_TRACK_WIRE => Some(EngineCommandType::AddPlaylistTrack {
+            playlist_id: payload.playlist_id,
+            track_id: payload.track_id,
+        }),
+        EngineCommandType::REMOVE_PLAYLIST_TRACK_WIRE => {
+            Some(EngineCommandType::RemovePlaylistTrack {
+                playlist_id: payload.playlist_id,
+                track_id: payload.track_id,
+            })
+        }
+        _ => None,
+    }
+}
+fn parse_reorder_playlist_tracks_payload(payload: &str) -> Option<EngineCommandType> {
+    let payload: PlaylistReorderPayload = serde_json::from_str(payload).ok()?;
+    (payload.version == CATALOG_PAYLOAD_VERSION
+        && !payload.playlist_id.trim().is_empty()
+        && !payload.ordered_membership_ids.is_empty()
+        && payload
+            .ordered_membership_ids
+            .iter()
+            .all(|id| !id.trim().is_empty()))
+    .then_some(EngineCommandType::ReorderPlaylistTracks {
+        playlist_id: payload.playlist_id,
+        ordered_membership_ids: payload.ordered_membership_ids,
+        expected_revision: payload.expected_revision,
+    })
 }
 
 #[cfg(test)]

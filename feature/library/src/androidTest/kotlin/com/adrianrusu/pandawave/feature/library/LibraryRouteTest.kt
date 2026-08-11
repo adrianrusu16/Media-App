@@ -11,10 +11,13 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextInput
 import com.adrianrusu.pandawave.core.designsystem.theme.PandaWaveTheme
 import com.adrianrusu.pandawave.feature.library.domain.LibraryState
 import com.adrianrusu.pandawave.feature.library.domain.LibraryTab
 import com.adrianrusu.pandawave.feature.library.domain.LibraryTrack
+import com.adrianrusu.pandawave.feature.library.domain.LibraryPlaylist
+import com.adrianrusu.pandawave.feature.library.domain.PlaylistConflict
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -91,6 +94,87 @@ class LibraryRouteTest {
         compose.onNodeWithTag("library-error").assertIsDisplayed()
     }
 
+    @Test
+    fun playlistsExposeCrudMembershipAndExplicitConflictConfirmation() {
+        val actions = mutableListOf<String>()
+        val state = LibraryState(
+            selectedTab = LibraryTab.PLAYLISTS,
+            playlists = listOf(LibraryPlaylist("playlist-1", "Road trip", "For the drive", 7)),
+            selectedPlaylistId = "playlist-1",
+            playlistTracks = listOf(
+                track(mediaId = "media-1", title = "First", relationshipId = "member-1"),
+                track(mediaId = "media-2", title = "Second", relationshipId = "member-2"),
+            ),
+            playlistConflict = PlaylistConflict(
+                playlistId = "playlist-1",
+                expectedRevision = 7,
+                serverRevision = 8,
+                serverMembershipIds = listOf("member-2", "member-1"),
+                proposedMembershipIds = listOf("member-1", "member-2"),
+            ),
+            isLoading = false,
+        )
+        compose.setContent {
+            PandaWaveTheme(darkTheme = true) {
+                LibraryRoute(
+                    state = state,
+                    onSelectTab = {},
+                    onRefresh = {},
+                    onLoadNext = {},
+                    onSave = {},
+                    onRemoveSaved = {},
+                    onLike = {},
+                    onUnlike = {},
+                    onCreatePlaylist = { name, description -> actions += "create:$name:$description" },
+                    onUpdatePlaylist = { id, name, description, revision -> actions += "update:$id:$name:$description:$revision" },
+                    onDeletePlaylist = { actions += "delete:$it" },
+                    onSelectPlaylist = { actions += "select:$it" },
+                    onAddPlaylistTrack = { id, mediaId -> actions += "add:$id:$mediaId" },
+                    onRemovePlaylistTrack = { id, mediaId -> actions += "remove:$id:$mediaId" },
+                    onReorderPlaylist = { id, membershipIds, revision -> actions += "reorder:$id:${membershipIds.joinToString(",")}:$revision" },
+                )
+            }
+        }
+
+        compose.onNodeWithTag("library-playlist-name").performScrollTo().performTextInput("New mix")
+        compose.onNodeWithTag("library-create-playlist").performScrollTo().performClick()
+        compose.onNodeWithTag("library-playlist-name").performScrollTo().performTextInput("Edited mix")
+        compose.onNodeWithTag("library-playlist-update").performScrollTo().performClick()
+        compose.onNodeWithTag("library-playlist-track-id").performScrollTo().performTextInput("media-3")
+        compose.onNodeWithTag("library-playlist-add-track").performScrollTo().performClick()
+        compose.onNodeWithTag("library-playlist-remove-track-member-1").performScrollTo().performClick()
+        compose.onNodeWithTag("library-playlist-select-playlist-1").performScrollTo().performClick()
+        compose.onNodeWithTag("library-playlist-delete-playlist-1").performScrollTo().performClick()
+        compose.onNodeWithTag("library-playlist-conflict").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Server order: member-2, member-1").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Your order: member-1, member-2").performScrollTo().assertIsDisplayed()
+        assertEquals(
+            listOf(
+                "create:New mix:",
+                "update:playlist-1:Edited mix::7",
+                "add:playlist-1:media-3",
+                "remove:playlist-1:media-1",
+                "select:playlist-1",
+                "delete:playlist-1",
+            ),
+            actions,
+        )
+
+        compose.onNodeWithTag("library-playlist-confirm-reorder").performScrollTo().performClick()
+        assertEquals(
+            listOf(
+                "create:New mix:",
+                "update:playlist-1:Edited mix::7",
+                "add:playlist-1:media-3",
+                "remove:playlist-1:media-1",
+                "select:playlist-1",
+                "delete:playlist-1",
+                "reorder:playlist-1:member-1,member-2:8",
+            ),
+            actions,
+        )
+    }
+
     private fun setRoute(state: LibraryState) {
         compose.setContent {
             PandaWaveTheme(darkTheme = true) {
@@ -108,8 +192,8 @@ class LibraryRouteTest {
         }
     }
 
-    private fun track(mediaId: String, title: String) = LibraryTrack(
-        relationshipId = mediaId,
+    private fun track(mediaId: String, title: String, relationshipId: String = mediaId) = LibraryTrack(
+        relationshipId = relationshipId,
         mediaId = mediaId,
         title = title,
         artist = "Artist",

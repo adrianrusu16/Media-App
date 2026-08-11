@@ -11,6 +11,8 @@ import com.adrianrusu.pandawave.feature.library.domain.LibraryRepository
 import com.adrianrusu.pandawave.feature.library.domain.LibraryState
 import com.adrianrusu.pandawave.feature.library.domain.LibraryTab
 import com.adrianrusu.pandawave.feature.library.domain.LibraryTrack
+import com.adrianrusu.pandawave.feature.library.domain.LibraryPlaylist
+import com.adrianrusu.pandawave.feature.library.domain.PlaylistConflict
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,12 +42,18 @@ class PandaEngineLibraryRepository @Inject constructor(
     override fun refresh() {
         dispatch(EngineCommand(EngineCommand.TYPE_LIST_SAVED_TRACKS, EngineCommandPayloads.libraryPage(PAGE_SIZE)))
         dispatch(EngineCommand(EngineCommand.TYPE_LIST_LIKED_TRACKS, EngineCommandPayloads.libraryPage(PAGE_SIZE)))
+        dispatch(EngineCommand(EngineCommand.TYPE_LIST_PLAYLISTS, EngineCommandPayloads.playlistPage(PAGE_SIZE)))
     }
 
     override fun loadNext(tab: LibraryTab) {
         val type = when (tab) {
             LibraryTab.SAVED -> EngineCommand.TYPE_LOAD_NEXT_SAVED_TRACKS_PAGE
             LibraryTab.LIKED -> EngineCommand.TYPE_LOAD_NEXT_LIKED_TRACKS_PAGE
+            LibraryTab.PLAYLISTS -> if (mutableState.value.selectedPlaylistId == null) {
+                EngineCommand.TYPE_LOAD_NEXT_PLAYLISTS_PAGE
+            } else {
+                EngineCommand.TYPE_LOAD_NEXT_PLAYLIST_TRACKS_PAGE
+            }
         }
         dispatch(EngineCommand(type, null))
     }
@@ -54,6 +62,24 @@ class PandaEngineLibraryRepository @Inject constructor(
     override fun removeSaved(mediaId: String) = mutate(EngineCommand.TYPE_REMOVE_SAVED_TRACK, mediaId)
     override fun like(mediaId: String) = mutate(EngineCommand.TYPE_LIKE_TRACK, mediaId)
     override fun unlike(mediaId: String) = mutate(EngineCommand.TYPE_UNLIKE_TRACK, mediaId)
+    override fun createPlaylist(name: String, description: String?) {
+        require(name.isNotBlank())
+        dispatch(EngineCommand(EngineCommand.TYPE_CREATE_PLAYLIST, EngineCommandPayloads.playlistDetails(null, name, description)))
+    }
+    override fun updatePlaylist(playlistId: String, name: String, description: String?, expectedRevision: Long) {
+        require(playlistId.isNotBlank())
+        require(name.isNotBlank())
+        dispatch(EngineCommand(EngineCommand.TYPE_UPDATE_PLAYLIST, EngineCommandPayloads.playlistDetails(playlistId, name, description, expectedRevision)))
+    }
+    override fun deletePlaylist(playlistId: String) = dispatch(EngineCommand(EngineCommand.TYPE_DELETE_PLAYLIST, EngineCommandPayloads.playlistId(playlistId)))
+    override fun selectPlaylist(playlistId: String) {
+        require(playlistId.isNotBlank())
+        mutableState.value = mutableState.value.copy(selectedPlaylistId = playlistId)
+        dispatch(EngineCommand(EngineCommand.TYPE_LIST_PLAYLIST_TRACKS, EngineCommandPayloads.playlistPage(PAGE_SIZE, playlistId)))
+    }
+    override fun addPlaylistTrack(playlistId: String, mediaId: String) = dispatch(EngineCommand(EngineCommand.TYPE_ADD_PLAYLIST_TRACK, EngineCommandPayloads.playlistTrack(playlistId, mediaId)))
+    override fun removePlaylistTrack(playlistId: String, mediaId: String) = dispatch(EngineCommand(EngineCommand.TYPE_REMOVE_PLAYLIST_TRACK, EngineCommandPayloads.playlistTrack(playlistId, mediaId)))
+    override fun reorderPlaylist(playlistId: String, membershipIds: List<String>, expectedRevision: Long) = dispatch(EngineCommand(EngineCommand.TYPE_REORDER_PLAYLIST_TRACKS, EngineCommandPayloads.playlistReorder(playlistId, membershipIds, expectedRevision)) )
 
     override fun close() {
         subscription?.close()
@@ -98,12 +124,28 @@ class PandaEngineLibraryRepository @Inject constructor(
             likedTracks = List(snapshot.likedTracksCount.coerceAtLeast(0), engineGateway::likedTrack)
                 .filterNotNull()
                 .map { it.toLibraryTrack() },
+            playlists = List(snapshot.playlistsCount.coerceAtLeast(0), engineGateway::playlist)
+                .filterNotNull().map { LibraryPlaylist(it.id, it.name, it.description, it.revision) },
+            selectedPlaylistId = engineGateway.selectedPlaylistId(),
+            playlistTracks = List(snapshot.playlistTracksCount.coerceAtLeast(0), engineGateway::playlistTrack)
+                .filterNotNull().map { item -> LibraryTrack(item.membershipId, item.mediaId, item.title, item.artist, item.album, item.durationMillis, item.explicit, item.artworkId, item.addedAtEpochMillis) },
+            playlistConflict = engineGateway.playlistReconciliation()?.let {
+                PlaylistConflict(
+                    playlistId = it.playlistId,
+                    expectedRevision = it.expectedRevision,
+                    serverRevision = it.serverRevision,
+                    serverMembershipIds = it.serverMembershipIds,
+                    proposedMembershipIds = it.proposedMembershipIds,
+                )
+            },
             pendingMediaIds = List(snapshot.libraryPendingCount.coerceAtLeast(0), engineGateway::pendingLibraryTrackId)
                 .filterNotNull()
                 .filter(String::isNotBlank)
                 .toSet(),
             hasSavedNextPage = snapshot.hasSavedTracksNextPage,
             hasLikedNextPage = snapshot.hasLikedTracksNextPage,
+            hasPlaylistsNextPage = snapshot.hasPlaylistsNextPage,
+            hasPlaylistTracksNextPage = snapshot.hasPlaylistTracksNextPage,
             isLoading = snapshot.isBusy,
             isSignedOut = false,
             errorType = errorType,
@@ -118,6 +160,8 @@ class PandaEngineLibraryRepository @Inject constructor(
         dispatch(EngineCommand(EngineCommand.TYPE_LIST_SAVED_TRACKS, EngineCommandPayloads.libraryPage(PAGE_SIZE)))
         if (hydratedIdentity != identity) return
         dispatch(EngineCommand(EngineCommand.TYPE_LIST_LIKED_TRACKS, EngineCommandPayloads.libraryPage(PAGE_SIZE)))
+        if (hydratedIdentity != identity) return
+        dispatch(EngineCommand(EngineCommand.TYPE_LIST_PLAYLISTS, EngineCommandPayloads.playlistPage(PAGE_SIZE)))
     }
 
     private fun EngineSnapshot.libraryIdentity(): LibraryIdentity? {

@@ -33,6 +33,10 @@ class InProcessEngineGateway(private val engine: RustEngine) :
     override fun savedTrack(index: Int) = engine.savedTrack(index)
     override fun likedTrack(index: Int) = engine.likedTrack(index)
     override fun pendingLibraryTrackId(index: Int) = engine.pendingLibraryTrackId(index)
+    override fun playlist(index: Int) = engine.playlist(index)
+    override fun playlistTrack(index: Int) = engine.playlistTrack(index)
+    override fun selectedPlaylistId(): String? = engine.selectedPlaylistId()
+    override fun playlistReconciliation() = engine.playlistReconciliation()
 
     override fun registerPassword(email: String, password: ByteArray): EngineAuthOperationResult =
         withSecret(password) { engine.registerPassword(email, password) }

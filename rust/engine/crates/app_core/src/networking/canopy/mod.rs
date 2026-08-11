@@ -12,6 +12,7 @@ mod error;
 mod history;
 mod library;
 mod playback;
+mod playlist;
 mod request;
 pub(crate) mod sdk;
 mod session;
@@ -26,6 +27,7 @@ pub use discovery::CanopyDiscoveryClient;
 pub use history::CanopyHistoryClient;
 pub use library::CanopyLibraryClient;
 pub use playback::CanopyPlaybackClient;
+pub use playlist::CanopyPlaylistClient;
 pub use session::SessionCoordinator;
 pub use system::CanopySystemClient;
 

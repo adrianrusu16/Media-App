@@ -76,6 +76,21 @@ pub struct EngineSnapshot {
     /// Track ids with a protected mutation awaiting server acknowledgement.
     #[serde(default)]
     pub library_pending_track_ids: Vec<String>,
+    /// Engine-authoritative playlist list for the active identity.
+    #[serde(default)]
+    pub playlists: Vec<crate::EnginePlaylist>,
+    #[serde(default)]
+    pub playlists_next_page_token: Option<crate::EnginePageToken>,
+    /// Tracks of the currently selected playlist, retained only for the active identity.
+    #[serde(default)]
+    pub playlist_tracks: Vec<crate::EnginePlaylistTrack>,
+    #[serde(default)]
+    pub playlist_tracks_playlist_id: Option<String>,
+    #[serde(default)]
+    pub playlist_tracks_next_page_token: Option<crate::EnginePageToken>,
+    /// A conflict proposal which must be explicitly confirmed by a new reorder command.
+    #[serde(default)]
+    pub playlist_reconciliation: Option<crate::PlaylistReconciliation>,
     /// Complete remote profile preference document, including unknown application keys.
     #[serde(default)]
     pub profile_preferences: serde_json::Map<String, serde_json::Value>,

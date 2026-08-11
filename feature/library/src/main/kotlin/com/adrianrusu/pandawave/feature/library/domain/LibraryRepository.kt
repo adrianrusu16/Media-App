@@ -13,4 +13,11 @@ interface LibraryRepository : AutoCloseable {
     fun removeSaved(mediaId: String)
     fun like(mediaId: String)
     fun unlike(mediaId: String)
+    fun createPlaylist(name: String, description: String?)
+    fun updatePlaylist(playlistId: String, name: String, description: String?, expectedRevision: Long)
+    fun deletePlaylist(playlistId: String)
+    fun selectPlaylist(playlistId: String)
+    fun addPlaylistTrack(playlistId: String, mediaId: String)
+    fun removePlaylistTrack(playlistId: String, mediaId: String)
+    fun reorderPlaylist(playlistId: String, membershipIds: List<String>, expectedRevision: Long)
 }

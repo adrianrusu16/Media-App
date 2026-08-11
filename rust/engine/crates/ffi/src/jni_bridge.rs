@@ -397,6 +397,114 @@ pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_eng
 }
 
 #[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativePlaylistValues(
+    mut env: JNIEnv,
+    _: JObject,
+    handle: jlong,
+    index: jint,
+) -> jobjectArray {
+    let Some(item) = (unsafe { (handle as *const PandaEngine).as_ref() })
+        .map(|e| e.engine.snapshot())
+        .and_then(|s| {
+            usize::try_from(index)
+                .ok()
+                .and_then(|i| s.playlists.get(i).cloned())
+        })
+    else {
+        return ptr::null_mut();
+    };
+    strings_to_jobject_array(
+        &mut env,
+        vec![
+            item.id,
+            item.name,
+            item.description.unwrap_or_default(),
+            item.revision.to_string(),
+            item.created_at_epoch_millis.to_string(),
+            item.updated_at_epoch_millis.to_string(),
+        ],
+    )
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativePlaylistTrackValues(
+    mut env: JNIEnv,
+    _: JObject,
+    handle: jlong,
+    index: jint,
+) -> jobjectArray {
+    let Some(item) = (unsafe { (handle as *const PandaEngine).as_ref() })
+        .map(|e| e.engine.snapshot())
+        .and_then(|s| {
+            usize::try_from(index)
+                .ok()
+                .and_then(|i| s.playlist_tracks.get(i).cloned())
+        })
+    else {
+        return ptr::null_mut();
+    };
+    strings_to_jobject_array(
+        &mut env,
+        vec![
+            item.membership_id,
+            item.playlist_id,
+            item.track.id,
+            item.track.title,
+            item.track.artist.id,
+            item.track.artist.name,
+            item.track.album.map(|a| a.title).unwrap_or_default(),
+            item.track.duration_millis.to_string(),
+            (item.track.explicit as u8).to_string(),
+            item.track.artwork_id.unwrap_or_default(),
+            item.position.to_string(),
+            item.added_at_epoch_millis.to_string(),
+        ],
+    )
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativePlaylistSelectionValues(
+    mut env: JNIEnv,
+    _: JObject,
+    handle: jlong,
+) -> jobjectArray {
+    let Some(snapshot) =
+        (unsafe { (handle as *const PandaEngine).as_ref() }).map(|e| e.engine.snapshot())
+    else {
+        return ptr::null_mut();
+    };
+    strings_to_jobject_array(
+        &mut env,
+        vec![
+            snapshot.playlist_tracks_playlist_id.unwrap_or_default(),
+            snapshot
+                .playlist_reconciliation
+                .as_ref()
+                .map(|v| v.playlist_id.clone())
+                .unwrap_or_default(),
+            snapshot
+                .playlist_reconciliation
+                .as_ref()
+                .map(|v| v.expected_revision.to_string())
+                .unwrap_or_default(),
+            snapshot
+                .playlist_reconciliation
+                .as_ref()
+                .map(|v| v.server_revision.to_string())
+                .unwrap_or_default(),
+            snapshot
+                .playlist_reconciliation
+                .as_ref()
+                .map(|v| v.server_membership_ids.join("\u{1f}"))
+                .unwrap_or_default(),
+            snapshot
+                .playlist_reconciliation
+                .as_ref()
+                .map(|v| v.proposed_membership_ids.join("\u{1f}"))
+                .unwrap_or_default(),
+        ],
+    )
+}
+
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeRegisterPassword(
     mut env: JNIEnv,
     _this: JObject,
@@ -966,7 +1074,7 @@ fn snapshot_to_jlong_array(env: &mut JNIEnv, snapshot: FfiEngineSnapshot) -> jlo
     array.into_raw()
 }
 
-fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 45] {
+fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 50] {
     [
         snapshot.playback_state as jlong,
         snapshot.restriction_state as jlong,
@@ -1013,6 +1121,11 @@ fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 45] {
         snapshot.library_pending_count as jlong,
         bool_to_jlong(snapshot.has_saved_tracks_next_page),
         bool_to_jlong(snapshot.has_liked_tracks_next_page),
+        snapshot.playlists_count as jlong,
+        snapshot.playlist_tracks_count as jlong,
+        bool_to_jlong(snapshot.has_playlists_next_page),
+        bool_to_jlong(snapshot.has_playlist_tracks_next_page),
+        bool_to_jlong(snapshot.has_playlist_reconciliation),
     ]
 }
 
@@ -1079,6 +1192,11 @@ mod tests {
             library_pending_count: 1,
             has_saved_tracks_next_page: true,
             has_liked_tracks_next_page: false,
+            playlists_count: 6,
+            playlist_tracks_count: 7,
+            has_playlists_next_page: true,
+            has_playlist_tracks_next_page: false,
+            has_playlist_reconciliation: true,
             playback_state: FFI_PLAYBACK_PLAYING,
             restriction_state: FFI_RESTRICTION_UNKNOWN,
             updated_at_epoch_millis: 42,
@@ -1124,14 +1242,17 @@ mod tests {
             backend_dependencies_count: 2,
         };
 
+        let values = snapshot_to_jlong_values(snapshot);
+        assert_eq!(values.len(), 50);
         assert_eq!(
-            [
-                FFI_PLAYBACK_PLAYING as jlong,
-                FFI_RESTRICTION_UNKNOWN as jlong,
+            &values[..45],
+            &[
+                1,
+                0,
                 42,
                 1,
                 1,
-                FFI_ERROR_NETWORK as jlong,
+                2,
                 3,
                 1.25_f32.to_bits() as jlong,
                 9_000,
@@ -1170,10 +1291,10 @@ mod tests {
                 4,
                 1,
                 1,
-                0,
-            ],
-            snapshot_to_jlong_values(snapshot)
+                0
+            ]
         );
+        assert_eq!(&values[45..], &[6, 7, 1, 0, 1]);
     }
 
     #[test]

@@ -6,6 +6,9 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineLibraryItem
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistItem
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistReconciliation
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistTrackItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.pandawave.core.telemetry.TelemetryEvent
@@ -51,6 +54,60 @@ class AidlEngineGatewayTest {
             .lowercase()
         for (forbidden in listOf("access_token", "refresh_token", "credential", "canopy")) {
             assertFalse(publicSurface.contains(forbidden), "library transport leaked $forbidden")
+        }
+    }
+
+    @Test
+    fun `playlist projections round trip through the service gateway without credentials`() {
+        val playlist = EnginePlaylistItem("playlist-1", "Road trip", "Summer", 7, 1_000, 2_000)
+        val track = EnginePlaylistTrackItem(
+            membershipId = "membership-1",
+            playlistId = "playlist-1",
+            mediaId = "track-1",
+            title = "Track",
+            artistId = "artist-1",
+            artist = "Artist",
+            album = "Album",
+            durationMillis = 120_000,
+            explicit = false,
+            artworkId = "artwork-1",
+            position = 0,
+            addedAtEpochMillis = 1_500,
+        )
+        val reconciliation = EnginePlaylistReconciliation(
+            playlistId = "playlist-1",
+            expectedRevision = 7,
+            serverRevision = 8,
+            serverMembershipIds = listOf("membership-server"),
+            proposedMembershipIds = listOf("membership-local"),
+        )
+        val service = RecordingEngineService(
+            initialSnapshot = EngineSnapshot.idle(1L).copy(
+                playlistsCount = 1,
+                playlistTracksCount = 1,
+                hasPlaylistsNextPage = true,
+                hasPlaylistTracksNextPage = true,
+                hasPlaylistReconciliation = true,
+            ),
+            playlists = listOf(playlist),
+            playlistTracks = listOf(track),
+            selectedPlaylistId = "playlist-1",
+            reconciliation = reconciliation,
+        )
+        val gateway = AidlEngineGateway(FakeEngineServiceConnection(service))
+
+        assertEquals(playlist, gateway.playlist(0))
+        assertEquals(track, gateway.playlistTrack(0))
+        assertEquals("playlist-1", gateway.selectedPlaylistId())
+        assertEquals(reconciliation, gateway.playlistReconciliation())
+
+        val publicSurface = listOf(EnginePlaylistItem::class.java, EnginePlaylistTrackItem::class.java,
+            EnginePlaylistReconciliation::class.java, EngineService::class.java, EngineGateway::class.java)
+            .flatMap { type -> type.declaredFields.map { it.name } + type.methods.map { it.name } }
+            .joinToString(" ")
+            .lowercase()
+        for (forbidden in listOf("access_token", "refresh_token", "credential", "canopy")) {
+            assertFalse(publicSurface.contains(forbidden), "playlist transport leaked $forbidden")
         }
     }
 
@@ -598,6 +655,12 @@ class AidlEngineGatewayTest {
             EngineCommand(EngineCommand.TYPE_REMOVE_SAVED_TRACK, """{"version":1,"track_id":"track-1"}"""),
             EngineCommand(EngineCommand.TYPE_LIKE_TRACK, """{"version":1,"track_id":"track-1"}"""),
             EngineCommand(EngineCommand.TYPE_UNLIKE_TRACK, """{"version":1,"track_id":"track-1"}"""),
+            EngineCommand(EngineCommand.TYPE_CREATE_PLAYLIST, """{"version":1,"name":"Road trip"}"""),
+            EngineCommand(EngineCommand.TYPE_UPDATE_PLAYLIST, """{"version":1,"playlist_id":"playlist-1","name":"Road trip","expected_revision":7}"""),
+            EngineCommand(EngineCommand.TYPE_DELETE_PLAYLIST, """{"version":1,"playlist_id":"playlist-1"}"""),
+            EngineCommand(EngineCommand.TYPE_ADD_PLAYLIST_TRACK, """{"version":1,"playlist_id":"playlist-1","track_id":"track-1"}"""),
+            EngineCommand(EngineCommand.TYPE_REMOVE_PLAYLIST_TRACK, """{"version":1,"playlist_id":"playlist-1","track_id":"track-1"}"""),
+            EngineCommand(EngineCommand.TYPE_REORDER_PLAYLIST_TRACKS, """{"version":1,"playlist_id":"playlist-1","ordered_membership_ids":["membership-1"],"expected_revision":7}"""),
         )
 
         val results = mutations.map(gateway::dispatch)
@@ -650,6 +713,10 @@ private class RecordingEngineService(
     private val saved: List<EngineLibraryItem> = emptyList(),
     private val liked: List<EngineLibraryItem> = emptyList(),
     private val pending: List<String> = emptyList(),
+    private val playlists: List<EnginePlaylistItem> = emptyList(),
+    private val playlistTracks: List<EnginePlaylistTrackItem> = emptyList(),
+    private val selectedPlaylistId: String? = null,
+    private val reconciliation: EnginePlaylistReconciliation? = null,
 ) : EngineService {
     private var currentSnapshot = initialSnapshot
     private var currentEffects: List<EngineEffect> = emptyList()
@@ -681,6 +748,14 @@ private class RecordingEngineService(
     override fun likedTrack(index: Int): EngineLibraryItem? = liked.getOrNull(index)
 
     override fun pendingLibraryTrackId(index: Int): String? = pending.getOrNull(index)
+
+    override fun playlist(index: Int): EnginePlaylistItem? = playlists.getOrNull(index)
+
+    override fun playlistTrack(index: Int): EnginePlaylistTrackItem? = playlistTracks.getOrNull(index)
+
+    override fun selectedPlaylistId(): String? = selectedPlaylistId
+
+    override fun playlistReconciliation(): EnginePlaylistReconciliation? = reconciliation
 
     override fun effectCount(): Int = currentEffects.size
 

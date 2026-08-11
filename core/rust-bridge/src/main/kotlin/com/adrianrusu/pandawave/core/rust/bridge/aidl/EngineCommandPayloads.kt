@@ -92,6 +92,33 @@ object EngineCommandPayloads {
         putJsonObject(KEY_PAGE) { put(KEY_PAGE_SIZE, pageSize.coerceAtLeast(0)) }
     }.toString()
 
+    fun playlistPage(pageSize: Int, playlistId: String? = null): String = buildJsonObject {
+        put(KEY_VERSION, PAYLOAD_VERSION)
+        put("playlist_id", playlistId?.trim()?.takeIf(String::isNotBlank))
+        putJsonObject(KEY_PAGE) { put(KEY_PAGE_SIZE, pageSize.coerceAtLeast(0)) }
+    }.toString()
+
+    fun playlistId(playlistId: String): String = buildJsonObject {
+        put(KEY_VERSION, PAYLOAD_VERSION); put("playlist_id", playlistId.trim())
+    }.toString()
+
+    fun playlistDetails(playlistId: String?, name: String, description: String?, expectedRevision: Long? = null): String = buildJsonObject {
+        put(KEY_VERSION, PAYLOAD_VERSION)
+        put("playlist_id", playlistId?.trim()?.takeIf(String::isNotBlank))
+        put("name", name.trim())
+        put("description", description)
+        put("expected_revision", expectedRevision)
+    }.toString()
+
+    fun playlistTrack(playlistId: String, trackId: String): String = buildJsonObject {
+        put(KEY_VERSION, PAYLOAD_VERSION); put("playlist_id", playlistId.trim()); put(KEY_TRACK_ID, trackId.trim())
+    }.toString()
+
+    fun playlistReorder(playlistId: String, orderedMembershipIds: List<String>, expectedRevision: Long): String = buildJsonObject {
+        put(KEY_VERSION, PAYLOAD_VERSION); put("playlist_id", playlistId.trim()); put("expected_revision", expectedRevision)
+        put("ordered_membership_ids", buildJsonArray { orderedMembershipIds.forEach { add(it.trim()) } })
+    }.toString()
+
     fun playbackCompleted(trackId: String, durationMillis: Long, completionRatio: Double): String =
         buildJsonObject {
             put(KEY_VERSION, PAYLOAD_VERSION)
