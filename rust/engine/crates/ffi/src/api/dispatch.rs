@@ -127,6 +127,30 @@ fn library_command_from_ffi(command_type: i32, payload: Option<&str>) -> Option<
     (!matches!(command.command_type, EngineCommandType::Unknown(_))).then_some(command)
 }
 
+fn playlist_command_from_ffi(command_type: i32, payload: Option<&str>) -> Option<EngineCommand> {
+    let wire = match command_type {
+        crate::FFI_COMMAND_CREATE_PLAYLIST => EngineCommandType::CREATE_PLAYLIST_WIRE,
+        crate::FFI_COMMAND_UPDATE_PLAYLIST => EngineCommandType::UPDATE_PLAYLIST_WIRE,
+        crate::FFI_COMMAND_DELETE_PLAYLIST => EngineCommandType::DELETE_PLAYLIST_WIRE,
+        crate::FFI_COMMAND_LIST_PLAYLISTS => EngineCommandType::LIST_PLAYLISTS_WIRE,
+        crate::FFI_COMMAND_LOAD_NEXT_PLAYLISTS_PAGE => {
+            EngineCommandType::LOAD_NEXT_PLAYLISTS_PAGE_WIRE
+        }
+        crate::FFI_COMMAND_ADD_PLAYLIST_TRACK => EngineCommandType::ADD_PLAYLIST_TRACK_WIRE,
+        crate::FFI_COMMAND_REMOVE_PLAYLIST_TRACK => EngineCommandType::REMOVE_PLAYLIST_TRACK_WIRE,
+        crate::FFI_COMMAND_LIST_PLAYLIST_TRACKS => EngineCommandType::LIST_PLAYLIST_TRACKS_WIRE,
+        crate::FFI_COMMAND_LOAD_NEXT_PLAYLIST_TRACKS_PAGE => {
+            EngineCommandType::LOAD_NEXT_PLAYLIST_TRACKS_PAGE_WIRE
+        }
+        crate::FFI_COMMAND_REORDER_PLAYLIST_TRACKS => {
+            EngineCommandType::REORDER_PLAYLIST_TRACKS_WIRE
+        }
+        _ => return None,
+    };
+    let command = EngineCommand::from_wire(wire, payload.map(str::to_owned));
+    (!matches!(command.command_type, EngineCommandType::Unknown(_))).then_some(command)
+}
+
 fn run_future_safely<T>(
     runtime: &tokio::runtime::Runtime,
     future: impl std::future::Future<Output = T>,
@@ -283,6 +307,20 @@ pub unsafe extern "C" fn panda_engine_dispatch(
                         || EngineCommand::from_wire("invalid_library_payload", None),
                     )
                 }
+                crate::FFI_COMMAND_CREATE_PLAYLIST
+                | crate::FFI_COMMAND_UPDATE_PLAYLIST
+                | crate::FFI_COMMAND_DELETE_PLAYLIST
+                | crate::FFI_COMMAND_LIST_PLAYLISTS
+                | crate::FFI_COMMAND_LOAD_NEXT_PLAYLISTS_PAGE
+                | crate::FFI_COMMAND_ADD_PLAYLIST_TRACK
+                | crate::FFI_COMMAND_REMOVE_PLAYLIST_TRACK
+                | crate::FFI_COMMAND_LIST_PLAYLIST_TRACKS
+                | crate::FFI_COMMAND_LOAD_NEXT_PLAYLIST_TRACKS_PAGE
+                | crate::FFI_COMMAND_REORDER_PLAYLIST_TRACKS => {
+                    playlist_command_from_ffi(command_type, payload_str.as_deref()).unwrap_or_else(
+                        || EngineCommand::from_wire("invalid_playlist_payload", None),
+                    )
+                }
                 FFI_COMMAND_PROCESS_VOICE => return FfiEngineOutcome::invalid(),
                 _ => EngineCommand::new(command_from_ffi(command_type), payload_str),
             };
@@ -420,6 +458,54 @@ mod tests {
                 },
             },
         );
+    }
+
+    #[test]
+    fn playlist_ffi_discriminants_parse_their_wire_payloads() {
+        let cases = [
+            (
+                crate::FFI_COMMAND_CREATE_PLAYLIST,
+                r#"{"version":1,"playlist_id":null,"name":"Mix","description":"","expected_revision":null}"#,
+            ),
+            (
+                crate::FFI_COMMAND_UPDATE_PLAYLIST,
+                r#"{"version":1,"playlist_id":"p1","name":"Mix","description":null,"expected_revision":7}"#,
+            ),
+            (
+                crate::FFI_COMMAND_DELETE_PLAYLIST,
+                r#"{"version":1,"playlist_id":"p1"}"#,
+            ),
+            (
+                crate::FFI_COMMAND_LIST_PLAYLISTS,
+                r#"{"version":1,"playlist_id":null,"page":{"page_size":25}}"#,
+            ),
+            (crate::FFI_COMMAND_LOAD_NEXT_PLAYLISTS_PAGE, ""),
+            (
+                crate::FFI_COMMAND_ADD_PLAYLIST_TRACK,
+                r#"{"version":1,"playlist_id":"p1","track_id":"t1"}"#,
+            ),
+            (
+                crate::FFI_COMMAND_REMOVE_PLAYLIST_TRACK,
+                r#"{"version":1,"playlist_id":"p1","track_id":"t1"}"#,
+            ),
+            (
+                crate::FFI_COMMAND_LIST_PLAYLIST_TRACKS,
+                r#"{"version":1,"playlist_id":"p1","page":{"page_size":25}}"#,
+            ),
+            (crate::FFI_COMMAND_LOAD_NEXT_PLAYLIST_TRACKS_PAGE, ""),
+            (
+                crate::FFI_COMMAND_REORDER_PLAYLIST_TRACKS,
+                r#"{"version":1,"playlist_id":"p1","ordered_membership_ids":["m2","m1"],"expected_revision":7}"#,
+            ),
+        ];
+
+        for (command_type, payload) in cases {
+            assert!(
+                playlist_command_from_ffi(command_type, (!payload.is_empty()).then_some(payload))
+                    .is_some(),
+                "playlist FFI command {command_type} did not parse",
+            );
+        }
     }
     #[test]
     fn invalid_profile_payload_is_rejected_before_dispatch() {

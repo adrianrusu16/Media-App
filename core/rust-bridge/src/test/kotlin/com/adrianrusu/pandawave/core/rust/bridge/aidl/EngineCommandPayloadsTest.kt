@@ -73,4 +73,22 @@ class EngineCommandPayloadsTest {
             )
         )
     }
+
+    @Test
+    fun playlistCommandsMapToAppendOnlyNativeIds() {
+        val types = listOf(
+            EngineCommand.TYPE_CREATE_PLAYLIST,
+            EngineCommand.TYPE_UPDATE_PLAYLIST,
+            EngineCommand.TYPE_DELETE_PLAYLIST,
+            EngineCommand.TYPE_LIST_PLAYLISTS,
+            EngineCommand.TYPE_LOAD_NEXT_PLAYLISTS_PAGE,
+            EngineCommand.TYPE_ADD_PLAYLIST_TRACK,
+            EngineCommand.TYPE_REMOVE_PLAYLIST_TRACK,
+            EngineCommand.TYPE_LIST_PLAYLIST_TRACKS,
+            EngineCommand.TYPE_LOAD_NEXT_PLAYLIST_TRACKS_PAGE,
+            EngineCommand.TYPE_REORDER_PLAYLIST_TRACKS,
+        )
+
+        assertEquals((40..49).toList(), types.map { PandaEngine.nativeCommandType(EngineCommand(it, null)) })
+    }
 }

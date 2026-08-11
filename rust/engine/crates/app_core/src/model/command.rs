@@ -1156,6 +1156,7 @@ fn parse_create_playlist_payload(payload: &str) -> Option<EngineCommandType> {
     let payload: PlaylistDetailsPayload = serde_json::from_str(payload).ok()?;
     (payload.version == CATALOG_PAYLOAD_VERSION
         && payload.playlist_id.is_none()
+        && payload.expected_revision.is_none()
         && !payload.name.trim().is_empty())
     .then_some(EngineCommandType::CreatePlaylist {
         input: crate::EngineCreatePlaylist {
@@ -1260,6 +1261,22 @@ mod tests {
             EngineCommandType::Unknown("totally_unknown_command".to_string())
         );
         assert_eq!(command_type.as_wire(), "totally_unknown_command");
+    }
+
+    #[test]
+    fn create_playlist_rejects_an_expected_revision() {
+        let command = EngineCommand::from_wire(
+            EngineCommandType::CREATE_PLAYLIST_WIRE,
+            Some(
+                r#"{"version":1,"playlist_id":null,"name":"Mix","description":null,"expected_revision":7}"#
+                    .into(),
+            ),
+        );
+
+        assert!(matches!(
+            command.command_type,
+            EngineCommandType::Unknown(_)
+        ));
     }
 
     #[test]

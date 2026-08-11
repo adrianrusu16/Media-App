@@ -60,3 +60,14 @@
     Checking panda_engine_ffi v0.1.0 (E:\AndroidStudioProjects\media_app\rust\engine\crates\ffi)
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 19.71s
 ```
+
+## Fix round 1
+
+- RED: `cargo test -p panda_engine_core create_playlist_rejects_an_expected_revision -j 1` failed because create accepted `expected_revision: 7`; create now requires the field to be null/absent.
+- RED: `cargo test -p panda_engine_ffi playlist_ffi_discriminants_parse_their_wire_payloads -j 1` failed to compile because playlist constants and the production parser path were absent. Rust and Kotlin now append all ten playlist command discriminants at 40-49, preserve 0-39, and parse through `EngineCommand::from_wire`.
+- GREEN: `cargo test -p panda_engine_ffi production_dispatch_recognizes_playlist_command_discriminants -j 1` passed a real `panda_engine_dispatch` regression for all ten playlist commands; the Kotlin bridge mapping test covers the same 40-49 sequence.
+- RED: `bound_request_revalidates_identity_after_successful_rpc` returned success after account/session replacement, current=false, and logout. `bound_request_revalidates_identity_after_failed_rpc` preserved a transport error after logout. The shared bound-auth request helper now re-reads and checks the exact account/session after every awaited RPC, including failed responses and safe retries, while `bound_request_preserves_typed_failure_for_same_identity` keeps ordinary typed failures unchanged.
+- RED: focused engine tests showed partial paginated reorder reached the port, successful reorder left the projected membership order stale, and a first-operation conflict projection survived an identity switch. The engine now rejects reorder while a selected membership page is incomplete, applies the acknowledged complete order and positions, and binds both success and conflict projections to the revalidated identity. Compose omits the drag handler while `hasPlaylistTracksNextPage` is true.
+- Native playlist rows now use guarded unsigned parsing and reject u64/u32 values outside Kotlin `Long`/`Int` ranges without throwing. The append-only seventh playlist-row value explicitly records description presence, preserving present-empty distinct from absent; focused mapper tests cover both boundaries.
+- GREEN: `cargo fmt --all -- --check`, `cargo test --workspace -j 1` (205 core unit tests plus integrations; 46 FFI tests), and `cargo clippy --workspace --all-targets --all-features -j 1 -- -D warnings` passed.
+- GREEN: `:core:rust-bridge:testDebugUnitTest :feature:library:testDebugUnitTest :feature:library:compileDebugAndroidTestKotlin :feature:library:lintDebug :feature:appshell:testDebugUnitTest :feature:appshell:compileDebugKotlin :app:assembleDebug` completed `BUILD SUCCESSFUL in 4m 7s` (644 tasks). The only diagnostic was the pre-existing Compose test-rule deprecation warning.

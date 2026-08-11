@@ -138,7 +138,17 @@ impl Engine {
                 ordered_membership_ids,
                 expected_revision,
             } => {
-                let (result, proposal) = match self.playlist_context(snapshot) {
+                if snapshot.playlist_tracks_playlist_id.as_deref() == Some(playlist_id)
+                    && snapshot.playlist_tracks_next_page_token.is_some()
+                {
+                    snapshot.last_error = Some(EngineError::new(
+                        EngineErrorType::InvalidInput,
+                        "playlist reorder requires the complete membership projection",
+                        false,
+                    ));
+                    return;
+                }
+                let (result, proposal, identity) = match self.playlist_context(snapshot) {
                     Ok((identity, port)) => {
                         let reconciler = PlaylistReconciler::new(port.clone());
                         let result = reconciler
@@ -153,18 +163,25 @@ impl Engine {
                         (
                             self.playlist_result_for_current_identity(snapshot, &identity, result),
                             proposal,
+                            Some(identity),
                         )
                     }
-                    Err(error) => (Err(error), None),
+                    Err(error) => (Err(error), None, None),
                 };
                 match result {
                     Ok(playlist) => {
+                        self.playlist_projection_identity = identity;
                         snapshot.playlist_reconciliation = None;
                         upsert_playlist(&mut snapshot.playlists, playlist);
+                        apply_membership_order(
+                            &mut snapshot.playlist_tracks,
+                            ordered_membership_ids,
+                        );
                     }
                     Err(error) => {
                         if error.error_type == EngineErrorType::Conflict {
                             snapshot.playlist_reconciliation = proposal;
+                            self.playlist_projection_identity = identity;
                         }
                         snapshot.last_error = Some(error);
                     }
@@ -350,6 +367,270 @@ fn upsert_playlist(items: &mut Vec<crate::EnginePlaylist>, playlist: crate::Engi
     items.retain(|existing| existing.id != playlist.id);
     items.insert(0, playlist);
 }
+fn apply_membership_order(
+    tracks: &mut [crate::EnginePlaylistTrack],
+    ordered_membership_ids: &[String],
+) {
+    tracks.sort_by_key(|track| {
+        ordered_membership_ids
+            .iter()
+            .position(|id| id == &track.membership_id)
+            .unwrap_or(usize::MAX)
+    });
+    for (position, track) in tracks.iter_mut().enumerate() {
+        track.position = u32::try_from(position).unwrap_or(u32::MAX);
+    }
+}
 fn playlist_error(message: &'static str) -> EngineError {
     EngineError::new(EngineErrorType::FailedPrecondition, message, false)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::{Arc, Mutex};
+
+    use async_trait::async_trait;
+
+    use super::*;
+    use crate::{
+        Account, AuthSession, AuthState, AuthStateProvider, EngineCreatePlaylist, EnginePageToken,
+        EnginePagedResult, EnginePlaylist, EnginePlaylistIdentity, EnginePlaylistTrack,
+        EngineUpdatePlaylist,
+    };
+
+    #[derive(Clone)]
+    struct MutableAuth(Arc<Mutex<AuthState>>);
+
+    impl MutableAuth {
+        fn new() -> Self {
+            Self(Arc::new(Mutex::new(auth("account-1", "session-1"))))
+        }
+        fn switch(&self) {
+            *self.0.lock().unwrap() = auth("account-2", "session-2");
+        }
+    }
+
+    impl AuthStateProvider for MutableAuth {
+        fn current_auth_state(&self) -> AuthState {
+            self.0.lock().unwrap().clone()
+        }
+    }
+
+    fn auth(account: &str, session: &str) -> AuthState {
+        AuthState::Authenticated {
+            account: Account {
+                id: account.into(),
+                primary_email: "driver@example.com".into(),
+                status: "active".into(),
+                created_at_epoch_millis: 1,
+            },
+            session: AuthSession {
+                id: session.into(),
+                device_label: "car".into(),
+                created_at_epoch_millis: 1,
+                last_used_at_epoch_millis: 1,
+                expires_at_epoch_millis: 10_000,
+                current: true,
+            },
+        }
+    }
+
+    struct ReorderPort {
+        conflict: bool,
+        calls: Mutex<usize>,
+    }
+
+    #[async_trait]
+    impl PlaylistPort for ReorderPort {
+        async fn create(
+            &self,
+            _: &EnginePlaylistIdentity,
+            _: EngineCreatePlaylist,
+        ) -> Result<EnginePlaylist, EngineError> {
+            unreachable!()
+        }
+        async fn get(
+            &self,
+            _: &EnginePlaylistIdentity,
+            id: &str,
+        ) -> Result<EnginePlaylist, EngineError> {
+            Ok(playlist(id, 8))
+        }
+        async fn update(
+            &self,
+            _: &EnginePlaylistIdentity,
+            _: EngineUpdatePlaylist,
+        ) -> Result<EnginePlaylist, EngineError> {
+            unreachable!()
+        }
+        async fn delete(&self, _: &EnginePlaylistIdentity, _: &str) -> Result<(), EngineError> {
+            unreachable!()
+        }
+        async fn list(
+            &self,
+            _: &EnginePlaylistIdentity,
+            _: EnginePageRequest,
+        ) -> Result<EnginePagedResult<EnginePlaylist>, EngineError> {
+            unreachable!()
+        }
+        async fn add_track(
+            &self,
+            _: &EnginePlaylistIdentity,
+            _: &str,
+            _: &str,
+        ) -> Result<EnginePlaylistTrack, EngineError> {
+            unreachable!()
+        }
+        async fn remove_track(
+            &self,
+            _: &EnginePlaylistIdentity,
+            _: &str,
+            _: &str,
+        ) -> Result<(), EngineError> {
+            unreachable!()
+        }
+        async fn reorder(
+            &self,
+            _: &EnginePlaylistIdentity,
+            _: &str,
+            _: &[String],
+            _: u64,
+        ) -> Result<EnginePlaylist, EngineError> {
+            *self.calls.lock().unwrap() += 1;
+            if self.conflict {
+                Err(EngineError::new(
+                    EngineErrorType::Conflict,
+                    "revision conflict",
+                    false,
+                ))
+            } else {
+                Ok(playlist("p1", 8))
+            }
+        }
+        async fn list_tracks(
+            &self,
+            _: &EnginePlaylistIdentity,
+            playlist_id: &str,
+            _: EnginePageRequest,
+        ) -> Result<EnginePagedResult<EnginePlaylistTrack>, EngineError> {
+            Ok(EnginePagedResult {
+                items: vec![track(playlist_id, "m2", 0), track(playlist_id, "m1", 1)],
+                next_page_token: None,
+            })
+        }
+    }
+
+    fn playlist(id: &str, revision: u64) -> EnginePlaylist {
+        EnginePlaylist {
+            id: id.into(),
+            name: "Mix".into(),
+            description: None,
+            revision,
+            created_at_epoch_millis: 1,
+            updated_at_epoch_millis: 2,
+        }
+    }
+
+    fn track(playlist_id: &str, membership_id: &str, position: u32) -> EnginePlaylistTrack {
+        EnginePlaylistTrack {
+            membership_id: membership_id.into(),
+            playlist_id: playlist_id.into(),
+            track: crate::EngineTrack {
+                id: membership_id.into(),
+                title: membership_id.into(),
+                artist: crate::EngineArtist {
+                    id: "artist".into(),
+                    name: "Artist".into(),
+                },
+                album: None,
+                duration_millis: 0,
+                explicit: false,
+                artwork_id: None,
+                genres: Vec::new(),
+            },
+            position,
+            added_at_epoch_millis: 1,
+        }
+    }
+
+    fn reorder(ids: &[&str]) -> EngineCommand {
+        EngineCommand::new(
+            EngineCommandType::ReorderPlaylistTracks {
+                playlist_id: "p1".into(),
+                ordered_membership_ids: ids.iter().map(|id| (*id).to_owned()).collect(),
+                expected_revision: 7,
+            },
+            None,
+        )
+    }
+
+    #[tokio::test]
+    async fn reorder_rejects_partial_projection_and_does_not_call_port() {
+        let auth = Arc::new(MutableAuth::new());
+        let port = Arc::new(ReorderPort {
+            conflict: false,
+            calls: Mutex::new(0),
+        });
+        let mut engine = Engine::new(0);
+        engine.set_auth_state_provider(auth);
+        engine.set_playlist_port(port.clone());
+        engine.snapshot.playlist_tracks_playlist_id = Some("p1".into());
+        engine.snapshot.playlist_tracks = vec![track("p1", "m1", 0)];
+        engine.snapshot.playlist_tracks_next_page_token =
+            Some(EnginePageToken::new("next".into()).unwrap());
+
+        let outcome = engine.dispatch(reorder(&["m1"]), 1).await;
+
+        assert_eq!(
+            outcome.snapshot.last_error.unwrap().error_type,
+            EngineErrorType::InvalidInput
+        );
+        assert_eq!(*port.calls.lock().unwrap(), 0);
+    }
+
+    #[tokio::test]
+    async fn successful_reorder_projects_order_and_binds_it_to_identity() {
+        let auth = Arc::new(MutableAuth::new());
+        let port = Arc::new(ReorderPort {
+            conflict: false,
+            calls: Mutex::new(0),
+        });
+        let mut engine = Engine::new(0);
+        engine.set_auth_state_provider(auth.clone());
+        engine.set_playlist_port(port);
+        engine.snapshot.playlist_tracks_playlist_id = Some("p1".into());
+        engine.snapshot.playlist_tracks = vec![track("p1", "m1", 0), track("p1", "m2", 1)];
+
+        let outcome = engine.dispatch(reorder(&["m2", "m1"]), 1).await;
+        assert_eq!(
+            outcome
+                .snapshot
+                .playlist_tracks
+                .iter()
+                .map(|item| item.membership_id.as_str())
+                .collect::<Vec<_>>(),
+            ["m2", "m1"]
+        );
+
+        auth.switch();
+        assert!(engine.snapshot().playlist_tracks.is_empty());
+    }
+
+    #[tokio::test]
+    async fn conflict_projection_is_bound_to_identity_when_reorder_is_first_operation() {
+        let auth = Arc::new(MutableAuth::new());
+        let port = Arc::new(ReorderPort {
+            conflict: true,
+            calls: Mutex::new(0),
+        });
+        let mut engine = Engine::new(0);
+        engine.set_auth_state_provider(auth.clone());
+        engine.set_playlist_port(port);
+
+        let outcome = engine.dispatch(reorder(&["m1", "m2"]), 1).await;
+        assert!(outcome.snapshot.playlist_reconciliation.is_some());
+
+        auth.switch();
+        assert!(engine.snapshot().playlist_reconciliation.is_none());
+    }
 }

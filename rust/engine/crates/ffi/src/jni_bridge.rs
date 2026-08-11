@@ -418,10 +418,11 @@ pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_eng
         vec![
             item.id,
             item.name,
-            item.description.unwrap_or_default(),
+            item.description.clone().unwrap_or_default(),
             item.revision.to_string(),
             item.created_at_epoch_millis.to_string(),
             item.updated_at_epoch_millis.to_string(),
+            (item.description.is_some() as u8).to_string(),
         ],
     )
 }

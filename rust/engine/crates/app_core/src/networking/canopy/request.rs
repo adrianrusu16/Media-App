@@ -125,6 +125,7 @@ where
     verify_bound_identity(&snapshot, expected_identity)?;
 
     let first = execute(authorized_request(make_request(), &snapshot)?).await;
+    revalidate_bound_identity(coordinator, expected_identity)?;
     let status = match first {
         Ok(response) => return Ok(response),
         Err(status) => status,
@@ -147,7 +148,9 @@ where
         }
     };
     verify_bound_identity(&replacement, expected_identity)?;
-    match execute(authorized_request(make_request(), &replacement)?).await {
+    let retry = execute(authorized_request(make_request(), &replacement)?).await;
+    revalidate_bound_identity(Some(coordinator), expected_identity)?;
+    match retry {
         Ok(response) => Ok(response),
         Err(status) if status.code() == Code::Unauthenticated => {
             coordinator.invalidate_if_current(&replacement).await?;
@@ -155,6 +158,19 @@ where
         }
         Err(status) => Err(map_status(status)),
     }
+}
+
+fn revalidate_bound_identity(
+    coordinator: Option<&SessionCoordinator>,
+    expected_identity: Option<&EngineHistoryIdentity>,
+) -> Result<(), EngineError> {
+    let (Some(coordinator), Some(expected_identity)) = (coordinator, expected_identity) else {
+        return Ok(());
+    };
+    verify_bound_identity(
+        &coordinator.current_access_snapshot()?,
+        Some(expected_identity),
+    )
 }
 
 fn verify_bound_identity(
@@ -204,7 +220,10 @@ mod tests {
 
     use tonic_014::{Code, Request, Response, Status};
 
-    use super::{AccessSnapshot, ReplayPolicy, execute_with_auth_at, verify_bound_identity};
+    use super::{
+        AccessSnapshot, ExecutionClock, ReplayPolicy, execute_with_auth_at,
+        execute_with_auth_with_clock, verify_bound_identity,
+    };
     use crate::{
         Account, AuthPort, AuthSession, AuthSessionEnvelope, EngineError, EngineErrorType,
         EngineHistoryIdentity, InMemorySessionStore, SessionCoordinator, SessionStore,
@@ -271,6 +290,33 @@ mod tests {
         )
     }
 
+    fn envelope_for_identity(
+        account_id: &str,
+        session_id: &str,
+        current: bool,
+    ) -> AuthSessionEnvelope {
+        AuthSessionEnvelope::new(
+            "access".into(),
+            20_000,
+            "refresh".into(),
+            50_000,
+            Account {
+                id: account_id.into(),
+                primary_email: "driver@example.com".into(),
+                status: "active".into(),
+                created_at_epoch_millis: 1,
+            },
+            AuthSession {
+                id: session_id.into(),
+                device_label: "car".into(),
+                created_at_epoch_millis: 1,
+                last_used_at_epoch_millis: 1,
+                expires_at_epoch_millis: 50_000,
+                current,
+            },
+        )
+    }
+
     fn coordinator(
         initial: Option<AuthSessionEnvelope>,
         replacement: AuthSessionEnvelope,
@@ -307,6 +353,124 @@ mod tests {
                 .error_type,
             EngineErrorType::LoginRequired,
         );
+    }
+
+    #[tokio::test]
+    async fn bound_request_revalidates_identity_after_successful_rpc() {
+        enum Transition {
+            Account,
+            Session,
+            NotCurrent,
+            Logout,
+        }
+
+        for transition in [
+            Transition::Account,
+            Transition::Session,
+            Transition::NotCurrent,
+            Transition::Logout,
+        ] {
+            let store = Arc::new(InMemorySessionStore::with_session(envelope_for_identity(
+                "account-1",
+                "session-1",
+                true,
+            )));
+            let auth = Arc::new(RotatingAuth {
+                refreshes: AtomicUsize::new(0),
+                replacement: envelope("unused", "unused", 30_000),
+            });
+            let coordinator = SessionCoordinator::new(store.clone(), auth);
+            let expected = EngineHistoryIdentity {
+                account_id: "account-1".into(),
+                session_id: "session-1".into(),
+            };
+
+            let error = execute_with_auth_with_clock(
+                Some(&coordinator),
+                Some(&expected),
+                ReplayPolicy::NonIdempotent,
+                ExecutionClock::Fixed(1_000),
+                || Request::new(()),
+                move |_| {
+                    match transition {
+                        Transition::Account => store
+                            .replace(envelope_for_identity("account-2", "session-1", true))
+                            .unwrap(),
+                        Transition::Session => store
+                            .replace(envelope_for_identity("account-1", "session-2", true))
+                            .unwrap(),
+                        Transition::NotCurrent => store
+                            .replace(envelope_for_identity("account-1", "session-1", false))
+                            .unwrap(),
+                        Transition::Logout => store.clear().unwrap(),
+                    }
+                    async { Ok::<_, Status>(Response::new(())) }
+                },
+            )
+            .await
+            .unwrap_err();
+
+            assert_eq!(error.error_type, EngineErrorType::LoginRequired);
+        }
+    }
+
+    #[tokio::test]
+    async fn bound_request_revalidates_identity_after_failed_rpc() {
+        let store = Arc::new(InMemorySessionStore::with_session(envelope_for_identity(
+            "account-1",
+            "session-1",
+            true,
+        )));
+        let auth = Arc::new(RotatingAuth {
+            refreshes: AtomicUsize::new(0),
+            replacement: envelope("unused", "unused", 30_000),
+        });
+        let coordinator = SessionCoordinator::new(store.clone(), auth);
+        let expected = EngineHistoryIdentity {
+            account_id: "account-1".into(),
+            session_id: "session-1".into(),
+        };
+
+        let error = execute_with_auth_with_clock(
+            Some(&coordinator),
+            Some(&expected),
+            ReplayPolicy::NonIdempotent,
+            ExecutionClock::Fixed(1_000),
+            || Request::new(()),
+            move |_| {
+                store.clear().unwrap();
+                async { Err::<Response<()>, _>(Status::unavailable("typed failure")) }
+            },
+        )
+        .await
+        .unwrap_err();
+
+        assert_eq!(error.error_type, EngineErrorType::LoginRequired);
+    }
+
+    #[tokio::test]
+    async fn bound_request_preserves_typed_failure_for_same_identity() {
+        let (coordinator, _) = coordinator(
+            Some(envelope("access", "refresh", 20_000)),
+            envelope("unused", "unused", 30_000),
+        );
+        let expected = EngineHistoryIdentity {
+            account_id: "account-1".into(),
+            session_id: "session-1".into(),
+        };
+
+        let error = execute_with_auth_with_clock(
+            Some(&coordinator),
+            Some(&expected),
+            ReplayPolicy::NonIdempotent,
+            ExecutionClock::Fixed(1_000),
+            || Request::new(()),
+            |_| async { Err::<Response<()>, _>(Status::unavailable("typed failure")) },
+        )
+        .await
+        .unwrap_err();
+
+        assert_eq!(error.error_type, EngineErrorType::ServiceUnavailable);
     }
 
     #[tokio::test]

@@ -309,6 +309,7 @@ private fun PlaylistLibraryContent(
         PlaylistTrackList(
             playlist = playlist,
             tracks = state.playlistTracks,
+            reorderEnabled = !state.hasPlaylistTracksNextPage,
             onRemovePlaylistTrack = onRemovePlaylistTrack,
             onReorderPlaylist = onReorderPlaylist,
         )
@@ -360,6 +361,7 @@ private fun PlaylistRow(
 private fun PlaylistTrackList(
     playlist: LibraryPlaylist,
     tracks: List<LibraryTrack>,
+    reorderEnabled: Boolean,
     onRemovePlaylistTrack: (String, String) -> Unit,
     onReorderPlaylist: (String, List<String>, Long) -> Unit,
 ) {
@@ -369,6 +371,7 @@ private fun PlaylistTrackList(
             track = track,
             index = index,
             tracks = tracks,
+            reorderEnabled = reorderEnabled,
             onRemovePlaylistTrack = onRemovePlaylistTrack,
             onReorderPlaylist = onReorderPlaylist,
         )
@@ -381,37 +384,41 @@ private fun PlaylistTrackRow(
     track: LibraryTrack,
     index: Int,
     tracks: List<LibraryTrack>,
+    reorderEnabled: Boolean,
     onRemovePlaylistTrack: (String, String) -> Unit,
     onReorderPlaylist: (String, List<String>, Long) -> Unit,
 ) {
     val tokens = LocalPandaWaveDesignTokens.current
     var draggedDistance by remember(track.relationshipId) { mutableFloatStateOf(0f) }
+    val reorderModifier = if (reorderEnabled) {
+        Modifier.pointerInput(track.relationshipId, tracks) {
+            detectVerticalDragGestures(
+                onVerticalDrag = { _, dragAmount -> draggedDistance += dragAmount },
+                onDragEnd = {
+                    val destination = when {
+                        draggedDistance > DRAG_REORDER_THRESHOLD -> (index + 1).coerceAtMost(tracks.lastIndex)
+                        draggedDistance < -DRAG_REORDER_THRESHOLD -> (index - 1).coerceAtLeast(0)
+                        else -> index
+                    }
+                    if (destination != index) {
+                        val proposed = tracks.toMutableList().also { members ->
+                            members.add(destination, members.removeAt(index))
+                        }
+                        onReorderPlaylist(playlist.id, proposed.map(LibraryTrack::relationshipId), playlist.revision)
+                    }
+                    draggedDistance = 0f
+                },
+                onDragCancel = { draggedDistance = 0f },
+            )
+        }
+    } else {
+        Modifier
+    }
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .testTag("library-playlist-track-${track.relationshipId}")
-            .pointerInput(track.relationshipId, tracks) {
-                detectVerticalDragGestures(
-                    onVerticalDrag = { _, dragAmount ->
-                        draggedDistance += dragAmount
-                    },
-                    onDragEnd = {
-                        val destination = when {
-                            draggedDistance > DRAG_REORDER_THRESHOLD -> (index + 1).coerceAtMost(tracks.lastIndex)
-                            draggedDistance < -DRAG_REORDER_THRESHOLD -> (index - 1).coerceAtLeast(0)
-                            else -> index
-                        }
-                        if (destination != index) {
-                            val proposed = tracks.toMutableList().also { members ->
-                                members.add(destination, members.removeAt(index))
-                            }
-                            onReorderPlaylist(playlist.id, proposed.map(LibraryTrack::relationshipId), playlist.revision)
-                        }
-                        draggedDistance = 0f
-                    },
-                    onDragCancel = { draggedDistance = 0f },
-                )
-            },
+            .then(reorderModifier),
         tonalElevation = tokens.elevation.cardResting,
         shape = MaterialTheme.shapes.small,
     ) {

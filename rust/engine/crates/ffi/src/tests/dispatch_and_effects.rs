@@ -70,6 +70,64 @@ fn start_session_defaults_to_unknown_when_payload_is_missing() {
 }
 
 #[test]
+fn production_dispatch_recognizes_playlist_command_discriminants() {
+    let engine = panda_engine_create(1_000);
+    let payloads = [
+        (
+            FFI_COMMAND_CREATE_PLAYLIST,
+            r#"{"version":1,"playlist_id":null,"name":"Mix","description":null,"expected_revision":null}"#,
+        ),
+        (
+            FFI_COMMAND_UPDATE_PLAYLIST,
+            r#"{"version":1,"playlist_id":"p1","name":"Mix","description":null,"expected_revision":7}"#,
+        ),
+        (
+            FFI_COMMAND_DELETE_PLAYLIST,
+            r#"{"version":1,"playlist_id":"p1"}"#,
+        ),
+        (
+            FFI_COMMAND_LIST_PLAYLISTS,
+            r#"{"version":1,"playlist_id":null,"page":{"page_size":25}}"#,
+        ),
+        (FFI_COMMAND_LOAD_NEXT_PLAYLISTS_PAGE, ""),
+        (
+            FFI_COMMAND_ADD_PLAYLIST_TRACK,
+            r#"{"version":1,"playlist_id":"p1","track_id":"t1"}"#,
+        ),
+        (
+            FFI_COMMAND_REMOVE_PLAYLIST_TRACK,
+            r#"{"version":1,"playlist_id":"p1","track_id":"t1"}"#,
+        ),
+        (
+            FFI_COMMAND_LIST_PLAYLIST_TRACKS,
+            r#"{"version":1,"playlist_id":"p1","page":{"page_size":25}}"#,
+        ),
+        (FFI_COMMAND_LOAD_NEXT_PLAYLIST_TRACKS_PAGE, ""),
+        (
+            FFI_COMMAND_REORDER_PLAYLIST_TRACKS,
+            r#"{"version":1,"playlist_id":"p1","ordered_membership_ids":["m1"],"expected_revision":7}"#,
+        ),
+    ];
+
+    for (command_type, payload) in payloads {
+        let payload = (!payload.is_empty()).then(|| CString::new(payload).unwrap());
+        let outcome = unsafe {
+            panda_engine_dispatch(
+                engine,
+                command_type,
+                payload.as_ref().map_or(ptr::null(), |value| value.as_ptr()),
+                1_100,
+            )
+        };
+        assert_eq!(outcome.applied_command_type, command_type);
+        let message = unsafe { take_string(panda_engine_get_last_event_message(engine)) };
+        assert_ne!(message, Some(command_type.to_string()));
+    }
+
+    unsafe { panda_engine_destroy(engine) };
+}
+
+#[test]
 fn null_snapshot_returns_invalid_marker() {
     let snapshot = unsafe { panda_engine_snapshot(ptr::null()) };
 

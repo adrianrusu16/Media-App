@@ -108,10 +108,10 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     override fun likedTrack(index: Int): EngineLibraryItem? = PandaEngineNativeLibraryItemMapper.toDomain(nativeLikedTrackValues(nativeHandle, index))
 
     override fun pendingLibraryTrackId(index: Int): String? = nativePendingLibraryTrackId(nativeHandle, index)
-    override fun playlist(index: Int): EnginePlaylistItem? = nativePlaylistValues(nativeHandle, index)?.takeIf { it.size == 6 }?.let { EnginePlaylistItem(it[0], it[1], it[2].ifEmpty { null }, it[3].toLong(), it[4].toLong(), it[5].toLong()) }
-    override fun playlistTrack(index: Int): EnginePlaylistTrackItem? = nativePlaylistTrackValues(nativeHandle, index)?.takeIf { it.size == 12 }?.let { EnginePlaylistTrackItem(it[0],it[1],it[2],it[3],it[4],it[5],it[6].ifEmpty { null },it[7].toLong(),it[8]=="1",it[9].ifEmpty { null },it[10].toInt(),it[11].toLong()) }
+    override fun playlist(index: Int): EnginePlaylistItem? = playlistItem(nativePlaylistValues(nativeHandle, index))
+    override fun playlistTrack(index: Int): EnginePlaylistTrackItem? = playlistTrackItem(nativePlaylistTrackValues(nativeHandle, index))
     override fun selectedPlaylistId(): String? = nativePlaylistSelectionValues(nativeHandle)?.getOrNull(0)?.ifEmpty { null }
-    override fun playlistReconciliation(): EnginePlaylistReconciliation? = nativePlaylistSelectionValues(nativeHandle)?.takeIf { it.size == 6 && it[1].isNotEmpty() }?.let { EnginePlaylistReconciliation(it[1],it[2].toLong(),it[3].toLong(),it[4].split('\u001f').filter(String::isNotEmpty),it[5].split('\u001f').filter(String::isNotEmpty)) }
+    override fun playlistReconciliation(): EnginePlaylistReconciliation? = playlistReconciliationItem(nativePlaylistSelectionValues(nativeHandle))
 
     override fun searchResult(index: Int): EngineCatalogItem? = resultItem(
         id = nativeSearchResultId(nativeHandle, index),
@@ -430,6 +430,16 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         private const val COMMAND_UNLIKE_TRACK = 37
         private const val COMMAND_LIST_LIKED_TRACKS = 38
         private const val COMMAND_LOAD_NEXT_LIKED_TRACKS_PAGE = 39
+        private const val COMMAND_CREATE_PLAYLIST = 40
+        private const val COMMAND_UPDATE_PLAYLIST = 41
+        private const val COMMAND_DELETE_PLAYLIST = 42
+        private const val COMMAND_LIST_PLAYLISTS = 43
+        private const val COMMAND_LOAD_NEXT_PLAYLISTS_PAGE = 44
+        private const val COMMAND_ADD_PLAYLIST_TRACK = 45
+        private const val COMMAND_REMOVE_PLAYLIST_TRACK = 46
+        private const val COMMAND_LIST_PLAYLIST_TRACKS = 47
+        private const val COMMAND_LOAD_NEXT_PLAYLIST_TRACKS_PAGE = 48
+        private const val COMMAND_REORDER_PLAYLIST_TRACKS = 49
         private const val COMMAND_UNKNOWN = -1
 
         private const val PLATFORM_EVENT_APP_FOREGROUNDED = 0
@@ -499,6 +509,16 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             EngineCommand.TYPE_UNLIKE_TRACK -> COMMAND_UNLIKE_TRACK
             EngineCommand.TYPE_LIST_LIKED_TRACKS -> COMMAND_LIST_LIKED_TRACKS
             EngineCommand.TYPE_LOAD_NEXT_LIKED_TRACKS_PAGE -> COMMAND_LOAD_NEXT_LIKED_TRACKS_PAGE
+            EngineCommand.TYPE_CREATE_PLAYLIST -> COMMAND_CREATE_PLAYLIST
+            EngineCommand.TYPE_UPDATE_PLAYLIST -> COMMAND_UPDATE_PLAYLIST
+            EngineCommand.TYPE_DELETE_PLAYLIST -> COMMAND_DELETE_PLAYLIST
+            EngineCommand.TYPE_LIST_PLAYLISTS -> COMMAND_LIST_PLAYLISTS
+            EngineCommand.TYPE_LOAD_NEXT_PLAYLISTS_PAGE -> COMMAND_LOAD_NEXT_PLAYLISTS_PAGE
+            EngineCommand.TYPE_ADD_PLAYLIST_TRACK -> COMMAND_ADD_PLAYLIST_TRACK
+            EngineCommand.TYPE_REMOVE_PLAYLIST_TRACK -> COMMAND_REMOVE_PLAYLIST_TRACK
+            EngineCommand.TYPE_LIST_PLAYLIST_TRACKS -> COMMAND_LIST_PLAYLIST_TRACKS
+            EngineCommand.TYPE_LOAD_NEXT_PLAYLIST_TRACKS_PAGE -> COMMAND_LOAD_NEXT_PLAYLIST_TRACKS_PAGE
+            EngineCommand.TYPE_REORDER_PLAYLIST_TRACKS -> COMMAND_REORDER_PLAYLIST_TRACKS
             else -> COMMAND_UNKNOWN
         }
 
@@ -525,6 +545,50 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         }
 
         internal fun nativeCommandType(command: EngineCommand): Int = command.toNativeCommandType()
+
+        internal fun playlistItem(values: Array<String>?): EnginePlaylistItem? {
+            if (values == null || values.size != 7) return null
+            val revision = values[3].toNonNegativeLongOrNull() ?: return null
+            val createdAt = values[4].toNonNegativeLongOrNull() ?: return null
+            val updatedAt = values[5].toNonNegativeLongOrNull() ?: return null
+            val description = when (values[6]) {
+                "0" -> null
+                "1" -> values[2]
+                else -> return null
+            }
+            return EnginePlaylistItem(values[0], values[1], description, revision, createdAt, updatedAt)
+        }
+
+        internal fun playlistTrackItem(values: Array<String>?): EnginePlaylistTrackItem? {
+            if (values == null || values.size != 12) return null
+            val duration = values[7].toNonNegativeLongOrNull() ?: return null
+            val explicit = when (values[8]) {
+                "0" -> false
+                "1" -> true
+                else -> return null
+            }
+            val position = values[10].toUIntOrNull()?.takeIf { it <= Int.MAX_VALUE.toUInt() }?.toInt()
+                ?: return null
+            val addedAt = values[11].toNonNegativeLongOrNull() ?: return null
+            return EnginePlaylistTrackItem(
+                values[0], values[1], values[2], values[3], values[4], values[5],
+                values[6].ifEmpty { null }, duration, explicit, values[9].ifEmpty { null }, position, addedAt,
+            )
+        }
+
+        internal fun playlistReconciliationItem(values: Array<String>?): EnginePlaylistReconciliation? {
+            if (values == null || values.size != 6 || values[1].isEmpty()) return null
+            val expectedRevision = values[2].toNonNegativeLongOrNull() ?: return null
+            val serverRevision = values[3].toNonNegativeLongOrNull() ?: return null
+            return EnginePlaylistReconciliation(
+                values[1], expectedRevision, serverRevision,
+                values[4].split('\u001f').filter(String::isNotEmpty),
+                values[5].split('\u001f').filter(String::isNotEmpty),
+            )
+        }
+
+        private fun String.toNonNegativeLongOrNull(): Long? =
+            toULongOrNull()?.takeIf { it <= Long.MAX_VALUE.toULong() }?.toLong()
 
         private fun EnginePlatformEvent.toNativePlatformEventType(): Int = when (type) {
             EnginePlatformEvent.TYPE_APP_FOREGROUNDED -> PLATFORM_EVENT_APP_FOREGROUNDED

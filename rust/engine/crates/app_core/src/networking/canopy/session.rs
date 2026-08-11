@@ -194,6 +194,16 @@ impl SessionCoordinator {
             .await
     }
 
+    pub(crate) fn current_access_snapshot(&self) -> Result<AccessSnapshot, EngineError> {
+        if self.invalidated.load(Ordering::Acquire) {
+            return Err(login_required());
+        }
+        let Some(current) = self.store.read().map_err(EngineError::from)? else {
+            return Ok(AccessSnapshot::Anonymous);
+        };
+        self.access_snapshot(&current)
+    }
+
     #[cfg(test)]
     pub(crate) async fn fresh_access_snapshot_at(
         &self,

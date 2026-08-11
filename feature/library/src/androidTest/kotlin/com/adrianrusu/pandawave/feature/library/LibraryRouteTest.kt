@@ -12,6 +12,8 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeDown
 import com.adrianrusu.pandawave.core.designsystem.theme.PandaWaveTheme
 import com.adrianrusu.pandawave.feature.library.domain.LibraryState
 import com.adrianrusu.pandawave.feature.library.domain.LibraryTab
@@ -173,6 +175,42 @@ class LibraryRouteTest {
             ),
             actions,
         )
+    }
+
+    @Test
+    fun playlistReorderIsDisabledUntilEveryMembershipPageIsLoaded() {
+        val reorders = mutableListOf<List<String>>()
+        compose.setContent {
+            PandaWaveTheme(darkTheme = true) {
+                LibraryRoute(
+                    state = LibraryState(
+                        selectedTab = LibraryTab.PLAYLISTS,
+                        playlists = listOf(LibraryPlaylist("playlist-1", "Mix", null, 7)),
+                        selectedPlaylistId = "playlist-1",
+                        playlistTracks = listOf(
+                            track("media-1", "First", "member-1"),
+                            track("media-2", "Second", "member-2"),
+                        ),
+                        hasPlaylistTracksNextPage = true,
+                        isLoading = false,
+                    ),
+                    onSelectTab = {},
+                    onRefresh = {},
+                    onLoadNext = {},
+                    onSave = {},
+                    onRemoveSaved = {},
+                    onLike = {},
+                    onUnlike = {},
+                    onReorderPlaylist = { _, ids, _ -> reorders += ids },
+                )
+            }
+        }
+
+        compose.onNodeWithTag("library-playlist-track-member-1")
+            .performScrollTo()
+            .performTouchInput { swipeDown() }
+
+        assertEquals(emptyList<List<String>>(), reorders)
     }
 
     private fun setRoute(state: LibraryState) {
