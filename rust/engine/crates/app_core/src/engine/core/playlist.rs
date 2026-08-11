@@ -173,10 +173,14 @@ impl Engine {
                         self.playlist_projection_identity = identity;
                         snapshot.playlist_reconciliation = None;
                         upsert_playlist(&mut snapshot.playlists, playlist);
-                        apply_membership_order(
-                            &mut snapshot.playlist_tracks,
-                            ordered_membership_ids,
-                        );
+                        if snapshot.playlist_tracks_playlist_id.as_deref()
+                            == Some(playlist_id.as_str())
+                        {
+                            apply_membership_order(
+                                &mut snapshot.playlist_tracks,
+                                ordered_membership_ids,
+                            );
+                        }
                     }
                     Err(error) => {
                         if error.error_type == EngineErrorType::Conflict {
@@ -492,7 +496,7 @@ mod tests {
         async fn reorder(
             &self,
             _: &EnginePlaylistIdentity,
-            _: &str,
+            playlist_id: &str,
             _: &[String],
             _: u64,
         ) -> Result<EnginePlaylist, EngineError> {
@@ -504,7 +508,7 @@ mod tests {
                     false,
                 ))
             } else {
-                Ok(playlist("p1", 8))
+                Ok(playlist(playlist_id, 8))
             }
         }
         async fn list_tracks(
@@ -554,9 +558,13 @@ mod tests {
     }
 
     fn reorder(ids: &[&str]) -> EngineCommand {
+        reorder_for("p1", ids)
+    }
+
+    fn reorder_for(playlist_id: &str, ids: &[&str]) -> EngineCommand {
         EngineCommand::new(
             EngineCommandType::ReorderPlaylistTracks {
-                playlist_id: "p1".into(),
+                playlist_id: playlist_id.into(),
                 ordered_membership_ids: ids.iter().map(|id| (*id).to_owned()).collect(),
                 expected_revision: 7,
             },
@@ -614,6 +622,33 @@ mod tests {
 
         auth.switch();
         assert!(engine.snapshot().playlist_tracks.is_empty());
+    }
+
+    #[tokio::test]
+    async fn successful_reorder_does_not_mutate_another_selected_playlist_projection() {
+        let auth = Arc::new(MutableAuth::new());
+        let port = Arc::new(ReorderPort {
+            conflict: false,
+            calls: Mutex::new(0),
+        });
+        let mut engine = Engine::new(0);
+        engine.set_auth_state_provider(auth);
+        engine.set_playlist_port(port);
+        engine.snapshot.playlists = vec![playlist("playlist-a", 7)];
+        engine.snapshot.playlist_tracks_playlist_id = Some("playlist-b".into());
+        engine.snapshot.playlist_tracks = vec![
+            track("playlist-b", "member-b1", 5),
+            track("playlist-b", "member-b2", 9),
+        ];
+        let previous_tracks = engine.snapshot.playlist_tracks.clone();
+
+        let outcome = engine
+            .dispatch(reorder_for("playlist-a", &["member-a2", "member-a1"]), 1)
+            .await;
+
+        assert_eq!(outcome.snapshot.playlist_tracks, previous_tracks);
+        assert_eq!(outcome.snapshot.playlists[0].id, "playlist-a");
+        assert_eq!(outcome.snapshot.playlists[0].revision, 8);
     }
 
     #[tokio::test]

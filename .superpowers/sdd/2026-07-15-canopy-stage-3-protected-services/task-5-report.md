@@ -71,3 +71,9 @@
 - Native playlist rows now use guarded unsigned parsing and reject u64/u32 values outside Kotlin `Long`/`Int` ranges without throwing. The append-only seventh playlist-row value explicitly records description presence, preserving present-empty distinct from absent; focused mapper tests cover both boundaries.
 - GREEN: `cargo fmt --all -- --check`, `cargo test --workspace -j 1` (205 core unit tests plus integrations; 46 FFI tests), and `cargo clippy --workspace --all-targets --all-features -j 1 -- -D warnings` passed.
 - GREEN: `:core:rust-bridge:testDebugUnitTest :feature:library:testDebugUnitTest :feature:library:compileDebugAndroidTestKotlin :feature:library:lintDebug :feature:appshell:testDebugUnitTest :feature:appshell:compileDebugKotlin :app:assembleDebug` completed `BUILD SUCCESSFUL in 4m 7s` (644 tasks). The only diagnostic was the pre-existing Compose test-rule deprecation warning.
+
+## Fix round 2
+
+- RED: `cargo test -p panda_engine_core successful_reorder_does_not_mutate_another_selected_playlist_projection -j 1` failed because successfully reordering playlist A rewrote the currently projected playlist B positions from `5,9` to `0,1`.
+- GREEN: successful reorder now applies membership order only when `playlist_tracks_playlist_id` equals the reordered playlist ID. The regression confirms playlist B rows, order, and positions remain unchanged while playlist A advances to revision 8; the existing matching-ID test still confirms the selected playlist projection is reordered.
+- Verification: `cargo test -p panda_engine_core playlist -j 1` passed 6 focused tests; `cargo fmt --all -- --check`, `cargo test --workspace -j 1` (206 core unit tests plus integrations and 46 FFI tests), and `cargo clippy --workspace --all-targets --all-features -j 1 -- -D warnings` passed.
