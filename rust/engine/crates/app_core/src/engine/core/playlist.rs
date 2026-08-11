@@ -88,7 +88,7 @@ impl Engine {
                 self.mutate_playlist(snapshot, |identity, port| async move {
                     port.create(&identity.playlist_identity(), input.clone())
                         .await
-                        .map(|playlist| PlaylistMutation::Playlist(playlist))
+                        .map(PlaylistMutation::Playlist)
                 })
                 .await
             }
@@ -96,7 +96,7 @@ impl Engine {
                 self.mutate_playlist(snapshot, |identity, port| async move {
                     port.update(&identity.playlist_identity(), input.clone())
                         .await
-                        .map(|playlist| PlaylistMutation::Playlist(playlist))
+                        .map(PlaylistMutation::Playlist)
                 })
                 .await
             }

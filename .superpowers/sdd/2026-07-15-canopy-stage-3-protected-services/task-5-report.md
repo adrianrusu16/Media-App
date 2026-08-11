@@ -48,3 +48,15 @@
 - GREEN: the focused ViewModel test passed after adding update wiring and verifies create/update/delete/select, membership add/remove, and the complete ordered membership-id list plus expected revision. `:feature:library:testDebugUnitTest :feature:library:compileDebugAndroidTestKotlin` passed after adding the PLAYLISTS Compose controls and conflict confirmation test.
 - The PLAYLISTS tab exposes create/update/delete/select, membership add/remove, and a vertical drag interaction. Drag completion dispatches the complete current membership-id order with the selected playlist revision. Conflict UI renders the refreshed server order and proposed local order; only the explicit confirmation sends a new reorder command using the server revision.
 - Final gates: `cargo test -p panda_engine_core playlist` passed (2 playlist tests); `cargo test -p panda_engine_ffi --lib` passed (44 tests); `:core:rust-bridge:testDebugUnitTest`, `:feature:appshell:testDebugUnitTest`, `:feature:appshell:compileDebugKotlin`, `:feature:library:lintDebug`, and `:app:assembleDebug` completed without reported failures; `cargo fmt --all -- --check` and `git diff --check e23ccea` passed; `graphify update .` completed.
+
+## Pre-review verification fix
+
+- Replaced the two redundant `map` closures in `engine/core/playlist.rs` with the `PlaylistMutation::Playlist` function item required by Clippy.
+- `cargo fmt --all -- --check` output: *(no output; exit code 0)*.
+- `cargo clippy --workspace --all-targets --all-features -j 1 -- -D warnings` output:
+
+```text
+    Checking panda_engine_core v0.1.0 (E:\AndroidStudioProjects\media_app\rust\engine\crates\app_core)
+    Checking panda_engine_ffi v0.1.0 (E:\AndroidStudioProjects\media_app\rust\engine\crates\ffi)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 19.71s
+```
