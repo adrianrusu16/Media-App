@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::time::Duration;
 
 use tonic_014::metadata::MetadataValue;
@@ -5,35 +6,175 @@ use tonic_014::transport::Channel;
 use tonic_014::{Code, Request, Status};
 
 use crate::{
-    Account, AuthPort, AuthRequestAcceptance, AuthSession, AuthSessionEnvelope, EngineError,
-    EngineErrorType,
+    Account, AccountOperation, AccountPort, AuthPort, AuthRequestAcceptance, AuthSession,
+    AuthSessionEnvelope, EngineAccountIdentity, EngineError, EngineErrorType,
+    EngineHistoryIdentity, EnginePageRequest, EnginePageToken, EnginePagedResult, RetryClass,
+    account_retry_class,
 };
 
-use super::CanopyChannel;
+use super::catalog::map_page_request;
 use super::error::map_status;
+use super::request::{ReplayPolicy, execute_with_bound_auth};
 use super::sdk::{
     clients::auth_service_client::AuthServiceClient,
     resources::{
-        AccountSummary, LoginPasswordRequest, LogoutRequest, RefreshSessionRequest,
-        RegisterPasswordRequest, ResendVerificationRequest, SessionEnvelope, SessionSummary,
-        VerifyEmailRequest,
+        AccountSummary, DeleteAccountRequest, GetAccountRequest, ListSessionsRequest,
+        ListSessionsResponse, LoginPasswordRequest, LogoutRequest, RefreshSessionRequest,
+        RegisterPasswordRequest, ResendVerificationRequest, RevokeSessionRequest, SessionEnvelope,
+        SessionSummary, VerifyEmailRequest,
     },
     well_known_types::Timestamp,
 };
+use super::{CanopyChannel, SessionCoordinator};
 
 const AUTH_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// Canonical Canopy authentication transport adapter.
 pub struct CanopyAuthClient {
     client: AuthServiceClient<Channel>,
+    session: Option<Arc<SessionCoordinator>>,
 }
 
 impl CanopyAuthClient {
     pub fn new(channel: &CanopyChannel) -> Self {
         Self {
             client: AuthServiceClient::new(channel.clone_inner()),
+            session: None,
         }
     }
+
+    pub fn new_protected(channel: &CanopyChannel, session: Arc<SessionCoordinator>) -> Self {
+        Self {
+            client: AuthServiceClient::new(channel.clone_inner()),
+            session: Some(session),
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl AccountPort for CanopyAuthClient {
+    async fn get_account(&self, identity: &EngineAccountIdentity) -> Result<Account, EngineError> {
+        let response = self
+            .execute_account(
+                identity,
+                AccountOperation::GetAccount,
+                || Request::new(GetAccountRequest {}),
+                |mut client, request| async move { client.get_account(request).await },
+            )
+            .await?
+            .into_inner();
+        map_account(response.account.ok_or_else(mapping_defect)?)
+    }
+
+    async fn list_sessions(
+        &self,
+        identity: &EngineAccountIdentity,
+        page: EnginePageRequest,
+    ) -> Result<EnginePagedResult<AuthSession>, EngineError> {
+        let request = ListSessionsRequest {
+            page: Some(map_page_request(page)),
+        };
+        let response = self
+            .execute_account(
+                identity,
+                AccountOperation::ListSessions,
+                || Request::new(request.clone()),
+                |mut client, request| async move { client.list_sessions(request).await },
+            )
+            .await?
+            .into_inner();
+        map_session_page(response)
+    }
+
+    async fn revoke_session(
+        &self,
+        identity: &EngineAccountIdentity,
+        session_id: &str,
+    ) -> Result<(), EngineError> {
+        if session_id.trim().is_empty() {
+            return Err(EngineError::new(
+                EngineErrorType::InvalidInput,
+                "session id is required",
+                false,
+            ));
+        }
+        let request = RevokeSessionRequest {
+            session_id: session_id.into(),
+        };
+        self.execute_account(
+            identity,
+            AccountOperation::RevokeSession,
+            || Request::new(request.clone()),
+            |mut client, request| async move { client.revoke_session(request).await },
+        )
+        .await?;
+        Ok(())
+    }
+
+    async fn delete_account(&self, identity: &EngineAccountIdentity) -> Result<(), EngineError> {
+        self.execute_account(
+            identity,
+            AccountOperation::DeleteAccount,
+            || Request::new(DeleteAccountRequest {}),
+            |mut client, request| async move { client.delete_account(request).await },
+        )
+        .await?;
+        let session = self
+            .session
+            .as_ref()
+            .ok_or_else(protected_client_unavailable)?;
+        session
+            .clear_after_account_delete(&bound_identity(identity))
+            .await
+    }
+}
+
+impl CanopyAuthClient {
+    async fn execute_account<TRequest, TResponse, MakeRequest, Execute, ExecuteFuture>(
+        &self,
+        identity: &EngineAccountIdentity,
+        operation: AccountOperation,
+        make_request: MakeRequest,
+        execute: Execute,
+    ) -> Result<tonic_014::Response<TResponse>, EngineError>
+    where
+        MakeRequest: Fn() -> Request<TRequest>,
+        Execute: Fn(AuthServiceClient<Channel>, Request<TRequest>) -> ExecuteFuture,
+        ExecuteFuture: std::future::Future<Output = Result<tonic_014::Response<TResponse>, Status>>,
+    {
+        let session = self
+            .session
+            .as_ref()
+            .ok_or_else(protected_client_unavailable)?;
+        let client = self.client.clone();
+        let policy = match account_retry_class(operation) {
+            RetryClass::Read | RetryClass::IdempotentMutation => ReplayPolicy::Safe,
+            RetryClass::NonReplayableMutation | RetryClass::Refresh => ReplayPolicy::NonIdempotent,
+        };
+        execute_with_bound_auth(
+            session,
+            &bound_identity(identity),
+            policy,
+            make_request,
+            move |request| execute(client.clone(), request),
+        )
+        .await
+    }
+}
+
+fn bound_identity(identity: &EngineAccountIdentity) -> EngineHistoryIdentity {
+    EngineHistoryIdentity {
+        account_id: identity.account_id.clone(),
+        session_id: identity.session_id.clone(),
+    }
+}
+
+fn protected_client_unavailable() -> EngineError {
+    EngineError::new(
+        EngineErrorType::FailedPrecondition,
+        "protected account service is not configured",
+        false,
+    )
 }
 
 #[async_trait::async_trait]
@@ -217,6 +358,24 @@ fn map_session(wire: SessionSummary) -> Result<AuthSession, EngineError> {
     })
 }
 
+fn map_session_page(
+    wire: ListSessionsResponse,
+) -> Result<EnginePagedResult<AuthSession>, EngineError> {
+    Ok(EnginePagedResult {
+        items: wire
+            .sessions
+            .into_iter()
+            .map(map_session)
+            .collect::<Result<_, _>>()?,
+        next_page_token: match wire.page_info.map(|page| page.next_page_token) {
+            Some(token) if !token.is_empty() => {
+                Some(EnginePageToken::new(token).map_err(|_| mapping_defect())?)
+            }
+            _ => None,
+        },
+    })
+}
+
 fn timestamp_to_epoch_millis(timestamp: Timestamp) -> Result<u64, EngineError> {
     if !(0..=PROTOBUF_TIMESTAMP_MAX_SECONDS).contains(&timestamp.seconds)
         || !(0..1_000_000_000).contains(&timestamp.nanos)
@@ -268,7 +427,7 @@ mod tests {
     };
     use crate::EngineErrorType;
     use crate::networking::canopy::sdk::resources::{
-        AccountSummary, SessionEnvelope, SessionSummary,
+        AccountSummary, ListSessionsResponse, PageInfo, SessionEnvelope, SessionSummary,
     };
     use crate::networking::canopy::sdk::well_known_types::Timestamp;
 
@@ -305,6 +464,28 @@ mod tests {
                 current: true,
             }),
         }
+    }
+
+    #[test]
+    fn device_session_page_is_credential_free_and_preserves_opaque_token() {
+        let response = ListSessionsResponse {
+            sessions: vec![canonical_envelope().session.unwrap()],
+            page_info: Some(PageInfo {
+                next_page_token: "opaque-next".into(),
+            }),
+        };
+
+        let mapped = super::map_session_page(response).unwrap();
+
+        assert_eq!(mapped.items[0].id, "session-1");
+        assert_eq!(
+            mapped.next_page_token.as_ref().unwrap().as_str(),
+            "opaque-next"
+        );
+        let rendered = format!("{mapped:?}");
+        assert!(!rendered.contains("access-secret"));
+        assert!(!rendered.contains("refresh-secret"));
+        assert!(!rendered.to_ascii_lowercase().contains("bearer "));
     }
 
     #[test]

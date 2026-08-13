@@ -111,6 +111,7 @@ fn finish_configuration(
         inner.set_history_port(composition.history);
         inner.set_library_port(composition.library);
         inner.set_playlist_port(composition.playlist);
+        inner.set_account_port(composition.account);
         inner.set_system_port(composition.system);
         inner.set_auth_state_provider(session.clone());
     });
@@ -133,6 +134,7 @@ struct BackendComposition {
     history: Arc<CanopyHistoryClient>,
     library: Arc<CanopyLibraryClient>,
     playlist: Arc<CanopyPlaylistClient>,
+    account: Arc<CanopyAuthClient>,
 }
 
 fn compose_backend(channel: &CanopyChannel, store: Arc<dyn SessionStore>) -> BackendComposition {
@@ -153,6 +155,7 @@ fn compose_backend(channel: &CanopyChannel, store: Arc<dyn SessionStore>) -> Bac
     let history = Arc::new(CanopyHistoryClient::new(channel, session.clone()));
     let library = Arc::new(CanopyLibraryClient::new(channel, session.clone()));
     let playlist = Arc::new(CanopyPlaylistClient::new(channel, session.clone()));
+    let account = Arc::new(CanopyAuthClient::new_protected(channel, session.clone()));
 
     BackendComposition {
         session,
@@ -164,6 +167,7 @@ fn compose_backend(channel: &CanopyChannel, store: Arc<dyn SessionStore>) -> Bac
         history,
         library,
         playlist,
+        account,
     }
 }
 
@@ -233,7 +237,7 @@ mod concurrency_tests {
             composition.session.auth_state().unwrap(),
             AuthState::Anonymous
         );
-        assert_eq!(std::sync::Arc::strong_count(&composition.session), 8);
+        assert_eq!(std::sync::Arc::strong_count(&composition.session), 9);
     }
 
     #[test]

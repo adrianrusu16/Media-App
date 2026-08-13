@@ -34,4 +34,25 @@
     <string name="pandawave_profile_clear">Clear</string>
     <string name="pandawave_profile_delete_title">Delete profile</string>
     <string name="pandawave_profile_delete_body">Remove the Canopy profile and its preferences.</string>
-    <string name="pandawave_profile_delete_action">Delete</string></resources>
+    <string name="pandawave_profile_delete_action">Delete</string>
+    <string name="pandawave_profile_sessions_title">Device sessions</string>
+    <string name="pandawave_profile_sessions_loading">Loading account and device sessions.</string>
+    <string name="pandawave_profile_sessions_error">Device sessions unavailable: %1$s</string>
+    <string name="pandawave_profile_sessions_empty">No device sessions are available.</string>
+    <string name="pandawave_profile_unknown_device">Unknown device</string>
+    <string name="pandawave_profile_session_summary">Last used %1$s · %2$s</string>
+    <string name="pandawave_profile_current_session">current session</string>
+    <string name="pandawave_profile_other_session">other session</string>
+    <string name="pandawave_profile_revoke_session">Revoke</string>
+    <string name="pandawave_profile_revoking_session">Revoking…</string>
+    <string name="pandawave_profile_sessions_more_title">More sessions</string>
+    <string name="pandawave_profile_sessions_more_body">Load the next page of device sessions.</string>
+    <string name="pandawave_profile_load_more">Load more</string>
+    <string name="pandawave_profile_delete_account_title">Delete account</string>
+    <string name="pandawave_profile_delete_account_body">Permanently delete the Canopy account and clear protected data from this device.</string>
+    <string name="pandawave_profile_delete_account_action">Delete account</string>
+    <string name="pandawave_profile_deleting_account">Deleting…</string>
+    <string name="pandawave_profile_confirm_delete_account_title">Confirm account deletion</string>
+    <string name="pandawave_profile_confirm_delete_account_body">This cannot be undone. Confirm only if this account should be permanently deleted.</string>
+    <string name="pandawave_profile_confirm_delete_account_action">Delete permanently</string>
+</resources>

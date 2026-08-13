@@ -6,6 +6,21 @@ import kotlin.test.assertEquals
 
 class EngineCommandPayloadsTest {
     @Test
+    fun `discovery payloads and native discriminants are append only and token opaque`() {
+        assertEquals(
+            "{\"version\":1,\"exclude_track_ids\":[\"track-1\"],\"page\":{\"page_size\":17}}",
+            EngineCommandPayloads.discoveryFeed(listOf("track-1"), pageSize = 17)
+        )
+        assertEquals("{\"version\":1}", EngineCommandPayloads.loadNextDiscoveryPage())
+        assertEquals(
+            listOf(55, 56),
+            listOf(
+                EngineCommand.TYPE_LOAD_DISCOVERY_FEED,
+                EngineCommand.TYPE_LOAD_NEXT_DISCOVERY_PAGE
+            ).map { PandaEngine.nativeCommandType(EngineCommand(it, null)) }
+        )
+    }
+    @Test
     fun searchCatalogBuildsVersionedJsonAndEscapesQuery() {
         assertEquals(
             "{\"version\":1,\"query\":\"a\\\"b\\n\",\"page\":{\"page_size\":25}}",

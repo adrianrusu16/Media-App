@@ -47,6 +47,8 @@ interface EngineService {
     fun snapshot(): EngineSnapshot
 
     fun browseResult(index: Int): EngineCatalogItem?
+    fun discoveryResult(index: Int): EngineCatalogItem? = null
+    fun profilePreferenceValue(key: String): String? = null
 
     fun searchResult(index: Int): EngineCatalogItem?
 

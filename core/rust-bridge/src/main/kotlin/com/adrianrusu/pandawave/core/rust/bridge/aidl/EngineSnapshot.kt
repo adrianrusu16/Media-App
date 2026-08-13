@@ -47,6 +47,13 @@ data class EngineSnapshot(
     ,val hasPlaylistsNextPage: Boolean = false
     ,val hasPlaylistTracksNextPage: Boolean = false
     ,val hasPlaylistReconciliation: Boolean = false
+    ,val protectedAccount: EngineAccount? = null
+    ,val deviceSessions: List<EngineAuthSession> = emptyList()
+    ,val deviceSessionsCount: Int = deviceSessions.size
+    ,val hasDeviceSessionsNextPage: Boolean = false
+    ,val discoveryResultsCount: Int = 0
+    ,val hasDiscoveryNextPage: Boolean = false
+    ,val hasHistoryNextPage: Boolean = false
 ) : Parcelable {
     constructor(parcel: Parcel) : this(
         playbackState = parcel.readString().orEmpty(),
@@ -102,6 +109,13 @@ data class EngineSnapshot(
         ,hasPlaylistsNextPage = parcel.readBooleanValue()
         ,hasPlaylistTracksNextPage = parcel.readBooleanValue()
         ,hasPlaylistReconciliation = parcel.readBooleanValue()
+        ,protectedAccount = parcel.readEngineAccount()
+        ,deviceSessions = buildList { repeat(parcel.readInt()) { add(parcel.readEngineAuthSession() ?: return@repeat) } }
+        ,deviceSessionsCount = parcel.readInt()
+        ,hasDeviceSessionsNextPage = parcel.readBooleanValue()
+        ,discoveryResultsCount = parcel.readInt()
+        ,hasDiscoveryNextPage = parcel.readBooleanValue()
+        ,hasHistoryNextPage = parcel.readBooleanValue()
     )
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
@@ -154,6 +168,14 @@ data class EngineSnapshot(
         parcel.writeBooleanValue(hasPlaylistsNextPage)
         parcel.writeBooleanValue(hasPlaylistTracksNextPage)
         parcel.writeBooleanValue(hasPlaylistReconciliation)
+        parcel.writeEngineAccount(protectedAccount)
+        parcel.writeInt(deviceSessions.size)
+        deviceSessions.forEach(parcel::writeEngineAuthSession)
+        parcel.writeInt(deviceSessionsCount)
+        parcel.writeBooleanValue(hasDeviceSessionsNextPage)
+        parcel.writeInt(discoveryResultsCount)
+        parcel.writeBooleanValue(hasDiscoveryNextPage)
+        parcel.writeBooleanValue(hasHistoryNextPage)
     }
 
     override fun describeContents(): Int = 0
@@ -441,4 +463,25 @@ internal fun Parcel.writeEngineAuthState(authState: EngineAuthState) {
     writeLong(session.lastUsedAtEpochMillis)
     writeLong(session.expiresAtEpochMillis)
     writeBooleanValue(session.current)
+}
+
+private fun Parcel.readEngineAccount(): EngineAccount? {
+    if (!readBooleanValue()) return null
+    return EngineAccount(readString().orEmpty(), readString().orEmpty(), readString().orEmpty(), readLong()).takeIf { it.isValid() }
+}
+
+private fun Parcel.writeEngineAccount(account: EngineAccount?) {
+    writeBooleanValue(account != null)
+    if (account == null) return
+    writeString(account.id); writeString(account.primaryEmail); writeString(account.status); writeLong(account.createdAtEpochMillis)
+}
+
+private fun Parcel.readEngineAuthSession(): EngineAuthSession? {
+    if (!readBooleanValue()) return null
+    return EngineAuthSession(readString().orEmpty(), readString().orEmpty(), readLong(), readLong(), readLong(), readBooleanValue()).takeIf { it.isValid() }
+}
+
+private fun Parcel.writeEngineAuthSession(session: EngineAuthSession) {
+    writeBooleanValue(true)
+    writeString(session.id); writeString(session.deviceLabel); writeLong(session.createdAtEpochMillis); writeLong(session.lastUsedAtEpochMillis); writeLong(session.expiresAtEpochMillis); writeBooleanValue(session.current)
 }

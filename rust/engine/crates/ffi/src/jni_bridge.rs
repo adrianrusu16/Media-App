@@ -333,6 +333,91 @@ pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_eng
 }
 
 #[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeProtectedAccountValues(
+    mut env: JNIEnv,
+    _: JObject,
+    handle: jlong,
+) -> jobjectArray {
+    let Some(snapshot) =
+        (unsafe { (handle as *const PandaEngine).as_ref() }).map(|engine| engine.engine.snapshot())
+    else {
+        return ptr::null_mut();
+    };
+    strings_to_jobject_array(
+        &mut env,
+        account_to_strings(snapshot.protected_account.as_ref()),
+    )
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeDeviceSessionValues(
+    mut env: JNIEnv,
+    _: JObject,
+    handle: jlong,
+    index: jint,
+) -> jobjectArray {
+    let Some(session) = (unsafe { (handle as *const PandaEngine).as_ref() })
+        .map(|engine| engine.engine.snapshot())
+        .and_then(|snapshot| {
+            usize::try_from(index)
+                .ok()
+                .and_then(|index| snapshot.device_sessions.get(index).cloned())
+        })
+    else {
+        return ptr::null_mut();
+    };
+    strings_to_jobject_array(&mut env, session_to_strings(&session))
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeDiscoveryResultValues(
+    mut env: JNIEnv,
+    _: JObject,
+    handle: jlong,
+    index: jint,
+) -> jobjectArray {
+    let Some(item) = (unsafe { (handle as *const PandaEngine).as_ref() })
+        .map(|engine| engine.engine.snapshot())
+        .and_then(|snapshot| {
+            usize::try_from(index)
+                .ok()
+                .and_then(|index| snapshot.discovery_results.get(index).cloned())
+        })
+    else {
+        return ptr::null_mut();
+    };
+    strings_to_jobject_array(
+        &mut env,
+        vec![
+            item.id,
+            item.title,
+            item.artist,
+            item.album.unwrap_or_default(),
+            item.thumbnail_url.unwrap_or_default(),
+            item.source_uri.unwrap_or_default(),
+            item.mime_type.unwrap_or_default(),
+            crate::mappings::media_item_type_to_ffi(&item.item_type).to_string(),
+        ],
+    )
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeProfilePreferenceValue(
+    mut env: JNIEnv,
+    _: JObject,
+    handle: jlong,
+    key: JObject,
+) -> jstring {
+    let Some(key) = jni_string_to_c_string(&mut env, key) else {
+        return ptr::null_mut();
+    };
+    let value = unsafe {
+        crate::panda_engine_get_profile_preference_value(handle as *const PandaEngine, key.as_ptr())
+    };
+    owned_c_string_to_jstring(&mut env, value)
+}
+
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeSavedTrackValues(
     mut env: JNIEnv,
     _this: JObject,
@@ -1061,6 +1146,30 @@ fn auth_state_to_strings(state: &panda_engine_core::AuthState) -> Vec<String> {
     }
 }
 
+fn account_to_strings(account: Option<&panda_engine_core::Account>) -> Vec<String> {
+    account
+        .map(|account| {
+            vec![
+                account.id.clone(),
+                account.primary_email.clone(),
+                account.status.clone(),
+                account.created_at_epoch_millis.to_string(),
+            ]
+        })
+        .unwrap_or_default()
+}
+
+fn session_to_strings(session: &panda_engine_core::AuthSession) -> Vec<String> {
+    vec![
+        session.id.clone(),
+        session.device_label.clone(),
+        session.created_at_epoch_millis.to_string(),
+        session.last_used_at_epoch_millis.to_string(),
+        session.expires_at_epoch_millis.to_string(),
+        if session.current { "1" } else { "0" }.into(),
+    ]
+}
+
 fn snapshot_to_jlong_array(env: &mut JNIEnv, snapshot: FfiEngineSnapshot) -> jlongArray {
     let values = snapshot_to_jlong_values(snapshot);
     let array = match env.new_long_array(values.len() as i32) {
@@ -1075,7 +1184,7 @@ fn snapshot_to_jlong_array(env: &mut JNIEnv, snapshot: FfiEngineSnapshot) -> jlo
     array.into_raw()
 }
 
-fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 50] {
+fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 56] {
     [
         snapshot.playback_state as jlong,
         snapshot.restriction_state as jlong,
@@ -1127,6 +1236,12 @@ fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 50] {
         bool_to_jlong(snapshot.has_playlists_next_page),
         bool_to_jlong(snapshot.has_playlist_tracks_next_page),
         bool_to_jlong(snapshot.has_playlist_reconciliation),
+        bool_to_jlong(snapshot.has_protected_account),
+        snapshot.device_sessions_count as jlong,
+        bool_to_jlong(snapshot.has_device_sessions_next_page),
+        snapshot.discovery_results_count as jlong,
+        bool_to_jlong(snapshot.has_discovery_next_page),
+        bool_to_jlong(snapshot.has_history_next_page),
     ]
 }
 
@@ -1198,6 +1313,12 @@ mod tests {
             has_playlists_next_page: true,
             has_playlist_tracks_next_page: false,
             has_playlist_reconciliation: true,
+            has_protected_account: true,
+            device_sessions_count: 2,
+            has_device_sessions_next_page: true,
+            discovery_results_count: 6,
+            has_discovery_next_page: true,
+            has_history_next_page: true,
             playback_state: FFI_PLAYBACK_PLAYING,
             restriction_state: FFI_RESTRICTION_UNKNOWN,
             updated_at_epoch_millis: 42,
@@ -1244,7 +1365,7 @@ mod tests {
         };
 
         let values = snapshot_to_jlong_values(snapshot);
-        assert_eq!(values.len(), 50);
+        assert_eq!(values.len(), 56);
         assert_eq!(
             &values[..45],
             &[
@@ -1295,7 +1416,8 @@ mod tests {
                 0
             ]
         );
-        assert_eq!(&values[45..], &[6, 7, 1, 0, 1]);
+        assert_eq!(&values[45..50], &[6, 7, 1, 0, 1]);
+        assert_eq!(&values[50..], &[1, 2, 1, 6, 1, 1]);
     }
 
     #[test]

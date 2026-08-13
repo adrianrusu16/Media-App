@@ -122,6 +122,18 @@ struct PlaylistReorderPayload {
     ordered_membership_ids: Vec<String>,
     expected_revision: u64,
 }
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ListDeviceSessionsPayload {
+    version: u32,
+    page: InitialCatalogPagePayload,
+}
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RevokeDeviceSessionPayload {
+    version: u32,
+    session_id: String,
+}
 
 /// Represents the different types of commands the engine can process.
 #[derive(Clone, Debug, PartialEq)]
@@ -234,6 +246,15 @@ pub enum EngineCommandType {
         playlist_id: String,
         ordered_membership_ids: Vec<String>,
         expected_revision: u64,
+    },
+    GetAccount,
+    DeleteAccount,
+    ListDeviceSessions {
+        page: EnginePageRequest,
+    },
+    LoadNextDeviceSessionsPage,
+    RevokeDeviceSession {
+        session_id: String,
     },
     /// Changes the playback speed.
     SetSpeed {
@@ -354,6 +375,11 @@ impl EngineCommandType {
     pub const LIST_PLAYLIST_TRACKS_WIRE: &'static str = "list_playlist_tracks";
     pub const LOAD_NEXT_PLAYLIST_TRACKS_PAGE_WIRE: &'static str = "load_next_playlist_tracks_page";
     pub const REORDER_PLAYLIST_TRACKS_WIRE: &'static str = "reorder_playlist_tracks";
+    pub const GET_ACCOUNT_WIRE: &'static str = "get_account";
+    pub const DELETE_ACCOUNT_WIRE: &'static str = "delete_account";
+    pub const LIST_DEVICE_SESSIONS_WIRE: &'static str = "list_device_sessions";
+    pub const LOAD_NEXT_DEVICE_SESSIONS_PAGE_WIRE: &'static str = "load_next_device_sessions_page";
+    pub const REVOKE_DEVICE_SESSION_WIRE: &'static str = "revoke_device_session";
     /// Wire value for SetSpeed command.
     pub const SET_SPEED_WIRE: &'static str = "set_speed";
     /// Wire value for Seek command.
@@ -491,6 +517,15 @@ impl EngineCommandType {
                 ordered_membership_ids: vec![],
                 expected_revision: 0,
             },
+            Self::GET_ACCOUNT_WIRE => Self::GetAccount,
+            Self::DELETE_ACCOUNT_WIRE => Self::DeleteAccount,
+            Self::LIST_DEVICE_SESSIONS_WIRE => Self::ListDeviceSessions {
+                page: EnginePageRequest::default(),
+            },
+            Self::LOAD_NEXT_DEVICE_SESSIONS_PAGE_WIRE => Self::LoadNextDeviceSessionsPage,
+            Self::REVOKE_DEVICE_SESSION_WIRE => Self::RevokeDeviceSession {
+                session_id: String::new(),
+            },
             Self::SET_SPEED_WIRE => Self::SetSpeed { speed: 1.0 },
             Self::SEEK_WIRE => Self::Seek { position_millis: 0 },
             Self::UPDATE_CONFIG_WIRE => Self::UpdateConfig {
@@ -573,6 +608,11 @@ impl EngineCommandType {
             Self::ListPlaylistTracks { .. } => Self::LIST_PLAYLIST_TRACKS_WIRE,
             Self::LoadNextPlaylistTracksPage => Self::LOAD_NEXT_PLAYLIST_TRACKS_PAGE_WIRE,
             Self::ReorderPlaylistTracks { .. } => Self::REORDER_PLAYLIST_TRACKS_WIRE,
+            Self::GetAccount => Self::GET_ACCOUNT_WIRE,
+            Self::DeleteAccount => Self::DELETE_ACCOUNT_WIRE,
+            Self::ListDeviceSessions { .. } => Self::LIST_DEVICE_SESSIONS_WIRE,
+            Self::LoadNextDeviceSessionsPage => Self::LOAD_NEXT_DEVICE_SESSIONS_PAGE_WIRE,
+            Self::RevokeDeviceSession { .. } => Self::REVOKE_DEVICE_SESSION_WIRE,
             Self::SetSpeed { .. } => Self::SET_SPEED_WIRE,
             Self::Seek { .. } => Self::SEEK_WIRE,
             Self::UpdateConfig { .. } => Self::UPDATE_CONFIG_WIRE,
@@ -682,6 +722,17 @@ impl EngineCommand {
             EngineCommandType::REORDER_PLAYLIST_TRACKS_WIRE => payload
                 .as_deref()
                 .and_then(parse_reorder_playlist_tracks_payload),
+            EngineCommandType::GET_ACCOUNT_WIRE
+            | EngineCommandType::DELETE_ACCOUNT_WIRE
+            | EngineCommandType::LOAD_NEXT_DEVICE_SESSIONS_PAGE_WIRE => payload
+                .is_none()
+                .then(|| EngineCommandType::from_wire(command_type.clone())),
+            EngineCommandType::LIST_DEVICE_SESSIONS_WIRE => payload
+                .as_deref()
+                .and_then(parse_list_device_sessions_payload),
+            EngineCommandType::REVOKE_DEVICE_SESSION_WIRE => payload
+                .as_deref()
+                .and_then(parse_revoke_device_session_payload),
             _ => Some(EngineCommandType::from_wire(command_type.clone())),
         };
         Self::new(
@@ -1247,6 +1298,25 @@ fn parse_reorder_playlist_tracks_payload(payload: &str) -> Option<EngineCommandT
         ordered_membership_ids: payload.ordered_membership_ids,
         expected_revision: payload.expected_revision,
     })
+}
+
+fn parse_list_device_sessions_payload(payload: &str) -> Option<EngineCommandType> {
+    let payload: ListDeviceSessionsPayload = serde_json::from_str(payload).ok()?;
+    (payload.version == CATALOG_PAYLOAD_VERSION).then_some(EngineCommandType::ListDeviceSessions {
+        page: EnginePageRequest {
+            page_size: payload.page.page_size,
+            page_token: None,
+        },
+    })
+}
+
+fn parse_revoke_device_session_payload(payload: &str) -> Option<EngineCommandType> {
+    let payload: RevokeDeviceSessionPayload = serde_json::from_str(payload).ok()?;
+    (payload.version == CATALOG_PAYLOAD_VERSION && !payload.session_id.trim().is_empty()).then_some(
+        EngineCommandType::RevokeDeviceSession {
+            session_id: payload.session_id,
+        },
+    )
 }
 
 #[cfg(test)]

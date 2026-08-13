@@ -68,6 +68,8 @@ class AidlEngineGateway(
     }
 
     override fun browseResult(index: Int): EngineCatalogItem? = connection.service?.browseResult(index)
+    override fun discoveryResult(index: Int): EngineCatalogItem? = connection.service?.discoveryResult(index)
+    override fun profilePreferenceValue(key: String): String? = connection.service?.profilePreferenceValue(key)
 
     override fun searchResult(index: Int): EngineCatalogItem? = connection.service?.searchResult(index)
     override fun savedTrack(index: Int) = connection.service?.savedTrack(index)
@@ -341,6 +343,7 @@ class AidlEngineGateway(
         EngineCommand.TYPE_UPSERT_PROFILE,
         EngineCommand.TYPE_UPDATE_PROFILE,
         EngineCommand.TYPE_DELETE_PROFILE,
+        EngineCommand.TYPE_DELETE_ACCOUNT,
         EngineCommand.TYPE_UPDATE_PROFILE_PREFERENCES,
         EngineCommand.TYPE_UPDATE_HISTORY_SETTINGS,
         EngineCommand.TYPE_DELETE_HISTORY_ENTRY,

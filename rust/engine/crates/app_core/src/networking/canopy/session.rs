@@ -413,6 +413,24 @@ impl SessionCoordinator {
         }
     }
 
+    pub(crate) async fn clear_after_account_delete(
+        &self,
+        expected: &EngineHistoryIdentity,
+    ) -> Result<(), EngineError> {
+        let _rotation = self.rotation.lock().await;
+        let current = self.current_access_snapshot()?;
+        let AccessSnapshot::Authenticated { identity, .. } = current else {
+            return Err(login_required());
+        };
+        if &identity != expected {
+            return Err(login_required());
+        }
+        self.store.clear().map_err(EngineError::from)?;
+        self.advance_generation()?;
+        self.invalidated.store(false, Ordering::Release);
+        Ok(())
+    }
+
     fn invalidate(&self) {
         self.invalidated.store(true, Ordering::Release);
         let _ = self.store.clear();

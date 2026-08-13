@@ -296,13 +296,20 @@ impl Engine {
                 page,
             } => {
                 self.discovery_operation = None;
-                next_snapshot = next_snapshot.with_discovery_results(Vec::new());
+                next_snapshot = next_snapshot
+                    .with_discovery_results(Vec::new())
+                    .with_discovery_next_page_token(None);
                 let auth_identity = AuthIdentity::from_state(&next_snapshot.auth_state);
                 let result = match (auth_identity.clone(), self.discovery_port.clone()) {
-                    (Some(_), Some(port)) => {
+                    (Some(identity), Some(port)) => {
                         next_snapshot = next_snapshot.with_busy(true);
                         self.publish_intermediate_snapshot(next_snapshot.clone());
-                        port.get_feed(excluded_track_ids, page.clone()).await
+                        port.get_feed(
+                            &identity.discovery_identity(),
+                            excluded_track_ids,
+                            page.clone(),
+                        )
+                        .await
                     }
                     (None, _) => Err(EngineError::new(
                         crate::EngineErrorType::LoginRequired,
@@ -315,23 +322,45 @@ impl Engine {
                         false,
                     )),
                 };
-                match result {
-                    Ok(result) => {
-                        let items: Vec<_> = result
-                            .items
-                            .into_iter()
-                            .map(project_discovery_track)
-                            .collect();
-                        self.discovery_operation = Some(DiscoveryOperation {
-                            auth_identity: auth_identity.expect("authenticated discovery result"),
-                            excluded_track_ids: excluded_track_ids.clone(),
-                            page_size: page.page_size,
-                            next_page_token: result.next_page_token,
-                            items: items.clone(),
-                        });
-                        next_snapshot = next_snapshot.with_discovery_results(items);
+                next_snapshot.auth_state = self
+                    .auth_state_provider
+                    .as_ref()
+                    .map(|provider| provider.current_auth_state())
+                    .unwrap_or(crate::AuthState::Anonymous);
+                let current_identity = AuthIdentity::from_state(&next_snapshot.auth_state);
+                if current_identity != auth_identity {
+                    self.discovery_operation = None;
+                    next_snapshot = next_snapshot
+                        .with_discovery_results(Vec::new())
+                        .with_discovery_next_page_token(None)
+                        .with_error(Some(EngineError::new(
+                            crate::EngineErrorType::LoginRequired,
+                            "discovery session changed while loading",
+                            false,
+                        )));
+                } else {
+                    match result {
+                        Ok(result) => {
+                            let items: Vec<_> = result
+                                .items
+                                .into_iter()
+                                .map(project_discovery_track)
+                                .collect();
+                            let next_page_token = result.next_page_token;
+                            self.discovery_operation = Some(DiscoveryOperation {
+                                auth_identity: auth_identity
+                                    .expect("authenticated discovery result"),
+                                excluded_track_ids: excluded_track_ids.clone(),
+                                page_size: page.page_size,
+                                next_page_token: next_page_token.clone(),
+                                items: items.clone(),
+                            });
+                            next_snapshot = next_snapshot
+                                .with_discovery_results(items)
+                                .with_discovery_next_page_token(next_page_token);
+                        }
+                        Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
                     }
-                    Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
                 }
                 next_snapshot = next_snapshot.with_busy(false);
             }
@@ -343,6 +372,7 @@ impl Engine {
                         self.discovery_operation = None;
                         next_snapshot = next_snapshot
                             .with_discovery_results(Vec::new())
+                            .with_discovery_next_page_token(None)
                             .with_error(Some(EngineError::new(
                                 crate::EngineErrorType::LoginRequired,
                                 "discovery requires an authenticated session",
@@ -359,6 +389,7 @@ impl Engine {
                         let result = match self.discovery_port.clone() {
                             Some(port) => {
                                 port.get_feed(
+                                    &identity.discovery_identity(),
                                     &operation.excluded_track_ids,
                                     crate::EnginePageRequest {
                                         page_size: operation.page_size,
@@ -373,20 +404,42 @@ impl Engine {
                                 false,
                             )),
                         };
-                        match result {
-                            Ok(result) => {
-                                let mut accumulated_items = operation.items;
-                                accumulated_items
-                                    .extend(result.items.into_iter().map(project_discovery_track));
-                                next_snapshot =
-                                    next_snapshot.with_discovery_results(accumulated_items.clone());
-                                if let Some(active) = self.discovery_operation.as_mut() {
-                                    active.next_page_token = result.next_page_token;
-                                    active.items = accumulated_items;
+                        next_snapshot.auth_state = self
+                            .auth_state_provider
+                            .as_ref()
+                            .map(|provider| provider.current_auth_state())
+                            .unwrap_or(crate::AuthState::Anonymous);
+                        let current_identity = AuthIdentity::from_state(&next_snapshot.auth_state);
+                        if current_identity.as_ref() != Some(&identity) {
+                            self.discovery_operation = None;
+                            next_snapshot = next_snapshot
+                                .with_discovery_results(Vec::new())
+                                .with_discovery_next_page_token(None)
+                                .with_error(Some(EngineError::new(
+                                    crate::EngineErrorType::LoginRequired,
+                                    "discovery session changed while loading",
+                                    false,
+                                )));
+                        } else {
+                            match result {
+                                Ok(result) => {
+                                    let mut accumulated_items = operation.items;
+                                    accumulated_items.extend(
+                                        result.items.into_iter().map(project_discovery_track),
+                                    );
+                                    next_snapshot = next_snapshot
+                                        .with_discovery_results(accumulated_items.clone())
+                                        .with_discovery_next_page_token(
+                                            result.next_page_token.clone(),
+                                        );
+                                    if let Some(active) = self.discovery_operation.as_mut() {
+                                        active.next_page_token = result.next_page_token;
+                                        active.items = accumulated_items;
+                                    }
                                 }
-                            }
-                            Err(error) => {
-                                next_snapshot = next_snapshot.with_error(Some(error));
+                                Err(error) => {
+                                    next_snapshot = next_snapshot.with_error(Some(error));
+                                }
                             }
                         }
                     }
@@ -401,6 +454,7 @@ impl Engine {
                         self.discovery_operation = None;
                         next_snapshot = next_snapshot
                             .with_discovery_results(Vec::new())
+                            .with_discovery_next_page_token(None)
                             .with_error(Some(EngineError::new(
                                 crate::EngineErrorType::LoginRequired,
                                 "discovery session changed",
@@ -448,6 +502,14 @@ impl Engine {
             | EngineCommandType::LoadNextPlaylistTracksPage
             | EngineCommandType::ReorderPlaylistTracks { .. }) => {
                 self.dispatch_playlist_command(playlist_command, &mut next_snapshot)
+                    .await;
+            }
+            account_command @ (EngineCommandType::GetAccount
+            | EngineCommandType::DeleteAccount
+            | EngineCommandType::ListDeviceSessions { .. }
+            | EngineCommandType::LoadNextDeviceSessionsPage
+            | EngineCommandType::RevokeDeviceSession { .. }) => {
+                self.dispatch_account_command(account_command, &mut next_snapshot)
                     .await;
             }
             EngineCommandType::SetSpeed { speed } => {

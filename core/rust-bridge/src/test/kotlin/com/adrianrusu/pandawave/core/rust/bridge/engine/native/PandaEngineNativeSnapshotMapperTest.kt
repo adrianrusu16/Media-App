@@ -62,6 +62,12 @@ class PandaEngineNativeSnapshotMapperTest {
                 1L,
                 0L,
                 1L,
+                1L,
+                2L,
+                1L,
+                6L,
+                1L,
+                1L,
             )
         )
         val snapshot = projection.snapshot
@@ -120,6 +126,12 @@ class PandaEngineNativeSnapshotMapperTest {
         assertTrue(snapshot.hasPlaylistsNextPage)
         assertFalse(snapshot.hasPlaylistTracksNextPage)
         assertTrue(snapshot.hasPlaylistReconciliation)
+        assertEquals(null, snapshot.protectedAccount)
+        assertEquals(2, snapshot.deviceSessionsCount)
+        assertTrue(snapshot.hasDeviceSessionsNextPage)
+        assertEquals(6, snapshot.discoveryResultsCount)
+        assertTrue(snapshot.hasDiscoveryNextPage)
+        assertTrue(snapshot.hasHistoryNextPage)
     }
 
     @Test

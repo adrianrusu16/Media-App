@@ -620,6 +620,125 @@ pub unsafe extern "C" fn panda_engine_get_browse_result_item_type(
 
 #[unsafe(no_mangle)]
 /// # Safety
+/// `engine` must be a live PandaEngine pointer; returned strings must be freed by the caller.
+pub unsafe extern "C" fn panda_engine_get_discovery_result_id(
+    engine: *const PandaEngine,
+    index: usize,
+) -> *const c_char {
+    discovery_result_string(engine, index, |item| Some(&item.id))
+}
+
+#[unsafe(no_mangle)]
+/// # Safety
+/// `engine` must be a live PandaEngine pointer; returned strings must be freed by the caller.
+pub unsafe extern "C" fn panda_engine_get_discovery_result_title(
+    engine: *const PandaEngine,
+    index: usize,
+) -> *const c_char {
+    discovery_result_string(engine, index, |item| Some(&item.title))
+}
+
+#[unsafe(no_mangle)]
+/// # Safety
+/// `engine` must be a live PandaEngine pointer; returned strings must be freed by the caller.
+pub unsafe extern "C" fn panda_engine_get_discovery_result_artist(
+    engine: *const PandaEngine,
+    index: usize,
+) -> *const c_char {
+    discovery_result_string(engine, index, |item| Some(&item.artist))
+}
+
+#[unsafe(no_mangle)]
+/// # Safety
+/// `engine` must be a live PandaEngine pointer; returned strings must be freed by the caller.
+pub unsafe extern "C" fn panda_engine_get_discovery_result_album(
+    engine: *const PandaEngine,
+    index: usize,
+) -> *const c_char {
+    discovery_result_string(engine, index, |item| item.album.as_ref())
+}
+
+#[unsafe(no_mangle)]
+/// # Safety
+/// `engine` must be a live PandaEngine pointer; returned strings must be freed by the caller.
+pub unsafe extern "C" fn panda_engine_get_discovery_result_thumbnail_url(
+    engine: *const PandaEngine,
+    index: usize,
+) -> *const c_char {
+    discovery_result_string(engine, index, |item| item.thumbnail_url.as_ref())
+}
+
+#[unsafe(no_mangle)]
+/// # Safety
+/// `engine` must be a live PandaEngine pointer; returned strings must be freed by the caller.
+pub unsafe extern "C" fn panda_engine_get_discovery_result_source_uri(
+    engine: *const PandaEngine,
+    index: usize,
+) -> *const c_char {
+    discovery_result_string(engine, index, |item| item.source_uri.as_ref())
+}
+
+#[unsafe(no_mangle)]
+/// # Safety
+/// `engine` must be a live PandaEngine pointer; returned strings must be freed by the caller.
+pub unsafe extern "C" fn panda_engine_get_discovery_result_mime_type(
+    engine: *const PandaEngine,
+    index: usize,
+) -> *const c_char {
+    discovery_result_string(engine, index, |item| item.mime_type.as_ref())
+}
+
+#[unsafe(no_mangle)]
+/// # Safety
+/// `engine` must be a live PandaEngine pointer for the duration of this read.
+pub unsafe extern "C" fn panda_engine_get_discovery_result_item_type(
+    engine: *const PandaEngine,
+    index: usize,
+) -> i32 {
+    let engine = unsafe { engine.as_ref() };
+    engine
+        .and_then(|engine| {
+            engine
+                .engine
+                .snapshot()
+                .discovery_results
+                .get(index)
+                .cloned()
+        })
+        .map_or(FFI_MEDIA_ITEM_TRACK, |item| {
+            media_item_type_to_ffi(&item.item_type)
+        })
+}
+
+#[unsafe(no_mangle)]
+/// # Safety
+/// `engine` must be live and `key` must be a valid NUL-terminated string; the returned string
+/// must be freed by the caller.
+pub unsafe extern "C" fn panda_engine_get_profile_preference_value(
+    engine: *const PandaEngine,
+    key: *const c_char,
+) -> *const c_char {
+    if key.is_null() {
+        return ptr::null();
+    }
+    let Ok(key) = unsafe { std::ffi::CStr::from_ptr(key) }.to_str() else {
+        return ptr::null();
+    };
+    let Some(engine) = (unsafe { engine.as_ref() }) else {
+        return ptr::null();
+    };
+    engine
+        .engine
+        .snapshot()
+        .profile_preferences
+        .get(key)
+        .and_then(|value| value.as_str())
+        .and_then(|value| CString::new(value).ok())
+        .map_or(ptr::null(), |value| value.into_raw() as *const c_char)
+}
+
+#[unsafe(no_mangle)]
+/// # Safety
 /// - `engine` must be null or a valid pointer created by `panda_engine_create` and not yet destroyed.
 /// - The returned string pointer (when non-null) must be released with `panda_engine_free_string`.
 /// - The caller must ensure no concurrent mutable access while this function reads engine state.
@@ -751,6 +870,23 @@ fn browse_result_string(
     if let Some(engine) = engine {
         let snapshot = engine.engine.snapshot();
         if let Some(item) = snapshot.browse_results.get(index)
+            && let Some(value) = value(item)
+        {
+            return CString::new(value.as_str()).unwrap().into_raw();
+        }
+    }
+    ptr::null()
+}
+
+fn discovery_result_string(
+    engine: *const PandaEngine,
+    index: usize,
+    value: fn(&panda_engine_core::MediaItem) -> Option<&String>,
+) -> *const c_char {
+    let engine = unsafe { engine.as_ref() };
+    if let Some(engine) = engine {
+        let snapshot = engine.engine.snapshot();
+        if let Some(item) = snapshot.discovery_results.get(index)
             && let Some(value) = value(item)
         {
             return CString::new(value.as_str()).unwrap().into_raw();

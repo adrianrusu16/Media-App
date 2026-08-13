@@ -76,6 +76,8 @@ class MediaEngineService : Service() {
         override fun getSnapshot(): EngineSnapshot = engine?.snapshot() ?: unavailableSnapshot
 
         override fun getBrowseResult(index: Int): EngineCatalogItem? = engine?.browseResult(index)
+        override fun getDiscoveryResult(index: Int): EngineCatalogItem? = engine?.discoveryResult(index)
+        override fun getProfilePreferenceValue(key: String): String? = engine?.profilePreferenceValue(key)
 
         override fun getSearchResult(index: Int): EngineCatalogItem? = engine?.searchResult(index)
         override fun getSavedTrack(index: Int) = engine?.savedTrack(index)

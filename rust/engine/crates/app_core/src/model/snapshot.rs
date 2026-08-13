@@ -17,6 +17,12 @@ pub struct EngineSnapshot {
     /// Current credential-free authentication projection.
     #[serde(default)]
     pub auth_state: AuthState,
+    #[serde(default)]
+    pub protected_account: Option<crate::Account>,
+    #[serde(default)]
+    pub device_sessions: Vec<crate::AuthSession>,
+    #[serde(default)]
+    pub device_sessions_next_page_token: Option<crate::EnginePageToken>,
     /// The current playback status (e.g., Playing, Paused).
     pub playback_state: PlaybackState,
     /// The last error that occurred, if any.
@@ -123,6 +129,9 @@ pub struct EngineSnapshot {
     /// The results of the latest authenticated discovery-feed operation.
     #[serde(default)]
     pub discovery_results: Vec<MediaItem>,
+    /// Opaque continuation token retained by PandaEngine for discovery pagination.
+    #[serde(default)]
+    pub discovery_next_page_token: Option<crate::EnginePageToken>,
     /// The current playback speed (1.0 is normal).
     pub playback_speed: f32,
     /// The current playback position in milliseconds.
@@ -251,6 +260,13 @@ impl EngineSnapshot {
     #[must_use]
     pub fn with_discovery_results(mut self, results: Vec<MediaItem>) -> Self {
         self.discovery_results = results;
+        self
+    }
+
+    /// Functional update for the engine-owned discovery continuation token.
+    #[must_use]
+    pub fn with_discovery_next_page_token(mut self, token: Option<crate::EnginePageToken>) -> Self {
+        self.discovery_next_page_token = token;
         self
     }
 

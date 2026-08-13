@@ -2,6 +2,8 @@ package com.adrianrusu.pandawave.feature.profile.data
 
 import com.adrianrusu.pandawave.core.model.theme.PandaWaveThemePreference
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthState
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAccount
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthSession
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
@@ -13,6 +15,7 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineThemePreference
 import com.adrianrusu.pandawave.core.rust.bridge.engine.EngineDispatchResult
 import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineGateway
 import com.adrianrusu.pandawave.feature.profile.domain.ProfileState
+import com.adrianrusu.pandawave.feature.profile.domain.AccountSessionsState
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -30,10 +33,116 @@ class PandaEngineProfileRepositoryTest {
         assertEquals(
             listOf(
                 EngineCommand.TYPE_GET_PROFILE,
-                EngineCommand.TYPE_LOAD_PROFILE_PREFERENCES
+                EngineCommand.TYPE_LOAD_PROFILE_PREFERENCES,
+                EngineCommand.TYPE_GET_ACCOUNT,
+                EngineCommand.TYPE_LIST_DEVICE_SESSIONS
             ),
             engine.commands.map(EngineCommand::type)
         )
+    }
+
+    @Test
+    fun `authenticated transition hydrates account and sessions once per exact identity`() {
+        val engine = RecordingEngineGateway(EngineSnapshot.idle(1L))
+        val repository = PandaEngineProfileRepository(engine)
+        repository.start()
+
+        engine.emit(authenticatedSnapshot())
+        engine.emit(authenticatedSnapshot())
+
+        assertEquals(1, engine.commands.count { it.type == EngineCommand.TYPE_GET_ACCOUNT })
+        assertEquals(1, engine.commands.count { it.type == EngineCommand.TYPE_LIST_DEVICE_SESSIONS })
+    }
+
+    @Test
+    fun `protected account and session page project without credentials`() {
+        val snapshot = authenticatedSnapshot().copy(
+            protectedAccount = account(),
+            deviceSessions = listOf(session()),
+            deviceSessionsCount = 1,
+            hasDeviceSessionsNextPage = true
+        )
+        val repository = PandaEngineProfileRepository(RecordingEngineGateway(snapshot))
+
+        repository.start()
+
+        val ready = assertIs<AccountSessionsState.Ready>(repository.accountSessionsState.value)
+        assertEquals("account-1", ready.account.id)
+        assertEquals(listOf("session-1"), ready.sessions.map { it.id })
+        assertTrue(ready.hasNextPage)
+    }
+
+    @Test
+    fun `protected sessions clear and rehydrate for every exact identity transition`() {
+        val initial = authenticatedSnapshot().copy(
+            protectedAccount = account(),
+            deviceSessions = listOf(session()),
+            deviceSessionsCount = 1
+        )
+        val engine = RecordingEngineGateway(initial)
+        val repository = PandaEngineProfileRepository(engine)
+        repository.start()
+        engine.commands.clear()
+
+        for (transition in listOf(
+            authenticatedSnapshot("account-2", "session-1", true),
+            authenticatedSnapshot("account-1", "session-2", true),
+        )) {
+            engine.emit(transition)
+            assertIs<AccountSessionsState.Loading>(repository.accountSessionsState.value)
+        }
+
+        assertEquals(2, engine.commands.count { it.type == EngineCommand.TYPE_GET_ACCOUNT })
+        assertEquals(2, engine.commands.count { it.type == EngineCommand.TYPE_LIST_DEVICE_SESSIONS })
+    }
+
+    @Test
+    fun `current false and logout clear protected session state`() {
+        val engine = RecordingEngineGateway(
+            authenticatedSnapshot().copy(protectedAccount = account(), deviceSessions = listOf(session()))
+        )
+        val repository = PandaEngineProfileRepository(engine)
+        repository.start()
+
+        engine.emit(authenticatedSnapshot(current = false))
+        assertIs<AccountSessionsState.SignedOut>(repository.accountSessionsState.value)
+        engine.emit(EngineSnapshot.idle(2L))
+        assertIs<AccountSessionsState.SignedOut>(repository.accountSessionsState.value)
+    }
+
+    @Test
+    fun `typed protected failure projects before account hydration`() {
+        val engine = RecordingEngineGateway(
+            authenticatedSnapshot().copy(
+                protectedAccount = null,
+                hasError = true,
+                errorType = EngineSnapshot.ERROR_NETWORK
+            )
+        )
+        val repository = PandaEngineProfileRepository(engine)
+
+        repository.start()
+
+        val failure = assertIs<AccountSessionsState.Failure>(repository.accountSessionsState.value)
+        assertEquals(EngineSnapshot.ERROR_NETWORK, failure.errorType)
+        assertTrue(failure.retryable)
+    }
+
+    @Test
+    fun `gateway unavailable protected actions clear pending state into typed failure`() {
+        val engine = RecordingEngineGateway(
+            authenticatedSnapshot().copy(protectedAccount = account(), deviceSessions = listOf(session())),
+            dispatchEventType = EngineEvent.TYPE_GATEWAY_UNAVAILABLE
+        )
+        val repository = PandaEngineProfileRepository(engine)
+        repository.start()
+
+        repository.revokeDeviceSession("session-other")
+        assertIs<AccountSessionsState.Failure>(repository.accountSessionsState.value)
+        repository.deleteAccount()
+        val failure = assertIs<AccountSessionsState.Failure>(repository.accountSessionsState.value)
+        assertEquals(EngineSnapshot.ERROR_NETWORK, failure.errorType)
+        assertTrue(failure.retryable)
     }
 
     @Test
@@ -120,8 +229,16 @@ class PandaEngineProfileRepositoryTest {
         assertEquals(EngineSnapshot.ERROR_NETWORK, failure.errorType)
     }
 
-    private fun authenticatedSnapshot(): EngineSnapshot = EngineSnapshot.idle(1L).copy(
-        authState = EngineAuthState(EngineAuthState.AUTHENTICATED),
+    private fun authenticatedSnapshot(
+        accountId: String = "account-1",
+        sessionId: String = "session-1",
+        current: Boolean = true
+    ): EngineSnapshot = EngineSnapshot.idle(1L).copy(
+        authState = EngineAuthState(
+            EngineAuthState.AUTHENTICATED,
+            account(accountId),
+            session(sessionId, current)
+        ),
         themePreference = EngineThemePreference(
             themeId = EngineThemePreference.THEME_FOREST_TECH_DARK,
             source = EngineThemePreference.SOURCE_REMOTE_PROFILE,
@@ -129,6 +246,10 @@ class PandaEngineProfileRepositoryTest {
             initialized = true
         )
     )
+
+    private fun account(id: String = "account-1") = EngineAccount(id, "driver@example.com", "active", 10)
+    private fun session(id: String = "session-1", current: Boolean = true) =
+        EngineAuthSession(id, "car", 20, 30, 40, current)
 
     private fun profile(displayName: String?): EngineProfile = EngineProfile(
         id = "profile-1",

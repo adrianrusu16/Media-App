@@ -215,6 +215,7 @@ private fun AppShellContent(
                     val authAvailable by profileViewModel.isAvailable.collectAsStateWithLifecycle()
                     val canopyProfileViewModel: ProfileViewModel = hiltViewModel()
                     val canopyProfileState by canopyProfileViewModel.state.collectAsStateWithLifecycle()
+                    val accountSessionsState by canopyProfileViewModel.accountSessionsState.collectAsStateWithLifecycle()
                     var logoutWarning by remember { mutableStateOf<String?>(null) }
                     val remoteWarning = stringResource(R.string.pandawave_logout_remote_warning)
                     val failedWarning = stringResource(R.string.pandawave_logout_failed_warning)
@@ -243,7 +244,12 @@ private fun AppShellContent(
                         onRefreshProfile = canopyProfileViewModel::refresh,
                         onUpsertProfile = canopyProfileViewModel::upsert,
                         onUpdateProfileDisplayName = canopyProfileViewModel::updateDisplayName,
-                        onDeleteProfile = canopyProfileViewModel::delete
+                        onDeleteProfile = canopyProfileViewModel::delete,
+                        accountSessionsState = accountSessionsState,
+                        onRefreshAccountSessions = canopyProfileViewModel::refreshAccountSessions,
+                        onLoadNextDeviceSessionsPage = canopyProfileViewModel::loadNextDeviceSessionsPage,
+                        onRevokeDeviceSession = canopyProfileViewModel::revokeDeviceSession,
+                        onDeleteAccount = canopyProfileViewModel::deleteAccount
                     )
                 }
                 entry<LoginDestination> {

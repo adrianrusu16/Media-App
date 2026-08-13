@@ -11,6 +11,7 @@ class ProfileViewModel @Inject constructor(
     private val repository: ProfileRepository
 ) : ViewModel() {
     val state = repository.state
+    val accountSessionsState = repository.accountSessionsState
 
     init {
         repository.start()
@@ -25,6 +26,10 @@ class ProfileViewModel @Inject constructor(
     fun delete() = repository.delete()
 
     fun updateTheme(preference: PandaWaveThemePreference) = repository.updateTheme(preference)
+    fun refreshAccountSessions() = repository.refreshAccountSessions()
+    fun loadNextDeviceSessionsPage() = repository.loadNextDeviceSessionsPage()
+    fun revokeDeviceSession(sessionId: String) = repository.revokeDeviceSession(sessionId)
+    fun deleteAccount() = repository.deleteAccount()
 
     override fun onCleared() {
         repository.close()

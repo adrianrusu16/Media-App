@@ -28,6 +28,8 @@ class InProcessEngineGateway(private val engine: RustEngine) :
     override fun snapshot(): EngineSnapshot = engine.snapshot()
 
     override fun browseResult(index: Int): EngineCatalogItem? = engine.browseResult(index)
+    override fun discoveryResult(index: Int): EngineCatalogItem? = engine.discoveryResult(index)
+    override fun profilePreferenceValue(key: String): String? = engine.profilePreferenceValue(key)
 
     override fun searchResult(index: Int): EngineCatalogItem? = engine.searchResult(index)
     override fun savedTrack(index: Int) = engine.savedTrack(index)

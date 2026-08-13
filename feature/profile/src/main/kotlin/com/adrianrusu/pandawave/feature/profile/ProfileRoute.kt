@@ -18,6 +18,7 @@ import com.adrianrusu.pandawave.core.ui.components.BambooActionCard
 import com.adrianrusu.pandawave.core.ui.focus.BambooRotaryColumn
 import com.adrianrusu.pandawave.core.ui.overview.FeatureOverviewItem
 import com.adrianrusu.pandawave.core.ui.overview.FeatureOverviewScreen
+import com.adrianrusu.pandawave.feature.profile.domain.AccountSessionsState
 import com.adrianrusu.pandawave.feature.profile.domain.ProfileState
 import java.text.DateFormat
 import java.util.Date
@@ -49,7 +50,12 @@ fun ProfileRoute(
     onRefreshProfile: () -> Unit = { },
     onUpsertProfile: (String?) -> Unit = { },
     onUpdateProfileDisplayName: (String?) -> Unit = { },
-    onDeleteProfile: () -> Unit = { }
+    onDeleteProfile: () -> Unit = { },
+    accountSessionsState: AccountSessionsState = AccountSessionsState.SignedOut,
+    onRefreshAccountSessions: () -> Unit = { },
+    onLoadNextDeviceSessionsPage: () -> Unit = { },
+    onRevokeDeviceSession: (String) -> Unit = { },
+    onDeleteAccount: () -> Unit = { }
 ) {
     val tokens = LocalPandaWaveDesignTokens.current
 
@@ -78,6 +84,14 @@ fun ProfileRoute(
                     onUpdateDisplayName = onUpdateProfileDisplayName,
                     onDelete = onDeleteProfile
                 )
+                AccountSessionCards(
+                    state = accountSessionsState,
+                    actionsEnabled = accountActionsEnabled,
+                    onRefresh = onRefreshAccountSessions,
+                    onLoadNextPage = onLoadNextDeviceSessionsPage,
+                    onRevoke = onRevokeDeviceSession,
+                    onDeleteAccount = onDeleteAccount
+                )
             }
         }
         if (logoutWarning != null) {
@@ -95,6 +109,122 @@ fun ProfileRoute(
             actionEnabled = true,
             onActionClick = onSettingsClick
         )
+    }
+}
+
+@Composable
+private fun AccountSessionCards(
+    state: AccountSessionsState,
+    actionsEnabled: Boolean,
+    onRefresh: () -> Unit,
+    onLoadNextPage: () -> Unit,
+    onRevoke: (String) -> Unit,
+    onDeleteAccount: () -> Unit
+) {
+    when (state) {
+        AccountSessionsState.SignedOut -> Unit
+        AccountSessionsState.Loading -> BambooActionCard(
+            modifier = Modifier.testTag("profile-sessions-loading"),
+            title = stringResource(R.string.pandawave_profile_sessions_title),
+            body = stringResource(R.string.pandawave_profile_sessions_loading),
+            actionLabel = stringResource(R.string.pandawave_profile_refresh),
+            actionEnabled = false,
+            onActionClick = onRefresh
+        )
+        is AccountSessionsState.Failure -> BambooActionCard(
+            modifier = Modifier.testTag("profile-sessions-failure"),
+            title = stringResource(R.string.pandawave_profile_sessions_title),
+            body = stringResource(R.string.pandawave_profile_sessions_error, state.errorType),
+            actionLabel = stringResource(R.string.pandawave_profile_retry),
+            actionEnabled = actionsEnabled && state.retryable,
+            onActionClick = onRefresh
+        )
+        is AccountSessionsState.Ready -> {
+            val dateFormat = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
+            val operationPending = state.pendingSessionId != null || state.deletingAccount
+            FeatureOverviewScreen(
+                items = listOf(
+                    FeatureOverviewItem(
+                        stringResource(R.string.pandawave_profile_email_title),
+                        state.account.primaryEmail
+                    ),
+                    FeatureOverviewItem(
+                        stringResource(R.string.pandawave_profile_status_title),
+                        state.account.status
+                    )
+                )
+            )
+            if (state.sessions.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.pandawave_profile_sessions_empty),
+                    modifier = Modifier.testTag("profile-sessions-empty")
+                )
+            }
+            state.sessions.forEachIndexed { index, session ->
+                BambooActionCard(
+                    modifier = Modifier.testTag("profile-session-revoke-$index"),
+                    title = session.deviceLabel.ifBlank {
+                        stringResource(R.string.pandawave_profile_unknown_device)
+                    },
+                    body = stringResource(
+                        R.string.pandawave_profile_session_summary,
+                        dateFormat.format(Date(session.lastUsedAtEpochMillis)),
+                        if (session.current) {
+                            stringResource(R.string.pandawave_profile_current_session)
+                        } else {
+                            stringResource(R.string.pandawave_profile_other_session)
+                        }
+                    ),
+                    actionLabel = stringResource(
+                        if (state.pendingSessionId == session.id) {
+                            R.string.pandawave_profile_revoking_session
+                        } else {
+                            R.string.pandawave_profile_revoke_session
+                        }
+                    ),
+                    actionEnabled = actionsEnabled && !operationPending && !session.current,
+                    onActionClick = { onRevoke(session.id) }
+                )
+            }
+            if (state.hasNextPage) {
+                BambooActionCard(
+                    modifier = Modifier.testTag("profile-sessions-load-more"),
+                    title = stringResource(R.string.pandawave_profile_sessions_more_title),
+                    body = stringResource(R.string.pandawave_profile_sessions_more_body),
+                    actionLabel = stringResource(R.string.pandawave_profile_load_more),
+                    actionEnabled = actionsEnabled && !operationPending,
+                    onActionClick = onLoadNextPage
+                )
+            }
+            var confirmDelete by rememberSaveable(state.account.id) { mutableStateOf(false) }
+            BambooActionCard(
+                modifier = Modifier.testTag("profile-account-delete"),
+                title = stringResource(R.string.pandawave_profile_delete_account_title),
+                body = stringResource(R.string.pandawave_profile_delete_account_body),
+                actionLabel = stringResource(
+                    if (state.deletingAccount) {
+                        R.string.pandawave_profile_deleting_account
+                    } else {
+                        R.string.pandawave_profile_delete_account_action
+                    }
+                ),
+                actionEnabled = actionsEnabled && !operationPending,
+                onActionClick = { confirmDelete = true }
+            )
+            if (confirmDelete) {
+                BambooActionCard(
+                    modifier = Modifier.testTag("profile-account-delete-confirm"),
+                    title = stringResource(R.string.pandawave_profile_confirm_delete_account_title),
+                    body = stringResource(R.string.pandawave_profile_confirm_delete_account_body),
+                    actionLabel = stringResource(R.string.pandawave_profile_confirm_delete_account_action),
+                    actionEnabled = actionsEnabled && !operationPending,
+                    onActionClick = {
+                        confirmDelete = false
+                        onDeleteAccount()
+                    }
+                )
+            }
+        }
     }
 }
 

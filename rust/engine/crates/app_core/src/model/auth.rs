@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::{EngineError, EnginePageRequest, EnginePagedResult, RetryClass};
+
 /// A service-neutral authenticated account resource.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Account {
@@ -19,6 +21,44 @@ pub struct AuthSession {
     pub last_used_at_epoch_millis: u64,
     pub expires_at_epoch_millis: u64,
     pub current: bool,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EngineAccountIdentity {
+    pub account_id: String,
+    pub session_id: String,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AccountOperation {
+    GetAccount,
+    ListSessions,
+    RevokeSession,
+    DeleteAccount,
+}
+
+pub fn account_retry_class(operation: AccountOperation) -> RetryClass {
+    match operation {
+        AccountOperation::GetAccount | AccountOperation::ListSessions => RetryClass::Read,
+        AccountOperation::RevokeSession => RetryClass::IdempotentMutation,
+        AccountOperation::DeleteAccount => RetryClass::NonReplayableMutation,
+    }
+}
+
+#[async_trait::async_trait]
+pub trait AccountPort: Send + Sync {
+    async fn get_account(&self, identity: &EngineAccountIdentity) -> Result<Account, EngineError>;
+    async fn list_sessions(
+        &self,
+        identity: &EngineAccountIdentity,
+        page: EnginePageRequest,
+    ) -> Result<EnginePagedResult<AuthSession>, EngineError>;
+    async fn revoke_session(
+        &self,
+        identity: &EngineAccountIdentity,
+        session_id: &str,
+    ) -> Result<(), EngineError>;
+    async fn delete_account(&self, identity: &EngineAccountIdentity) -> Result<(), EngineError>;
 }
 
 /// Service-neutral acknowledgement for enumeration-safe auth bootstrap requests.
@@ -235,5 +275,25 @@ mod tests {
         assert_eq!(credentials.access_token_expires_at_epoch_millis, 2_000);
         assert_eq!(credentials.refresh_token, "refresh-secret");
         assert_eq!(credentials.refresh_token_expires_at_epoch_millis, 3_000);
+    }
+
+    #[test]
+    fn account_retry_classes_match_replay_safety() {
+        assert_eq!(
+            account_retry_class(AccountOperation::GetAccount),
+            RetryClass::Read
+        );
+        assert_eq!(
+            account_retry_class(AccountOperation::ListSessions),
+            RetryClass::Read
+        );
+        assert_eq!(
+            account_retry_class(AccountOperation::RevokeSession),
+            RetryClass::IdempotentMutation
+        );
+        assert_eq!(
+            account_retry_class(AccountOperation::DeleteAccount),
+            RetryClass::NonReplayableMutation
+        );
     }
 }

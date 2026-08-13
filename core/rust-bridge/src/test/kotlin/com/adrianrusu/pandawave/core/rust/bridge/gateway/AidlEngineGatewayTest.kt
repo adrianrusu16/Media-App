@@ -597,6 +597,19 @@ class AidlEngineGatewayTest {
     }
 
     @Test
+    fun `delete account is unavailable offline and never replayed`() {
+        val connection = FakeEngineServiceConnection(service = null)
+        val gateway = AidlEngineGateway(connection = connection, clock = { 25L })
+        val service = RecordingEngineService(EngineSnapshot.idle(nowMillis = 100L))
+
+        val result = gateway.dispatch(EngineCommand(EngineCommand.TYPE_DELETE_ACCOUNT, null))
+        connection.connectService(service)
+
+        assertEquals(EngineEvent.TYPE_GATEWAY_UNAVAILABLE, result.event.type)
+        assertEquals(emptyList(), service.commandTypes)
+    }
+
+    @Test
     fun `all protected profile mutations are unavailable while disconnected`() {
         val gateway = AidlEngineGateway(FakeEngineServiceConnection(null))
 

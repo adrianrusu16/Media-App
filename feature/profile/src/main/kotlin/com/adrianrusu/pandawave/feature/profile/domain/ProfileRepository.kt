@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 interface ProfileRepository : AutoCloseable {
     val state: StateFlow<ProfileState>
+    val accountSessionsState: StateFlow<AccountSessionsState>
 
     fun start()
     fun refresh()
@@ -12,4 +13,8 @@ interface ProfileRepository : AutoCloseable {
     fun updateDisplayName(displayName: String?)
     fun delete()
     fun updateTheme(preference: PandaWaveThemePreference)
+    fun refreshAccountSessions()
+    fun loadNextDeviceSessionsPage()
+    fun revokeDeviceSession(sessionId: String)
+    fun deleteAccount()
 }

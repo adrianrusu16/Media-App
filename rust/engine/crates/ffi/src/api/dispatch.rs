@@ -151,6 +151,33 @@ fn playlist_command_from_ffi(command_type: i32, payload: Option<&str>) -> Option
     (!matches!(command.command_type, EngineCommandType::Unknown(_))).then_some(command)
 }
 
+fn account_command_from_ffi(command_type: i32, payload: Option<&str>) -> Option<EngineCommand> {
+    let wire = match command_type {
+        crate::FFI_COMMAND_GET_ACCOUNT => EngineCommandType::GET_ACCOUNT_WIRE,
+        crate::FFI_COMMAND_DELETE_ACCOUNT => EngineCommandType::DELETE_ACCOUNT_WIRE,
+        crate::FFI_COMMAND_LIST_DEVICE_SESSIONS => EngineCommandType::LIST_DEVICE_SESSIONS_WIRE,
+        crate::FFI_COMMAND_LOAD_NEXT_DEVICE_SESSIONS_PAGE => {
+            EngineCommandType::LOAD_NEXT_DEVICE_SESSIONS_PAGE_WIRE
+        }
+        crate::FFI_COMMAND_REVOKE_DEVICE_SESSION => EngineCommandType::REVOKE_DEVICE_SESSION_WIRE,
+        _ => return None,
+    };
+    let command = EngineCommand::from_wire(wire, payload.map(str::to_owned));
+    (!matches!(command.command_type, EngineCommandType::Unknown(_))).then_some(command)
+}
+
+fn discovery_command_from_ffi(command_type: i32, payload: Option<&str>) -> Option<EngineCommand> {
+    let wire = match command_type {
+        crate::FFI_COMMAND_LOAD_DISCOVERY_FEED => EngineCommandType::LOAD_DISCOVERY_FEED_WIRE,
+        crate::FFI_COMMAND_LOAD_NEXT_DISCOVERY_PAGE => {
+            EngineCommandType::LOAD_NEXT_DISCOVERY_PAGE_WIRE
+        }
+        _ => return None,
+    };
+    let command = EngineCommand::from_wire(wire, payload.map(str::to_owned));
+    (!matches!(command.command_type, EngineCommandType::Unknown(_))).then_some(command)
+}
+
 fn run_future_safely<T>(
     runtime: &tokio::runtime::Runtime,
     future: impl std::future::Future<Output = T>,
@@ -319,6 +346,21 @@ pub unsafe extern "C" fn panda_engine_dispatch(
                 | crate::FFI_COMMAND_REORDER_PLAYLIST_TRACKS => {
                     playlist_command_from_ffi(command_type, payload_str.as_deref()).unwrap_or_else(
                         || EngineCommand::from_wire("invalid_playlist_payload", None),
+                    )
+                }
+                crate::FFI_COMMAND_GET_ACCOUNT
+                | crate::FFI_COMMAND_DELETE_ACCOUNT
+                | crate::FFI_COMMAND_LIST_DEVICE_SESSIONS
+                | crate::FFI_COMMAND_LOAD_NEXT_DEVICE_SESSIONS_PAGE
+                | crate::FFI_COMMAND_REVOKE_DEVICE_SESSION => {
+                    account_command_from_ffi(command_type, payload_str.as_deref()).unwrap_or_else(
+                        || EngineCommand::from_wire("invalid_account_payload", None),
+                    )
+                }
+                crate::FFI_COMMAND_LOAD_DISCOVERY_FEED
+                | crate::FFI_COMMAND_LOAD_NEXT_DISCOVERY_PAGE => {
+                    discovery_command_from_ffi(command_type, payload_str.as_deref()).unwrap_or_else(
+                        || EngineCommand::from_wire("invalid_discovery_payload", None),
                     )
                 }
                 FFI_COMMAND_PROCESS_VOICE => return FfiEngineOutcome::invalid(),
@@ -507,6 +549,81 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn account_ffi_discriminants_parse_strict_credential_free_payloads() {
+        let cases = [
+            (crate::FFI_COMMAND_GET_ACCOUNT, None),
+            (crate::FFI_COMMAND_DELETE_ACCOUNT, None),
+            (
+                crate::FFI_COMMAND_LIST_DEVICE_SESSIONS,
+                Some(r#"{"version":1,"page":{"page_size":25}}"#),
+            ),
+            (crate::FFI_COMMAND_LOAD_NEXT_DEVICE_SESSIONS_PAGE, None),
+            (
+                crate::FFI_COMMAND_REVOKE_DEVICE_SESSION,
+                Some(r#"{"version":1,"session_id":"session-1"}"#),
+            ),
+        ];
+
+        for (command_type, payload) in cases {
+            assert!(
+                account_command_from_ffi(command_type, payload).is_some(),
+                "account FFI command {command_type} did not parse",
+            );
+        }
+        assert!(
+            account_command_from_ffi(
+                crate::FFI_COMMAND_REVOKE_DEVICE_SESSION,
+                Some(r#"{"version":1,"session_id":"session-1","access_token":"forbidden"}"#),
+            )
+            .is_none()
+        );
+    }
+
+    #[test]
+    fn discovery_ffi_discriminants_parse_strict_credential_free_payloads() {
+        let first = discovery_command_from_ffi(
+            crate::FFI_COMMAND_LOAD_DISCOVERY_FEED,
+            Some(r#"{"version":1,"exclude_track_ids":["track-1"],"page":{"page_size":17}}"#),
+        )
+        .expect("first discovery page");
+        assert_eq!(
+            first.command_type,
+            EngineCommandType::LoadDiscoveryFeed {
+                excluded_track_ids: vec!["track-1".to_owned()],
+                page: panda_engine_core::EnginePageRequest {
+                    page_size: 17,
+                    page_token: None,
+                },
+            }
+        );
+        assert!(
+            discovery_command_from_ffi(
+                crate::FFI_COMMAND_LOAD_NEXT_DISCOVERY_PAGE,
+                Some(r#"{"version":1}"#),
+            )
+            .is_some()
+        );
+        assert!(discovery_command_from_ffi(
+            crate::FFI_COMMAND_LOAD_DISCOVERY_FEED,
+            Some(r#"{"version":1,"exclude_track_ids":[],"page":{"page_size":1,"page_token":"forbidden"}}"#),
+        )
+        .is_none());
+        assert!(
+            discovery_command_from_ffi(
+                crate::FFI_COMMAND_LOAD_NEXT_DISCOVERY_PAGE,
+                Some(r#"{"version":1,"page_token":"forbidden"}"#),
+            )
+            .is_none()
+        );
+        assert!(discovery_command_from_ffi(
+            crate::FFI_COMMAND_LOAD_DISCOVERY_FEED,
+            Some(r#"{"version":1,"exclude_track_ids":[],"page":{"page_size":1},"access_token":"forbidden"}"#),
+        )
+        .is_none());
+    }
+
     #[test]
     fn invalid_profile_payload_is_rejected_before_dispatch() {
         assert!(

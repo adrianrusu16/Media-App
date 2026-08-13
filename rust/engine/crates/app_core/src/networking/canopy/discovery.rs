@@ -3,10 +3,12 @@ use std::sync::Arc;
 use tonic_014::Request;
 
 use crate::model::discovery::DiscoveryPort;
-use crate::{EngineError, EnginePageRequest, EnginePagedResult, EngineTrack};
+use crate::{
+    EngineDiscoveryIdentity, EngineError, EnginePageRequest, EnginePagedResult, EngineTrack,
+};
 
 use super::catalog::{map_page, map_page_request};
-use super::request::{ReplayPolicy, execute_with_auth};
+use super::request::{ReplayPolicy, execute_with_bound_auth};
 use super::sdk::clients::discovery_service_client::DiscoveryServiceClient;
 use super::sdk::resources::{GetDiscoveryFeedRequest, GetDiscoveryFeedResponse};
 use super::{CanopyChannel, SessionCoordinator};
@@ -31,13 +33,19 @@ impl CanopyDiscoveryClient {
 impl DiscoveryPort for CanopyDiscoveryClient {
     async fn get_feed(
         &self,
+        expected_identity: &EngineDiscoveryIdentity,
         excluded_track_ids: &[String],
         page: EnginePageRequest,
     ) -> Result<EnginePagedResult<EngineTrack>, EngineError> {
         let request = map_discovery_request(excluded_track_ids, page);
         let client = self.client.clone();
-        let response = execute_with_auth(
-            Some(self.session.as_ref()),
+        let bound = crate::EngineHistoryIdentity {
+            account_id: expected_identity.account_id.clone(),
+            session_id: expected_identity.session_id.clone(),
+        };
+        let response = execute_with_bound_auth(
+            self.session.as_ref(),
+            &bound,
             ReplayPolicy::Safe,
             || Request::new(request.clone()),
             move |request| {

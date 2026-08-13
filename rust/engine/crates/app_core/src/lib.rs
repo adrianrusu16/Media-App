@@ -66,14 +66,15 @@ pub use crate::middleware::{
     RecoveryMiddleware, TelemetryMiddleware, ThrottlingMiddleware, ValidationMiddleware,
 };
 pub use crate::model::auth::{
-    Account, AuthRequestAcceptance, AuthSession, AuthSessionEnvelope, AuthState,
+    Account, AccountOperation, AccountPort, AuthRequestAcceptance, AuthSession,
+    AuthSessionEnvelope, AuthState, EngineAccountIdentity, account_retry_class,
 };
 pub use crate::model::backend::{
     EngineBackendStatus, EngineDependencyStatus, EngineStatusValue, RetryClass,
 };
 pub use crate::model::catalog::{EngineAlbum, EngineArtist, EngineTrack};
 pub use crate::model::command::{EngineCommand, EngineCommandType};
-pub use crate::model::discovery::DiscoveryPort;
+pub use crate::model::discovery::{DiscoveryPort, EngineDiscoveryIdentity};
 pub use crate::model::effect::EngineEffect;
 pub use crate::model::error::{EngineError, EngineErrorType};
 pub use crate::model::event::{EngineEvent, EngineEventType};

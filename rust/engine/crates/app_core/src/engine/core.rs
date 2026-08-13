@@ -83,6 +83,20 @@ impl AuthIdentity {
             session_id: self.session_id.clone(),
         }
     }
+
+    fn account_identity(&self) -> crate::EngineAccountIdentity {
+        crate::EngineAccountIdentity {
+            account_id: self.account_id.clone(),
+            session_id: self.session_id.clone(),
+        }
+    }
+
+    fn discovery_identity(&self) -> crate::EngineDiscoveryIdentity {
+        crate::EngineDiscoveryIdentity {
+            account_id: self.account_id.clone(),
+            session_id: self.session_id.clone(),
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -113,6 +127,12 @@ struct HistoryOperation {
     page_size: u32,
 }
 
+#[derive(Clone)]
+struct DeviceSessionsOperation {
+    auth_identity: AuthIdentity,
+    page_size: u32,
+}
+
 fn project_discovery_track(track: crate::EngineTrack) -> crate::MediaItem {
     crate::MediaItem {
         id: track.id,
@@ -128,6 +148,7 @@ fn project_discovery_track(track: crate::EngineTrack) -> crate::MediaItem {
 // Core engine orchestration root:
 // - Public `Engine` API surface lives here.
 // - Heavy execution paths are delegated to focused submodules below.
+mod account;
 mod controls;
 mod dispatch_command;
 mod dispatch_platform_event;
@@ -170,6 +191,9 @@ pub struct Engine {
     library_port: Option<Arc<dyn crate::LibraryPort>>,
     playlist_port: Option<Arc<dyn crate::PlaylistPort>>,
     profile_port: Option<Arc<dyn crate::ProfilePort>>,
+    account_port: Option<Arc<dyn crate::AccountPort>>,
+    account_projection_identity: Option<AuthIdentity>,
+    device_sessions_operation: Option<DeviceSessionsOperation>,
     profile_projection_identity: Option<AuthIdentity>,
     history_projection_identity: Option<AuthIdentity>,
     history_operation: Option<HistoryOperation>,
@@ -204,6 +228,9 @@ impl Default for Engine {
             auth_state_provider: None,
             discovery_port: None,
             profile_port: None,
+            account_port: None,
+            account_projection_identity: None,
+            device_sessions_operation: None,
             profile_projection_identity: None,
             history_port: None,
             history_projection_identity: None,
@@ -258,6 +285,9 @@ impl Engine {
             auth_state_provider: None,
             discovery_port: None,
             profile_port: None,
+            account_port: None,
+            account_projection_identity: None,
+            device_sessions_operation: None,
             profile_projection_identity: None,
             history_port: None,
             history_projection_identity: None,
@@ -362,6 +392,10 @@ impl Engine {
         self.profile_port = Some(port);
     }
 
+    pub fn set_account_port(&mut self, port: Arc<dyn crate::AccountPort>) {
+        self.account_port = Some(port);
+    }
+
     /// Sets the backend-neutral public system status port.
     pub fn set_system_port(&mut self, port: Arc<dyn SystemPort>) {
         self.system_port = Some(port);
@@ -386,6 +420,14 @@ impl Engine {
             .is_some_and(|operation| Some(&operation.auth_identity) == current_identity.as_ref());
         if !operation_matches {
             snapshot.discovery_results.clear();
+            snapshot.discovery_next_page_token = None;
+        }
+        if self
+            .account_projection_identity
+            .as_ref()
+            .is_some_and(|identity| Some(identity) != current_identity.as_ref())
+        {
+            Self::clear_account_projection(&mut snapshot);
         }
         if self
             .profile_projection_identity
@@ -432,6 +474,16 @@ impl Engine {
         if !operation_matches {
             self.discovery_operation = None;
             self.snapshot.discovery_results.clear();
+            self.snapshot.discovery_next_page_token = None;
+        }
+        if self
+            .account_projection_identity
+            .as_ref()
+            .is_some_and(|identity| Some(identity) != current_identity.as_ref())
+        {
+            self.account_projection_identity = None;
+            self.device_sessions_operation = None;
+            Self::clear_account_projection(&mut self.snapshot);
         }
         if self
             .profile_projection_identity
@@ -478,6 +530,12 @@ impl Engine {
         if snapshot.theme_preference.source == crate::PreferenceSource::RemoteProfile {
             snapshot.theme_preference = crate::ThemePreferenceState::default();
         }
+    }
+
+    fn clear_account_projection(snapshot: &mut EngineSnapshot) {
+        snapshot.protected_account = None;
+        snapshot.device_sessions.clear();
+        snapshot.device_sessions_next_page_token = None;
     }
 
     fn clear_history_projection(snapshot: &mut EngineSnapshot) {

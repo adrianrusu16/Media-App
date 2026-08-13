@@ -34,4 +34,6 @@ interface IMediaEngineService {
     EnginePlaylistTrackItem getPlaylistTrack(int index);
     String getSelectedPlaylistId();
     EnginePlaylistReconciliation getPlaylistReconciliation();
+    EngineCatalogItem getDiscoveryResult(int index);
+    String getProfilePreferenceValue(String key);
 }

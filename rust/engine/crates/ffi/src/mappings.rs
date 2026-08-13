@@ -98,6 +98,15 @@ pub(crate) fn command_from_ffi(command_type: i32) -> EngineCommandType {
             page: panda_engine_core::EnginePageRequest::default(),
         },
         FFI_COMMAND_LOAD_NEXT_LIKED_TRACKS_PAGE => EngineCommandType::LoadNextLikedTracksPage,
+        FFI_COMMAND_GET_ACCOUNT => EngineCommandType::GetAccount,
+        FFI_COMMAND_DELETE_ACCOUNT => EngineCommandType::DeleteAccount,
+        FFI_COMMAND_LIST_DEVICE_SESSIONS => EngineCommandType::ListDeviceSessions {
+            page: panda_engine_core::EnginePageRequest::default(),
+        },
+        FFI_COMMAND_LOAD_NEXT_DEVICE_SESSIONS_PAGE => EngineCommandType::LoadNextDeviceSessionsPage,
+        FFI_COMMAND_REVOKE_DEVICE_SESSION => EngineCommandType::RevokeDeviceSession {
+            session_id: String::new(),
+        },
         _ => EngineCommandType::Unknown(command_type.to_string()),
     }
 }

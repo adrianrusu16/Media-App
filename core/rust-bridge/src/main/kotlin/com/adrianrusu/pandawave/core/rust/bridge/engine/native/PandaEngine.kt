@@ -103,6 +103,19 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         itemType = nativeBrowseResultItemType(nativeHandle, index)
     )
 
+    override fun discoveryResult(index: Int): EngineCatalogItem? = nativeDiscoveryResultValues(nativeHandle, index)
+        ?.takeIf { it.size == 8 }
+        ?.let { values ->
+            resultItem(
+                values[0], values[1], values[2], values[3].ifEmpty { null },
+                values[4].ifEmpty { null }, values[5].ifEmpty { null }, values[6].ifEmpty { null },
+                values[7].toIntOrNull() ?: return@let null,
+            )
+        }
+
+    override fun profilePreferenceValue(key: String): String? =
+        nativeProfilePreferenceValue(nativeHandle, key.trim())
+
     override fun savedTrack(index: Int): EngineLibraryItem? = PandaEngineNativeLibraryItemMapper.toDomain(nativeSavedTrackValues(nativeHandle, index))
 
     override fun likedTrack(index: Int): EngineLibraryItem? = PandaEngineNativeLibraryItemMapper.toDomain(nativeLikedTrackValues(nativeHandle, index))
@@ -234,7 +247,11 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     private external fun nativeAuthStateValues(handle: Long): Array<String>?
 
     private external fun nativeProfileValues(handle: Long): Array<String>?
+    private external fun nativeProtectedAccountValues(handle: Long): Array<String>?
+    private external fun nativeDeviceSessionValues(handle: Long, index: Int): Array<String>?
     private external fun nativeSavedTrackValues(handle: Long, index: Int): Array<String>?
+    private external fun nativeDiscoveryResultValues(handle: Long, index: Int): Array<String>?
+    private external fun nativeProfilePreferenceValue(handle: Long, key: String): String?
     private external fun nativeLikedTrackValues(handle: Long, index: Int): Array<String>?
     private external fun nativePendingLibraryTrackId(handle: Long, index: Int): String?
     private external fun nativePlaylistValues(handle: Long, index: Int): Array<String>?
@@ -313,10 +330,14 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             ?.let(PandaEngineNativeAuthStateMapper::toDomain)
             ?: EngineAuthState.loginRequired()
         val profile = PandaEngineNativeProfileMapper.toDomain(nativeProfileValues(nativeHandle))
+        val protectedAccount = PandaEngineNativeAuthStateMapper.toAccount(nativeProtectedAccountValues(nativeHandle))
+        val deviceSessions = List(projection.snapshot.deviceSessionsCount) { index -> PandaEngineNativeAuthStateMapper.toSession(nativeDeviceSessionValues(nativeHandle, index)) }.filterNotNull()
         return snapshot.copy(
             backendStatus = backendStatus,
             authState = authState,
-            profile = profile
+            profile = profile,
+            protectedAccount = protectedAccount,
+            deviceSessions = deviceSessions
         )
     }
 
@@ -440,6 +461,13 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         private const val COMMAND_LIST_PLAYLIST_TRACKS = 47
         private const val COMMAND_LOAD_NEXT_PLAYLIST_TRACKS_PAGE = 48
         private const val COMMAND_REORDER_PLAYLIST_TRACKS = 49
+        private const val COMMAND_GET_ACCOUNT = 50
+        private const val COMMAND_DELETE_ACCOUNT = 51
+        private const val COMMAND_LIST_DEVICE_SESSIONS = 52
+        private const val COMMAND_LOAD_NEXT_DEVICE_SESSIONS_PAGE = 53
+        private const val COMMAND_REVOKE_DEVICE_SESSION = 54
+        private const val COMMAND_LOAD_DISCOVERY_FEED = 55
+        private const val COMMAND_LOAD_NEXT_DISCOVERY_PAGE = 56
         private const val COMMAND_UNKNOWN = -1
 
         private const val PLATFORM_EVENT_APP_FOREGROUNDED = 0
@@ -519,6 +547,13 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             EngineCommand.TYPE_LIST_PLAYLIST_TRACKS -> COMMAND_LIST_PLAYLIST_TRACKS
             EngineCommand.TYPE_LOAD_NEXT_PLAYLIST_TRACKS_PAGE -> COMMAND_LOAD_NEXT_PLAYLIST_TRACKS_PAGE
             EngineCommand.TYPE_REORDER_PLAYLIST_TRACKS -> COMMAND_REORDER_PLAYLIST_TRACKS
+            EngineCommand.TYPE_GET_ACCOUNT -> COMMAND_GET_ACCOUNT
+            EngineCommand.TYPE_DELETE_ACCOUNT -> COMMAND_DELETE_ACCOUNT
+            EngineCommand.TYPE_LIST_DEVICE_SESSIONS -> COMMAND_LIST_DEVICE_SESSIONS
+            EngineCommand.TYPE_LOAD_NEXT_DEVICE_SESSIONS_PAGE -> COMMAND_LOAD_NEXT_DEVICE_SESSIONS_PAGE
+            EngineCommand.TYPE_REVOKE_DEVICE_SESSION -> COMMAND_REVOKE_DEVICE_SESSION
+            EngineCommand.TYPE_LOAD_DISCOVERY_FEED -> COMMAND_LOAD_DISCOVERY_FEED
+            EngineCommand.TYPE_LOAD_NEXT_DISCOVERY_PAGE -> COMMAND_LOAD_NEXT_DISCOVERY_PAGE
             else -> COMMAND_UNKNOWN
         }
 
@@ -696,6 +731,18 @@ internal object PandaEngineNativeBackendStatusMapper {
 }
 
 internal object PandaEngineNativeAuthStateMapper {
+    fun toAccount(values: Array<String>?): EngineAccount? {
+        if (values == null || values.size != 4) return null
+        return runCatching { EngineAccount(values[0], values[1], values[2], values[3].toLong()) }.getOrNull()
+    }
+
+    fun toSession(values: Array<String>?): EngineAuthSession? {
+        if (values == null || values.size != 6) return null
+        return runCatching {
+            EngineAuthSession(values[0], values[1], values[2].toLong(), values[3].toLong(), values[4].toLong(), when(values[5]) { "1" -> true; "0" -> false; else -> error("invalid current flag") })
+        }.getOrNull()
+    }
+
     fun toDomain(values: Array<String>): EngineAuthState = when {
         values.contentEquals(arrayOf(EngineAuthState.ANONYMOUS)) -> EngineAuthState.anonymous()
         values.contentEquals(arrayOf(EngineAuthState.LOGIN_REQUIRED)) -> EngineAuthState.loginRequired()
@@ -828,6 +875,7 @@ internal object PandaEngineNativeSnapshotMapper {
                 hasSavedTracksNextPage = nativeValues[SNAPSHOT_HAS_SAVED_NEXT_PAGE_INDEX].toBoolean(),
                 hasLikedTracksNextPage = nativeValues[SNAPSHOT_HAS_LIKED_NEXT_PAGE_INDEX].toBoolean()
                 ,playlistsCount = nativeValues[45].toInt(), playlistTracksCount = nativeValues[46].toInt(), hasPlaylistsNextPage = nativeValues[47].toBoolean(), hasPlaylistTracksNextPage = nativeValues[48].toBoolean(), hasPlaylistReconciliation = nativeValues[49].toBoolean()
+                ,protectedAccount = null, deviceSessions = emptyList(), deviceSessionsCount = nativeValues[51].toInt(), hasDeviceSessionsNextPage = nativeValues[52].toBoolean(), discoveryResultsCount = nativeValues[53].toInt(), hasDiscoveryNextPage = nativeValues[54].toBoolean(), hasHistoryNextPage = nativeValues[55].toBoolean()
             ),
             metadataRevision = nativeValues[SNAPSHOT_METADATA_REVISION_INDEX],
             backendStatus = nativeValues[SNAPSHOT_HAS_BACKEND_STATUS_INDEX]
@@ -926,7 +974,7 @@ internal object PandaEngineNativeSnapshotMapper {
     private const val PREFERENCE_SOURCE_LOCAL_USER = 2
     private const val PREFERENCE_SOURCE_REMOTE_PROFILE = 3
 
-    private const val SNAPSHOT_VALUE_COUNT = 50
+    private const val SNAPSHOT_VALUE_COUNT = 56
     private const val SNAPSHOT_PLAYBACK_INDEX = 0
     private const val SNAPSHOT_RESTRICTION_INDEX = 1
     private const val SNAPSHOT_UPDATED_AT_INDEX = 2

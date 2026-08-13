@@ -11,6 +11,25 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
 
 object EngineCommandPayloads {
+    fun deviceSessionsPage(pageSize: Int): String = buildJsonObject {
+        put(KEY_VERSION, PAYLOAD_VERSION)
+        put("page", buildJsonObject { put("page_size", pageSize) })
+    }.toString()
+
+    fun discoveryFeed(excludedTrackIds: List<String> = emptyList(), pageSize: Int): String = buildJsonObject {
+        put(KEY_VERSION, PAYLOAD_VERSION)
+        put("exclude_track_ids", buildJsonArray { excludedTrackIds.forEach { add(it.trim()) } })
+        putJsonObject(KEY_PAGE) { put(KEY_PAGE_SIZE, pageSize.coerceAtLeast(0)) }
+    }.toString()
+
+    fun loadNextDiscoveryPage(): String = buildJsonObject {
+        put(KEY_VERSION, PAYLOAD_VERSION)
+    }.toString()
+
+    fun revokeDeviceSession(sessionId: String): String = buildJsonObject {
+        put(KEY_VERSION, PAYLOAD_VERSION)
+        put("session_id", sessionId.trim())
+    }.toString()
     const val DEFAULT_BROWSE_PARENT_ID = "root"
     const val DEFAULT_SESSION_USER_ID = "guest"
 
@@ -132,6 +151,11 @@ object EngineCommandPayloads {
         putJsonObject(KEY_VALUES) {
             put(KEY_THEME, themeId)
         }
+    }.toString()
+
+    fun updateProfilePreferences(values: Map<String, String>): String = buildJsonObject {
+        put(KEY_VERSION, PAYLOAD_VERSION)
+        putJsonObject(KEY_VALUES) { values.forEach { (key, value) -> put(key, value) } }
     }.toString()
 
     fun remoteThemePreference(themeId: String, userId: String, baselineRevision: Long): String =

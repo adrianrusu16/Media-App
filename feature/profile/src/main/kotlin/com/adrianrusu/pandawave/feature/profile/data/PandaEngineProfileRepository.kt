@@ -8,6 +8,7 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineGateway
 import com.adrianrusu.pandawave.feature.profile.domain.ProfileDetails
+import com.adrianrusu.pandawave.feature.profile.domain.AccountSessionsState
 import com.adrianrusu.pandawave.feature.profile.domain.ProfileRepository
 import com.adrianrusu.pandawave.feature.profile.domain.ProfileState
 import java.util.concurrent.atomic.AtomicBoolean
@@ -21,17 +22,17 @@ class PandaEngineProfileRepository @Inject constructor(
 ) : ProfileRepository {
     private val mutableState = MutableStateFlow<ProfileState>(ProfileState.Loading)
     override val state: StateFlow<ProfileState> = mutableState.asStateFlow()
+    private val mutableAccountSessionsState = MutableStateFlow<AccountSessionsState>(AccountSessionsState.Loading)
+    override val accountSessionsState: StateFlow<AccountSessionsState> = mutableAccountSessionsState.asStateFlow()
 
     private val started = AtomicBoolean(false)
     private var subscription: AutoCloseable? = null
+    private var hydratedIdentity: String? = null
+    private var accountProjectionIdentity: String? = null
 
     override fun start() {
         if (!started.compareAndSet(false, true)) return
-        subscription = engineGateway.observeSnapshots(::project)
-        if (engineGateway.snapshot().authState.state == EngineAuthState.AUTHENTICATED) {
-            dispatch(EngineCommand(EngineCommand.TYPE_GET_PROFILE, null))
-            dispatch(EngineCommand(EngineCommand.TYPE_LOAD_PROFILE_PREFERENCES, null))
-        }
+        subscription = engineGateway.observeSnapshots(::onSnapshot)
     }
 
     override fun refresh() {
@@ -70,10 +71,31 @@ class PandaEngineProfileRepository @Inject constructor(
         )
     }
 
+    override fun refreshAccountSessions() {
+        dispatch(EngineCommand(EngineCommand.TYPE_GET_ACCOUNT, null))
+        dispatch(EngineCommand(EngineCommand.TYPE_LIST_DEVICE_SESSIONS, EngineCommandPayloads.deviceSessionsPage(50)))
+    }
+
+    override fun loadNextDeviceSessionsPage() = dispatch(EngineCommand(EngineCommand.TYPE_LOAD_NEXT_DEVICE_SESSIONS_PAGE, null))
+
+    override fun revokeDeviceSession(sessionId: String) {
+        val ready = mutableAccountSessionsState.value as? AccountSessionsState.Ready
+        if (ready != null) mutableAccountSessionsState.value = ready.copy(pendingSessionId = sessionId)
+        dispatch(EngineCommand(EngineCommand.TYPE_REVOKE_DEVICE_SESSION, EngineCommandPayloads.revokeDeviceSession(sessionId)))
+    }
+
+    override fun deleteAccount() {
+        val ready = mutableAccountSessionsState.value as? AccountSessionsState.Ready
+        if (ready != null) mutableAccountSessionsState.value = ready.copy(deletingAccount = true)
+        dispatch(EngineCommand(EngineCommand.TYPE_DELETE_ACCOUNT, null))
+    }
+
     override fun close() {
         subscription?.close()
         subscription = null
         started.set(false)
+        hydratedIdentity = null
+        accountProjectionIdentity = null
     }
 
     private fun dispatch(command: EngineCommand) {
@@ -83,16 +105,26 @@ class PandaEngineProfileRepository @Inject constructor(
                 errorType = EngineSnapshot.ERROR_NETWORK,
                 retryable = true
             )
+            if (command.isAccountSessionsCommand()) {
+                mutableAccountSessionsState.value = AccountSessionsState.Failure(
+                    errorType = EngineSnapshot.ERROR_NETWORK,
+                    retryable = true
+                )
+            }
         } else {
-            project(outcome.snapshot)
+            project(outcome.snapshot, command)
         }
     }
 
-    private fun project(snapshot: EngineSnapshot) {
-        if (snapshot.authState.state != EngineAuthState.AUTHENTICATED) {
+    private fun project(snapshot: EngineSnapshot, command: EngineCommand? = null) {
+        val identity = snapshot.currentIdentity()
+        if (identity == null) {
             mutableState.value = ProfileState.SignedOut
+            mutableAccountSessionsState.value = AccountSessionsState.SignedOut
+            accountProjectionIdentity = null
             return
         }
+        projectAccountSessions(snapshot, identity, command)
         if (
             snapshot.profile == null &&
             snapshot.hasError &&
@@ -124,4 +156,76 @@ class PandaEngineProfileRepository @Inject constructor(
                 ?: PandaWaveThemePreference.SystemDefault
         )
     }
+
+    private fun onSnapshot(snapshot: EngineSnapshot) {
+        val identity = snapshot.currentIdentity()
+        if (identity == null) {
+            hydratedIdentity = null
+            accountProjectionIdentity = null
+            project(snapshot)
+            return
+        }
+        val identityChanged = hydratedIdentity != identity
+        if (identityChanged) {
+            hydratedIdentity = identity
+            accountProjectionIdentity = null
+            mutableAccountSessionsState.value = AccountSessionsState.Loading
+        }
+        project(snapshot)
+        if (!identityChanged) return
+        dispatch(EngineCommand(EngineCommand.TYPE_GET_PROFILE, null))
+        dispatch(EngineCommand(EngineCommand.TYPE_LOAD_PROFILE_PREFERENCES, null))
+        refreshAccountSessions()
+    }
+
+    private fun projectAccountSessions(
+        snapshot: EngineSnapshot,
+        identity: String,
+        command: EngineCommand?
+    ) {
+        if (snapshot.hasError) {
+            mutableAccountSessionsState.value = AccountSessionsState.Failure(snapshot.errorType, snapshot.errorType == EngineSnapshot.ERROR_NETWORK)
+            return
+        }
+        val account = snapshot.protectedAccount ?: run {
+            mutableAccountSessionsState.value = AccountSessionsState.Loading
+            return
+        }
+        val authAccountId = snapshot.authState.account?.id
+        if (account.id != authAccountId) {
+            mutableAccountSessionsState.value = AccountSessionsState.Loading
+            accountProjectionIdentity = null
+            return
+        }
+        if (command?.type == EngineCommand.TYPE_GET_ACCOUNT) {
+            accountProjectionIdentity = identity
+        }
+        if (accountProjectionIdentity != identity) {
+            mutableAccountSessionsState.value = AccountSessionsState.Loading
+            return
+        }
+        mutableAccountSessionsState.value = AccountSessionsState.Ready(account, snapshot.deviceSessions, snapshot.hasDeviceSessionsNextPage)
+    }
+
+    private fun EngineSnapshot.currentIdentity(): String? {
+        val auth = authState
+        val account = auth.account
+        val session = auth.session
+        return if (
+            auth.state == EngineAuthState.AUTHENTICATED &&
+            account != null && session != null && session.current
+        ) {
+            "${account.id}\u001f${session.id}"
+        } else {
+            null
+        }
+    }
+
+    private fun EngineCommand.isAccountSessionsCommand(): Boolean = type in setOf(
+        EngineCommand.TYPE_GET_ACCOUNT,
+        EngineCommand.TYPE_DELETE_ACCOUNT,
+        EngineCommand.TYPE_LIST_DEVICE_SESSIONS,
+        EngineCommand.TYPE_LOAD_NEXT_DEVICE_SESSIONS_PAGE,
+        EngineCommand.TYPE_REVOKE_DEVICE_SESSION
+    )
 }

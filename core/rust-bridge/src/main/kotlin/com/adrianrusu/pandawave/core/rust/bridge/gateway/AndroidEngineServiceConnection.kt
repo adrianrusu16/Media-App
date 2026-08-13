@@ -157,6 +157,8 @@ class AndroidEngineServiceConnection(
         override fun snapshot(): EngineSnapshot = remote.snapshot
 
         override fun browseResult(index: Int): EngineCatalogItem? = remote.getBrowseResult(index)
+        override fun discoveryResult(index: Int): EngineCatalogItem? = remote.getDiscoveryResult(index)
+        override fun profilePreferenceValue(key: String): String? = remote.getProfilePreferenceValue(key)
 
         override fun searchResult(index: Int): EngineCatalogItem? = remote.getSearchResult(index)
         override fun savedTrack(index: Int) = remote.getSavedTrack(index)
