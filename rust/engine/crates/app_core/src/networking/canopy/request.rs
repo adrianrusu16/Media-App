@@ -4,20 +4,13 @@ use std::time::Duration;
 use tonic_014::metadata::MetadataValue;
 use tonic_014::{Code, Request, Response, Status};
 
-use crate::{EngineError, EngineErrorType, EngineHistoryIdentity};
+use crate::{EngineError, EngineErrorType, EngineHistoryIdentity, RetryClass};
 
 use super::error::map_status;
+use super::operation::{AuthRequirement, CanopyOperation};
 use super::session::{AccessSnapshot, SessionCoordinator};
 
 const RPC_TIMEOUT: Duration = Duration::from_secs(5);
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum ReplayPolicy {
-    Safe,
-    /// Reserved for mutation adapters: authentication failure is terminal.
-    #[allow(dead_code)]
-    NonIdempotent,
-}
 
 #[derive(Clone, Copy)]
 enum ExecutionClock {
@@ -26,9 +19,9 @@ enum ExecutionClock {
     Fixed(u64),
 }
 
-pub(crate) async fn execute_with_auth<TRequest, TResponse, MakeRequest, Execute, ExecuteFuture>(
+pub(crate) async fn execute<TRequest, TResponse, MakeRequest, Execute, ExecuteFuture>(
     coordinator: Option<&SessionCoordinator>,
-    policy: ReplayPolicy,
+    operation: CanopyOperation,
     make_request: MakeRequest,
     execute: Execute,
 ) -> Result<Response<TResponse>, EngineError>
@@ -40,7 +33,7 @@ where
     execute_with_auth_with_clock(
         coordinator,
         None,
-        policy,
+        operation,
         ExecutionClock::System,
         make_request,
         execute,
@@ -57,7 +50,7 @@ pub(crate) async fn execute_with_bound_auth<
 >(
     coordinator: &SessionCoordinator,
     identity: &EngineHistoryIdentity,
-    policy: ReplayPolicy,
+    operation: CanopyOperation,
     make_request: MakeRequest,
     execute: Execute,
 ) -> Result<Response<TResponse>, EngineError>
@@ -69,7 +62,7 @@ where
     execute_with_auth_with_clock(
         Some(coordinator),
         Some(identity),
-        policy,
+        operation,
         ExecutionClock::System,
         make_request,
         execute,
@@ -80,7 +73,7 @@ where
 #[cfg(test)]
 async fn execute_with_auth_at<TRequest, TResponse, MakeRequest, Execute, ExecuteFuture>(
     coordinator: Option<&SessionCoordinator>,
-    policy: ReplayPolicy,
+    operation: CanopyOperation,
     now_epoch_millis: u64,
     make_request: MakeRequest,
     execute: Execute,
@@ -93,7 +86,7 @@ where
     execute_with_auth_with_clock(
         coordinator,
         None,
-        policy,
+        operation,
         ExecutionClock::Fixed(now_epoch_millis),
         make_request,
         execute,
@@ -104,7 +97,7 @@ where
 async fn execute_with_auth_with_clock<TRequest, TResponse, MakeRequest, Execute, ExecuteFuture>(
     coordinator: Option<&SessionCoordinator>,
     expected_identity: Option<&EngineHistoryIdentity>,
-    policy: ReplayPolicy,
+    operation: CanopyOperation,
     clock: ExecutionClock,
     make_request: MakeRequest,
     execute: Execute,
@@ -114,27 +107,44 @@ where
     Execute: Fn(Request<TRequest>) -> ExecuteFuture,
     ExecuteFuture: Future<Output = Result<Response<TResponse>, Status>>,
 {
-    let snapshot = match (coordinator, clock) {
-        (Some(coordinator), ExecutionClock::System) => coordinator.fresh_access_snapshot().await?,
-        #[cfg(test)]
-        (Some(coordinator), ExecutionClock::Fixed(now)) => {
-            coordinator.fresh_access_snapshot_at(now).await?
+    let first_request = make_request();
+    let has_explicit_access = first_request.metadata().contains_key("authorization");
+    let uses_explicit_access = operation.auth_requirement() == AuthRequirement::AccessAuthenticated
+        && coordinator.is_none()
+        && has_explicit_access;
+    let snapshot = match operation.auth_requirement() {
+        AuthRequirement::Anonymous | AuthRequirement::RefreshCredential => {
+            AccessSnapshot::Anonymous
         }
-        (None, _) => AccessSnapshot::Anonymous,
+        AuthRequirement::OptionalAccess => access_snapshot(coordinator, clock).await?,
+        AuthRequirement::AccessAuthenticated if coordinator.is_some() => {
+            access_snapshot(coordinator, clock).await?
+        }
+        AuthRequirement::AccessAuthenticated if has_explicit_access => AccessSnapshot::Anonymous,
+        AuthRequirement::AccessAuthenticated => return Err(missing_session_coordinator()),
     };
+    if operation.auth_requirement() == AuthRequirement::AccessAuthenticated
+        && snapshot == AccessSnapshot::Anonymous
+        && !uses_explicit_access
+    {
+        return Err(missing_authenticated_session());
+    }
     verify_bound_identity(&snapshot, expected_identity)?;
 
-    let first = execute(authorized_request(make_request(), &snapshot)?).await;
+    let first = execute(authorized_request(first_request, &snapshot)?).await;
     revalidate_bound_identity(coordinator, expected_identity)?;
     let status = match first {
         Ok(response) => return Ok(response),
         Err(status) => status,
     };
     if status.code() != Code::Unauthenticated
-        || policy != ReplayPolicy::Safe
+        || !matches!(
+            operation.retry_class(),
+            RetryClass::Read | RetryClass::IdempotentMutation
+        )
         || snapshot == AccessSnapshot::Anonymous
     {
-        return Err(map_status(status));
+        return Err(map_operation_status(status, uses_explicit_access));
     }
 
     let coordinator = coordinator.expect("an authenticated snapshot requires a coordinator");
@@ -154,10 +164,52 @@ where
         Ok(response) => Ok(response),
         Err(status) if status.code() == Code::Unauthenticated => {
             coordinator.invalidate_if_current(&replacement).await?;
-            Err(map_status(status))
+            Err(map_operation_status(status, false))
         }
-        Err(status) => Err(map_status(status)),
+        Err(status) => Err(map_operation_status(status, false)),
     }
+}
+
+fn map_operation_status(status: Status, uses_explicit_access: bool) -> EngineError {
+    if uses_explicit_access && status.code() == Code::Unauthenticated {
+        EngineError::new(
+            EngineErrorType::AuthExpired,
+            "backend access credential expired",
+            false,
+        )
+    } else {
+        map_status(status)
+    }
+}
+
+async fn access_snapshot(
+    coordinator: Option<&SessionCoordinator>,
+    clock: ExecutionClock,
+) -> Result<AccessSnapshot, EngineError> {
+    match (coordinator, clock) {
+        (Some(coordinator), ExecutionClock::System) => coordinator.fresh_access_snapshot().await,
+        #[cfg(test)]
+        (Some(coordinator), ExecutionClock::Fixed(now)) => {
+            coordinator.fresh_access_snapshot_at(now).await
+        }
+        (None, _) => Ok(AccessSnapshot::Anonymous),
+    }
+}
+
+fn missing_session_coordinator() -> EngineError {
+    EngineError::new(
+        EngineErrorType::FailedPrecondition,
+        "authenticated Canopy operation requires a session coordinator",
+        false,
+    )
+}
+
+fn missing_authenticated_session() -> EngineError {
+    EngineError::new(
+        EngineErrorType::LoginRequired,
+        "authenticated Canopy operation requires a current session",
+        false,
+    )
 }
 
 fn revalidate_bound_identity(
@@ -221,9 +273,10 @@ mod tests {
     use tonic_014::{Code, Request, Response, Status};
 
     use super::{
-        AccessSnapshot, ExecutionClock, ReplayPolicy, execute_with_auth_at,
-        execute_with_auth_with_clock, verify_bound_identity,
+        AccessSnapshot, ExecutionClock, execute_with_auth_at, execute_with_auth_with_clock,
+        verify_bound_identity,
     };
+    use crate::networking::canopy::CanopyOperation;
     use crate::{
         Account, AuthPort, AuthSession, AuthSessionEnvelope, EngineError, EngineErrorType,
         EngineHistoryIdentity, InMemorySessionStore, SessionCoordinator, SessionStore,
@@ -332,6 +385,100 @@ mod tests {
         (Arc::new(SessionCoordinator::new(store, auth.clone())), auth)
     }
 
+    #[tokio::test]
+    async fn access_authenticated_operation_requires_a_session_coordinator() {
+        let attempts = Arc::new(AtomicUsize::new(0));
+        let counter = attempts.clone();
+
+        let error = execute_with_auth_at(
+            None,
+            CanopyOperation::GetProfile,
+            1_000,
+            || Request::new(()),
+            move |_| {
+                counter.fetch_add(1, Ordering::SeqCst);
+                async { Ok::<_, Status>(Response::new(())) }
+            },
+        )
+        .await
+        .unwrap_err();
+
+        assert_eq!(error.error_type, EngineErrorType::FailedPrecondition);
+        assert_eq!(attempts.load(Ordering::SeqCst), 0);
+    }
+
+    #[tokio::test]
+    async fn access_authenticated_operation_rejects_an_empty_session_before_dispatch() {
+        let (coordinator, _) = coordinator(None, envelope("unused", "unused", 20_000));
+        let attempts = Arc::new(AtomicUsize::new(0));
+        let counter = attempts.clone();
+
+        let error = execute_with_auth_at(
+            Some(&coordinator),
+            CanopyOperation::GetProfile,
+            1_000,
+            || Request::new(()),
+            move |_| {
+                counter.fetch_add(1, Ordering::SeqCst);
+                async { Ok::<_, Status>(Response::new(())) }
+            },
+        )
+        .await
+        .unwrap_err();
+
+        assert_eq!(error.error_type, EngineErrorType::LoginRequired);
+        assert_eq!(attempts.load(Ordering::SeqCst), 0);
+    }
+
+    #[tokio::test]
+    async fn access_authenticated_operation_accepts_an_explicit_access_header() {
+        let attempts = Arc::new(AtomicUsize::new(0));
+        let counter = attempts.clone();
+
+        execute_with_auth_at(
+            None,
+            CanopyOperation::Logout,
+            1_000,
+            || {
+                let mut request = Request::new(());
+                request
+                    .metadata_mut()
+                    .insert("authorization", "Bearer opaque-access".parse().unwrap());
+                request
+            },
+            move |_| {
+                counter.fetch_add(1, Ordering::SeqCst);
+                async { Ok::<_, Status>(Response::new(())) }
+            },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(attempts.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn rejected_explicit_logout_preserves_the_typed_expired_auth_error() {
+        let error = execute_with_auth_at(
+            None,
+            CanopyOperation::Logout,
+            1_000,
+            || {
+                let mut request = Request::new(());
+                request
+                    .metadata_mut()
+                    .insert("authorization", "Bearer expired-access".parse().unwrap());
+                request
+            },
+            |_| async { Err::<Response<()>, _>(Status::unauthenticated("ignored")) },
+        )
+        .await
+        .unwrap_err();
+
+        assert_eq!(error.error_type, EngineErrorType::AuthExpired);
+        assert!(!error.message.contains("ignored"));
+    }
+
     #[test]
     fn bound_authorization_rejects_a_different_account_or_session() {
         let snapshot = AccessSnapshot::Authenticated {
@@ -388,7 +535,7 @@ mod tests {
             let error = execute_with_auth_with_clock(
                 Some(&coordinator),
                 Some(&expected),
-                ReplayPolicy::NonIdempotent,
+                CanopyOperation::RecordPlayback,
                 ExecutionClock::Fixed(1_000),
                 || Request::new(()),
                 move |_| {
@@ -434,7 +581,7 @@ mod tests {
         let error = execute_with_auth_with_clock(
             Some(&coordinator),
             Some(&expected),
-            ReplayPolicy::NonIdempotent,
+            CanopyOperation::RecordPlayback,
             ExecutionClock::Fixed(1_000),
             || Request::new(()),
             move |_| {
@@ -462,7 +609,7 @@ mod tests {
         let error = execute_with_auth_with_clock(
             Some(&coordinator),
             Some(&expected),
-            ReplayPolicy::NonIdempotent,
+            CanopyOperation::RecordPlayback,
             ExecutionClock::Fixed(1_000),
             || Request::new(()),
             |_| async { Err::<Response<()>, _>(Status::unavailable("typed failure")) },
@@ -481,7 +628,7 @@ mod tests {
 
         execute_with_auth_at(
             Some(&coordinator),
-            ReplayPolicy::Safe,
+            CanopyOperation::GetMedia,
             1_000,
             || Request::new(()),
             move |request| {
@@ -512,7 +659,7 @@ mod tests {
 
         execute_with_auth_at(
             Some(&coordinator),
-            ReplayPolicy::Safe,
+            CanopyOperation::GetMedia,
             1_000,
             || Request::new(()),
             move |request| {
@@ -544,7 +691,7 @@ mod tests {
 
         execute_with_auth_at(
             Some(&coordinator),
-            ReplayPolicy::Safe,
+            CanopyOperation::GetMedia,
             1_000,
             || Request::new(()),
             move |request| {
@@ -585,7 +732,7 @@ mod tests {
 
         let error = execute_with_auth_at(
             Some(&coordinator),
-            ReplayPolicy::Safe,
+            CanopyOperation::GetMedia,
             1_000,
             || Request::new(()),
             move |_| {
@@ -614,7 +761,7 @@ mod tests {
 
         execute_with_auth_at(
             Some(&coordinator),
-            ReplayPolicy::Safe,
+            CanopyOperation::GetMedia,
             1_000,
             || Request::new(()),
             move |request| {
@@ -660,7 +807,7 @@ mod tests {
 
         let error = execute_with_auth_at(
             Some(&coordinator),
-            ReplayPolicy::Safe,
+            CanopyOperation::GetMedia,
             1_000,
             || Request::new(()),
             move |_| {
@@ -693,7 +840,7 @@ mod tests {
 
         let error = execute_with_auth_at(
             Some(&coordinator),
-            ReplayPolicy::Safe,
+            CanopyOperation::GetMedia,
             1_000,
             || Request::new(()),
             move |_| {
@@ -715,7 +862,7 @@ mod tests {
         let later_counter = attempts.clone();
         let later = execute_with_auth_at(
             Some(&coordinator),
-            ReplayPolicy::Safe,
+            CanopyOperation::GetMedia,
             1_000,
             || Request::new(()),
             move |_| {
@@ -746,7 +893,7 @@ mod tests {
             tasks.push(tokio::spawn(async move {
                 execute_with_auth_at(
                     Some(&coordinator),
-                    ReplayPolicy::Safe,
+                    CanopyOperation::GetMedia,
                     1_000,
                     || Request::new(()),
                     move |request| {
@@ -791,7 +938,7 @@ mod tests {
                 let attempt = Arc::new(AtomicUsize::new(0));
                 execute_with_auth_at(
                     Some(&coordinator),
-                    ReplayPolicy::Safe,
+                    CanopyOperation::GetMedia,
                     1_000,
                     || Request::new(()),
                     move |_| {
@@ -828,7 +975,7 @@ mod tests {
 
         let error = execute_with_auth_at(
             Some(&coordinator),
-            ReplayPolicy::NonIdempotent,
+            CanopyOperation::RecordPlayback,
             1_000,
             || Request::new(()),
             move |_| {
@@ -852,7 +999,7 @@ mod tests {
 
         let error = execute_with_auth_at(
             Some(&coordinator),
-            ReplayPolicy::Safe,
+            CanopyOperation::GetMedia,
             1_000,
             || Request::new(()),
             move |_| {
@@ -903,7 +1050,7 @@ mod tests {
 
         let error = execute_with_auth_at(
             Some(&coordinator),
-            ReplayPolicy::Safe,
+            CanopyOperation::GetMedia,
             1_000,
             || Request::new(()),
             move |_| {

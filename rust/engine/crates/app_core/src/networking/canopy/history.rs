@@ -5,11 +5,12 @@ use tonic_014::Request;
 use crate::{
     EngineError, EngineErrorType, EngineHistoryEntry, EngineHistoryIdentity, EngineHistorySettings,
     EngineHistorySettingsUpdate, EnginePageRequest, EnginePageToken, EnginePagedResult,
-    EnginePlaybackRecord, HistoryPort, RetryClass, normalize_completion_ratio,
+    EnginePlaybackRecord, HistoryPort, normalize_completion_ratio,
 };
 
 use super::catalog::{map_page_request, map_track_summary};
-use super::request::{ReplayPolicy, execute_with_bound_auth};
+use super::operation::CanopyOperation;
+use super::request::execute_with_bound_auth;
 use super::sdk::clients::history_service_client::HistoryServiceClient;
 use super::sdk::resources::{
     ClearHistoryRequest, DeleteHistoryEntryRequest, GetHistorySettingsRequest, HistoryEntry,
@@ -33,26 +34,6 @@ impl CanopyHistoryClient {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum HistoryOperation {
-    GetSettings,
-    UpdateSettings,
-    Record,
-    List,
-    DeleteEntry,
-    Clear,
-}
-
-fn history_retry_class(operation: HistoryOperation) -> RetryClass {
-    match operation {
-        HistoryOperation::GetSettings | HistoryOperation::List => RetryClass::Read,
-        HistoryOperation::UpdateSettings
-        | HistoryOperation::DeleteEntry
-        | HistoryOperation::Clear => RetryClass::IdempotentMutation,
-        HistoryOperation::Record => RetryClass::NonReplayableMutation,
-    }
-}
-
 #[async_trait::async_trait]
 impl HistoryPort for CanopyHistoryClient {
     async fn get_settings(
@@ -63,7 +44,7 @@ impl HistoryPort for CanopyHistoryClient {
         let response = execute_history_request(
             self.session.as_ref(),
             identity,
-            HistoryOperation::GetSettings,
+            CanopyOperation::GetHistorySettings,
             || Request::new(GetHistorySettingsRequest {}),
             move |request| {
                 let mut client = client.clone();
@@ -85,7 +66,7 @@ impl HistoryPort for CanopyHistoryClient {
         let response = execute_history_request(
             self.session.as_ref(),
             identity,
-            HistoryOperation::UpdateSettings,
+            CanopyOperation::UpdateHistorySettings,
             || Request::new(request),
             move |request| {
                 let mut client = client.clone();
@@ -107,7 +88,7 @@ impl HistoryPort for CanopyHistoryClient {
         let response = execute_history_request(
             self.session.as_ref(),
             identity,
-            HistoryOperation::Record,
+            CanopyOperation::RecordPlayback,
             || Request::new(request.clone()),
             move |request| {
                 let mut client = client.clone();
@@ -131,7 +112,7 @@ impl HistoryPort for CanopyHistoryClient {
         let response = execute_history_request(
             self.session.as_ref(),
             identity,
-            HistoryOperation::List,
+            CanopyOperation::ListHistory,
             || Request::new(request.clone()),
             move |request| {
                 let mut client = client.clone();
@@ -162,7 +143,7 @@ impl HistoryPort for CanopyHistoryClient {
         execute_history_request(
             self.session.as_ref(),
             identity,
-            HistoryOperation::DeleteEntry,
+            CanopyOperation::DeleteHistoryEntry,
             || Request::new(request.clone()),
             move |request| {
                 let mut client = client.clone();
@@ -178,7 +159,7 @@ impl HistoryPort for CanopyHistoryClient {
         let response = execute_history_request(
             self.session.as_ref(),
             identity,
-            HistoryOperation::Clear,
+            CanopyOperation::ClearHistory,
             || Request::new(ClearHistoryRequest {}),
             move |request| {
                 let mut client = client.clone();
@@ -194,7 +175,7 @@ impl HistoryPort for CanopyHistoryClient {
 async fn execute_history_request<TRequest, TResponse, MakeRequest, Execute, ExecuteFuture>(
     session: &SessionCoordinator,
     identity: &EngineHistoryIdentity,
-    operation: HistoryOperation,
+    operation: CanopyOperation,
     make_request: MakeRequest,
     execute: Execute,
 ) -> Result<tonic_014::Response<TResponse>, EngineError>
@@ -204,11 +185,7 @@ where
     ExecuteFuture:
         std::future::Future<Output = Result<tonic_014::Response<TResponse>, tonic_014::Status>>,
 {
-    let policy = match history_retry_class(operation) {
-        RetryClass::Read | RetryClass::IdempotentMutation => ReplayPolicy::Safe,
-        RetryClass::NonReplayableMutation | RetryClass::Refresh => ReplayPolicy::NonIdempotent,
-    };
-    execute_with_bound_auth(session, identity, policy, make_request, execute).await
+    execute_with_bound_auth(session, identity, operation, make_request, execute).await
 }
 
 fn map_settings(settings: HistorySettings) -> EngineHistorySettings {
@@ -319,26 +296,6 @@ mod tests {
             .unwrap()
             .deleted_count,
             7
-        );
-        assert_eq!(
-            history_retry_class(HistoryOperation::GetSettings),
-            RetryClass::Read
-        );
-        assert_eq!(
-            history_retry_class(HistoryOperation::UpdateSettings),
-            RetryClass::IdempotentMutation
-        );
-        assert_eq!(
-            history_retry_class(HistoryOperation::Record),
-            RetryClass::NonReplayableMutation
-        );
-        assert_eq!(
-            history_retry_class(HistoryOperation::DeleteEntry),
-            RetryClass::IdempotentMutation
-        );
-        assert_eq!(
-            history_retry_class(HistoryOperation::Clear),
-            RetryClass::IdempotentMutation
         );
     }
 

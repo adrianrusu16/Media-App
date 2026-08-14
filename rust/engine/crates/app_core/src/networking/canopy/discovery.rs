@@ -8,7 +8,8 @@ use crate::{
 };
 
 use super::catalog::{map_page, map_page_request};
-use super::request::{ReplayPolicy, execute_with_bound_auth};
+use super::operation::CanopyOperation;
+use super::request::execute_with_bound_auth;
 use super::sdk::clients::discovery_service_client::DiscoveryServiceClient;
 use super::sdk::resources::{GetDiscoveryFeedRequest, GetDiscoveryFeedResponse};
 use super::{CanopyChannel, SessionCoordinator};
@@ -46,7 +47,7 @@ impl DiscoveryPort for CanopyDiscoveryClient {
         let response = execute_with_bound_auth(
             self.session.as_ref(),
             &bound,
-            ReplayPolicy::Safe,
+            CanopyOperation::GetDiscoveryFeed,
             || Request::new(request.clone()),
             move |request| {
                 let mut client = client.clone();

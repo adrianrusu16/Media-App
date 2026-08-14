@@ -4,11 +4,10 @@ use prost_types_014::value::Kind;
 use prost_types_014::{FieldMask, Struct, Value};
 use tonic_014::Request;
 
-use crate::{
-    EngineError, EngineErrorType, EngineProfile, EngineProfileUpdate, ProfilePort, RetryClass,
-};
+use crate::{EngineError, EngineErrorType, EngineProfile, EngineProfileUpdate, ProfilePort};
 
-use super::request::{ReplayPolicy, execute_with_auth};
+use super::operation::CanopyOperation;
+use super::request::execute as execute_request;
 use super::sdk::clients::profile_service_client::ProfileServiceClient;
 use super::sdk::resources::{
     DeleteProfileRequest, GetPreferencesRequest, GetProfileRequest, Preferences, Profile,
@@ -41,7 +40,7 @@ impl ProfilePort for CanopyProfileClient {
         let client = self.client.clone();
         let response = execute_profile_request(
             self.session.as_ref(),
-            RetryClass::IdempotentMutation,
+            CanopyOperation::UpsertProfile,
             || Request::new(request.clone()),
             move |request| {
                 let mut client = client.clone();
@@ -57,7 +56,7 @@ impl ProfilePort for CanopyProfileClient {
         let client = self.client.clone();
         let response = execute_profile_request(
             self.session.as_ref(),
-            RetryClass::Read,
+            CanopyOperation::GetProfile,
             || Request::new(GetProfileRequest {}),
             move |request| {
                 let mut client = client.clone();
@@ -83,7 +82,7 @@ impl ProfilePort for CanopyProfileClient {
         let client = self.client.clone();
         let response = execute_profile_request(
             self.session.as_ref(),
-            RetryClass::NonReplayableMutation,
+            CanopyOperation::UpdateProfile,
             || Request::new(request.clone()),
             move |request| {
                 let mut client = client.clone();
@@ -99,7 +98,7 @@ impl ProfilePort for CanopyProfileClient {
         let client = self.client.clone();
         execute_profile_request(
             self.session.as_ref(),
-            RetryClass::NonReplayableMutation,
+            CanopyOperation::DeleteProfile,
             || Request::new(DeleteProfileRequest {}),
             move |request| {
                 let mut client = client.clone();
@@ -116,7 +115,7 @@ impl ProfilePort for CanopyProfileClient {
         let client = self.client.clone();
         let preferences = execute_profile_request(
             self.session.as_ref(),
-            RetryClass::Read,
+            CanopyOperation::GetPreferences,
             || Request::new(GetPreferencesRequest {}),
             move |request| {
                 let mut client = client.clone();
@@ -140,7 +139,7 @@ impl ProfilePort for CanopyProfileClient {
         let client = self.client.clone();
         let preferences = execute_profile_request(
             self.session.as_ref(),
-            RetryClass::IdempotentMutation,
+            CanopyOperation::UpdatePreferences,
             || Request::new(request.clone()),
             move |request| {
                 let mut client = client.clone();
@@ -155,7 +154,7 @@ impl ProfilePort for CanopyProfileClient {
 
 async fn execute_profile_request<TRequest, TResponse, MakeRequest, Execute, ExecuteFuture>(
     session: &SessionCoordinator,
-    retry_class: RetryClass,
+    operation: CanopyOperation,
     make_request: MakeRequest,
     execute: Execute,
 ) -> Result<tonic_014::Response<TResponse>, EngineError>
@@ -165,11 +164,7 @@ where
     ExecuteFuture:
         std::future::Future<Output = Result<tonic_014::Response<TResponse>, tonic_014::Status>>,
 {
-    let policy = match retry_class {
-        RetryClass::Read | RetryClass::IdempotentMutation => ReplayPolicy::Safe,
-        RetryClass::NonReplayableMutation | RetryClass::Refresh => ReplayPolicy::NonIdempotent,
-    };
-    execute_with_auth(Some(session), policy, make_request, execute).await
+    execute_request(Some(session), operation, make_request, execute).await
 }
 
 fn map_profile(wire: Profile) -> Result<EngineProfile, EngineError> {

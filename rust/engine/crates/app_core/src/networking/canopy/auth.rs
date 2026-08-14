@@ -1,20 +1,19 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use tonic_014::metadata::MetadataValue;
+use tonic_014::metadata::{Ascii, MetadataValue};
 use tonic_014::transport::Channel;
-use tonic_014::{Code, Request, Status};
+use tonic_014::{Request, Status};
 
 use crate::{
-    Account, AccountOperation, AccountPort, AuthPort, AuthRequestAcceptance, AuthSession,
-    AuthSessionEnvelope, EngineAccountIdentity, EngineError, EngineErrorType,
-    EngineHistoryIdentity, EnginePageRequest, EnginePageToken, EnginePagedResult, RetryClass,
-    account_retry_class,
+    Account, AccountPort, AuthPort, AuthRequestAcceptance, AuthSession, AuthSessionEnvelope,
+    EngineAccountIdentity, EngineError, EngineErrorType, EngineHistoryIdentity, EnginePageRequest,
+    EnginePageToken, EnginePagedResult,
 };
 
 use super::catalog::map_page_request;
-use super::error::map_status;
-use super::request::{ReplayPolicy, execute_with_bound_auth};
+use super::operation::CanopyOperation;
+use super::request::{execute, execute_with_bound_auth};
 use super::sdk::{
     clients::auth_service_client::AuthServiceClient,
     resources::{
@@ -57,7 +56,7 @@ impl AccountPort for CanopyAuthClient {
         let response = self
             .execute_account(
                 identity,
-                AccountOperation::GetAccount,
+                CanopyOperation::GetAccount,
                 || Request::new(GetAccountRequest {}),
                 |mut client, request| async move { client.get_account(request).await },
             )
@@ -77,7 +76,7 @@ impl AccountPort for CanopyAuthClient {
         let response = self
             .execute_account(
                 identity,
-                AccountOperation::ListSessions,
+                CanopyOperation::ListSessions,
                 || Request::new(request.clone()),
                 |mut client, request| async move { client.list_sessions(request).await },
             )
@@ -103,7 +102,7 @@ impl AccountPort for CanopyAuthClient {
         };
         self.execute_account(
             identity,
-            AccountOperation::RevokeSession,
+            CanopyOperation::RevokeSession,
             || Request::new(request.clone()),
             |mut client, request| async move { client.revoke_session(request).await },
         )
@@ -114,7 +113,7 @@ impl AccountPort for CanopyAuthClient {
     async fn delete_account(&self, identity: &EngineAccountIdentity) -> Result<(), EngineError> {
         self.execute_account(
             identity,
-            AccountOperation::DeleteAccount,
+            CanopyOperation::DeleteAccount,
             || Request::new(DeleteAccountRequest {}),
             |mut client, request| async move { client.delete_account(request).await },
         )
@@ -133,7 +132,7 @@ impl CanopyAuthClient {
     async fn execute_account<TRequest, TResponse, MakeRequest, Execute, ExecuteFuture>(
         &self,
         identity: &EngineAccountIdentity,
-        operation: AccountOperation,
+        operation: CanopyOperation,
         make_request: MakeRequest,
         execute: Execute,
     ) -> Result<tonic_014::Response<TResponse>, EngineError>
@@ -147,14 +146,10 @@ impl CanopyAuthClient {
             .as_ref()
             .ok_or_else(protected_client_unavailable)?;
         let client = self.client.clone();
-        let policy = match account_retry_class(operation) {
-            RetryClass::Read | RetryClass::IdempotentMutation => ReplayPolicy::Safe,
-            RetryClass::NonReplayableMutation | RetryClass::Refresh => ReplayPolicy::NonIdempotent,
-        };
         execute_with_bound_auth(
             session,
             &bound_identity(identity),
-            policy,
+            operation,
             make_request,
             move |request| execute(client.clone(), request),
         )
@@ -184,22 +179,34 @@ impl AuthPort for CanopyAuthClient {
         email: &str,
         password: &str,
     ) -> Result<AuthRequestAcceptance, EngineError> {
-        let mut client = self.client.clone();
-        let response = client
-            .register_password(register_request(email, password))
-            .await
-            .map_err(map_status)?
-            .into_inner();
+        let client = self.client.clone();
+        let response = execute(
+            None,
+            CanopyOperation::RegisterPassword,
+            || register_request(email, password),
+            move |request| {
+                let mut client = client.clone();
+                async move { client.register_password(request).await }
+            },
+        )
+        .await?
+        .into_inner();
         Ok(AuthRequestAcceptance::new(response.accepted))
     }
 
     async fn resend_verification(&self, email: &str) -> Result<AuthRequestAcceptance, EngineError> {
-        let mut client = self.client.clone();
-        let response = client
-            .resend_verification(resend_request(email))
-            .await
-            .map_err(map_status)?
-            .into_inner();
+        let client = self.client.clone();
+        let response = execute(
+            None,
+            CanopyOperation::ResendVerification,
+            || resend_request(email),
+            move |request| {
+                let mut client = client.clone();
+                async move { client.resend_verification(request).await }
+            },
+        )
+        .await?
+        .into_inner();
         Ok(AuthRequestAcceptance::new(response.accepted))
     }
 
@@ -208,12 +215,18 @@ impl AuthPort for CanopyAuthClient {
         verification_token: &str,
         device_label: &str,
     ) -> Result<AuthSessionEnvelope, EngineError> {
-        let mut client = self.client.clone();
-        let response = client
-            .verify_email(verify_request(verification_token, device_label))
-            .await
-            .map_err(map_status)?
-            .into_inner();
+        let client = self.client.clone();
+        let response = execute(
+            None,
+            CanopyOperation::VerifyEmail,
+            || verify_request(verification_token, device_label),
+            move |request| {
+                let mut client = client.clone();
+                async move { client.verify_email(request).await }
+            },
+        )
+        .await?
+        .into_inner();
         map_session_envelope(response)
     }
 
@@ -223,12 +236,18 @@ impl AuthPort for CanopyAuthClient {
         password: &str,
         device_label: &str,
     ) -> Result<AuthSessionEnvelope, EngineError> {
-        let mut client = self.client.clone();
-        let response = client
-            .login_password(login_request(email, password, device_label))
-            .await
-            .map_err(map_status)?
-            .into_inner();
+        let client = self.client.clone();
+        let response = execute(
+            None,
+            CanopyOperation::LoginPassword,
+            || login_request(email, password, device_label),
+            move |request| {
+                let mut client = client.clone();
+                async move { client.login_password(request).await }
+            },
+        )
+        .await?
+        .into_inner();
         map_session_envelope(response)
     }
 
@@ -236,21 +255,34 @@ impl AuthPort for CanopyAuthClient {
         &self,
         refresh_token: &str,
     ) -> Result<AuthSessionEnvelope, EngineError> {
-        let mut client = self.client.clone();
-        let response = client
-            .refresh_session(refresh_request(refresh_token))
-            .await
-            .map_err(map_status)?
-            .into_inner();
+        let client = self.client.clone();
+        let response = execute(
+            None,
+            CanopyOperation::RefreshSession,
+            || refresh_request(refresh_token),
+            move |request| {
+                let mut client = client.clone();
+                async move { client.refresh_session(request).await }
+            },
+        )
+        .await?
+        .into_inner();
         map_session_envelope(response)
     }
 
     async fn logout(&self, access_token: &str) -> Result<(), EngineError> {
-        let mut client = self.client.clone();
-        client
-            .logout(logout_request(access_token)?)
-            .await
-            .map_err(map_protected_status)?;
+        let authorization = authorization_metadata(access_token)?;
+        let client = self.client.clone();
+        execute(
+            None,
+            CanopyOperation::Logout,
+            || logout_request_with_authorization(authorization.clone()),
+            move |request| {
+                let mut client = client.clone();
+                async move { client.logout(request).await }
+            },
+        )
+        .await?;
         Ok(())
     }
 }
@@ -289,12 +321,26 @@ fn refresh_request(refresh_token: &str) -> Request<RefreshSessionRequest> {
     })
 }
 
+#[cfg(test)]
 fn logout_request(access_token: &str) -> Result<Request<LogoutRequest>, EngineError> {
+    Ok(logout_request_with_authorization(authorization_metadata(
+        access_token,
+    )?))
+}
+
+fn authorization_metadata(access_token: &str) -> Result<MetadataValue<Ascii>, EngineError> {
+    MetadataValue::try_from(format!("Bearer {access_token}"))
+        .map_err(|_| invalid_authorization_metadata())
+}
+
+fn logout_request_with_authorization(
+    authorization: MetadataValue<Ascii>,
+) -> Request<LogoutRequest> {
     let mut request = request_with_timeout(LogoutRequest {});
-    let value = MetadataValue::try_from(format!("Bearer {access_token}"))
-        .map_err(|_| invalid_authorization_metadata())?;
-    request.metadata_mut().insert("authorization", value);
-    Ok(request)
+    request
+        .metadata_mut()
+        .insert("authorization", authorization);
+    request
 }
 
 fn request_with_timeout<T>(message: T) -> Request<T> {
@@ -391,18 +437,6 @@ fn timestamp_to_epoch_millis(timestamp: Timestamp) -> Result<u64, EngineError> {
 
 const PROTOBUF_TIMESTAMP_MAX_SECONDS: i64 = 253_402_300_799;
 
-fn map_protected_status(status: Status) -> EngineError {
-    if status.code() == Code::Unauthenticated {
-        EngineError::new(
-            EngineErrorType::AuthExpired,
-            "backend access credential expired",
-            false,
-        )
-    } else {
-        map_status(status)
-    }
-}
-
 fn mapping_defect() -> EngineError {
     EngineError::new(
         EngineErrorType::MappingDefect,
@@ -422,8 +456,8 @@ fn invalid_authorization_metadata() -> EngineError {
 #[cfg(test)]
 mod tests {
     use super::{
-        login_request, logout_request, map_protected_status, map_session_envelope, refresh_request,
-        register_request, resend_request, verify_request,
+        login_request, logout_request, map_session_envelope, refresh_request, register_request,
+        resend_request, verify_request,
     };
     use crate::EngineErrorType;
     use crate::networking::canopy::sdk::resources::{
@@ -636,13 +670,5 @@ mod tests {
         assert_eq!(error.error_type, EngineErrorType::InvalidInput);
         assert!(!error.message.contains(token));
         assert!(!error.message.contains("secret"));
-    }
-
-    #[test]
-    fn unauthenticated_protected_call_maps_to_auth_expired() {
-        let error = map_protected_status(tonic_014::Status::unauthenticated("ignored"));
-
-        assert_eq!(error.error_type, EngineErrorType::AuthExpired);
-        assert!(!error.message.contains("ignored"));
     }
 }

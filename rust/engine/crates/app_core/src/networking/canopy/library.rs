@@ -4,11 +4,12 @@ use tonic_014::Request;
 
 use crate::{
     EngineError, EngineErrorType, EngineHistoryIdentity, EngineLibraryIdentity, EngineLibraryTrack,
-    EnginePageRequest, EnginePageToken, EnginePagedResult, LibraryPort, RetryClass,
+    EnginePageRequest, EnginePageToken, EnginePagedResult, LibraryPort,
 };
 
 use super::catalog::{map_page_request, map_track_summary};
-use super::request::{ReplayPolicy, execute_with_bound_auth};
+use super::operation::CanopyOperation;
+use super::request::execute_with_bound_auth;
 use super::sdk::clients::library_service_client::LibraryServiceClient;
 use super::sdk::resources::{
     LikeTrackRequest, LikedTrack, ListLikedTracksRequest, ListLikedTracksResponse,
@@ -32,26 +33,6 @@ impl CanopyLibraryClient {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum LibraryOperation {
-    Save,
-    RemoveSaved,
-    ListSaved,
-    Like,
-    Unlike,
-    ListLiked,
-}
-
-fn library_retry_class(operation: LibraryOperation) -> RetryClass {
-    match operation {
-        LibraryOperation::ListSaved | LibraryOperation::ListLiked => RetryClass::Read,
-        LibraryOperation::Save
-        | LibraryOperation::RemoveSaved
-        | LibraryOperation::Like
-        | LibraryOperation::Unlike => RetryClass::IdempotentMutation,
-    }
-}
-
 #[async_trait::async_trait]
 impl LibraryPort for CanopyLibraryClient {
     async fn save(
@@ -67,7 +48,7 @@ impl LibraryPort for CanopyLibraryClient {
         let response = execute_library_request(
             self.session.as_ref(),
             identity,
-            LibraryOperation::Save,
+            CanopyOperation::SaveTrack,
             || Request::new(request.clone()),
             move |request| {
                 let mut client = client.clone();
@@ -92,7 +73,7 @@ impl LibraryPort for CanopyLibraryClient {
         execute_library_request(
             self.session.as_ref(),
             identity,
-            LibraryOperation::RemoveSaved,
+            CanopyOperation::RemoveSavedTrack,
             || Request::new(request.clone()),
             move |request| {
                 let mut client = client.clone();
@@ -115,7 +96,7 @@ impl LibraryPort for CanopyLibraryClient {
         let response = execute_library_request(
             self.session.as_ref(),
             identity,
-            LibraryOperation::ListSaved,
+            CanopyOperation::ListSavedTracks,
             || Request::new(request.clone()),
             move |request| {
                 let mut client = client.clone();
@@ -140,7 +121,7 @@ impl LibraryPort for CanopyLibraryClient {
         let response = execute_library_request(
             self.session.as_ref(),
             identity,
-            LibraryOperation::Like,
+            CanopyOperation::LikeTrack,
             || Request::new(request.clone()),
             move |request| {
                 let mut client = client.clone();
@@ -165,7 +146,7 @@ impl LibraryPort for CanopyLibraryClient {
         execute_library_request(
             self.session.as_ref(),
             identity,
-            LibraryOperation::Unlike,
+            CanopyOperation::UnlikeTrack,
             || Request::new(request.clone()),
             move |request| {
                 let mut client = client.clone();
@@ -188,7 +169,7 @@ impl LibraryPort for CanopyLibraryClient {
         let response = execute_library_request(
             self.session.as_ref(),
             identity,
-            LibraryOperation::ListLiked,
+            CanopyOperation::ListLikedTracks,
             || Request::new(request.clone()),
             move |request| {
                 let mut client = client.clone();
@@ -204,7 +185,7 @@ impl LibraryPort for CanopyLibraryClient {
 async fn execute_library_request<TRequest, TResponse, MakeRequest, Execute, ExecuteFuture>(
     session: &SessionCoordinator,
     identity: &EngineLibraryIdentity,
-    operation: LibraryOperation,
+    operation: CanopyOperation,
     make_request: MakeRequest,
     execute: Execute,
 ) -> Result<tonic_014::Response<TResponse>, EngineError>
@@ -218,11 +199,7 @@ where
         account_id: identity.account_id.clone(),
         session_id: identity.session_id.clone(),
     };
-    let policy = match library_retry_class(operation) {
-        RetryClass::Read | RetryClass::IdempotentMutation => ReplayPolicy::Safe,
-        RetryClass::NonReplayableMutation | RetryClass::Refresh => ReplayPolicy::NonIdempotent,
-    };
-    execute_with_bound_auth(session, &bound, policy, make_request, execute).await
+    execute_with_bound_auth(session, &bound, operation, make_request, execute).await
 }
 
 fn map_saved_response(
@@ -324,10 +301,10 @@ fn mapping_defect(message: &'static str) -> EngineError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::EngineErrorType;
     use crate::networking::canopy::sdk::resources::{
         ArtistSummary, LikedTrack, PageInfo, SavedTrack, TrackSummary,
     };
-    use crate::{EngineErrorType, RetryClass};
 
     fn track(id: &str) -> TrackSummary {
         TrackSummary {
@@ -403,7 +380,7 @@ mod tests {
     }
 
     #[test]
-    fn preserves_opaque_tokens_and_classifies_library_operations() {
+    fn preserves_opaque_tokens() {
         let page = map_saved_page(
             Vec::new(),
             Some(PageInfo {
@@ -412,29 +389,5 @@ mod tests {
         )
         .unwrap();
         assert_eq!(page.next_page_token.unwrap().as_str(), "opaque+/=");
-        assert_eq!(
-            library_retry_class(LibraryOperation::ListSaved),
-            RetryClass::Read
-        );
-        assert_eq!(
-            library_retry_class(LibraryOperation::ListLiked),
-            RetryClass::Read
-        );
-        assert_eq!(
-            library_retry_class(LibraryOperation::Save),
-            RetryClass::IdempotentMutation
-        );
-        assert_eq!(
-            library_retry_class(LibraryOperation::RemoveSaved),
-            RetryClass::IdempotentMutation
-        );
-        assert_eq!(
-            library_retry_class(LibraryOperation::Like),
-            RetryClass::IdempotentMutation
-        );
-        assert_eq!(
-            library_retry_class(LibraryOperation::Unlike),
-            RetryClass::IdempotentMutation
-        );
     }
 }

@@ -9,7 +9,8 @@ use crate::{
 };
 
 use super::CanopyChannel;
-use super::request::{ReplayPolicy, execute_with_auth};
+use super::operation::CanopyOperation;
+use super::request::execute;
 use super::sdk::clients::catalog_service_client::CatalogServiceClient;
 use super::sdk::resources::{
     BrowseRequest, BrowseResponse, GetMediaRequest, PageInfo, PageRequest, SearchRequest,
@@ -58,9 +59,9 @@ impl CatalogPort for CanopyCatalogClient {
             page: Some(map_page_request(page)),
         };
         let client = self.client.clone();
-        let response = execute_with_auth(
+        let response = execute(
             self.session.as_deref(),
-            ReplayPolicy::Safe,
+            CanopyOperation::Browse,
             || Request::new(request.clone()),
             move |request| {
                 let mut client = client.clone();
@@ -82,9 +83,9 @@ impl CatalogPort for CanopyCatalogClient {
             page: Some(map_page_request(page)),
         };
         let client = self.client.clone();
-        let response = execute_with_auth(
+        let response = execute(
             self.session.as_deref(),
-            ReplayPolicy::Safe,
+            CanopyOperation::Search,
             || Request::new(request.clone()),
             move |request| {
                 let mut client = client.clone();
@@ -101,9 +102,9 @@ impl CatalogPort for CanopyCatalogClient {
             track_id: track_id.to_owned(),
         };
         let client = self.client.clone();
-        let response = execute_with_auth(
+        let response = execute(
             self.session.as_deref(),
-            ReplayPolicy::Safe,
+            CanopyOperation::GetMedia,
             || Request::new(request.clone()),
             move |request| {
                 let mut client = client.clone();

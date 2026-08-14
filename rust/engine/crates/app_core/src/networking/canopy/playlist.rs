@@ -5,11 +5,12 @@ use tonic_014::Request;
 use crate::{
     EngineCreatePlaylist, EngineError, EngineErrorType, EnginePageRequest, EnginePageToken,
     EnginePagedResult, EnginePlaylist, EnginePlaylistIdentity, EnginePlaylistTrack,
-    EngineUpdatePlaylist, PlaylistPort, RetryClass,
+    EngineUpdatePlaylist, PlaylistPort,
 };
 
 use super::catalog::{map_page_request, map_track_summary};
-use super::request::{ReplayPolicy, execute_with_bound_auth};
+use super::operation::CanopyOperation;
+use super::request::execute_with_bound_auth;
 use super::sdk::clients::playlist_service_client::PlaylistServiceClient;
 use super::sdk::resources::{
     AddPlaylistTrackRequest, CreatePlaylistRequest, DeletePlaylistRequest, GetPlaylistRequest,
@@ -34,34 +35,6 @@ impl CanopyPlaylistClient {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum PlaylistOperation {
-    Create,
-    Get,
-    Update,
-    Delete,
-    List,
-    AddTrack,
-    RemoveTrack,
-    Reorder,
-    ListTracks,
-}
-
-fn playlist_retry_class(operation: PlaylistOperation) -> RetryClass {
-    match operation {
-        PlaylistOperation::Get | PlaylistOperation::List | PlaylistOperation::ListTracks => {
-            RetryClass::Read
-        }
-        PlaylistOperation::Delete | PlaylistOperation::RemoveTrack => {
-            RetryClass::IdempotentMutation
-        }
-        PlaylistOperation::Create
-        | PlaylistOperation::Update
-        | PlaylistOperation::AddTrack
-        | PlaylistOperation::Reorder => RetryClass::NonReplayableMutation,
-    }
-}
-
 #[async_trait::async_trait]
 impl PlaylistPort for CanopyPlaylistClient {
     async fn create(
@@ -78,7 +51,7 @@ impl PlaylistPort for CanopyPlaylistClient {
         let response = execute_playlist_request(
             self.session.as_ref(),
             identity,
-            PlaylistOperation::Create,
+            CanopyOperation::CreatePlaylist,
             || Request::new(request.clone()),
             move |request| {
                 let mut client = client.clone();
@@ -103,7 +76,7 @@ impl PlaylistPort for CanopyPlaylistClient {
         let response = execute_playlist_request(
             self.session.as_ref(),
             identity,
-            PlaylistOperation::Get,
+            CanopyOperation::GetPlaylist,
             || Request::new(request.clone()),
             move |request| {
                 let mut client = client.clone();
@@ -139,7 +112,7 @@ impl PlaylistPort for CanopyPlaylistClient {
         let response = execute_playlist_request(
             self.session.as_ref(),
             identity,
-            PlaylistOperation::Update,
+            CanopyOperation::UpdatePlaylist,
             || Request::new(request.clone()),
             move |request| {
                 let mut client = client.clone();
@@ -160,7 +133,7 @@ impl PlaylistPort for CanopyPlaylistClient {
         execute_playlist_request(
             self.session.as_ref(),
             identity,
-            PlaylistOperation::Delete,
+            CanopyOperation::DeletePlaylist,
             || Request::new(request.clone()),
             move |request| {
                 let mut client = client.clone();
@@ -183,7 +156,7 @@ impl PlaylistPort for CanopyPlaylistClient {
         let response = execute_playlist_request(
             self.session.as_ref(),
             identity,
-            PlaylistOperation::List,
+            CanopyOperation::ListPlaylists,
             || Request::new(request.clone()),
             move |request| {
                 let mut client = client.clone();
@@ -212,7 +185,7 @@ impl PlaylistPort for CanopyPlaylistClient {
         let response = execute_playlist_request(
             self.session.as_ref(),
             identity,
-            PlaylistOperation::AddTrack,
+            CanopyOperation::AddPlaylistTrack,
             || Request::new(request.clone()),
             move |request| {
                 let mut client = client.clone();
@@ -240,7 +213,7 @@ impl PlaylistPort for CanopyPlaylistClient {
         execute_playlist_request(
             self.session.as_ref(),
             identity,
-            PlaylistOperation::RemoveTrack,
+            CanopyOperation::RemovePlaylistTrack,
             || Request::new(request.clone()),
             move |request| {
                 let mut client = client.clone();
@@ -275,7 +248,7 @@ impl PlaylistPort for CanopyPlaylistClient {
         let response = execute_playlist_request(
             self.session.as_ref(),
             identity,
-            PlaylistOperation::Reorder,
+            CanopyOperation::ReorderPlaylistTracks,
             || Request::new(request.clone()),
             move |request| {
                 let mut client = client.clone();
@@ -302,7 +275,7 @@ impl PlaylistPort for CanopyPlaylistClient {
         let response = execute_playlist_request(
             self.session.as_ref(),
             identity,
-            PlaylistOperation::ListTracks,
+            CanopyOperation::ListPlaylistTracks,
             || Request::new(request.clone()),
             move |request| {
                 let mut client = client.clone();
@@ -318,7 +291,7 @@ impl PlaylistPort for CanopyPlaylistClient {
 async fn execute_playlist_request<TRequest, TResponse, MakeRequest, Execute, ExecuteFuture>(
     session: &SessionCoordinator,
     identity: &EnginePlaylistIdentity,
-    operation: PlaylistOperation,
+    operation: CanopyOperation,
     make_request: MakeRequest,
     execute: Execute,
 ) -> Result<tonic_014::Response<TResponse>, EngineError>
@@ -332,11 +305,7 @@ where
         account_id: identity.account_id.clone(),
         session_id: identity.session_id.clone(),
     };
-    let policy = match playlist_retry_class(operation) {
-        RetryClass::Read | RetryClass::IdempotentMutation => ReplayPolicy::Safe,
-        RetryClass::NonReplayableMutation | RetryClass::Refresh => ReplayPolicy::NonIdempotent,
-    };
-    execute_with_bound_auth(session, &bound, policy, make_request, execute).await
+    execute_with_bound_auth(session, &bound, operation, make_request, execute).await
 }
 
 fn map_playlist_page(
@@ -448,24 +417,4 @@ fn invalid_input(message: impl Into<String>) -> EngineError {
 }
 fn mapping_defect(message: impl Into<String>) -> EngineError {
     EngineError::new(EngineErrorType::MappingDefect, message, false)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn playlist_retry_class_never_replays_non_idempotent_reorder() {
-        assert_eq!(
-            playlist_retry_class(PlaylistOperation::ListTracks),
-            RetryClass::Read
-        );
-        assert_eq!(
-            playlist_retry_class(PlaylistOperation::RemoveTrack),
-            RetryClass::IdempotentMutation
-        );
-        assert_eq!(
-            playlist_retry_class(PlaylistOperation::Reorder),
-            RetryClass::NonReplayableMutation
-        );
-    }
 }

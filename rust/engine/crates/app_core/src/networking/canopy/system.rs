@@ -9,7 +9,8 @@ use crate::{
 };
 
 use super::CanopyChannel;
-use super::error::map_status;
+use super::operation::CanopyOperation;
+use super::request::execute;
 use super::sdk::{
     clients::system_service_client::SystemServiceClient,
     resources::{GetStatusRequest, GetStatusResponse},
@@ -30,12 +31,18 @@ impl CanopySystemClient {
 #[async_trait::async_trait]
 impl SystemPort for CanopySystemClient {
     async fn get_status(&self) -> Result<EngineBackendStatus, EngineError> {
-        let mut client = self.client.clone();
-        let response = client
-            .get_status(status_request())
-            .await
-            .map_err(map_status)?
-            .into_inner();
+        let client = self.client.clone();
+        let response = execute(
+            None,
+            CanopyOperation::GetStatus,
+            status_request,
+            move |request| {
+                let mut client = client.clone();
+                async move { client.get_status(request).await }
+            },
+        )
+        .await?
+        .into_inner();
         map_status_response(response)
     }
 }
