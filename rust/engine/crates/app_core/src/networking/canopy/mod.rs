@@ -15,7 +15,7 @@ mod operation;
 mod playback;
 mod playlist;
 mod request;
-pub(crate) mod sdk;
+mod sdk;
 mod session;
 mod system;
 

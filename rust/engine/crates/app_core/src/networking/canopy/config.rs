@@ -33,10 +33,7 @@ impl std::fmt::Debug for CanopyTlsConfig {
         formatter
             .debug_struct("CanopyTlsConfig")
             .field("server_name", &"[REDACTED]")
-            .field(
-                "private_ca_pem",
-                &self.private_ca_pem.as_ref().map(|_| "[REDACTED]"),
-            )
+            .field("private_ca_pem", &"[REDACTED]")
             .finish()
     }
 }

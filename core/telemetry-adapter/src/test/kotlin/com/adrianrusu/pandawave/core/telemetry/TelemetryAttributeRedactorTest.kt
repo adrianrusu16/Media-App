@@ -77,5 +77,31 @@ class TelemetryAttributeRedactorTest {
         )
     }
 
+    @Test
+    fun `composite iv keys are redacted`() {
+        val redacted = redactor.redact(
+            mapOf(
+                "cipher_iv" to "cipher-iv-value",
+                "payloadIv" to "payload-iv-value",
+                "session-iv" to "session-iv-value"
+            )
+        )
+
+        assertTrue(redacted.values.all { value ->
+            value == TelemetryAttributeRedactor.REDACTED_VALUE
+        })
+    }
+
+    @Test
+    fun `unrelated words containing iv letters remain visible`() {
+        val input = mapOf(
+            "driverState" to "parked",
+            "activity" to "browse",
+            "navigation" to "library"
+        )
+
+        assertEquals(input, redactor.redact(input))
+    }
+
     private fun bearerCredential(value: String): String = "Bearer $value"
 }

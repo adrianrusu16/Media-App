@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::{EngineError, EnginePageRequest, EnginePagedResult, RetryClass};
 
 /// A service-neutral authenticated account resource.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Account {
     pub id: String,
     pub primary_email: String,
@@ -12,8 +12,17 @@ pub struct Account {
     pub created_at_epoch_millis: u64,
 }
 
+impl std::fmt::Debug for Account {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_tuple("Account")
+            .field(&"[REDACTED]")
+            .finish()
+    }
+}
+
 /// A service-neutral authentication session summary.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct AuthSession {
     pub id: String,
     pub device_label: String,
@@ -23,10 +32,28 @@ pub struct AuthSession {
     pub current: bool,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+impl std::fmt::Debug for AuthSession {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_tuple("AuthSession")
+            .field(&"[REDACTED]")
+            .finish()
+    }
+}
+
+#[derive(Clone, Eq, PartialEq)]
 pub struct EngineAccountIdentity {
     pub account_id: String,
     pub session_id: String,
+}
+
+impl std::fmt::Debug for EngineAccountIdentity {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_tuple("EngineAccountIdentity")
+            .field(&"[REDACTED]")
+            .finish()
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -222,7 +249,7 @@ impl std::fmt::Debug for AuthSessionEnvelope {
 }
 
 /// Credential-free authentication state suitable for snapshots and UI-facing projection.
-#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub enum AuthState {
     #[default]
     Anonymous,
@@ -231,6 +258,19 @@ pub enum AuthState {
         session: AuthSession,
     },
     LoginRequired,
+}
+
+impl std::fmt::Debug for AuthState {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Anonymous => formatter.write_str("Anonymous"),
+            Self::Authenticated { .. } => formatter
+                .debug_tuple("Authenticated")
+                .field(&"[REDACTED]")
+                .finish(),
+            Self::LoginRequired => formatter.write_str("LoginRequired"),
+        }
+    }
 }
 
 #[cfg(test)]

@@ -8,7 +8,7 @@ class TelemetryAttributeRedactor(private val sensitiveKeyFragments: Set<String> 
     private fun String.isSensitiveKey(): Boolean {
         val normalizedKey = filter(Char::isLetterOrDigit).lowercase()
 
-        return normalizedKey in EXACT_SENSITIVE_KEYS ||
+        return normalizedKey.endsWith(IV_SUFFIX) ||
             sensitiveKeyFragments.any(normalizedKey::contains)
     }
 
@@ -59,7 +59,7 @@ class TelemetryAttributeRedactor(private val sensitiveKeyFragments: Set<String> 
             "requestbody",
             "responsebody"
         )
-        private val EXACT_SENSITIVE_KEYS = setOf("iv")
+        private const val IV_SUFFIX = "iv"
         private val WHITESPACE_REGEX = Regex("\\s+")
         private val BEARER_CREDENTIAL_REGEX = Regex(
             pattern = "(?i)\\bbearer\\s+[^\\s,;]+"

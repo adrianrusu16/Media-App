@@ -541,7 +541,10 @@ mod tests {
         assert_eq!(credentials.refresh_token_expires_at_epoch_millis, 3_000);
         let state = mapped.state();
         let rendered = format!("{state:?}");
-        assert!(rendered.contains("driver@example.com"));
+        assert!(rendered.contains("[REDACTED]"));
+        assert!(!rendered.contains("account-1"));
+        assert!(!rendered.contains("driver@example.com"));
+        assert!(!rendered.contains("session-1"));
         assert!(!rendered.contains("access-secret"));
         assert!(!rendered.contains("refresh-secret"));
     }

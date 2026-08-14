@@ -1,6 +1,7 @@
 use panda_engine_core::networking::canopy::{CanopyConnectionConfig, DeploymentMode};
 use panda_engine_core::{
-    Account, AuthSession, AuthSessionEnvelope, EnginePlaybackSource, SealedSession,
+    Account, AuthSession, AuthSessionEnvelope, EngineAccountIdentity, EnginePlaybackSource,
+    SealedSession,
 };
 
 const REDACTED: &str = "[REDACTED]";
@@ -28,7 +29,7 @@ fn auth_envelope() -> AuthSessionEnvelope {
     )
 }
 
-fn connection_config() -> CanopyConnectionConfig {
+fn connection_config(with_private_ca: bool) -> CanopyConnectionConfig {
     let json = r#"{
         "schema_version": 1,
         "environment": "private-production-cell",
@@ -62,8 +63,16 @@ fn connection_config() -> CanopyConnectionConfig {
             "password_bootstrap_requires_email_delivery": true
         }
     }"#;
+    let mut json: serde_json::Value = serde_json::from_str(json).unwrap();
+    if !with_private_ca {
+        json["transport"]
+            .as_object_mut()
+            .unwrap()
+            .remove("private_ca_pem");
+    }
 
-    CanopyConnectionConfig::parse_and_validate(json, DeploymentMode::Production).unwrap()
+    CanopyConnectionConfig::parse_and_validate(&json.to_string(), DeploymentMode::Production)
+        .unwrap()
 }
 
 #[test]
@@ -77,6 +86,112 @@ fn canopy_redaction_auth_session_debug_hides_credentials_and_opaque_identity() {
     assert!(!rendered.contains("driver@example.com"));
     assert!(!rendered.contains("session-1"));
     assert!(!rendered.contains("car"));
+}
+
+#[test]
+fn canopy_redaction_auth_state_debug_is_independent_of_identity_values() {
+    let first = format!("{:?}", auth_envelope().state());
+    let second = format!(
+        "{:?}",
+        AuthSessionEnvelope::new(
+            "different-access".into(),
+            7_000,
+            "different-refresh".into(),
+            8_000,
+            Account {
+                id: "account-with-a-different-length".into(),
+                primary_email: "another-driver@example.net".into(),
+                status: "suspended".into(),
+                created_at_epoch_millis: 9_000,
+            },
+            AuthSession {
+                id: "other-session".into(),
+                device_label: "other-device".into(),
+                created_at_epoch_millis: 10_000,
+                last_used_at_epoch_millis: 11_000,
+                expires_at_epoch_millis: 12_000,
+                current: false,
+            },
+        )
+        .state()
+    );
+
+    assert_eq!(first, second);
+    assert!(first.contains(REDACTED));
+    for sensitive in [
+        "account-1",
+        "driver@example.com",
+        "active",
+        "session-1",
+        "car",
+    ] {
+        assert!(!first.contains(sensitive));
+    }
+}
+
+#[test]
+fn canopy_redaction_public_identity_struct_debug_is_constant() {
+    let first_account = format!(
+        "{:?}",
+        Account {
+            id: "account-1".into(),
+            primary_email: "driver@example.com".into(),
+            status: "active".into(),
+            created_at_epoch_millis: 500,
+        }
+    );
+    let second_account = format!(
+        "{:?}",
+        Account {
+            id: "another-account-with-a-different-length".into(),
+            primary_email: "other@example.net".into(),
+            status: "suspended".into(),
+            created_at_epoch_millis: 9_999,
+        }
+    );
+    let first_session = format!(
+        "{:?}",
+        AuthSession {
+            id: "session-1".into(),
+            device_label: "car".into(),
+            created_at_epoch_millis: 1_000,
+            last_used_at_epoch_millis: 1_100,
+            expires_at_epoch_millis: 4_000,
+            current: true,
+        }
+    );
+    let second_session = format!(
+        "{:?}",
+        AuthSession {
+            id: "another-session".into(),
+            device_label: "longer-device-label".into(),
+            created_at_epoch_millis: 8_000,
+            last_used_at_epoch_millis: 8_100,
+            expires_at_epoch_millis: 9_000,
+            current: false,
+        }
+    );
+    let first_identity = format!(
+        "{:?}",
+        EngineAccountIdentity {
+            account_id: "account-1".into(),
+            session_id: "session-1".into(),
+        }
+    );
+    let second_identity = format!(
+        "{:?}",
+        EngineAccountIdentity {
+            account_id: "different-account".into(),
+            session_id: "different-session-with-longer-text".into(),
+        }
+    );
+
+    assert_eq!(first_account, second_account);
+    assert_eq!(first_session, second_session);
+    assert_eq!(first_identity, second_identity);
+    for rendered in [first_account, first_session, first_identity] {
+        assert!(rendered.contains(REDACTED));
+    }
 }
 
 #[test]
@@ -100,7 +215,7 @@ fn canopy_redaction_playback_source_debug_hides_opaque_url() {
 
 #[test]
 fn canopy_redaction_connection_debug_hides_private_infrastructure() {
-    let rendered = format!("{:?}", connection_config());
+    let rendered = format!("{:?}", connection_config(true));
 
     assert!(rendered.contains(REDACTED));
     assert!(!rendered.contains("private-production-cell"));
@@ -109,6 +224,17 @@ fn canopy_redaction_connection_debug_hides_private_infrastructure() {
     assert!(!rendered.contains("api.private.example"));
     assert!(!rendered.contains("BEGIN CERTIFICATE"));
     assert!(!rendered.contains("AQIDBA"));
+}
+
+#[test]
+fn canopy_redaction_tls_debug_does_not_reveal_private_ca_presence() {
+    let configured = format!("{:?}", connection_config(true));
+    let absent = format!("{:?}", connection_config(false));
+
+    assert_eq!(configured, absent);
+    assert!(configured.contains(REDACTED));
+    assert!(!configured.contains("Some"));
+    assert!(!absent.contains("None"));
 }
 
 #[test]

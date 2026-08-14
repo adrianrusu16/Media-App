@@ -66,15 +66,24 @@ jobs:
       - name: Enforce Canopy wire-type boundary
         run: |
           set +e
-          rg -n 'canopy_api_|canopy::v1' app core feature rust/engine/crates/app_core/src --glob '!rust/engine/crates/app_core/src/networking/canopy/**'
+          rg -n 'canopy_api_|canopy::v1|canopy::sdk|networking::canopy::sdk' app core feature rust/engine/crates/app_core/src --glob '!rust/engine/crates/app_core/src/networking/canopy/**'
           scan_status=$?
+          rg -n 'pub(\(crate\))?[[:space:]]+mod[[:space:]]+sdk' rust/engine/crates/app_core/src/networking/canopy/mod.rs
+          visibility_status=$?
           set -e
           if [ "$scan_status" -eq 0 ]; then
             echo "Canopy wire type leaked outside the adapter boundary"
             exit 1
           fi
+          if [ "$visibility_status" -eq 0 ]; then
+            echo "Canopy SDK module is visible outside its adapter"
+            exit 1
+          fi
           if [ "$scan_status" -ne 1 ]; then
             exit "$scan_status"
+          fi
+          if [ "$visibility_status" -ne 1 ]; then
+            exit "$visibility_status"
           fi
 
       - name: Quality, assemble, and test
