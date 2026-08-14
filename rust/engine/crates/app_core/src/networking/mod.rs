@@ -31,7 +31,9 @@ pub use canopy::{
 };
 pub use canopy_tonic_transport::CanopyTonicTransport;
 pub use remote_repository::RemoteRepository;
-pub use retrying_audio_source_client::RetryingAudioSourceClient;
+pub use retrying_audio_source_client::{
+    AudioSourceOperation, AudioSourceRetryPolicy, RetryingAudioSourceClient,
+};
 pub use system_port::SystemPort;
 
 pub use canopy::CanopyProfileClient;

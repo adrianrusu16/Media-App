@@ -5,6 +5,19 @@ use anyhow::Context;
 
 use crate::networking::audio_source_client::{AudioChunk, AudioSourceClient, PlaybackSource};
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AudioSourceOperation {
+    ResolveTrack,
+    PrefetchFull,
+    FetchChunk,
+}
+
+pub type AudioSourceRetryPolicy = fn(AudioSourceOperation, &anyhow::Error) -> bool;
+
+fn never_retry(_: AudioSourceOperation, _: &anyhow::Error) -> bool {
+    false
+}
+
 #[derive(Clone, Copy)]
 enum RetryDelayStrategy {
     Fixed,
@@ -23,7 +36,7 @@ pub struct RetryingAudioSourceClient<C> {
     retry_delay: Duration,
     max_total_retry_delay: Option<Duration>,
     retry_delay_strategy: RetryDelayStrategy,
-    retry_if: fn(&anyhow::Error) -> bool,
+    retry_policy: AudioSourceRetryPolicy,
 }
 
 impl<C> RetryingAudioSourceClient<C>
@@ -37,7 +50,7 @@ where
             retry_delay,
             max_total_retry_delay: None,
             retry_delay_strategy: RetryDelayStrategy::Fixed,
-            retry_if: |_| true,
+            retry_policy: never_retry,
         }
     }
 
@@ -55,7 +68,7 @@ where
             retry_delay_strategy: RetryDelayStrategy::Exponential {
                 max_delay: max_retry_delay,
             },
-            retry_if: |_| true,
+            retry_policy: never_retry,
         }
     }
 
@@ -75,7 +88,7 @@ where
                 max_delay: max_retry_delay,
                 jitter_percent,
             },
-            retry_if: |_| true,
+            retry_policy: never_retry,
         }
     }
 
@@ -83,7 +96,7 @@ where
         inner: Arc<C>,
         max_retries: usize,
         retry_delay: Duration,
-        retry_if: fn(&anyhow::Error) -> bool,
+        retry_policy: AudioSourceRetryPolicy,
     ) -> Self {
         Self {
             inner,
@@ -91,12 +104,12 @@ where
             retry_delay,
             max_total_retry_delay: None,
             retry_delay_strategy: RetryDelayStrategy::Fixed,
-            retry_if,
+            retry_policy,
         }
     }
 
-    pub fn with_retry_policy(mut self, retry_if: fn(&anyhow::Error) -> bool) -> Self {
-        self.retry_if = retry_if;
+    pub fn with_retry_policy(mut self, retry_policy: AudioSourceRetryPolicy) -> Self {
+        self.retry_policy = retry_policy;
         self
     }
 
@@ -174,7 +187,10 @@ where
         loop {
             match self.inner.resolve_track(track_id).await {
                 Ok(source) => return Ok(source),
-                Err(error) if attempts < self.max_retry_attempts && (self.retry_if)(&error) => {
+                Err(error)
+                    if attempts < self.max_retry_attempts
+                        && (self.retry_policy)(AudioSourceOperation::ResolveTrack, &error) =>
+                {
                     attempts += 1;
                     let Some(sleep_delay) =
                         self.retry_sleep_delay_for_attempt(attempts, total_retry_delay)
@@ -205,7 +221,10 @@ where
         loop {
             match self.inner.prefetch_full(source_id).await {
                 Ok(uri) => return Ok(uri),
-                Err(error) if attempts < self.max_retry_attempts && (self.retry_if)(&error) => {
+                Err(error)
+                    if attempts < self.max_retry_attempts
+                        && (self.retry_policy)(AudioSourceOperation::PrefetchFull, &error) =>
+                {
                     attempts += 1;
                     let Some(sleep_delay) =
                         self.retry_sleep_delay_for_attempt(attempts, total_retry_delay)
@@ -240,7 +259,10 @@ where
         loop {
             match self.inner.fetch_chunk(source_id, from_chunk_index).await {
                 Ok(chunk) => return Ok(chunk),
-                Err(error) if attempts < self.max_retry_attempts && (self.retry_if)(&error) => {
+                Err(error)
+                    if attempts < self.max_retry_attempts
+                        && (self.retry_policy)(AudioSourceOperation::FetchChunk, &error) =>
+                {
                     attempts += 1;
                     let Some(sleep_delay) =
                         self.retry_sleep_delay_for_attempt(attempts, total_retry_delay)
@@ -280,10 +302,27 @@ mod tests {
 
     impl std::error::Error for RetryPolicyError {}
 
-    fn is_retryable_test_error(error: &anyhow::Error) -> bool {
-        error
-            .downcast_ref::<RetryPolicyError>()
-            .is_some_and(|error| error.0)
+    fn is_retryable_test_error_for(
+        expected: AudioSourceOperation,
+        actual: AudioSourceOperation,
+        error: &anyhow::Error,
+    ) -> bool {
+        actual == expected
+            && error
+                .downcast_ref::<RetryPolicyError>()
+                .is_some_and(|error| error.0)
+    }
+
+    fn retry_resolve_track(operation: AudioSourceOperation, error: &anyhow::Error) -> bool {
+        is_retryable_test_error_for(AudioSourceOperation::ResolveTrack, operation, error)
+    }
+
+    fn retry_prefetch_full(operation: AudioSourceOperation, error: &anyhow::Error) -> bool {
+        is_retryable_test_error_for(AudioSourceOperation::PrefetchFull, operation, error)
+    }
+
+    fn retry_fetch_chunk(operation: AudioSourceOperation, error: &anyhow::Error) -> bool {
+        is_retryable_test_error_for(AudioSourceOperation::FetchChunk, operation, error)
     }
 
     #[test]
@@ -361,33 +400,64 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn resolve_track_retries_until_success() {
+    async fn resolve_track_default_policy_does_not_retry_unclassified_error() {
         let mut client = MockAudioSourceClient::new();
-        let mut calls = 0;
-
-        client.expect_resolve_track().times(2).returning(move |_| {
-            calls += 1;
-            if calls == 1 {
-                Err(anyhow::anyhow!("transient: unavailable"))
-            } else {
-                Ok(PlaybackSource {
-                    source_id: "source-1".to_string(),
-                    uri: "https://example.test/stream/source-1".to_string(),
-                    mime_type: Some("audio/mpeg".to_string()),
-                    expected_duration_ms: Some(210_000),
-                })
-            }
-        });
+        client
+            .expect_resolve_track()
+            .times(1)
+            .returning(|_| Err(anyhow::anyhow!("unclassified resolve failure")));
 
         let retrying =
-            RetryingAudioSourceClient::new(Arc::new(client), 1, Duration::from_millis(1));
-        let result = retrying.resolve_track("track-1").await.unwrap();
+            RetryingAudioSourceClient::new(Arc::new(client), 3, Duration::from_millis(1));
+        let error = retrying.resolve_track("track-1").await.unwrap_err();
 
-        assert_eq!(result.source_id, "source-1");
+        assert!(
+            error
+                .to_string()
+                .contains("resolve_track failed after 1 attempt(s)")
+        );
     }
 
     #[tokio::test]
-    async fn resolve_track_retry_policy_retries_retryable_grpc_status() {
+    async fn prefetch_full_default_policy_does_not_retry_unclassified_error() {
+        let mut client = MockAudioSourceClient::new();
+        client
+            .expect_prefetch_full()
+            .times(1)
+            .returning(|_| Err(anyhow::anyhow!("unclassified prefetch failure")));
+
+        let retrying =
+            RetryingAudioSourceClient::new(Arc::new(client), 3, Duration::from_millis(1));
+        let error = retrying.prefetch_full("source-1").await.unwrap_err();
+
+        assert!(
+            error
+                .to_string()
+                .contains("prefetch_full failed after 1 attempt(s)")
+        );
+    }
+
+    #[tokio::test]
+    async fn fetch_chunk_default_policy_does_not_retry_unclassified_error() {
+        let mut client = MockAudioSourceClient::new();
+        client
+            .expect_fetch_chunk()
+            .times(1)
+            .returning(|_, _| Err(anyhow::anyhow!("unclassified chunk failure")));
+
+        let retrying =
+            RetryingAudioSourceClient::new(Arc::new(client), 3, Duration::from_millis(1));
+        let error = retrying.fetch_chunk("source-1", 3).await.unwrap_err();
+
+        assert!(
+            error
+                .to_string()
+                .contains("fetch_chunk failed after 1 attempt(s)")
+        );
+    }
+
+    #[tokio::test]
+    async fn resolve_track_uses_its_named_retry_policy() {
         let mut client = MockAudioSourceClient::new();
         let mut calls = 0;
 
@@ -409,7 +479,7 @@ mod tests {
             Arc::new(client),
             2,
             Duration::from_millis(1),
-            is_retryable_test_error,
+            retry_resolve_track,
         );
         let result = retrying.resolve_track("track-1").await.unwrap();
 
@@ -428,7 +498,7 @@ mod tests {
             Arc::new(client),
             3,
             Duration::from_millis(1),
-            is_retryable_test_error,
+            retry_resolve_track,
         );
         let error = retrying.resolve_track("bad-track").await.unwrap_err();
 
@@ -454,7 +524,7 @@ mod tests {
             Duration::from_millis(4),
             20,
         )
-        .with_retry_policy(is_retryable_test_error);
+        .with_retry_policy(retry_resolve_track);
         let error = retrying.resolve_track("bad-track").await.unwrap_err();
 
         assert!(
@@ -465,41 +535,38 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn prefetch_non_retryable_error_fails_immediately() {
+    async fn prefetch_full_uses_its_named_retry_policy() {
         let mut client = MockAudioSourceClient::new();
-        client
-            .expect_prefetch_full()
-            .times(1)
-            .returning(|_| Err(anyhow::anyhow!("fatal: unauthorized")));
-
-        fn retry_only_transient(error: &anyhow::Error) -> bool {
-            error.to_string().contains("transient")
-        }
+        let mut calls = 0;
+        client.expect_prefetch_full().times(2).returning(move |_| {
+            calls += 1;
+            if calls == 1 {
+                Err(anyhow::Error::new(RetryPolicyError(true)))
+            } else {
+                Ok("file:///cached/source-1".to_string())
+            }
+        });
 
         let retrying = RetryingAudioSourceClient::new_with_policy(
             Arc::new(client),
-            3,
+            2,
             Duration::from_millis(1),
-            retry_only_transient,
+            retry_prefetch_full,
         );
-        let error = retrying.prefetch_full("source-1").await.unwrap_err();
+        let uri = retrying.prefetch_full("source-1").await.unwrap();
 
-        assert!(
-            error
-                .to_string()
-                .contains("prefetch_full failed after 1 attempt(s)")
-        );
+        assert_eq!(uri, "file:///cached/source-1");
     }
 
     #[tokio::test]
-    async fn fetch_chunk_retryable_error_retries_and_succeeds() {
+    async fn fetch_chunk_uses_its_named_retry_policy() {
         let mut client = MockAudioSourceClient::new();
         let mut calls = 0;
 
         client.expect_fetch_chunk().times(2).returning(move |_, _| {
             calls += 1;
             if calls == 1 {
-                Err(anyhow::anyhow!("transient: timeout"))
+                Err(anyhow::Error::new(RetryPolicyError(true)))
             } else {
                 Ok(AudioChunk {
                     source_id: "source-1".to_string(),
@@ -510,15 +577,11 @@ mod tests {
             }
         });
 
-        fn retry_only_transient(error: &anyhow::Error) -> bool {
-            error.to_string().contains("transient")
-        }
-
         let retrying = RetryingAudioSourceClient::new_with_policy(
             Arc::new(client),
             2,
             Duration::from_millis(1),
-            retry_only_transient,
+            retry_fetch_chunk,
         );
         let chunk = retrying.fetch_chunk("source-1", 3).await.unwrap();
 

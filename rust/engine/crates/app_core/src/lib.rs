@@ -98,10 +98,11 @@ pub use crate::model::playlist::{
 pub use crate::model::preferences::{PreferenceSource, ThemePreference, ThemePreferenceState};
 pub use crate::model::snapshot::EngineSnapshot;
 pub use crate::networking::{
-    AudioChunk, AudioSourceClient, AuthPort, AuthStateProvider, CanopyAuthClient,
-    CanopyCatalogClient, CanopyDiscoveryClient, CanopyHistoryClient, CanopyLibraryClient,
-    CanopyPlaybackClient, CanopyPlaylistClient, CatalogPort, PlaybackPort, PlaybackSource,
-    RemoteRepository, RetryingAudioSourceClient, SessionCoordinator, SystemPort,
+    AudioChunk, AudioSourceClient, AudioSourceOperation, AudioSourceRetryPolicy, AuthPort,
+    AuthStateProvider, CanopyAuthClient, CanopyCatalogClient, CanopyDiscoveryClient,
+    CanopyHistoryClient, CanopyLibraryClient, CanopyPlaybackClient, CanopyPlaylistClient,
+    CatalogPort, PlaybackPort, PlaybackSource, RemoteRepository, RetryingAudioSourceClient,
+    SessionCoordinator, SystemPort,
 };
 pub use crate::services::player::{MediaPlayer, MockPlayer};
 pub use crate::services::playlist_reconciler::PlaylistReconciler;
