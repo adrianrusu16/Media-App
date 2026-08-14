@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use tonic_014::transport::{Channel, Endpoint};
+use tonic_014::transport::{Certificate, Channel, ClientTlsConfig, Endpoint};
 
 use crate::{EngineError, EngineErrorType};
 
@@ -16,7 +16,7 @@ pub struct CanopyChannel {
 
 impl CanopyChannel {
     pub async fn connect(config: &CanopyConnectionConfig) -> Result<Self, EngineError> {
-        let endpoint = Endpoint::from_shared(config.grpc_endpoint().to_string())
+        let mut endpoint = Endpoint::from_shared(config.grpc_endpoint().to_string())
             .map_err(|_| {
                 EngineError::new(
                     EngineErrorType::InvalidInput,
@@ -25,8 +25,26 @@ impl CanopyChannel {
                 )
             })?
             .connect_timeout(CONNECT_TIMEOUT);
+        if config.grpc_endpoint().scheme_str() == Some("https") {
+            let mut tls = ClientTlsConfig::new().domain_name(config.tls_server_name());
+            if let Some(pem) = config.private_ca_pem() {
+                tls = tls.ca_certificate(Certificate::from_pem(pem));
+            }
+            endpoint = endpoint.tls_config(tls).map_err(|_| {
+                EngineError::new(
+                    EngineErrorType::InvalidInput,
+                    "invalid gRPC TLS configuration",
+                    false,
+                )
+            })?;
+        }
         let channel = endpoint.connect().await.map_err(|error| {
-            EngineError::new(EngineErrorType::Transport, error.to_string(), false)
+            let _ = error;
+            EngineError::new(
+                EngineErrorType::Transport,
+                "failed to connect to Canopy",
+                false,
+            )
         })?;
         Ok(Self { channel })
     }

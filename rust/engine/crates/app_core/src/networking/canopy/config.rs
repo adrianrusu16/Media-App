@@ -12,12 +12,31 @@ const PROST_PACKAGE: &str = "pandawave_canopy-api_community_neoeinstein-prost";
 const PROST_VERSION: &str = "=0.5.0-00000000000000-145678c1d73e.2";
 const TONIC_PACKAGE: &str = "pandawave_canopy-api_community_neoeinstein-tonic";
 const TONIC_VERSION: &str = "=0.5.0-00000000000000-145678c1d73e.4";
+const MAX_PUBLIC_CA_PEM_BYTES: usize = 64 * 1024;
 
 /// Security posture supplied by the Android build variant, not by JSON input.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DeploymentMode {
     Development,
     Production,
+}
+
+/// Public TLS trust inputs used when connecting to the Canopy gRPC endpoint.
+#[derive(Clone, Debug, PartialEq)]
+pub struct CanopyTlsConfig {
+    server_name: String,
+    private_ca_pem: Option<Vec<u8>>,
+}
+
+impl CanopyTlsConfig {
+    pub fn server_name(&self) -> &str {
+        &self.server_name
+    }
+
+    /// An optional deployment-supplied public CA certificate chain.
+    pub fn private_ca_pem(&self) -> Option<&[u8]> {
+        self.private_ca_pem.as_deref()
+    }
 }
 
 /// Validated, secret-free public endpoints for the Canopy adapter.
@@ -27,6 +46,7 @@ pub struct CanopyConnectionConfig {
     stream_base_url: Url,
     openapi_url: Url,
     environment: String,
+    tls: CanopyTlsConfig,
 }
 
 impl CanopyConnectionConfig {
@@ -59,12 +79,14 @@ impl CanopyConnectionConfig {
             .map_err(|_| invalid_input("invalid OpenAPI URL"))?;
 
         validate_endpoints(&grpc_endpoint, &stream_base_url, &openapi_url, mode)?;
+        let tls = validate_tls_config(&grpc_endpoint, &raw.transport)?;
 
         Ok(Self {
             grpc_endpoint,
             stream_base_url,
             openapi_url,
             environment: raw.environment,
+            tls,
         })
     }
 
@@ -82,6 +104,14 @@ impl CanopyConnectionConfig {
 
     pub fn environment(&self) -> &str {
         &self.environment
+    }
+
+    pub fn tls_server_name(&self) -> &str {
+        self.tls.server_name()
+    }
+
+    pub fn private_ca_pem(&self) -> Option<&[u8]> {
+        self.tls.private_ca_pem()
     }
 }
 
@@ -115,6 +145,10 @@ struct RawTransport {
     stream_base_url: String,
     openapi_url: String,
     tls_required_outside_loopback: bool,
+    #[serde(default)]
+    tls_server_name: Option<String>,
+    #[serde(default)]
+    private_ca_pem: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -199,6 +233,73 @@ fn validate_endpoints(
     }
 
     Ok(())
+}
+
+fn validate_tls_config(
+    grpc_endpoint: &Uri,
+    transport: &RawTransport,
+) -> Result<CanopyTlsConfig, EngineError> {
+    let grpc_host = grpc_endpoint
+        .host()
+        .ok_or_else(|| invalid_input("gRPC endpoint has no host"))?;
+    let server_name = transport.tls_server_name.as_deref().unwrap_or(grpc_host);
+
+    if server_name.is_empty() || !server_name.eq_ignore_ascii_case(grpc_host) {
+        return Err(invalid_input(
+            "TLS server name must match gRPC endpoint host",
+        ));
+    }
+
+    let private_ca_pem = transport
+        .private_ca_pem
+        .as_deref()
+        .map(validate_public_ca_pem)
+        .transpose()?;
+
+    if private_ca_pem.is_some() && grpc_endpoint.scheme_str() != Some("https") {
+        return Err(EngineError::unsafe_transport());
+    }
+
+    Ok(CanopyTlsConfig {
+        server_name: server_name.to_owned(),
+        private_ca_pem,
+    })
+}
+
+fn validate_public_ca_pem(pem: &str) -> Result<Vec<u8>, EngineError> {
+    if pem.len() > MAX_PUBLIC_CA_PEM_BYTES || !is_public_certificate_chain(pem) {
+        return Err(invalid_input("invalid TLS trust certificate"));
+    }
+
+    Ok(pem.as_bytes().to_vec())
+}
+
+fn is_public_certificate_chain(pem: &str) -> bool {
+    const BEGIN: &str = "-----BEGIN CERTIFICATE-----";
+    const END: &str = "-----END CERTIFICATE-----";
+
+    let mut remaining = pem.trim();
+    let mut certificate_count = 0;
+    while !remaining.is_empty() {
+        let Some(after_begin) = remaining.strip_prefix(BEGIN) else {
+            return false;
+        };
+        let Some((body, after_end)) = after_begin.split_once(END) else {
+            return false;
+        };
+        if body.is_empty()
+            || !body.chars().all(|character| {
+                character.is_ascii_alphanumeric()
+                    || matches!(character, '+' | '/' | '=' | '\r' | '\n')
+            })
+        {
+            return false;
+        }
+        certificate_count += 1;
+        remaining = after_end.trim();
+    }
+
+    certificate_count > 0
 }
 
 fn validate_public_url<'a>(url: &'a Url, label: &str) -> Result<&'a str, EngineError> {

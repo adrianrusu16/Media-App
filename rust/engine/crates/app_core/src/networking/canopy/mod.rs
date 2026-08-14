@@ -22,7 +22,7 @@ pub use crate::networking::backend_client::CatalogPort;
 pub use auth::CanopyAuthClient;
 pub use catalog::CanopyCatalogClient;
 pub use channel::CanopyChannel;
-pub use config::{CanopyConnectionConfig, DeploymentMode};
+pub use config::{CanopyConnectionConfig, CanopyTlsConfig, DeploymentMode};
 pub use discovery::CanopyDiscoveryClient;
 pub use history::CanopyHistoryClient;
 pub use library::CanopyLibraryClient;

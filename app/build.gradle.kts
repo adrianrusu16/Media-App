@@ -1,7 +1,9 @@
 import org.gradle.api.DefaultTask
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.TaskAction
+import org.gradle.api.file.RegularFileProperty
 
 plugins {
     id("pandawave.android.application")
@@ -25,6 +27,22 @@ abstract class VerifyVerificationAppLinkHostTask : DefaultTask() {
                 !host.endsWith(".localhost", ignoreCase = true)
         ) {
             "Release builds require -Ppandawave.verificationAppLinkHost=<public-host>."
+        }
+    }
+}
+
+abstract class VerifyReleaseNetworkSecurityTask : DefaultTask() {
+    @get:InputFile
+    abstract val mergedManifest: RegularFileProperty
+
+    @TaskAction
+    fun verify() {
+        val manifest = mergedManifest.get().asFile.readText()
+        check("android:usesCleartextTraffic=\"false\"" in manifest) {
+            "Release manifest must disable cleartext traffic."
+        }
+        check("android:networkSecurityConfig=\"@xml/network_security_config\"" in manifest) {
+            "Release manifest must use the production network security configuration."
         }
     }
 }
@@ -74,6 +92,21 @@ val verifyReleaseVerificationConfig by tasks.registering(VerifyVerificationAppLi
 
 tasks.matching { it.name == "preReleaseBuild" }.configureEach {
     dependsOn(verifyReleaseVerificationConfig)
+}
+
+val verifyReleaseNetworkSecurityConfig by tasks.registering(VerifyReleaseNetworkSecurityTask::class) {
+    group = "verification"
+    description = "Verifies the merged release manifest rejects cleartext traffic."
+    dependsOn("processReleaseMainManifest")
+    mergedManifest.set(
+        layout.buildDirectory.file(
+            "intermediates/merged_manifest/release/processReleaseMainManifest/AndroidManifest.xml"
+        )
+    )
+}
+
+tasks.matching { it.name == "assembleRelease" }.configureEach {
+    dependsOn(verifyReleaseNetworkSecurityConfig)
 }
 
 dependencies {

@@ -121,3 +121,64 @@ fn production_accepts_public_tls_endpoints() {
             .is_ok()
     );
 }
+
+#[test]
+fn production_accepts_a_tls_server_name_matching_its_grpc_endpoint() {
+    let mut value = valid_connection();
+    value["environment"] = json!("production");
+    value["transport"]["grpc_endpoint"] = json!("https://grpc.canopy.example");
+    value["transport"]["stream_base_url"] = json!("https://stream.canopy.example");
+    value["transport"]["openapi_url"] = json!("https://api.canopy.example/openapi.json");
+    value["transport"]["tls_server_name"] = json!("grpc.canopy.example");
+
+    assert!(
+        CanopyConnectionConfig::parse_and_validate(&value.to_string(), DeploymentMode::Production)
+            .is_ok()
+    );
+}
+
+#[test]
+fn production_rejects_a_tls_server_name_that_differs_from_its_grpc_endpoint() {
+    let mut value = valid_connection();
+    value["environment"] = json!("production");
+    value["transport"]["grpc_endpoint"] = json!("https://grpc.canopy.example");
+    value["transport"]["stream_base_url"] = json!("https://stream.canopy.example");
+    value["transport"]["openapi_url"] = json!("https://api.canopy.example/openapi.json");
+    value["transport"]["tls_server_name"] = json!("other.example");
+
+    let error =
+        CanopyConnectionConfig::parse_and_validate(&value.to_string(), DeploymentMode::Production)
+            .unwrap_err();
+
+    assert_eq!(error.error_type, EngineErrorType::InvalidInput);
+}
+
+#[test]
+fn production_accepts_a_public_ca_certificate_but_rejects_a_private_key() {
+    let mut certificate = valid_connection();
+    certificate["environment"] = json!("production");
+    certificate["transport"]["grpc_endpoint"] = json!("https://grpc.canopy.example");
+    certificate["transport"]["stream_base_url"] = json!("https://stream.canopy.example");
+    certificate["transport"]["openapi_url"] = json!("https://api.canopy.example/openapi.json");
+    certificate["transport"]["private_ca_pem"] =
+        json!("-----BEGIN CERTIFICATE-----\nAQIDBA==\n-----END CERTIFICATE-----");
+
+    assert!(
+        CanopyConnectionConfig::parse_and_validate(
+            &certificate.to_string(),
+            DeploymentMode::Production,
+        )
+        .is_ok()
+    );
+
+    certificate["transport"]["private_ca_pem"] =
+        json!("-----BEGIN PRIVATE KEY-----\nAQIDBA==\n-----END PRIVATE KEY-----");
+    let error = CanopyConnectionConfig::parse_and_validate(
+        &certificate.to_string(),
+        DeploymentMode::Production,
+    )
+    .unwrap_err();
+
+    assert_eq!(error.error_type, EngineErrorType::InvalidInput);
+    assert!(!error.message.contains("PRIVATE KEY"));
+}
