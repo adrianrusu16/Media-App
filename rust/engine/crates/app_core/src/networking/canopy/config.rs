@@ -22,10 +22,23 @@ pub enum DeploymentMode {
 }
 
 /// Public TLS trust inputs used when connecting to the Canopy gRPC endpoint.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct CanopyTlsConfig {
     server_name: String,
     private_ca_pem: Option<Vec<u8>>,
+}
+
+impl std::fmt::Debug for CanopyTlsConfig {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("CanopyTlsConfig")
+            .field("server_name", &"[REDACTED]")
+            .field(
+                "private_ca_pem",
+                &self.private_ca_pem.as_ref().map(|_| "[REDACTED]"),
+            )
+            .finish()
+    }
 }
 
 impl CanopyTlsConfig {
@@ -40,13 +53,26 @@ impl CanopyTlsConfig {
 }
 
 /// Validated, secret-free public endpoints for the Canopy adapter.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct CanopyConnectionConfig {
     grpc_endpoint: Uri,
     stream_base_url: Url,
     openapi_url: Url,
     environment: String,
     tls: CanopyTlsConfig,
+}
+
+impl std::fmt::Debug for CanopyConnectionConfig {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("CanopyConnectionConfig")
+            .field("grpc_endpoint", &"[REDACTED]")
+            .field("stream_base_url", &"[REDACTED]")
+            .field("openapi_url", &"[REDACTED]")
+            .field("environment", &"[REDACTED]")
+            .field("tls", &self.tls)
+            .finish()
+    }
 }
 
 impl CanopyConnectionConfig {

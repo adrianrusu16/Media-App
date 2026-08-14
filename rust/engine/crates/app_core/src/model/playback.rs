@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Opaque, time-limited playback capability resolved by a backend adapter.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct EnginePlaybackSource {
     pub track_id: String,
     pub url: String,
@@ -9,6 +9,20 @@ pub struct EnginePlaybackSource {
     pub codec: String,
     pub duration_millis: u64,
     pub expires_at_epoch_millis: u64,
+}
+
+impl std::fmt::Debug for EnginePlaybackSource {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("EnginePlaybackSource")
+            .field("track_id", &"[REDACTED]")
+            .field("url", &"[REDACTED]")
+            .field("content_type", &self.content_type)
+            .field("codec", &self.codec)
+            .field("duration_millis", &self.duration_millis)
+            .field("expires_at_epoch_millis", &self.expires_at_epoch_millis)
+            .finish()
+    }
 }
 
 /// Represents the current playback status of the media engine.

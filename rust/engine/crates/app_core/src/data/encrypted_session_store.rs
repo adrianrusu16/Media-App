@@ -22,6 +22,17 @@ pub struct SealedSession {
     tag: Vec<u8>,
 }
 
+impl std::fmt::Debug for SealedSession {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("SealedSession")
+            .field("nonce", &"[REDACTED]")
+            .field("ciphertext", &"[REDACTED]")
+            .field("tag", &"[REDACTED]")
+            .finish()
+    }
+}
+
 impl SealedSession {
     pub fn new(nonce: Vec<u8>, ciphertext: Vec<u8>, tag: Vec<u8>) -> Self {
         Self {

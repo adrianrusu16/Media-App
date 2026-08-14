@@ -49,12 +49,41 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
 
+      - name: Scan for Canopy secrets and private infrastructure
+        run: |
+          set +e
+          rg --file config/canopy-secret-patterns.txt app core feature rust --glob '!**/testdata/**'
+          scan_status=$?
+          set -e
+          if [ "$scan_status" -eq 0 ]; then
+            echo "Canopy secret or private-infrastructure pattern detected"
+            exit 1
+          fi
+          if [ "$scan_status" -ne 1 ]; then
+            exit "$scan_status"
+          fi
+
+      - name: Enforce Canopy wire-type boundary
+        run: |
+          set +e
+          rg -n 'canopy_api_|canopy::v1' app core feature rust/engine/crates/app_core/src --glob '!rust/engine/crates/app_core/src/networking/canopy/**'
+          scan_status=$?
+          set -e
+          if [ "$scan_status" -eq 0 ]; then
+            echo "Canopy wire type leaked outside the adapter boundary"
+            exit 1
+          fi
+          if [ "$scan_status" -ne 1 ]; then
+            exit "$scan_status"
+          fi
+
       - name: Quality, assemble, and test
         run: >
           ./gradlew
           --no-configuration-cache
           spotlessCheck
           detekt
+          :core:telemetry-adapter:testDebugUnitTest
           :core:playback:testDebugUnitTest
           :core:media-adapter:testDebugUnitTest
           :app:assembleDebug

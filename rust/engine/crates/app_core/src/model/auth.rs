@@ -212,17 +212,11 @@ impl std::fmt::Debug for AuthSessionEnvelope {
         formatter
             .debug_struct("AuthSessionEnvelope")
             .field("access_token", &"[REDACTED]")
-            .field(
-                "access_token_expires_at_epoch_millis",
-                &self.access_token_expires_at_epoch_millis,
-            )
+            .field("access_token_expires_at_epoch_millis", &"[REDACTED]")
             .field("refresh_token", &"[REDACTED]")
-            .field(
-                "refresh_token_expires_at_epoch_millis",
-                &self.refresh_token_expires_at_epoch_millis,
-            )
-            .field("account", &self.account)
-            .field("session", &self.session)
+            .field("refresh_token_expires_at_epoch_millis", &"[REDACTED]")
+            .field("account", &"[REDACTED]")
+            .field("session", &"[REDACTED]")
             .finish()
     }
 }

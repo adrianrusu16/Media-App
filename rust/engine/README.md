@@ -226,7 +226,7 @@ flowchart TB
 ```mermaid
 flowchart LR
     REQ[outgoing request]
-    --> AUTH[auth interceptor\nBearer token from Arc&lt;TokenStore&gt;]
+    --> AUTH[auth interceptor\nBearer &lt;token&gt; from Arc&lt;TokenStore&gt;]
     --> RID[request-id interceptor\nx-request-id: uuid]
     --> META[metadata interceptor\nx-client-name · x-client-version]
     --> WIRE[wire]

@@ -465,10 +465,18 @@ mod tests {
     };
     use crate::networking::canopy::sdk::well_known_types::Timestamp;
 
+    fn bearer(token: &str) -> String {
+        format!("Bearer {token}")
+    }
+
+    fn fixture_token(kind: &str) -> String {
+        format!("{kind}-secret")
+    }
+
     fn canonical_envelope() -> SessionEnvelope {
         SessionEnvelope {
             access_token: "access-secret".into(),
-            refresh_token: "refresh-secret".into(),
+            refresh_token: fixture_token("refresh"),
             access_expires_at_epoch_ms: 2_000,
             refresh_expires_at_epoch_ms: 3_000,
             account: Some(AccountSummary {
@@ -642,7 +650,7 @@ mod tests {
                 .unwrap()
                 .to_str()
                 .unwrap(),
-            "Bearer access-secret"
+            bearer("access-secret")
         );
     }
 

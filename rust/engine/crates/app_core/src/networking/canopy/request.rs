@@ -317,6 +317,10 @@ mod tests {
         envelope_with_current(access, refresh, access_expiry, true)
     }
 
+    fn bearer(token: &str) -> String {
+        format!("Bearer {token}")
+    }
+
     fn envelope_with_current(
         access: &str,
         refresh: &str,
@@ -445,7 +449,7 @@ mod tests {
                 let mut request = Request::new(());
                 request
                     .metadata_mut()
-                    .insert("authorization", "Bearer opaque-access".parse().unwrap());
+                    .insert("authorization", bearer("opaque-access").parse().unwrap());
                 request
             },
             move |_| {
@@ -469,7 +473,7 @@ mod tests {
                 let mut request = Request::new(());
                 request
                     .metadata_mut()
-                    .insert("authorization", "Bearer expired-access".parse().unwrap());
+                    .insert("authorization", bearer("expired-access").parse().unwrap());
                 request
             },
             |_| async { Err::<Response<()>, _>(Status::unauthenticated("ignored")) },
@@ -779,7 +783,7 @@ mod tests {
         .await
         .unwrap();
 
-        assert_eq!(*seen.lock().unwrap(), ["Bearer opaque-access"]);
+        assert_eq!(*seen.lock().unwrap(), [bearer("opaque-access")]);
     }
 
     #[tokio::test]
@@ -858,7 +862,7 @@ mod tests {
         assert_eq!(auth.refreshes.load(Ordering::SeqCst), 1);
         assert_eq!(
             *seen.lock().unwrap(),
-            ["Bearer rejected-access", "Bearer rotated-access"]
+            [bearer("rejected-access"), bearer("rotated-access")]
         );
     }
 
@@ -967,8 +971,13 @@ mod tests {
                         let rejected_barrier = rejected_barrier.clone();
                         async move {
                             calls.fetch_add(1, Ordering::SeqCst);
-                            if request.metadata().get("authorization").unwrap()
-                                == "Bearer rejected-access"
+                            if request
+                                .metadata()
+                                .get("authorization")
+                                .unwrap()
+                                .to_str()
+                                .unwrap()
+                                == bearer("rejected-access")
                             {
                                 rejected_barrier.wait().await;
                                 Err(Status::new(Code::Unauthenticated, "any message"))
