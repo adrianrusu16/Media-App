@@ -116,6 +116,11 @@ jobs:
         with:
           components: rustfmt, clippy
 
+      - name: Verify immutable Canopy SDK compatibility
+        shell: pwsh
+        working-directory: .
+        run: ./scripts/verify-canopy-sdk.ps1
+
       - name: Check formatting
         run: cargo fmt --check
 
