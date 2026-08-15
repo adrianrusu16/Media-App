@@ -140,10 +140,69 @@ function Assert-ResolvedPackage {
 Assert-ResolvedPackage 'Prost' $expectedProstPackage $expectedProst
 Assert-ResolvedPackage 'Tonic' $expectedTonicPackage $expectedTonic
 
-$artifactRelativePaths = @(
-    'app/src/debug/assets/client-connection.json',
-    'core/rust-bridge/src/androidTest/assets/client-connection.json'
+function Get-RepositoryFiles {
+    param(
+        [Parameter(Mandatory = $true)][string[]]$RelativeRoots,
+        [Parameter(Mandatory = $true)][string[]]$ExcludedDirectoryNames
+    )
+
+    $files = New-Object 'System.Collections.Generic.List[System.IO.FileInfo]'
+    foreach ($relativeRoot in $RelativeRoots) {
+        $scanRoot = Join-Path $repository $relativeRoot
+        if (-not (Test-Path -LiteralPath $scanRoot -PathType Container)) {
+            continue
+        }
+
+        $pendingDirectories = New-Object System.Collections.Stack
+        $pendingDirectories.Push((Get-Item -LiteralPath $scanRoot))
+        while ($pendingDirectories.Count -gt 0) {
+            $directory = $pendingDirectories.Pop()
+            foreach ($child in @(Get-ChildItem -Force -LiteralPath $directory.FullName)) {
+                if ($child.PSIsContainer) {
+                    if ($ExcludedDirectoryNames -cnotcontains $child.Name.ToLowerInvariant()) {
+                        $pendingDirectories.Push($child)
+                    }
+                } else {
+                    $files.Add($child)
+                }
+            }
+        }
+    }
+
+    return $files
+}
+
+function Get-RepositoryRelativePath {
+    param([Parameter(Mandatory = $true)][string]$FullName)
+
+    return $FullName.Substring($repository.Length).TrimStart([char[]]@('\', '/')).Replace('\', '/')
+}
+
+$generatedDirectoryNames = @(
+    '.cache',
+    '.git',
+    '.gradle',
+    '.idea',
+    '.kotlin',
+    'build',
+    'dist',
+    'generated',
+    'graphify-out',
+    'node_modules',
+    'out',
+    'target',
+    'target-codex'
 )
+$artifactFiles = @(Get-RepositoryFiles @('app', 'core', 'feature') $generatedDirectoryNames | Where-Object {
+    $_.Name -ieq 'client-connection.json'
+})
+$artifactRelativePaths = @($artifactFiles | ForEach-Object {
+    Get-RepositoryRelativePath $_.FullName
+} | Sort-Object -Unique)
+if ($artifactRelativePaths.Count -eq 0) {
+    Fail-Verification 'no shipped client-connection.json artifacts were found under app, core, or feature.'
+}
+
 foreach ($relativePath in $artifactRelativePaths) {
     $artifactPath = Join-Path $repository $relativePath
     if (-not (Test-Path -LiteralPath $artifactPath -PathType Leaf)) {
@@ -187,47 +246,60 @@ foreach ($workspacePackageId in @($metadata.workspace_members)) {
     }
 }
 
-$scanRoots = @('rust/engine', 'app', 'core', 'feature', 'scripts', '.github')
-$excludedDirectoryNames = @('build', 'target', 'target-codex', 'graphify-out', '.git', '.gradle', '.idea', 'test', 'tests', 'androidTest')
-$sourceFiles = New-Object 'System.Collections.Generic.List[System.IO.FileInfo]'
-foreach ($relativeRoot in $scanRoots) {
-    $scanRoot = Join-Path $repository $relativeRoot
-    if (Test-Path -LiteralPath $scanRoot) {
-        $pendingDirectories = New-Object System.Collections.Stack
-        $pendingDirectories.Push((Get-Item -LiteralPath $scanRoot))
-        while ($pendingDirectories.Count -gt 0) {
-            $directory = $pendingDirectories.Pop()
-            foreach ($child in @(Get-ChildItem -Force -LiteralPath $directory.FullName)) {
-                if ($child.PSIsContainer) {
-                    if ($excludedDirectoryNames -notcontains $child.Name) {
-                        $pendingDirectories.Push($child)
-                    }
-                } elseif ($child.FullName -cne $PSCommandPath) {
-                    $sourceFiles.Add($child)
-                }
-            }
-        }
-    }
-}
+$productionExcludedDirectoryNames = @($generatedDirectoryNames) + @(
+    '.codex',
+    '.serena',
+    '.superpowers',
+    'androidtest',
+    'docs',
+    'test',
+    'testdata',
+    'tests',
+    'testing'
+)
+$sourceFiles = @(Get-RepositoryFiles @('.') $productionExcludedDirectoryNames | Where-Object {
+    $_.FullName -cne $PSCommandPath
+} | Sort-Object FullName)
 
-$localProto = @($sourceFiles | Where-Object { $_.Extension -ceq '.proto' })
+$localProto = @($sourceFiles | Where-Object { $_.Extension -ieq '.proto' })
 if ($localProto.Count -gt 0) {
-    Fail-Verification "local protobuf inputs are forbidden; use the immutable BSR packages: $($localProto[0].FullName)"
+    $relativeProto = Get-RepositoryRelativePath $localProto[0].FullName
+    Fail-Verification "local protobuf inputs are forbidden; use the immutable BSR packages: $relativeProto"
 }
 
 $openApiGeneratorConfig = @($sourceFiles | Where-Object {
     $_.Name -match '(?i)(openapi-generator|swagger-codegen|oapi-codegen|buf\.gen\.)'
 })
 if ($openApiGeneratorConfig.Count -gt 0) {
-    Fail-Verification "client generation configuration is forbidden: $($openApiGeneratorConfig[0].FullName)"
+    $relativeConfig = Get-RepositoryRelativePath $openApiGeneratorConfig[0].FullName
+    Fail-Verification "client generation configuration is forbidden: $relativeConfig"
 }
 
-$scannableExtensions = @('.rs', '.toml', '.kts', '.gradle', '.ps1', '.sh', '.yml', '.yaml', '.json')
+$scannableExtensions = @(
+    '.bat',
+    '.cmd',
+    '.gradle',
+    '.groovy',
+    '.java',
+    '.json',
+    '.kt',
+    '.kts',
+    '.ps1',
+    '.py',
+    '.rs',
+    '.sh',
+    '.toml',
+    '.yaml',
+    '.yml'
+)
 $generationPattern = '(?i)(tonic[_-]build|prost[_-]build|compile_protos|include_proto!|buf\s+generate|protoc\b|openapi-generator|swagger-codegen|oapi-codegen|openapi[^\r\n]{0,80}(?:generate|codegen)|(?:generate|codegen)[^\r\n]{0,80}openapi)'
-foreach ($sourceFile in @($sourceFiles | Where-Object { $scannableExtensions -ccontains $_.Extension })) {
+foreach ($sourceFile in @($sourceFiles | Where-Object {
+    [string]::IsNullOrEmpty($_.Extension) -or $scannableExtensions -ccontains $_.Extension.ToLowerInvariant()
+})) {
     $sourceText = Get-Content -Raw -LiteralPath $sourceFile.FullName
     if ($sourceText -match $generationPattern) {
-        Fail-Verification "local protobuf or OpenAPI client generation is forbidden: $($sourceFile.FullName)"
+        $relativeSource = Get-RepositoryRelativePath $sourceFile.FullName
+        Fail-Verification "local protobuf or OpenAPI client generation is forbidden: $relativeSource"
     }
 }
 
