@@ -65,8 +65,9 @@ media_app/
 
   rust/
     engine/
-      Rust workspace for auth, API calls, local DB, playback, user state,
-      catalog, sync, telemetry policy, and FFI/AIDL integration support
+      Rust workspace for Canopy auth/API adapters, local encrypted state,
+      playback, user state, catalog, sync, telemetry policy, and FFI/AIDL
+      integration support
 
   build-logic/
     Gradle convention plugins for Android app, Android library, Compose, Hilt,
@@ -82,12 +83,12 @@ app -> feature:appshell
 feature:appshell -> feature:* (navigation destinations, as they become concrete)
 core:playback -> core:automotive
 core:rust-bridge -> AIDL service boundary
-Rust engine -> Supabase, Jamendo, local DB
+Rust engine -> Canopy gRPC, optional provider adapters, local encrypted state
 ```
 
-Feature modules should not call Supabase, Jamendo, SQLite, or native code
-directly. They dispatch user/system events to the engine boundary and render
-snapshots returned by Rust.
+Feature modules should not call Canopy, provider adapters, SQLite, native code,
+or platform cryptographic APIs directly. They dispatch user/system events to
+the engine boundary and render snapshots returned by Rust.
 
 ## Product Flavors
 

@@ -151,9 +151,9 @@ cargo check -p panda_engine_core -p panda_engine_ffi
 - **Middleware Pipeline**: Validation + recovery + telemetry-friendly extension points.
 - **Async Repository Contracts**: Async repository operations and busy-state transitions are explicitly tested.
 - **Transport Isolation**: Core depends on traits (`BackendClient`, `AudioSourceClient`) rather than transport SDKs.
-- **Canopy gRPC Path**: `canopy.proto` + `tonic-build` generated types, channel reuse, interceptor metadata, health mapping.
-- **Progressive Search**: Additive streaming search path for progressive UI consumption.
-- **Retry Hardening**: Backend/audio-source retry wrappers support policy gating, exponential backoff, jitter, and retry time budgets.
+- **Canopy gRPC Path**: pinned BSR Prost/Tonic packages, immutable connection-asset verification, shared channel reuse, operation-aware auth/retry policy, TLS roots, and health mapping.
+- **Paged Search**: Unary `Search` and `Browse` calls preserve opaque continuation tokens for UI pagination.
+- **Retry Hardening**: `CanopyOperation` and `AudioSourceOperation` classify replay safety, authentication requirements, exponential backoff, jitter, and retry time budgets.
 - **Cancellation Safety**: Explicit cancellation coverage for long-running async networking paths.
 
 ## Networking Composition (Current)
@@ -175,7 +175,7 @@ CanopyAudioSourceClient<C>
 flowchart TB
     subgraph FFI[crates/ffi]
         HANDLE[engine_handle]
-        API_CFG[panda_engine_configure_backend]
+        API_CFG[backend configuration entrypoints]
     end
 
     subgraph Core[crates/app_core]
@@ -190,15 +190,15 @@ flowchart TB
         subgraph NetLayer[networking layer]
             RBC[RetryingBackendClient&lt;C&gt;\nexp backoff · jitter · budget · policy]
             RASC[RetryingAudioSourceClient&lt;C&gt;\nsame retry strategy]
-            CASC[CanopyAudioSourceClient&lt;C&gt;\nresolve_track · prefetch]
+            CASC[CanopyAudioSourceClient&lt;C&gt;\nresolve_playback]
             TRANSPORT[CanopyTonicTransport\nArc&lt;Channel&gt; · interceptors]
         end
     end
 
     subgraph Canopy[Canopy gRPC Server]
-        SEARCH[Search\nserver-streaming]
+        SEARCH[Search\nunary paged]
         BROWSE[Browse\nunary]
-        RESOLVE[ResolveTrack\nunary]
+        RESOLVE[ResolvePlayback\nunary]
         HEALTH[Health\nunary]
     end
 
@@ -215,23 +215,23 @@ flowchart TB
 
     TRANSPORT -->|Search| SEARCH
     TRANSPORT -->|Browse| BROWSE
-    TRANSPORT -->|ResolveTrack| RESOLVE
+    TRANSPORT -->|ResolvePlayback| RESOLVE
     TRANSPORT -->|Health| HEALTH
 
     HANDLE -.->|lazy channel connect| TRANSPORT
 ```
 
-### Interceptor chain (per request)
+### Request execution (per RPC)
 
 ```mermaid
 flowchart LR
-    REQ[outgoing request]
-    --> AUTH[auth interceptor\nBearer &lt;token&gt; from Arc&lt;TokenStore&gt;]
-    --> RID[request-id interceptor\nx-request-id: uuid]
-    --> META[metadata interceptor\nx-client-name · x-client-version]
-    --> WIRE[wire]
+    OP[CanopyOperation]
+    --> AUTH[auth requirement\nanonymous · optional access · access · refresh]
+    --> SESSION[SessionCoordinator\nattach or rotate tokens]
+    --> RETRY[retry class\nread · idempotent · non-replayable · refresh]
+    --> DEADLINE[grpc-timeout\ndefault unless already set]
+    --> WIRE[tonic request]
 ```
-
 ## Sequence Diagram: Engine Command Dispatch
 
 ```mermaid
@@ -257,7 +257,7 @@ sequenceDiagram
     FFI-->>AAOS: observer callbacks / effects to execute
 ```
 
-## Sequence Diagram: Progressive Search Stream
+## Sequence Diagram: Paged Search
 
 ```mermaid
 sequenceDiagram
@@ -265,36 +265,24 @@ sequenceDiagram
     participant Repo as RemoteRepository
     participant Retry as RetryingBackendClient
     participant Transport as CanopyTonicTransport
-    participant Canopy as Canopy gRPC Search Stream
+    participant Canopy as Canopy CatalogService
 
-    UI->>Repo: search_stream(query)
-    Repo->>Retry: search_stream(query)
-    Retry->>Transport: open stream attempt #1
-    Transport->>Canopy: Search(query)
+    UI->>Repo: search(query, page)
+    Repo->>Retry: search(query, page)
+    Retry->>Transport: unary Search request
+    Transport->>Canopy: Search(query, PageRequest)
 
-    alt retryable startup failure
+    alt retryable read failure
         Canopy-->>Transport: UNAVAILABLE / DEADLINE_EXCEEDED
-        Transport-->>Retry: mapped error
-        Retry->>Retry: policy + backoff/jitter + budget check
-        Retry->>Transport: open stream attempt #N
+        Transport-->>Retry: canonical mapped error
+        Retry->>Retry: operation policy + backoff/jitter + budget check
+        Retry->>Transport: retry Search request
     end
 
-    Transport-->>Retry: stream opened
-    Retry-->>Repo: MediaItemStream
-
-    loop for each streamed chunk
-        Canopy-->>Transport: SearchResult item
-        Transport-->>Repo: mapped MediaItem
-        Repo-->>UI: progressive item
-    end
-
-    opt cancellation
-        UI--xRepo: drop stream / cancel task
-        Repo--xRetry: stream dropped
-        Retry--xTransport: cancel in-flight stream
-    end
+    Canopy-->>Transport: SearchResponse(tracks, next_page_token)
+    Transport-->>Repo: EnginePagedResult
+    Repo-->>UI: current page + opaque continuation token
 ```
-
 ## FFI Integration Guide (Android)
 
 1. **Package Native Library**: build `libpanda_engine_ffi.so` for supported

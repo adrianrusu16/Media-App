@@ -27,7 +27,7 @@ flowchart TD
     Car["AAOS adapters: UX restrictions, RROs, vehicle signals"]
     Aidl["AIDL engine service contract"]
     Rust["PandaEngine source-of-truth runtime"]
-    Data["Supabase, Jamendo provider, local encrypted DB"]
+    Data["Canopy gRPC backend, optional provider adapters, Rust-owned encrypted local state"]
     Player["Platform player: ExoPlayer or OEM adapter"]
 
     System --> Media3
@@ -62,7 +62,7 @@ bridges, and the Android native packaging lane.
 | Engine boundary | `:core:rust-bridge` | AIDL client, service binding, DTO mapping |
 | Security | `:core:secure-storage-adapter` | Android Keystore bridge for Rust-managed encrypted storage |
 | Observability | `:core:telemetry-adapter` | Platform sinks for logs, crashes, traces, and redacted telemetry |
-| Rust runtime | `:rust:engine` | Auth, API calls, local DB, playback state, catalog, user, sync, telemetry policy |
+| Rust runtime | `:rust:engine` | Canopy auth/API adapters, local encrypted state, playback state, catalog, user, sync, telemetry policy |
 
 ## Naming
 
@@ -94,7 +94,7 @@ bridges, and the Android native packaging lane.
 | 8 | `feat: add Media3 playback foundation` | MediaLibraryService, MediaSession, player adapter, system controls |
 | 9 | `feat: add automotive UX restriction handling` | Restriction monitor, safe navigation rules, simplified restricted mini-player |
 | 10 | `feat: add RRO-ready design tokens` | Overlayable resources and Compose theme bridge |
-| 11 | `feat: add Rust-owned data layer` | Supabase, local DB, provider abstraction, fake providers for tests |
+| 11 | `feat: add Rust-owned data layer` | Canopy-backed catalog/auth/profile data, local encrypted state, provider abstraction, fake providers for tests |
 | 12 | `feat: add settings and profile flows` | User settings, profile state, privacy controls |
 | 13 | `chore: add observability pipeline` | Structured logging, crash reporting, traces, telemetry redaction |
 | 14 | `test: add unit and instrumentation coverage` | Kotlin, Rust, Media3, Compose, and automotive adapter tests |
@@ -180,13 +180,20 @@ AAOS media controls share the same command gating and Rust boundary as in-app co
 
 ## Security Posture
 
-- Never ship Supabase service-role keys or backend-only secrets in the app.
-- Treat the Supabase anon/publishable key as public and rely on Row Level
-  Security, scoped JWTs, and backend-only privileged operations.
-- Keep auth/session, database, and provider logic behind the Rust boundary.
+- Never ship database credentials, SMTP credentials, stream signing material,
+  private authorizer addresses, or other backend-only secrets in the app.
+- Treat `client-connection.json` as a secret-free deployment handoff. It may
+  contain public gRPC, streaming, OpenAPI, verification, and package-version
+  values, but never operator credentials.
+- Keep auth/session rotation, backend operation policy, database, and provider
+  logic behind the Rust boundary. Canopy remains the server-side authorization
+  authority.
+- Require TLS for non-loopback Canopy deployments. Debug loopback cleartext is
+  selected only by the Android service's debuggable application flag.
 - Store encryption material through Android Keystore and expose only a narrow
   platform key provider to Rust.
-- Redact tokens, user identifiers, request bodies, and native errors from logs.
+- Redact tokens, user identifiers, playback capabilities, request bodies,
+  Canopy configuration, TLS trust details, and native errors from logs.
 - Route Android logs and diagnostics through the telemetry adapter so redaction
   is applied before events reach sinks.
 - Use typed errors across AIDL and never expose raw Rust panics to callers.

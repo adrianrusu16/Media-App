@@ -18,7 +18,7 @@ runtime model:
 - `RestrictionState`
 - `Engine` state machine
 - middleware and effects
-- repository, queue, session, persistence, and networking boundaries
+- repository, queue, session, persistence, Canopy adapters, and networking boundaries
 
 The Kotlin AIDL service in `:core:rust-bridge` selects the native PandaEngine
 host through `PandaEngineFactory`. Native-load failures are hard integration
@@ -39,6 +39,27 @@ See [native-engine-host.md](native-engine-host.md) for the by-the-books AIDL,
 JNI, Rust FFI, and PandaEngine hosting boundary. See
 [android-platform-integration.md](android-platform-integration.md) for Android
 surface projection, AAOS integration, content providers, and native packaging.
+
+
+## Canopy Runtime Boundary
+
+PandaEngine talks to Canopy through the pinned BSR Prost/Tonic SDKs and a
+secret-free `client-connection.json` deployment handoff. Kotlin loads that asset
+and passes it to the native host, but Rust validates the schema, immutable SDK
+contract, endpoint rules, authentication metadata shape, and TLS policy before
+installing one shared channel for catalog, playback, system, profile, history,
+library, playlist, discovery, and account/auth clients.
+
+The Canopy adapter owns session coordination and retry policy. A complete
+`SessionEnvelope` is persisted through Rust-owned storage using the Android
+Keystore bridge only for cryptographic operations. `CanopyOperation` is the
+central table for every RPC's authentication requirement and replay class;
+protected calls fail before dispatch when no access session is available, and
+refresh uses a single-use refresh credential path.
+
+Playback uses direct opaque capabilities from `ResolvePlayback`. Android and
+Media3 receive the resolved URL, MIME type, and expiry as data-plane inputs, and
+must preserve the URL byte-for-byte instead of rebuilding or decoding it.
 
 ## Intended Flow
 
@@ -100,8 +121,16 @@ The app build compiles and packages PandaEngine for every supported Android ABI
 by default. Android native packaging and smoke-test commands live in
 [android-platform-integration.md](android-platform-integration.md).
 
+
+The immutable Canopy SDK and shipped connection assets are checked from the
+repository root:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify-canopy-sdk.ps1
+```
+
 Run Rust verification from `rust/engine` after Rust is installed:
 
 ```powershell
-cargo test
+cargo test --workspace
 ```

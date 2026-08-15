@@ -13,8 +13,9 @@ engine protect local secret material without owning Android Keystore APIs.
 - `AndroidKeystoreSecureSecretProtector`
 
 The API protects short-lived secret material by encrypting it with a
-non-exportable Android Keystore AES key. The encrypted payload can be persisted
-later by the Rust-owned database/session layer.
+non-exportable Android Keystore AES key. Rust uses that narrow primitive to
+protect persisted session envelopes without giving Kotlin ownership of token
+rotation, account identity, or storage policy.
 
 ## Boundary Rule
 
@@ -28,20 +29,21 @@ Kotlin secure storage adapter
         |
 Android Keystore AES-GCM key
         |
-EncryptedSecret persisted by Rust-owned storage
+EncryptedSecret persisted by Rust-owned session/local storage
 ```
 
 ## Security Notes
 
 - Keystore key material is not exported to Kotlin or Rust.
-- `EncryptedSecret` contains ciphertext and IV only.
+- `EncryptedSecret` contains ciphertext and IV only. Both are treated as
+  sensitive diagnostics and are redacted from telemetry.
 - Keystore aliases are stable identifiers, not secrets. They may later move to a
   generated namespace or Rust-owned constant map to reduce obvious strings, but
   hiding aliases is not a security boundary.
-- Callers must not log plaintext, ciphertext, IVs, aliases, or errors with
-  secret payloads.
-- This bridge does not store data yet; persistence belongs to a later Rust-owned
-  local data milestone.
+- Callers must not log plaintext, ciphertext, IVs, aliases, session envelope
+  fields, account identifiers, or errors with secret payloads.
+- Persistence policy belongs to Rust-owned session/local storage. Kotlin
+  performs only platform cryptographic operations and returns encrypted bytes.
 
 The implementation follows Android Keystore guidance for AES/GCM/NoPadding with
 an Android Keystore-generated key.

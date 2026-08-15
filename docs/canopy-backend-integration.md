@@ -44,8 +44,8 @@ release manifests. The dedicated Android activity sanitizes the incoming URI,
 does not persist it, and submits the token to PandaEngine at most once.
 
 Never place database addresses, SMTP credentials, signing or sealing keys,
-stream secrets, Mailpit, raw tokens, or Canopy's private stream-authorizer
-address in this asset.
+stream secrets, Mailpit, raw tokens, or private streaming authorization
+listener addresses in this asset.
 
 The Android service loads and validates the complete asset before exposing a
 usable engine. PandaEngine creates one shared channel and installs catalog,

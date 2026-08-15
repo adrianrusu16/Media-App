@@ -158,6 +158,14 @@ idempotent, while a conflicting configuration is rejected.
 
 The public Kotlin and C entrypoints default to production transport rules.
 Only the Android service's debuggable application flag can select development
-rules for the local cleartext emulator deployment. Raw configuration JSON,
-protobuf messages, gRPC status objects, bearer tokens, and pagination cursors
-do not cross into Kotlin.
+rules for the local cleartext emulator deployment. Non-loopback deployments must
+use TLS; the Rust channel enables platform roots and may add a deployment
+public CA without exposing certificate or server-name details through debug
+output.
+
+A single `SessionCoordinator` owns access-token attachment, refresh-token
+rotation, and persisted session envelopes. Every Canopy RPC is classified by an
+explicit `CanopyOperation` entry that defines retry replay and authentication
+requirements. Raw configuration JSON, protobuf messages, gRPC status objects,
+bearer tokens, playback capabilities, and pagination cursors do not cross into
+Kotlin.
