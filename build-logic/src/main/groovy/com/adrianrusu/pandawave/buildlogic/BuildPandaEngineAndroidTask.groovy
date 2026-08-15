@@ -99,11 +99,20 @@ abstract class BuildPandaEngineAndroidTask extends DefaultTask {
             throw new GradleException("Android NDK linker was not found: ${linker.absolutePath}")
         }
 
+        String normalizedRustTarget = rustTarget.get().replace('-', '_')
         String linkerEnvironmentVariable =
-            "CARGO_TARGET_${rustTarget.get().toUpperCase(Locale.US).replace('-', '_')}_LINKER"
+            "CARGO_TARGET_${normalizedRustTarget.toUpperCase(Locale.US)}_LINKER"
+        String ccEnvironmentVariable = "CC_${rustTarget.get()}"
+        String normalizedCcEnvironmentVariable = "CC_${normalizedRustTarget}"
+        File toolchainBin = linker.parentFile
+        String inheritedPath = System.getenv("PATH") ?: ""
+        String cargoPath = toolchainBin.absolutePath + File.pathSeparator + inheritedPath
 
         execOperations.exec { ExecSpec spec ->
             spec.workingDir(engineDirectory.get().asFile)
+            spec.environment("PATH", cargoPath)
+            spec.environment(ccEnvironmentVariable, linker.absolutePath)
+            spec.environment(normalizedCcEnvironmentVariable, linker.absolutePath)
             spec.commandLine(
                 cargoExecutable.get(),
                 "build",

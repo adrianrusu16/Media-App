@@ -19,7 +19,7 @@ $expectedTonic = '=0.5.0-00000000000000-145678c1d73e.4'
 function Fail-Verification {
     param([Parameter(Mandatory = $true)][string]$Message)
 
-    Write-Error "Canopy SDK compatibility check failed: $Message"
+    [Console]::Error.WriteLine("Canopy SDK compatibility check failed: $Message")
     exit 1
 }
 
