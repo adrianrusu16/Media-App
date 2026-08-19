@@ -176,6 +176,14 @@ pub enum EngineCommandType {
         excluded_track_ids: Vec<String>,
         page: EnginePageRequest,
     },
+    LoadForYouFeed {
+        excluded_track_ids: Vec<String>,
+        page: EnginePageRequest,
+    },
+    LoadRecommendations {
+        excluded_track_ids: Vec<String>,
+        page: EnginePageRequest,
+    },
     /// Continues a previously dispatched discovery-feed operation.
     LoadNextDiscoveryPage,
     /// Loads server-backed history consent for the current account and session.
@@ -349,6 +357,8 @@ impl EngineCommandType {
     pub const LOAD_NEXT_CATALOG_PAGE_WIRE: &'static str = "load_next_catalog_page";
     /// Wire value for loading the first discovery-feed page.
     pub const LOAD_DISCOVERY_FEED_WIRE: &'static str = "load_discovery_feed";
+    pub const LOAD_FOR_YOU_FEED_WIRE: &'static str = "load_for_you_feed";
+    pub const LOAD_RECOMMENDATIONS_WIRE: &'static str = "load_recommendations";
     /// Wire value for loading the next discovery-feed page.
     pub const LOAD_NEXT_DISCOVERY_PAGE_WIRE: &'static str = "load_next_discovery_page";
     pub const LOAD_HISTORY_SETTINGS_WIRE: &'static str = "load_history_settings";
@@ -444,6 +454,14 @@ impl EngineCommandType {
                 operation_id: String::new(),
             },
             Self::LOAD_DISCOVERY_FEED_WIRE => Self::LoadDiscoveryFeed {
+                excluded_track_ids: Vec::new(),
+                page: EnginePageRequest::default(),
+            },
+            Self::LOAD_FOR_YOU_FEED_WIRE => Self::LoadForYouFeed {
+                excluded_track_ids: Vec::new(),
+                page: EnginePageRequest::default(),
+            },
+            Self::LOAD_RECOMMENDATIONS_WIRE => Self::LoadRecommendations {
                 excluded_track_ids: Vec::new(),
                 page: EnginePageRequest::default(),
             },
@@ -583,6 +601,8 @@ impl EngineCommandType {
             Self::BrowseCatalog { .. } => Self::BROWSE_WIRE,
             Self::LoadNextCatalogPage { .. } => Self::LOAD_NEXT_CATALOG_PAGE_WIRE,
             Self::LoadDiscoveryFeed { .. } => Self::LOAD_DISCOVERY_FEED_WIRE,
+            Self::LoadForYouFeed { .. } => Self::LOAD_FOR_YOU_FEED_WIRE,
+            Self::LoadRecommendations { .. } => Self::LOAD_RECOMMENDATIONS_WIRE,
             Self::LoadNextDiscoveryPage => Self::LOAD_NEXT_DISCOVERY_PAGE_WIRE,
             Self::LoadHistorySettings => Self::LOAD_HISTORY_SETTINGS_WIRE,
             Self::UpdateHistorySettings { .. } => Self::UPDATE_HISTORY_SETTINGS_WIRE,
@@ -667,8 +687,16 @@ impl EngineCommand {
             EngineCommandType::LOAD_NEXT_CATALOG_PAGE_WIRE => payload
                 .as_deref()
                 .and_then(parse_load_next_catalog_page_payload),
-            EngineCommandType::LOAD_DISCOVERY_FEED_WIRE => {
-                payload.as_deref().and_then(parse_discovery_feed_payload)
+            EngineCommandType::LOAD_DISCOVERY_FEED_WIRE => payload.as_deref().and_then(|payload| {
+                parse_discovery_feed_payload(crate::DiscoveryFeed::Discovery, payload)
+            }),
+            EngineCommandType::LOAD_FOR_YOU_FEED_WIRE => payload.as_deref().and_then(|payload| {
+                parse_discovery_feed_payload(crate::DiscoveryFeed::ForYou, payload)
+            }),
+            EngineCommandType::LOAD_RECOMMENDATIONS_WIRE => {
+                payload.as_deref().and_then(|payload| {
+                    parse_discovery_feed_payload(crate::DiscoveryFeed::Recommendations, payload)
+                })
             }
             EngineCommandType::LOAD_NEXT_DISCOVERY_PAGE_WIRE => payload
                 .as_deref()
@@ -1115,13 +1143,32 @@ fn parse_load_next_catalog_page_payload(payload: &str) -> Option<EngineCommandTy
         })
 }
 
-fn parse_discovery_feed_payload(payload: &str) -> Option<EngineCommandType> {
+fn parse_discovery_feed_payload(
+    feed: crate::DiscoveryFeed,
+    payload: &str,
+) -> Option<EngineCommandType> {
     let payload: DiscoveryFeedPayload = serde_json::from_str(payload).ok()?;
-    (payload.version == CATALOG_PAYLOAD_VERSION).then_some(EngineCommandType::LoadDiscoveryFeed {
-        excluded_track_ids: payload.exclude_track_ids,
-        page: EnginePageRequest {
-            page_size: payload.page.page_size,
-            page_token: None,
+    (payload.version == CATALOG_PAYLOAD_VERSION).then_some(match feed {
+        crate::DiscoveryFeed::Discovery => EngineCommandType::LoadDiscoveryFeed {
+            excluded_track_ids: payload.exclude_track_ids,
+            page: EnginePageRequest {
+                page_size: payload.page.page_size,
+                page_token: None,
+            },
+        },
+        crate::DiscoveryFeed::ForYou => EngineCommandType::LoadForYouFeed {
+            excluded_track_ids: payload.exclude_track_ids,
+            page: EnginePageRequest {
+                page_size: payload.page.page_size,
+                page_token: None,
+            },
+        },
+        crate::DiscoveryFeed::Recommendations => EngineCommandType::LoadRecommendations {
+            excluded_track_ids: payload.exclude_track_ids,
+            page: EnginePageRequest {
+                page_size: payload.page.page_size,
+                page_token: None,
+            },
         },
     })
 }
@@ -1476,6 +1523,38 @@ mod tests {
         let next =
             EngineCommand::from_wire("load_next_discovery_page", Some(r#"{"version":1}"#.into()));
         assert_eq!(next.command_type, EngineCommandType::LoadNextDiscoveryPage);
+
+        for (wire, expected) in [
+            (
+                EngineCommandType::LOAD_FOR_YOU_FEED_WIRE,
+                EngineCommandType::LoadForYouFeed {
+                    excluded_track_ids: vec!["played-1".into()],
+                    page: EnginePageRequest {
+                        page_size: 25,
+                        page_token: None,
+                    },
+                },
+            ),
+            (
+                EngineCommandType::LOAD_RECOMMENDATIONS_WIRE,
+                EngineCommandType::LoadRecommendations {
+                    excluded_track_ids: vec!["played-1".into()],
+                    page: EnginePageRequest {
+                        page_size: 25,
+                        page_token: None,
+                    },
+                },
+            ),
+        ] {
+            let command = EngineCommand::from_wire(
+                wire,
+                Some(
+                    r#"{"version":1,"exclude_track_ids":["played-1"],"page":{"page_size":25}}"#
+                        .into(),
+                ),
+            );
+            assert_eq!(command.command_type, expected);
+        }
     }
 
     #[test]

@@ -1,5 +1,5 @@
 use super::*;
-use crate::EngineErrorType;
+use crate::{EngineErrorType, MediaItem};
 
 impl Engine {
     pub(super) async fn dispatch_command(
@@ -294,17 +294,35 @@ impl Engine {
             EngineCommandType::LoadDiscoveryFeed {
                 excluded_track_ids,
                 page,
+            }
+            | EngineCommandType::LoadForYouFeed {
+                excluded_track_ids,
+                page,
+            }
+            | EngineCommandType::LoadRecommendations {
+                excluded_track_ids,
+                page,
             } => {
-                self.discovery_operation = None;
-                next_snapshot = next_snapshot
-                    .with_discovery_results(Vec::new())
-                    .with_discovery_next_page_token(None);
+                let feed = match &command.command_type {
+                    EngineCommandType::LoadDiscoveryFeed { .. } => crate::DiscoveryFeed::Discovery,
+                    EngineCommandType::LoadForYouFeed { .. } => crate::DiscoveryFeed::ForYou,
+                    EngineCommandType::LoadRecommendations { .. } => {
+                        crate::DiscoveryFeed::Recommendations
+                    }
+                    _ => unreachable!("matched a feed command"),
+                };
+                if feed == crate::DiscoveryFeed::Discovery {
+                    self.discovery_operation = None;
+                    next_snapshot = next_snapshot.with_discovery_next_page_token(None);
+                }
+                next_snapshot = next_snapshot.with_feed_results(feed, Vec::new());
                 let auth_identity = AuthIdentity::from_state(&next_snapshot.auth_state);
                 let result = match (auth_identity.clone(), self.discovery_port.clone()) {
                     (Some(identity), Some(port)) => {
                         next_snapshot = next_snapshot.with_busy(true);
                         self.publish_intermediate_snapshot(next_snapshot.clone());
                         port.get_feed(
+                            feed,
                             &identity.discovery_identity(),
                             excluded_track_ids,
                             page.clone(),
@@ -329,10 +347,12 @@ impl Engine {
                     .unwrap_or(crate::AuthState::Anonymous);
                 let current_identity = AuthIdentity::from_state(&next_snapshot.auth_state);
                 if current_identity != auth_identity {
-                    self.discovery_operation = None;
+                    if feed == crate::DiscoveryFeed::Discovery {
+                        self.discovery_operation = None;
+                        next_snapshot = next_snapshot.with_discovery_next_page_token(None);
+                    }
                     next_snapshot = next_snapshot
-                        .with_discovery_results(Vec::new())
-                        .with_discovery_next_page_token(None)
+                        .with_feed_results(feed, Vec::new())
                         .with_error(Some(EngineError::new(
                             crate::EngineErrorType::LoginRequired,
                             "discovery session changed while loading",
@@ -346,18 +366,22 @@ impl Engine {
                                 .into_iter()
                                 .map(project_discovery_track)
                                 .collect();
-                            let next_page_token = result.next_page_token;
-                            self.discovery_operation = Some(DiscoveryOperation {
-                                auth_identity: auth_identity
-                                    .expect("authenticated discovery result"),
-                                excluded_track_ids: excluded_track_ids.clone(),
-                                page_size: page.page_size,
-                                next_page_token: next_page_token.clone(),
-                                items: items.clone(),
-                            });
-                            next_snapshot = next_snapshot
-                                .with_discovery_results(items)
-                                .with_discovery_next_page_token(next_page_token);
+                            if feed == crate::DiscoveryFeed::Discovery {
+                                let next_page_token = result.next_page_token;
+                                self.discovery_operation = Some(DiscoveryOperation {
+                                    auth_identity: auth_identity
+                                        .clone()
+                                        .expect("authenticated discovery result"),
+                                    excluded_track_ids: excluded_track_ids.clone(),
+                                    page_size: page.page_size,
+                                    next_page_token: next_page_token.clone(),
+                                    items: items.clone(),
+                                });
+                                next_snapshot =
+                                    next_snapshot.with_discovery_next_page_token(next_page_token);
+                            }
+                            self.feed_projection_identity = auth_identity;
+                            next_snapshot = next_snapshot.with_feed_results(feed, items);
                         }
                         Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
                     }
@@ -389,6 +413,7 @@ impl Engine {
                         let result = match self.discovery_port.clone() {
                             Some(port) => {
                                 port.get_feed(
+                                    crate::DiscoveryFeed::Discovery,
                                     &identity.discovery_identity(),
                                     &operation.excluded_track_ids,
                                     crate::EnginePageRequest {
@@ -922,7 +947,11 @@ impl Engine {
             }
             EngineCommandType::PlayMediaById { media_id } => {
                 next_snapshot = next_snapshot.with_busy(true);
-                if let Some(media) = self.repository.get_by_id(media_id) {
+                if let Some(media) = self
+                    .repository
+                    .get_by_id(media_id)
+                    .or_else(|| discovery_track_by_id(&next_snapshot, media_id))
+                {
                     match self.resolve_playback_source(&media).await {
                         Ok(media) => {
                             next_snapshot =
@@ -1087,4 +1116,14 @@ impl Engine {
         snapshot.profile = Some(profile);
         snapshot.profile_preferences = values;
     }
+}
+
+fn discovery_track_by_id(snapshot: &EngineSnapshot, media_id: &str) -> Option<MediaItem> {
+    snapshot
+        .for_you_results
+        .iter()
+        .chain(snapshot.recommendations_results.iter())
+        .chain(snapshot.discovery_results.iter())
+        .find(|media| media.id == media_id)
+        .cloned()
 }

@@ -14,8 +14,8 @@ vosk = { version = "0.3", optional = true }
 async-trait = "0.1.89"
 anyhow = "1.0.102"
 tokio = { version = "1", features = ["full"] }
-canopy-api-prost = { package = "pandawave_canopy-api_community_neoeinstein-prost", version = "=0.5.0-00000000000000-145678c1d73e.2", registry = "buf" }
-canopy-api-tonic = { package = "pandawave_canopy-api_community_neoeinstein-tonic", version = "=0.5.0-00000000000000-145678c1d73e.4", registry = "buf" }
+canopy-api-prost = { package = "pandawave_canopy-api_community_neoeinstein-prost", version = "=0.5.0-00000000000000-af019e2d7fa2.2", registry = "buf" }
+canopy-api-tonic = { package = "pandawave_canopy-api_community_neoeinstein-tonic", version = "=0.5.0-00000000000000-af019e2d7fa2.4", registry = "buf" }
 tonic-014 = { package = "tonic", version = "=0.14.6", features = ["transport", "tls-native-roots", "tls-ring"] }
 prost-types-014 = { package = "prost-types", version = "0.14" }
 fastrand = "2"

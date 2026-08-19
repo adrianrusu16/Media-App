@@ -19,6 +19,10 @@ enum class AuthNotice {
     LOGIN_REJECTED,
     POLICY_MISMATCH,
     RATE_LIMITED,
+    CANOPY_UNREACHABLE,
+    SERVER_CONFIGURATION_FAILED,
+    CANOPY_SERVER_FAILED,
+    APP_BACKEND_MISMATCH,
     TRY_AGAIN_LATER,
     SESSION_STORAGE_FAILED,
     REQUEST_UNCONFIRMED,
@@ -191,6 +195,12 @@ object AuthUiReducer {
         EngineAuthOperationResult.ERROR_INVALID_INPUT -> AuthNotice.POLICY_MISMATCH
         EngineAuthOperationResult.ERROR_RATE_LIMITED -> AuthNotice.RATE_LIMITED
         EngineAuthOperationResult.ERROR_SESSION_STORAGE -> AuthNotice.SESSION_STORAGE_FAILED
+        EngineAuthOperationResult.ERROR_SERVICE_UNAVAILABLE,
+        EngineAuthOperationResult.ERROR_TRANSPORT,
+        EngineAuthOperationResult.ERROR_NETWORK -> AuthNotice.CANOPY_UNREACHABLE
+        EngineAuthOperationResult.ERROR_UNSAFE_TRANSPORT -> AuthNotice.SERVER_CONFIGURATION_FAILED
+        EngineAuthOperationResult.ERROR_BACKEND_FAULT -> AuthNotice.CANOPY_SERVER_FAILED
+        EngineAuthOperationResult.ERROR_MAPPING_DEFECT -> AuthNotice.APP_BACKEND_MISMATCH
         EngineAuthOperationResult.ERROR_AUTHENTICATION,
         EngineAuthOperationResult.ERROR_FORBIDDEN,
         EngineAuthOperationResult.ERROR_LOGIN_REQUIRED -> if (login) {

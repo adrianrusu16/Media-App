@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -104,6 +105,7 @@ internal fun AuthFormScreen(
     modifier: Modifier = Modifier
 ) {
     val tokens = LocalPandaWaveDesignTokens.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var feedback by remember { mutableStateOf(AuthFieldFeedback()) }
@@ -231,7 +233,10 @@ internal fun AuthFormScreen(
                 keyboardType = KeyboardType.Password,
                 imeAction = ImeAction.Done
             ),
-            keyboardActions = KeyboardActions(onDone = { submit() })
+            keyboardActions = KeyboardActions(onDone = {
+                keyboardController?.hide()
+                submit()
+            })
         )
         NoticeText(state.notice)
         if (!enabled) Text(stringResource(R.string.pandawave_auth_unavailable))
@@ -274,6 +279,10 @@ private fun NoticeText(notice: AuthNotice?) {
         AuthNotice.LOGIN_REJECTED -> R.string.pandawave_auth_login_rejected
         AuthNotice.POLICY_MISMATCH -> R.string.pandawave_auth_policy_mismatch
         AuthNotice.RATE_LIMITED -> R.string.pandawave_auth_rate_limited
+        AuthNotice.CANOPY_UNREACHABLE -> R.string.pandawave_auth_canopy_unreachable
+        AuthNotice.SERVER_CONFIGURATION_FAILED -> R.string.pandawave_auth_server_configuration_failed
+        AuthNotice.CANOPY_SERVER_FAILED -> R.string.pandawave_auth_canopy_server_failed
+        AuthNotice.APP_BACKEND_MISMATCH -> R.string.pandawave_auth_app_backend_mismatch
         AuthNotice.TRY_AGAIN_LATER -> R.string.pandawave_auth_try_later
         AuthNotice.SESSION_STORAGE_FAILED -> R.string.pandawave_auth_storage_failed
         AuthNotice.REQUEST_UNCONFIRMED -> R.string.pandawave_auth_unconfirmed

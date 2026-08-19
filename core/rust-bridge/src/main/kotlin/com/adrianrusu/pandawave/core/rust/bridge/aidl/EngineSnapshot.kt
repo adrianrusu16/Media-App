@@ -54,6 +54,8 @@ data class EngineSnapshot(
     ,val discoveryResultsCount: Int = 0
     ,val hasDiscoveryNextPage: Boolean = false
     ,val hasHistoryNextPage: Boolean = false
+    ,val forYouResultsCount: Int = 0
+    ,val recommendationsResultsCount: Int = 0
 ) : Parcelable {
     constructor(parcel: Parcel) : this(
         playbackState = parcel.readString().orEmpty(),
@@ -116,6 +118,8 @@ data class EngineSnapshot(
         ,discoveryResultsCount = parcel.readInt()
         ,hasDiscoveryNextPage = parcel.readBooleanValue()
         ,hasHistoryNextPage = parcel.readBooleanValue()
+        ,forYouResultsCount = parcel.readInt()
+        ,recommendationsResultsCount = parcel.readInt()
     )
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
@@ -176,6 +180,8 @@ data class EngineSnapshot(
         parcel.writeInt(discoveryResultsCount)
         parcel.writeBooleanValue(hasDiscoveryNextPage)
         parcel.writeBooleanValue(hasHistoryNextPage)
+        parcel.writeInt(forYouResultsCount)
+        parcel.writeInt(recommendationsResultsCount)
     }
 
     override fun describeContents(): Int = 0

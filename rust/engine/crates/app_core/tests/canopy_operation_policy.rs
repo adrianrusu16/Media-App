@@ -13,6 +13,8 @@ fn every_generated_rpc_has_the_expected_explicit_policy() {
         (GetMedia, Read, OptionalAccess),
         (ResolvePlayback, Read, OptionalAccess),
         (GetDiscoveryFeed, Read, AccessAuthenticated),
+        (GetForYouFeed, Read, AccessAuthenticated),
+        (GetRecommendations, Read, AccessAuthenticated),
         (UpsertProfile, IdempotentMutation, AccessAuthenticated),
         (GetProfile, Read, AccessAuthenticated),
         (UpdateProfile, NonReplayableMutation, AccessAuthenticated),

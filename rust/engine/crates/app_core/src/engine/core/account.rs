@@ -209,8 +209,11 @@ impl Engine {
         self.playlists_operation = None;
         self.playlist_tracks_operation = None;
         Self::clear_playlist_projection(snapshot);
+        self.feed_projection_identity = None;
         self.discovery_operation = None;
         snapshot.discovery_results.clear();
+        snapshot.for_you_results.clear();
+        snapshot.recommendations_results.clear();
         snapshot.discovery_next_page_token = None;
     }
 

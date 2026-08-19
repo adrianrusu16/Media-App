@@ -1,6 +1,7 @@
 package com.adrianrusu.pandawave.feature.library
 
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -42,6 +43,7 @@ import com.adrianrusu.pandawave.feature.library.presentation.LibraryViewModel
 @Composable
 fun LibraryRoute(
     modifier: Modifier = Modifier,
+    onOpenNowPlaying: () -> Unit = {},
     viewModel: LibraryViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -51,6 +53,8 @@ fun LibraryRoute(
         onSelectTab = viewModel::selectTab,
         onRefresh = viewModel::refresh,
         onLoadNext = viewModel::loadNext,
+        onPlay = viewModel::play,
+        onOpenNowPlaying = onOpenNowPlaying,
         onSave = viewModel::save,
         onRemoveSaved = viewModel::removeSaved,
         onLike = viewModel::like,
@@ -71,6 +75,8 @@ fun LibraryRoute(
     onSelectTab: (LibraryTab) -> Unit,
     onRefresh: () -> Unit,
     onLoadNext: () -> Unit,
+    onPlay: (String) -> Unit = {},
+    onOpenNowPlaying: () -> Unit = {},
     onSave: (String) -> Unit,
     onRemoveSaved: (String) -> Unit,
     onLike: (String) -> Unit,
@@ -184,6 +190,8 @@ fun LibraryRoute(
                 onAddPlaylistTrack = onAddPlaylistTrack,
                 onRemovePlaylistTrack = onRemovePlaylistTrack,
                 onReorderPlaylist = onReorderPlaylist,
+                onPlay = onPlay,
+                onOpenNowPlaying = onOpenNowPlaying,
             )
         } else {
             val savedIds = state.savedTracks.mapTo(mutableSetOf(), LibraryTrack::mediaId)
@@ -199,6 +207,8 @@ fun LibraryRoute(
                     onRemoveSaved = onRemoveSaved,
                     onLike = onLike,
                     onUnlike = onUnlike,
+                    onPlay = onPlay,
+                    onOpenNowPlaying = onOpenNowPlaying,
                 )
             }
         }
@@ -225,6 +235,8 @@ private fun PlaylistLibraryContent(
     onAddPlaylistTrack: (String, String) -> Unit,
     onRemovePlaylistTrack: (String, String) -> Unit,
     onReorderPlaylist: (String, List<String>, Long) -> Unit,
+    onPlay: (String) -> Unit,
+    onOpenNowPlaying: () -> Unit,
 ) {
     val tokens = LocalPandaWaveDesignTokens.current
     val selectedPlaylist = state.playlists.firstOrNull { it.id == state.selectedPlaylistId }
@@ -312,6 +324,8 @@ private fun PlaylistLibraryContent(
             reorderEnabled = !state.hasPlaylistTracksNextPage,
             onRemovePlaylistTrack = onRemovePlaylistTrack,
             onReorderPlaylist = onReorderPlaylist,
+            onPlay = onPlay,
+            onOpenNowPlaying = onOpenNowPlaying,
         )
     }
 
@@ -364,6 +378,8 @@ private fun PlaylistTrackList(
     reorderEnabled: Boolean,
     onRemovePlaylistTrack: (String, String) -> Unit,
     onReorderPlaylist: (String, List<String>, Long) -> Unit,
+    onPlay: (String) -> Unit,
+    onOpenNowPlaying: () -> Unit,
 ) {
     tracks.forEachIndexed { index, track ->
         PlaylistTrackRow(
@@ -374,6 +390,8 @@ private fun PlaylistTrackList(
             reorderEnabled = reorderEnabled,
             onRemovePlaylistTrack = onRemovePlaylistTrack,
             onReorderPlaylist = onReorderPlaylist,
+            onPlay = onPlay,
+            onOpenNowPlaying = onOpenNowPlaying,
         )
     }
 }
@@ -387,6 +405,8 @@ private fun PlaylistTrackRow(
     reorderEnabled: Boolean,
     onRemovePlaylistTrack: (String, String) -> Unit,
     onReorderPlaylist: (String, List<String>, Long) -> Unit,
+    onPlay: (String) -> Unit,
+    onOpenNowPlaying: () -> Unit,
 ) {
     val tokens = LocalPandaWaveDesignTokens.current
     var draggedDistance by remember(track.relationshipId) { mutableFloatStateOf(0f) }
@@ -418,6 +438,10 @@ private fun PlaylistTrackRow(
         modifier = Modifier
             .fillMaxWidth()
             .testTag("library-playlist-track-${track.relationshipId}")
+            .clickable {
+                onPlay(track.mediaId)
+                onOpenNowPlaying()
+            }
             .then(reorderModifier),
         tonalElevation = tokens.elevation.cardResting,
         shape = MaterialTheme.shapes.small,
@@ -489,10 +513,18 @@ private fun LibraryTrackRow(
     onRemoveSaved: (String) -> Unit,
     onLike: (String) -> Unit,
     onUnlike: (String) -> Unit,
+    onPlay: (String) -> Unit,
+    onOpenNowPlaying: () -> Unit,
 ) {
     val tokens = LocalPandaWaveDesignTokens.current
     Surface(
-        modifier = Modifier.fillMaxWidth().testTag("library-track-${track.mediaId}"),
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("library-track-${track.mediaId}")
+            .clickable {
+                onPlay(track.mediaId)
+                onOpenNowPlaying()
+            },
         tonalElevation = tokens.elevation.cardResting,
         shape = MaterialTheme.shapes.small,
     ) {

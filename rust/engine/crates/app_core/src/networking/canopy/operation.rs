@@ -18,6 +18,8 @@ pub enum CanopyOperation {
     GetMedia,
     ResolvePlayback,
     GetDiscoveryFeed,
+    GetForYouFeed,
+    GetRecommendations,
     UpsertProfile,
     GetProfile,
     UpdateProfile,
@@ -67,12 +69,14 @@ pub enum CanopyOperation {
 }
 
 impl CanopyOperation {
-    pub const ALL: [Self; 51] = [
+    pub const ALL: [Self; 53] = [
         Self::Browse,
         Self::Search,
         Self::GetMedia,
         Self::ResolvePlayback,
         Self::GetDiscoveryFeed,
+        Self::GetForYouFeed,
+        Self::GetRecommendations,
         Self::UpsertProfile,
         Self::GetProfile,
         Self::UpdateProfile,
@@ -128,6 +132,8 @@ impl CanopyOperation {
             | Self::GetMedia
             | Self::ResolvePlayback
             | Self::GetDiscoveryFeed
+            | Self::GetForYouFeed
+            | Self::GetRecommendations
             | Self::GetProfile
             | Self::GetPreferences
             | Self::GetHistorySettings
@@ -192,6 +198,8 @@ impl CanopyOperation {
             | Self::CompleteGoogleLogin
             | Self::GetStatus => AuthRequirement::Anonymous,
             Self::GetDiscoveryFeed
+            | Self::GetForYouFeed
+            | Self::GetRecommendations
             | Self::UpsertProfile
             | Self::GetProfile
             | Self::UpdateProfile

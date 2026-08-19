@@ -11,7 +11,10 @@ use super::catalog::{map_page, map_page_request};
 use super::operation::CanopyOperation;
 use super::request::execute_with_bound_auth;
 use super::sdk::clients::discovery_service_client::DiscoveryServiceClient;
-use super::sdk::resources::{GetDiscoveryFeedRequest, GetDiscoveryFeedResponse};
+use super::sdk::resources::{
+    GetDiscoveryFeedRequest, GetDiscoveryFeedResponse, GetForYouFeedRequest, GetForYouFeedResponse,
+    GetRecommendationsRequest, GetRecommendationsResponse,
+};
 use super::{CanopyChannel, SessionCoordinator};
 
 /// Canonical authenticated Canopy discovery adapter.
@@ -34,6 +37,7 @@ impl CanopyDiscoveryClient {
 impl DiscoveryPort for CanopyDiscoveryClient {
     async fn get_feed(
         &self,
+        feed: crate::DiscoveryFeed,
         expected_identity: &EngineDiscoveryIdentity,
         excluded_track_ids: &[String],
         page: EnginePageRequest,
@@ -44,19 +48,42 @@ impl DiscoveryPort for CanopyDiscoveryClient {
             account_id: expected_identity.account_id.clone(),
             session_id: expected_identity.session_id.clone(),
         };
-        let response = execute_with_bound_auth(
+        execute_with_bound_auth(
             self.session.as_ref(),
             &bound,
-            CanopyOperation::GetDiscoveryFeed,
+            feed.operation(),
             || Request::new(request.clone()),
             move |request| {
                 let mut client = client.clone();
-                async move { client.get_discovery_feed(request).await }
+                async move {
+                    match feed {
+                        crate::DiscoveryFeed::Discovery => client
+                            .get_discovery_feed(request.map(|request| GetDiscoveryFeedRequest {
+                                exclude_track_ids: request.exclude_track_ids,
+                                page: request.page,
+                            }))
+                            .await
+                            .map(|response| response.map(map_discovery_response)),
+                        crate::DiscoveryFeed::ForYou => client
+                            .get_for_you_feed(request.map(|request| GetForYouFeedRequest {
+                                exclude_track_ids: request.exclude_track_ids,
+                                page: request.page,
+                            }))
+                            .await
+                            .map(|response| response.map(map_for_you_response)),
+                        crate::DiscoveryFeed::Recommendations => client
+                            .get_recommendations(request.map(|request| GetRecommendationsRequest {
+                                exclude_track_ids: request.exclude_track_ids,
+                                page: request.page,
+                            }))
+                            .await
+                            .map(|response| response.map(map_recommendations_response)),
+                    }
+                }
             },
         )
         .await?
-        .into_inner();
-        map_discovery_response(response)
+        .into_inner()
     }
 }
 
@@ -74,6 +101,28 @@ fn map_discovery_response(
     response: GetDiscoveryFeedResponse,
 ) -> Result<EnginePagedResult<EngineTrack>, EngineError> {
     map_page(response.tracks, response.page_info)
+}
+
+fn map_for_you_response(
+    response: GetForYouFeedResponse,
+) -> Result<EnginePagedResult<EngineTrack>, EngineError> {
+    map_page(response.tracks, response.page_info)
+}
+
+fn map_recommendations_response(
+    response: GetRecommendationsResponse,
+) -> Result<EnginePagedResult<EngineTrack>, EngineError> {
+    map_page(response.tracks, response.page_info)
+}
+
+impl crate::DiscoveryFeed {
+    const fn operation(self) -> CanopyOperation {
+        match self {
+            Self::Discovery => CanopyOperation::GetDiscoveryFeed,
+            Self::ForYou => CanopyOperation::GetForYouFeed,
+            Self::Recommendations => CanopyOperation::GetRecommendations,
+        }
+    }
 }
 
 #[cfg(test)]

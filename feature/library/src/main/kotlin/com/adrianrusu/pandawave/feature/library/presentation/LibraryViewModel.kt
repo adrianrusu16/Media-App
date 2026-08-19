@@ -1,6 +1,8 @@
 package com.adrianrusu.pandawave.feature.library.presentation
 
 import androidx.lifecycle.ViewModel
+import com.adrianrusu.pandawave.core.playback.BambooPlaybackIntent
+import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
 import com.adrianrusu.pandawave.feature.library.domain.LibraryRepository
 import com.adrianrusu.pandawave.feature.library.domain.LibraryTab
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -9,6 +11,7 @@ import javax.inject.Inject
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
     private val repository: LibraryRepository,
+    private val playbackRepository: BambooPlaybackRepository,
 ) : ViewModel() {
     val state = repository.state
 
@@ -19,6 +22,7 @@ class LibraryViewModel @Inject constructor(
     fun selectTab(tab: LibraryTab) = repository.selectTab(tab)
     fun refresh() = repository.refresh()
     fun loadNext() = repository.loadNext(state.value.selectedTab)
+    fun play(mediaId: String) = playbackRepository.dispatch(BambooPlaybackIntent.PlayMedia(mediaId))
     fun save(mediaId: String) = repository.save(mediaId)
     fun removeSaved(mediaId: String) = repository.removeSaved(mediaId)
     fun like(mediaId: String) = repository.like(mediaId)

@@ -50,6 +50,8 @@ class LibraryRouteTest {
                     onSelectTab = { tab -> state = state.copy(selectedTab = tab) },
                     onRefresh = { actions += "refresh" },
                     onLoadNext = { actions += "next" },
+                    onPlay = { actions += "play:$it" },
+                    onOpenNowPlaying = { actions += "open-now-playing" },
                     onSave = { actions += "save:$it" },
                     onRemoveSaved = { actions += "remove:$it" },
                     onLike = { actions += "like:$it" },
@@ -63,6 +65,7 @@ class LibraryRouteTest {
         compose.onNodeWithTag("library-remove-pending-1").performScrollTo().assertIsNotEnabled()
         compose.onNodeWithTag("library-like-pending-1").performScrollTo().assertIsNotEnabled()
         compose.onNodeWithTag("library-next-page").performScrollTo().performClick()
+        compose.onNodeWithTag("library-track-saved-1").performScrollTo().performClick()
         compose.onNodeWithTag("library-remove-saved-1").performScrollTo().performClick()
         compose.onNodeWithTag("library-like-saved-1").performScrollTo().performClick()
 
@@ -72,7 +75,7 @@ class LibraryRouteTest {
         compose.onNodeWithTag("library-save-liked-1").performScrollTo().performClick()
 
         assertEquals(
-            listOf("next", "remove:saved-1", "like:saved-1", "unlike:liked-1", "save:liked-1"),
+            listOf("next", "play:saved-1", "open-now-playing", "remove:saved-1", "like:saved-1", "unlike:liked-1", "save:liked-1"),
             actions,
         )
     }

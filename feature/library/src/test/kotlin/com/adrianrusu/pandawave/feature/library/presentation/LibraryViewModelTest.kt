@@ -7,15 +7,21 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import com.adrianrusu.pandawave.core.playback.BambooPlaybackIntent
+import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
+import com.adrianrusu.pandawave.core.playback.BambooPlaybackState
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 
 class LibraryViewModelTest {
     @Test
     fun `view model starts repository and forwards library actions`() {
         val repository = RecordingLibraryRepository()
-        val viewModel = LibraryViewModel(repository)
+        val playback = RecordingPlaybackRepository()
+        val viewModel = LibraryViewModel(repository, playback)
 
         viewModel.selectTab(LibraryTab.LIKED)
         viewModel.loadNext()
+        viewModel.play("saved-1")
         viewModel.removeSaved("saved-1")
         viewModel.like("saved-1")
         viewModel.unlike("liked-1")
@@ -47,6 +53,7 @@ class LibraryViewModelTest {
             ),
             repository.actions,
         )
+        assertEquals(listOf<BambooPlaybackIntent>(BambooPlaybackIntent.PlayMedia("saved-1")), playback.intents)
     }
 }
 
@@ -78,5 +85,16 @@ private class RecordingLibraryRepository : LibraryRepository {
     override fun reorderPlaylist(playlistId: String, membershipIds: List<String>, expectedRevision: Long) {
         actions += "reorder:$playlistId:${membershipIds.joinToString(",")}:$expectedRevision"
     }
+    override fun close() = Unit
+}
+
+private class RecordingPlaybackRepository : BambooPlaybackRepository {
+    override val state: StateFlow<BambooPlaybackState> = MutableStateFlow(BambooPlaybackState())
+    val intents = mutableListOf<BambooPlaybackIntent>()
+
+    override fun start() = Unit
+    override fun dispatch(intent: BambooPlaybackIntent) { intents += intent }
+    override fun observe(listener: (BambooPlaybackState) -> Unit) = AutoCloseable { }
+    override fun observeEffects(listener: (List<EngineEffect>) -> Unit) = AutoCloseable { }
     override fun close() = Unit
 }

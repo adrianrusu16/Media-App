@@ -26,6 +26,12 @@ object EngineCommandPayloads {
         put(KEY_VERSION, PAYLOAD_VERSION)
     }.toString()
 
+    fun forYouFeed(excludedTrackIds: List<String> = emptyList(), pageSize: Int): String =
+        discoveryFeed(excludedTrackIds, pageSize)
+
+    fun recommendations(excludedTrackIds: List<String> = emptyList(), pageSize: Int): String =
+        discoveryFeed(excludedTrackIds, pageSize)
+
     fun revokeDeviceSession(sessionId: String): String = buildJsonObject {
         put(KEY_VERSION, PAYLOAD_VERSION)
         put("session_id", sessionId.trim())

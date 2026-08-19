@@ -6,10 +6,13 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.adrianrusu.pandawave.core.designsystem.tokens.LocalPandaWaveDesignTokens
 import com.adrianrusu.pandawave.core.designsystem.tokens.mediaCarouselSpacing
 import com.adrianrusu.pandawave.core.designsystem.tokens.mediaSectionSpacing
@@ -21,123 +24,110 @@ import com.adrianrusu.pandawave.core.ui.discovery.BambooSectionHeader
 import com.adrianrusu.pandawave.core.ui.focus.BambooFocusableLazyRow
 import com.adrianrusu.pandawave.core.ui.focus.BambooRotaryColumn
 import com.adrianrusu.pandawave.core.ui.icons.PandaWaveIcons
+import com.adrianrusu.pandawave.feature.home.domain.HomeState
+import com.adrianrusu.pandawave.feature.home.domain.HomeTrack
+import com.adrianrusu.pandawave.feature.home.presentation.HomeViewModel
 
 @Composable
-fun HomeRoute(modifier: Modifier = Modifier) {
-    val tokens = LocalPandaWaveDesignTokens.current
-    val forYou = homeForYouItems()
-    val recent = homeRecentItems()
+fun HomeRoute(
+    modifier: Modifier = Modifier,
+    onOpenNowPlaying: () -> Unit = {},
+    viewModel: HomeViewModel = hiltViewModel(),
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    HomeRoute(state, viewModel::play, onOpenNowPlaying, modifier)
+}
 
+@Composable
+fun HomeRoute(
+    state: HomeState,
+    onPlay: (String) -> Unit,
+    onOpenNowPlaying: () -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
+    val tokens = LocalPandaWaveDesignTokens.current
     BambooRotaryColumn(
-        modifier = modifier
-            .fillMaxWidth()
-            .testTag("home-route"),
-        verticalArrangement = Arrangement.spacedBy(tokens.components.mediaSectionSpacing)
+        modifier = modifier.fillMaxWidth().testTag("home-route"),
+        verticalArrangement = Arrangement.spacedBy(tokens.components.mediaSectionSpacing),
     ) {
         BambooSectionHeader(
             title = stringResource(R.string.pandawave_home_greeting),
-            subtitle = stringResource(R.string.pandawave_home_greeting_body)
+            subtitle = stringResource(R.string.pandawave_home_greeting_body),
         )
+        HomeFeedSection(
+            title = stringResource(R.string.pandawave_home_for_you),
+            tracks = state.forYou,
+            hero = true,
+            testTag = "home-for-you",
+            onPlay = onPlay,
+            onOpenNowPlaying = onOpenNowPlaying,
+        )
+        HomeFeedSection(
+            title = stringResource(R.string.pandawave_home_recommendations),
+            tracks = state.recommendations,
+            testTag = "home-recommendations",
+            onPlay = onPlay,
+            onOpenNowPlaying = onOpenNowPlaying,
+        )
+        HomeFeedSection(
+            title = stringResource(R.string.pandawave_home_discover),
+            tracks = state.discovery,
+            testTag = "home-discover",
+            onPlay = onPlay,
+            onOpenNowPlaying = onOpenNowPlaying,
+        )
+    }
+}
 
-        Column(verticalArrangement = Arrangement.spacedBy(tokens.components.mediaCarouselSpacing)) {
-            BambooSectionHeader(title = stringResource(R.string.pandawave_home_for_you))
-            BambooFocusableLazyRow(
-                horizontalArrangement = Arrangement.spacedBy(tokens.components.mediaCarouselSpacing),
-                contentPadding = PaddingValues(horizontal = tokens.components.mediaCarouselSpacing)
-            ) {
-                items(forYou, key = { it.id }) { item ->
+@Composable
+private fun HomeFeedSection(
+    title: String,
+    tracks: List<HomeTrack>,
+    testTag: String,
+    onPlay: (String) -> Unit,
+    onOpenNowPlaying: () -> Unit,
+    hero: Boolean = false,
+) {
+    if (tracks.isEmpty()) return
+    val tokens = LocalPandaWaveDesignTokens.current
+    Column(verticalArrangement = Arrangement.spacedBy(tokens.components.mediaCarouselSpacing)) {
+        BambooSectionHeader(title = title)
+        BambooFocusableLazyRow(
+            horizontalArrangement = Arrangement.spacedBy(tokens.components.mediaCarouselSpacing),
+            contentPadding = PaddingValues(horizontal = tokens.components.mediaCarouselSpacing),
+        ) {
+            items(tracks, key = HomeTrack::id) { track ->
+                val item = BambooMediaItem(
+                    id = track.id,
+                    title = track.title,
+                    subtitle = track.artist,
+                    description = track.album ?: track.artist,
+                    action = BambooMediaAction.Play,
+                )
+                if (hero) {
                     BambooMediaHeroCard(
-                        modifier = Modifier.testTag("home-for-you-${item.id}"),
+                        modifier = Modifier.testTag("$testTag-${track.id}"),
                         item = item,
-                        icon = when (item.id) {
-                            "bamboo-beats" -> PandaWaveIcons.Equalizer
-                            "quiet-canopy" -> PandaWaveIcons.Relax
-                            else -> PandaWaveIcons.Nature
+                        icon = PandaWaveIcons.Equalizer,
+                        accentColor = Color(tokens.colors.primary),
+                        onClick = {
+                            onPlay(track.id)
+                            onOpenNowPlaying()
                         },
-                        accentColor = when (item.id) {
-                            "bamboo-beats" -> Color(tokens.colors.primary)
-                            "quiet-canopy" -> Color(tokens.colors.secondary)
-                            else -> Color(tokens.colors.secondary)
-                        },
-                        onClick = {}
                     )
-                }
-            }
-        }
-
-        Column(verticalArrangement = Arrangement.spacedBy(tokens.components.mediaCarouselSpacing)) {
-            BambooSectionHeader(title = stringResource(R.string.pandawave_home_recent))
-            BambooFocusableLazyRow(
-                horizontalArrangement = Arrangement.spacedBy(tokens.components.mediaCarouselSpacing),
-                contentPadding = PaddingValues(horizontal = tokens.components.mediaCarouselSpacing)
-            ) {
-                items(recent, key = { it.id }) { item ->
+                } else {
                     BambooMediaTile(
-                        modifier = Modifier.testTag("home-recent-${item.id}"),
+                        modifier = Modifier.testTag("$testTag-${track.id}"),
                         item = item,
                         icon = PandaWaveIcons.MusicLibrary,
                         accentColor = Color(tokens.colors.secondary),
-                        onClick = {}
+                        onClick = {
+                            onPlay(track.id)
+                            onOpenNowPlaying()
+                        },
                     )
                 }
             }
         }
     }
 }
-
-@Composable
-private fun homeForYouItems(): List<BambooMediaItem> = listOf(
-    BambooMediaItem(
-        id = "bamboo-beats",
-        title = stringResource(R.string.pandawave_home_bamboo_beats_title),
-        subtitle = stringResource(R.string.pandawave_home_bamboo_beats_subtitle),
-        description = stringResource(R.string.pandawave_home_bamboo_beats_description),
-        action = BambooMediaAction.Unavailable
-    ),
-    BambooMediaItem(
-        id = "quiet-canopy",
-        title = stringResource(R.string.pandawave_home_quiet_canopy_title),
-        subtitle = stringResource(R.string.pandawave_home_quiet_canopy_subtitle),
-        description = stringResource(R.string.pandawave_home_quiet_canopy_description),
-        action = BambooMediaAction.Unavailable
-    ),
-    BambooMediaItem(
-        id = "forest-radio",
-        title = stringResource(R.string.pandawave_home_forest_radio_title),
-        subtitle = stringResource(R.string.pandawave_home_forest_radio_subtitle),
-        description = stringResource(R.string.pandawave_home_forest_radio_description),
-        action = BambooMediaAction.Unavailable
-    )
-)
-
-@Composable
-private fun homeRecentItems(): List<BambooMediaItem> = listOf(
-    BambooMediaItem(
-        id = "eucalyptus-dreams",
-        title = stringResource(R.string.pandawave_home_eucalyptus_dreams_title),
-        subtitle = stringResource(R.string.pandawave_home_album),
-        description = stringResource(R.string.pandawave_home_lush_instrumentals),
-        action = BambooMediaAction.Unavailable
-    ),
-    BambooMediaItem(
-        id = "night-drive",
-        title = stringResource(R.string.pandawave_home_night_drive_title),
-        subtitle = stringResource(R.string.pandawave_home_playlist),
-        description = stringResource(R.string.pandawave_home_low_light_momentum),
-        action = BambooMediaAction.Unavailable
-    ),
-    BambooMediaItem(
-        id = "rainforest-echo",
-        title = stringResource(R.string.pandawave_home_rainforest_echo_title),
-        subtitle = stringResource(R.string.pandawave_home_station),
-        description = stringResource(R.string.pandawave_home_nature_textures),
-        action = BambooMediaAction.Unavailable
-    ),
-    BambooMediaItem(
-        id = "highland-mist",
-        title = stringResource(R.string.pandawave_home_highland_mist_title),
-        subtitle = stringResource(R.string.pandawave_home_mix),
-        description = stringResource(R.string.pandawave_home_calm_acoustic_air),
-        action = BambooMediaAction.Unavailable
-    )
-)

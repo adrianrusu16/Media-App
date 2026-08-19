@@ -205,6 +205,7 @@ pub struct Engine {
     playlist_tracks_operation: Option<PlaylistPageOperation>,
     catalog_operations: HashMap<String, CatalogOperation>,
     next_catalog_operation_sequence: u64,
+    feed_projection_identity: Option<AuthIdentity>,
     discovery_operation: Option<DiscoveryOperation>,
     player: Option<Box<dyn MediaPlayer>>,
     voice_engine: Option<Box<dyn VoiceEngine>>,
@@ -245,6 +246,7 @@ impl Default for Engine {
             playlist_tracks_operation: None,
             catalog_operations: HashMap::new(),
             next_catalog_operation_sequence: 0,
+            feed_projection_identity: None,
             discovery_operation: None,
 
             player: None,
@@ -302,6 +304,7 @@ impl Engine {
             playlist_tracks_operation: None,
             catalog_operations: HashMap::new(),
             next_catalog_operation_sequence: 0,
+            feed_projection_identity: None,
             discovery_operation: None,
 
             player: None,
@@ -414,12 +417,14 @@ impl Engine {
             .map(|provider| provider.current_auth_state())
             .unwrap_or(crate::AuthState::Anonymous);
         let current_identity = AuthIdentity::from_state(&snapshot.auth_state);
-        let operation_matches = self
-            .discovery_operation
+        let feed_identity_matches = self
+            .feed_projection_identity
             .as_ref()
-            .is_some_and(|operation| Some(&operation.auth_identity) == current_identity.as_ref());
-        if !operation_matches {
+            .is_some_and(|identity| Some(identity) == current_identity.as_ref());
+        if !feed_identity_matches {
             snapshot.discovery_results.clear();
+            snapshot.for_you_results.clear();
+            snapshot.recommendations_results.clear();
             snapshot.discovery_next_page_token = None;
         }
         if self
@@ -467,13 +472,16 @@ impl Engine {
             .map(|provider| provider.current_auth_state())
             .unwrap_or(crate::AuthState::Anonymous);
         let current_identity = AuthIdentity::from_state(&self.snapshot.auth_state);
-        let operation_matches = self
-            .discovery_operation
+        let feed_identity_matches = self
+            .feed_projection_identity
             .as_ref()
-            .is_some_and(|operation| Some(&operation.auth_identity) == current_identity.as_ref());
-        if !operation_matches {
+            .is_some_and(|identity| Some(identity) == current_identity.as_ref());
+        if !feed_identity_matches {
+            self.feed_projection_identity = None;
             self.discovery_operation = None;
             self.snapshot.discovery_results.clear();
+            self.snapshot.for_you_results.clear();
+            self.snapshot.recommendations_results.clear();
             self.snapshot.discovery_next_page_token = None;
         }
         if self

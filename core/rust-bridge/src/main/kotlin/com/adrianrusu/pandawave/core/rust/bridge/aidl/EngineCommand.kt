@@ -71,6 +71,8 @@ data class EngineCommand(val type: String, val payload: String?) : Parcelable {
         const val TYPE_REVOKE_DEVICE_SESSION = "revoke_device_session"
         const val TYPE_LOAD_DISCOVERY_FEED = "load_discovery_feed"
         const val TYPE_LOAD_NEXT_DISCOVERY_PAGE = "load_next_discovery_page"
+        const val TYPE_LOAD_FOR_YOU_FEED = "load_for_you_feed"
+        const val TYPE_LOAD_RECOMMENDATIONS = "load_recommendations"
 
         @JvmField
         val CREATOR: Parcelable.Creator<EngineCommand> =

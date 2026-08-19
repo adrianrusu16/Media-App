@@ -77,6 +77,8 @@ class MediaEngineService : Service() {
 
         override fun getBrowseResult(index: Int): EngineCatalogItem? = engine?.browseResult(index)
         override fun getDiscoveryResult(index: Int): EngineCatalogItem? = engine?.discoveryResult(index)
+        override fun getForYouResult(index: Int): EngineCatalogItem? = engine?.forYouResult(index)
+        override fun getRecommendationResult(index: Int): EngineCatalogItem? = engine?.recommendationResult(index)
         override fun getProfilePreferenceValue(key: String): String? = engine?.profilePreferenceValue(key)
 
         override fun getSearchResult(index: Int): EngineCatalogItem? = engine?.searchResult(index)

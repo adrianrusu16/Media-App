@@ -19,6 +19,13 @@ interface EngineServiceConnection : AutoCloseable {
     val service: EngineService?
 
     fun connect(listener: EngineServiceListener)
+
+    /**
+     * Invalidates a service proxy after a failed Binder transaction.
+     *
+     * Implementations must only clear the connection when [service] is still their current proxy.
+     */
+    fun invalidate(service: EngineService) = Unit
 }
 
 /**
@@ -48,6 +55,8 @@ interface EngineService {
 
     fun browseResult(index: Int): EngineCatalogItem?
     fun discoveryResult(index: Int): EngineCatalogItem? = null
+    fun forYouResult(index: Int): EngineCatalogItem? = null
+    fun recommendationResult(index: Int): EngineCatalogItem? = null
     fun profilePreferenceValue(key: String): String? = null
 
     fun searchResult(index: Int): EngineCatalogItem?

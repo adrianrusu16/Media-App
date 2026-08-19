@@ -6,6 +6,10 @@ import kotlin.math.abs
 
 internal class Media3PlayerStateSink(private val player: Player) : BambooMediaSessionStateSink {
     override fun project(projection: BambooMediaSessionStateProjection) {
+        if (projection.mediaItem.localConfiguration == null) {
+            return
+        }
+
         if (!player.currentMediaItem.hasSameMediaState(projection.mediaItem)) {
             player.setMediaItem(projection.mediaItem, projection.positionMillis)
         } else if (abs(player.currentPosition - projection.positionMillis) > MEDIA3_POSITION_DRIFT_THRESHOLD_MILLIS) {

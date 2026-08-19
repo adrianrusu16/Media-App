@@ -1,6 +1,7 @@
 package com.adrianrusu.pandawave
 
 import android.Manifest
+import android.content.Intent
 import android.os.Bundle
 import android.view.InputDevice
 import android.view.MotionEvent
@@ -20,6 +21,7 @@ import com.adrianrusu.pandawave.appshell.presentation.AppShellViewModel
 import com.adrianrusu.pandawave.core.audio.visualizer.VisualizerPermissionRepository
 import com.adrianrusu.pandawave.core.designsystem.R as DesignSystemR
 import com.adrianrusu.pandawave.core.designsystem.theme.PandaWaveTheme
+import com.adrianrusu.pandawave.core.media.adapter.playback.BambooMediaLibraryService
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
 import com.adrianrusu.pandawave.core.playback.BambooRestrictionState
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
@@ -82,6 +84,7 @@ class MainActivity : ComponentActivity() {
             )
         }
         playbackRepository.start()
+        startService(Intent(this, BambooMediaLibraryService::class.java))
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.RESUMED) {
                 visualizerPermissionRepository.refresh(

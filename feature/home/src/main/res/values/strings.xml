@@ -4,6 +4,8 @@
     <string name="pandawave_home_greeting_body">Forest-tuned mixes, quiet focus, and recent sounds are ready.</string>
     <string name="pandawave_home_for_you">For You</string>
     <string name="pandawave_home_recent">Recent</string>
+    <string name="pandawave_home_recommendations">Recommendations</string>
+    <string name="pandawave_home_discover">Discover</string>
     <string name="pandawave_home_bamboo_beats_title">Bamboo Beats</string>
     <string name="pandawave_home_bamboo_beats_subtitle">Fresh picks</string>
     <string name="pandawave_home_bamboo_beats_description">Soft percussion and green-room synths for the road.</string>

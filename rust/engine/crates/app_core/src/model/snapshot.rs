@@ -132,6 +132,12 @@ pub struct EngineSnapshot {
     /// Opaque continuation token retained by PandaEngine for discovery pagination.
     #[serde(default)]
     pub discovery_next_page_token: Option<crate::EnginePageToken>,
+    /// The results of the latest authenticated for-you feed operation.
+    #[serde(default)]
+    pub for_you_results: Vec<MediaItem>,
+    /// The results of the latest authenticated recommendations operation.
+    #[serde(default)]
+    pub recommendations_results: Vec<MediaItem>,
     /// The current playback speed (1.0 is normal).
     pub playback_speed: f32,
     /// The current playback position in milliseconds.
@@ -268,6 +274,27 @@ impl EngineSnapshot {
     pub fn with_discovery_next_page_token(mut self, token: Option<crate::EnginePageToken>) -> Self {
         self.discovery_next_page_token = token;
         self
+    }
+
+    #[must_use]
+    pub fn with_for_you_results(mut self, results: Vec<MediaItem>) -> Self {
+        self.for_you_results = results;
+        self
+    }
+
+    #[must_use]
+    pub fn with_recommendations_results(mut self, results: Vec<MediaItem>) -> Self {
+        self.recommendations_results = results;
+        self
+    }
+
+    #[must_use]
+    pub fn with_feed_results(self, feed: crate::DiscoveryFeed, results: Vec<MediaItem>) -> Self {
+        match feed {
+            crate::DiscoveryFeed::Discovery => self.with_discovery_results(results),
+            crate::DiscoveryFeed::ForYou => self.with_for_you_results(results),
+            crate::DiscoveryFeed::Recommendations => self.with_recommendations_results(results),
+        }
     }
 
     /// Functional update for the playback speed, returning a new snapshot.

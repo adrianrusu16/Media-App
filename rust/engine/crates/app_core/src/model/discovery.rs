@@ -1,5 +1,12 @@
 use crate::{EngineError, EnginePageRequest, EnginePagedResult, EngineTrack};
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DiscoveryFeed {
+    Discovery,
+    ForYou,
+    Recommendations,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EngineDiscoveryIdentity {
     pub account_id: String,
@@ -12,6 +19,7 @@ pub struct EngineDiscoveryIdentity {
 pub trait DiscoveryPort: Send + Sync {
     async fn get_feed(
         &self,
+        feed: DiscoveryFeed,
         expected_identity: &EngineDiscoveryIdentity,
         excluded_track_ids: &[String],
         page: EnginePageRequest,

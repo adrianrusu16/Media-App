@@ -1,5 +1,6 @@
 package com.adrianrusu.pandawave.core.rust.bridge.gateway
 
+import android.os.RemoteException
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthOperationResult
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
@@ -15,9 +16,15 @@ import com.adrianrusu.pandawave.core.telemetry.TelemetryEvent
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
 import com.adrianrusu.pandawave.core.telemetry.TelemetryModule
 import com.adrianrusu.pandawave.core.telemetry.TelemetrySink
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.concurrent.thread
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class AidlEngineGatewayTest {
     @Test
@@ -213,6 +220,86 @@ class AidlEngineGatewayTest {
             ),
             result.effects
         )
+    }
+
+    @Test
+    fun `gateway state remains accessible while a binder dispatch is blocked`() {
+        val dispatchEntered = CountDownLatch(1)
+        val releaseDispatch = CountDownLatch(1)
+        val service = BlockingDispatchEngineService(dispatchEntered, releaseDispatch)
+        val gateway = AidlEngineGateway(FakeEngineServiceConnection(service))
+        val dispatchThread = thread {
+            gateway.dispatch(EngineCommand(EngineCommand.TYPE_PLAY, null))
+        }
+
+        assertTrue(dispatchEntered.await(2, TimeUnit.SECONDS))
+        val registrationCompleted = CountDownLatch(1)
+        val registrationThread = thread {
+            gateway.observeEngineEvents { }.close()
+            registrationCompleted.countDown()
+        }
+
+        try {
+            assertTrue(registrationCompleted.await(1, TimeUnit.SECONDS))
+        } finally {
+            releaseDispatch.countDown()
+            dispatchThread.join(2_000)
+            registrationThread.join(2_000)
+        }
+    }
+
+    @Test
+    fun `command queued during reconnect is drained after the reconnect callback`() {
+        val service = RecordingEngineService(EngineSnapshot.idle(nowMillis = 1L))
+        val connection = InterleavingEngineServiceConnection()
+        val gateway = AidlEngineGateway(connection)
+        connection.onNextServiceRead = { connection.connectService(service) }
+
+        val result = gateway.dispatch(EngineCommand(EngineCommand.TYPE_PLAY, null))
+
+        assertEquals(EngineEvent.TYPE_COMMAND_QUEUED, result.event.type)
+        assertEquals(listOf(EngineCommand.TYPE_PLAY), service.commandTypes)
+    }
+
+    @Test
+    fun `dispatch cannot enqueue after close wins the service lookup race`() {
+        val connection = InterleavingEngineServiceConnection()
+        val gateway = AidlEngineGateway(connection)
+        connection.onNextServiceRead = gateway::close
+
+        val result = gateway.dispatch(EngineCommand(EngineCommand.TYPE_PLAY, null))
+
+        assertEquals(EngineEvent.TYPE_GATEWAY_UNAVAILABLE, result.event.type)
+    }
+
+    @Test
+    fun `dispatch becomes unavailable when the binder dies after applying the command`() {
+        val service = DeadBinderAfterDispatchService(EngineSnapshot.idle(nowMillis = 10L))
+        val connection = FakeEngineServiceConnection(service)
+        val gateway = AidlEngineGateway(
+            connection = connection,
+            clock = { 1L }
+        )
+
+        val result = gateway.dispatch(EngineCommand(EngineCommand.TYPE_PLAY, null))
+
+        assertEquals(listOf(EngineCommand(EngineCommand.TYPE_PLAY, null)), service.dispatchedCommands)
+        assertEquals(EngineEvent.TYPE_GATEWAY_UNAVAILABLE, result.event.type)
+        assertEquals(EngineCommand.TYPE_PLAY, result.event.message)
+        assertNull(connection.service)
+    }
+
+    @Test
+    fun `queued command replay stops when the binder dies after dispatch`() {
+        val connection = FakeEngineServiceConnection(service = null)
+        val gateway = AidlEngineGateway(connection, clock = { 1L })
+        val service = DeadBinderAfterDispatchService(EngineSnapshot.idle(nowMillis = 10L))
+
+        gateway.dispatch(EngineCommand(EngineCommand.TYPE_PLAY, null))
+        connection.connectService(service)
+
+        assertEquals(listOf(EngineCommand(EngineCommand.TYPE_PLAY, null)), service.dispatchedCommands)
+        assertNull(connection.service)
     }
 
     @Test
@@ -529,6 +616,44 @@ class AidlEngineGatewayTest {
     }
 
     @Test
+    fun `snapshot observers are serialized across concurrent binder callbacks`() {
+        val connection = FakeEngineServiceConnection(service = null)
+        val gateway = AidlEngineGateway(connection = connection, clock = { 1L })
+        val firstCallbackEntered = CountDownLatch(1)
+        val releaseFirstCallback = CountDownLatch(1)
+        val activeCallbacks = AtomicInteger(0)
+        val maximumActiveCallbacks = AtomicInteger(0)
+
+        gateway.observeSnapshots { snapshot ->
+            if (snapshot.updatedAtEpochMillis == 1L) return@observeSnapshots
+            val active = activeCallbacks.incrementAndGet()
+            maximumActiveCallbacks.accumulateAndGet(active, ::maxOf)
+            try {
+                if (snapshot.updatedAtEpochMillis == 2L) {
+                    firstCallbackEntered.countDown()
+                    assertTrue(releaseFirstCallback.await(2, TimeUnit.SECONDS))
+                }
+            } finally {
+                activeCallbacks.decrementAndGet()
+            }
+        }
+
+        val firstBinderThread = thread {
+            connection.pushSnapshot(EngineSnapshot.idle(nowMillis = 2L))
+        }
+        assertTrue(firstCallbackEntered.await(2, TimeUnit.SECONDS))
+        val secondBinderThread = thread {
+            connection.pushSnapshot(EngineSnapshot.idle(nowMillis = 3L))
+        }
+        secondBinderThread.join(500)
+        releaseFirstCallback.countDown()
+        firstBinderThread.join(2_000)
+        secondBinderThread.join(2_000)
+
+        assertEquals(1, maximumActiveCallbacks.get())
+    }
+
+    @Test
     fun `observers receive engine events`() {
         val connection = FakeEngineServiceConnection(service = null)
         val gateway = AidlEngineGateway(
@@ -702,6 +827,12 @@ private class FakeEngineServiceConnection(override var service: EngineService?) 
         this.listener = listener
     }
 
+    override fun invalidate(service: EngineService) {
+        if (this.service === service) {
+            this.service = null
+        }
+    }
+
     override fun close() {
         service = null
         listener = null
@@ -718,6 +849,35 @@ private class FakeEngineServiceConnection(override var service: EngineService?) 
     fun connectService(service: EngineService) {
         this.service = service
         pushSnapshot(service.snapshot())
+    }
+}
+
+private class InterleavingEngineServiceConnection : EngineServiceConnection {
+    private var currentService: EngineService? = null
+    private var listener: EngineServiceListener? = null
+    var onNextServiceRead: (() -> Unit)? = null
+
+    override val service: EngineService?
+        get() {
+            val observedService = currentService
+            val callback = onNextServiceRead
+            onNextServiceRead = null
+            callback?.invoke()
+            return observedService
+        }
+
+    override fun connect(listener: EngineServiceListener) {
+        this.listener = listener
+    }
+
+    override fun close() {
+        currentService = null
+        listener = null
+    }
+
+    fun connectService(service: EngineService) {
+        currentService = service
+        listener?.onSnapshotChanged(service.snapshot())
     }
 }
 
@@ -810,6 +970,57 @@ private class RecordingEngineService(
 
         else -> emptyList()
     }
+}
+
+private class DeadBinderAfterDispatchService(
+    private val initialSnapshot: EngineSnapshot,
+) : EngineService {
+    val dispatchedCommands = mutableListOf<EngineCommand>()
+
+    override fun snapshot(): EngineSnapshot {
+        if (dispatchedCommands.isNotEmpty()) {
+            throw RemoteException("PandaEngine binder died")
+        }
+        return initialSnapshot
+    }
+
+    override fun effectCount(): Int = 0
+
+    override fun browseResult(index: Int): EngineCatalogItem? = null
+
+    override fun searchResult(index: Int): EngineCatalogItem? = null
+
+    override fun effect(index: Int): EngineEffect? = null
+
+    override fun dispatch(command: EngineCommand) {
+        dispatchedCommands += command
+    }
+
+    override fun dispatchPlatformEvent(event: EnginePlatformEvent) = Unit
+}
+
+private class BlockingDispatchEngineService(
+    private val dispatchEntered: CountDownLatch,
+    private val releaseDispatch: CountDownLatch,
+) : EngineService {
+    private val currentSnapshot = EngineSnapshot.idle(nowMillis = 1L)
+
+    override fun snapshot(): EngineSnapshot = currentSnapshot
+
+    override fun browseResult(index: Int): EngineCatalogItem? = null
+
+    override fun searchResult(index: Int): EngineCatalogItem? = null
+
+    override fun effectCount(): Int = 0
+
+    override fun effect(index: Int): EngineEffect? = null
+
+    override fun dispatch(command: EngineCommand) {
+        dispatchEntered.countDown()
+        assertTrue(releaseDispatch.await(2, TimeUnit.SECONDS))
+    }
+
+    override fun dispatchPlatformEvent(event: EnginePlatformEvent) = Unit
 }
 
 private class RecordingTelemetrySink : TelemetrySink {

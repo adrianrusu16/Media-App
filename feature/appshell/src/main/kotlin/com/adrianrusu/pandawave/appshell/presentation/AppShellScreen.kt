@@ -201,10 +201,16 @@ private fun AppShellContent(
             ),
             entryProvider = entryProvider {
                 entry<HomeDestination> {
-                    HomeRoute(modifier = Modifier.fillMaxSize())
+                    HomeRoute(
+                        modifier = Modifier.fillMaxSize(),
+                        onOpenNowPlaying = navigator::openNowPlaying,
+                    )
                 }
                 entry<LibraryDestination> {
-                    LibraryRoute(modifier = Modifier.fillMaxSize())
+                    LibraryRoute(
+                        modifier = Modifier.fillMaxSize(),
+                        onOpenNowPlaying = navigator::openNowPlaying,
+                    )
                 }
                 entry<SearchDestination> {
                     SearchRoute(modifier = Modifier.fillMaxSize())

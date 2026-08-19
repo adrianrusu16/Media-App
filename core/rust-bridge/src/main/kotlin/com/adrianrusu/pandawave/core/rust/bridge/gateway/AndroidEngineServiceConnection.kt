@@ -32,6 +32,8 @@ class AndroidEngineServiceConnection(
 
     private var bound = false
     private var remoteService: IMediaEngineService? = null
+    private var remoteBinder: IBinder? = null
+    private var deathRecipient: IBinder.DeathRecipient? = null
     private var listener: EngineServiceListener? = null
 
     private val remoteListener = object : IEngineListener.Stub() {
@@ -46,16 +48,22 @@ class AndroidEngineServiceConnection(
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName, binder: IBinder) {
+            clearService()
             val remote = IMediaEngineService.Stub.asInterface(binder)
+            val connectedService = AidlEngineService(remote)
             remoteService = remote
-            service = AidlEngineService(remote)
+            remoteBinder = binder
+            service = connectedService
+            val recipient = IBinder.DeathRecipient { invalidate(connectedService) }
+            deathRecipient = recipient
 
             try {
+                binder.linkToDeath(recipient, 0)
                 remote.registerListener(remoteListener)
                 listener?.onSnapshotChanged(remote.snapshot)
                 notifyEngineEvent(EngineEvent.TYPE_SERVICE_CONNECTED)
             } catch (_: RemoteException) {
-                clearService()
+                invalidate(connectedService)
             }
         }
 
@@ -79,6 +87,13 @@ class AndroidEngineServiceConnection(
     override fun connect(listener: EngineServiceListener) {
         this.listener = listener
         bind()
+    }
+
+    override fun invalidate(service: EngineService) {
+        if (clearService(expectedService = service)) {
+            notifyEngineEvent(EngineEvent.TYPE_SERVICE_DISCONNECTED)
+            rebind()
+        }
     }
 
     override fun close() {
@@ -118,9 +133,25 @@ class AndroidEngineServiceConnection(
         }
     }
 
-    private fun clearService() {
+    private fun clearService(expectedService: EngineService? = null): Boolean {
+        if (expectedService != null && service !== expectedService) {
+            return false
+        }
+
+        val binder = remoteBinder
+        val recipient = deathRecipient
         remoteService = null
+        remoteBinder = null
+        deathRecipient = null
         service = null
+        if (binder != null && recipient != null) {
+            try {
+                binder.unlinkToDeath(recipient, 0)
+            } catch (_: NoSuchElementException) {
+                // The Binder has already removed the recipient after process death.
+            }
+        }
+        return true
     }
 
     private fun notifyEngineEvent(type: String) {
@@ -158,6 +189,8 @@ class AndroidEngineServiceConnection(
 
         override fun browseResult(index: Int): EngineCatalogItem? = remote.getBrowseResult(index)
         override fun discoveryResult(index: Int): EngineCatalogItem? = remote.getDiscoveryResult(index)
+        override fun forYouResult(index: Int): EngineCatalogItem? = remote.getForYouResult(index)
+        override fun recommendationResult(index: Int): EngineCatalogItem? = remote.getRecommendationResult(index)
         override fun profilePreferenceValue(key: String): String? = remote.getProfilePreferenceValue(key)
 
         override fun searchResult(index: Int): EngineCatalogItem? = remote.getSearchResult(index)

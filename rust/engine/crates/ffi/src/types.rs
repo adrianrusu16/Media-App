@@ -94,6 +94,9 @@ pub struct FfiEngineSnapshot {
     pub discovery_results_count: usize,
     pub has_discovery_next_page: bool,
     pub has_history_next_page: bool,
+    /// Appended feed counters preserve all existing native snapshot offsets.
+    pub for_you_results_count: usize,
+    pub recommendations_results_count: usize,
 }
 
 /// C-compatible representation of the engine outcome.
@@ -129,6 +132,8 @@ impl FfiEngineSnapshot {
             discovery_results_count: 0,
             has_discovery_next_page: false,
             has_history_next_page: false,
+            for_you_results_count: 0,
+            recommendations_results_count: 0,
             playback_state: FFI_COMMAND_UNKNOWN,
             restriction_state: FFI_COMMAND_UNKNOWN,
             updated_at_epoch_millis: 0,
@@ -216,6 +221,8 @@ impl From<&EngineSnapshot> for FfiEngineSnapshot {
             discovery_results_count: snapshot.discovery_results.len(),
             has_discovery_next_page: snapshot.discovery_next_page_token.is_some(),
             has_history_next_page: snapshot.history_next_page_token.is_some(),
+            for_you_results_count: snapshot.for_you_results.len(),
+            recommendations_results_count: snapshot.recommendations_results.len(),
             playback_state: playback_to_ffi(snapshot.playback_state),
             restriction_state: restriction_to_ffi(snapshot.restriction_state),
             updated_at_epoch_millis: snapshot.updated_at_epoch_millis,

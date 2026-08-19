@@ -68,6 +68,21 @@ class AuthUiReducerTest {
     }
 
     @Test
+    fun `login makes a Canopy connection failure explicit`() {
+        val submitting = AuthUiReducer.reduce(AuthFormState.login(), AuthUiEvent.Submit).state
+
+        val transition = AuthUiReducer.reduce(
+            submitting,
+            AuthUiEvent.CommandCompleted(
+                EngineAuthOperationResult.error(EngineAuthOperationResult.ERROR_SERVICE_UNAVAILABLE)
+            )
+        )
+
+        assertEquals(AuthFormPhase.IDLE, transition.state.phase)
+        assertEquals(AuthNotice.CANOPY_UNREACHABLE, transition.state.notice)
+    }
+
+    @Test
     fun `registration accepted enables one resend at a time`() {
         val pending = AuthUiReducer.reduce(
             AuthUiReducer.reduce(AuthFormState.register(), AuthUiEvent.Submit).state,

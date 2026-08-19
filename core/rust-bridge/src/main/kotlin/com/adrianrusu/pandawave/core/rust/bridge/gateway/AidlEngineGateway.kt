@@ -1,5 +1,6 @@
 package com.adrianrusu.pandawave.core.rust.bridge.gateway
 
+import android.os.RemoteException
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthOperationResult
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
@@ -13,6 +14,7 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.pandawave.core.rust.bridge.engine.EngineDispatchResult
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
 import com.adrianrusu.pandawave.core.telemetry.TelemetryModule
+import java.util.concurrent.Executor
 
 /**
  * Engine gateway backed by the AIDL media engine service.
@@ -20,11 +22,14 @@ import com.adrianrusu.pandawave.core.telemetry.TelemetryModule
 class AidlEngineGateway(
     private val connection: EngineServiceConnection,
     telemetryLogger: TelemetryLogger? = null,
-    private val clock: () -> Long = System::currentTimeMillis
+    private val clock: () -> Long = System::currentTimeMillis,
+    callbackExecutor: Executor = Executor { command -> command.run() },
 ) : EngineGateway,
     EngineAuthGateway,
     AutoCloseable {
     private val telemetryLogger = telemetryLogger?.forModule(TelemetryModule.RustBridge)
+    private val stateLock = Any()
+    private val callbackExecutor = SerialExecutor(callbackExecutor)
     private var latestSnapshot: EngineSnapshot? = null
     private var isClosed = false
     private var isDrainingPendingCommands = false
@@ -37,13 +42,22 @@ class AidlEngineGateway(
 
     private val listener = object : EngineServiceListener {
         override fun onSnapshotChanged(snapshot: EngineSnapshot) {
-            latestSnapshot = snapshot
+            val accepted = synchronized(stateLock) {
+                if (isClosed) {
+                    false
+                } else {
+                    latestSnapshot = snapshot
+                    true
+                }
+            }
+            if (!accepted) return
             notifySnapshotChanged(snapshot)
             notifyAuthAvailabilityChanged()
             drainPendingCommands()
         }
 
         override fun onEngineEvent(event: EngineEvent) {
+            if (closed()) return
             notifyAuthAvailabilityChanged()
             logEngineEvent(event)
             notifyEngineEvent(event)
@@ -55,70 +69,80 @@ class AidlEngineGateway(
     }
 
     override fun snapshot(): EngineSnapshot {
-        val serviceSnapshot = connection.service?.snapshot()
+        val serviceSnapshot = withRemoteService(null) { service -> service.snapshot() }
 
         return when (serviceSnapshot) {
-            null -> latestSnapshot ?: EngineSnapshot.idle(nowMillis = clock())
+            null -> synchronized(stateLock) {
+                latestSnapshot ?: EngineSnapshot.idle(nowMillis = clock())
+            }
 
             else -> {
-                latestSnapshot = serviceSnapshot
+                synchronized(stateLock) {
+                    if (!isClosed) latestSnapshot = serviceSnapshot
+                }
                 serviceSnapshot
             }
         }
     }
 
-    override fun browseResult(index: Int): EngineCatalogItem? = connection.service?.browseResult(index)
-    override fun discoveryResult(index: Int): EngineCatalogItem? = connection.service?.discoveryResult(index)
-    override fun profilePreferenceValue(key: String): String? = connection.service?.profilePreferenceValue(key)
+    override fun browseResult(index: Int): EngineCatalogItem? = withRemoteService(null) { it.browseResult(index) }
+    override fun discoveryResult(index: Int): EngineCatalogItem? = withRemoteService(null) { it.discoveryResult(index) }
+    override fun forYouResult(index: Int): EngineCatalogItem? = withRemoteService(null) { it.forYouResult(index) }
+    override fun recommendationResult(index: Int): EngineCatalogItem? = withRemoteService(null) { it.recommendationResult(index) }
+    override fun profilePreferenceValue(key: String): String? = withRemoteService(null) { it.profilePreferenceValue(key) }
 
-    override fun searchResult(index: Int): EngineCatalogItem? = connection.service?.searchResult(index)
-    override fun savedTrack(index: Int) = connection.service?.savedTrack(index)
-    override fun likedTrack(index: Int) = connection.service?.likedTrack(index)
-    override fun pendingLibraryTrackId(index: Int) = connection.service?.pendingLibraryTrackId(index)
-    override fun playlist(index: Int): EnginePlaylistItem? = connection.service?.playlist(index)
-    override fun playlistTrack(index: Int): EnginePlaylistTrackItem? = connection.service?.playlistTrack(index)
-    override fun selectedPlaylistId(): String? = connection.service?.selectedPlaylistId()
-    override fun playlistReconciliation(): EnginePlaylistReconciliation? = connection.service?.playlistReconciliation()
+    override fun searchResult(index: Int): EngineCatalogItem? = withRemoteService(null) { it.searchResult(index) }
+    override fun savedTrack(index: Int) = withRemoteService(null) { it.savedTrack(index) }
+    override fun likedTrack(index: Int) = withRemoteService(null) { it.likedTrack(index) }
+    override fun pendingLibraryTrackId(index: Int) = withRemoteService(null) { it.pendingLibraryTrackId(index) }
+    override fun playlist(index: Int): EnginePlaylistItem? = withRemoteService(null) { it.playlist(index) }
+    override fun playlistTrack(index: Int): EnginePlaylistTrackItem? = withRemoteService(null) { it.playlistTrack(index) }
+    override fun selectedPlaylistId(): String? = withRemoteService(null) { it.selectedPlaylistId() }
+    override fun playlistReconciliation(): EnginePlaylistReconciliation? = withRemoteService(null) { it.playlistReconciliation() }
 
     override val isAuthAvailable: Boolean
-        get() = !isClosed && connection.service != null
+        get() = connection.service != null && synchronized(stateLock) { !isClosed }
 
     override fun observeAuthAvailability(listener: (Boolean) -> Unit): AutoCloseable {
-        authAvailabilityListeners += listener
-        listener(isAuthAvailable)
-        return AutoCloseable { authAvailabilityListeners -= listener }
+        val registered = synchronized(stateLock) {
+            if (isClosed) false else authAvailabilityListeners.add(listener)
+        }
+        callbackExecutor.execute { listener(registered && isAuthAvailable) }
+        return AutoCloseable {
+            synchronized(stateLock) { authAvailabilityListeners -= listener }
+        }
     }
 
     override fun registerPassword(email: String, password: ByteArray): EngineAuthOperationResult =
-        withSecret(password) { connection.service?.registerPassword(email, password) }
+        withSecret(password) { withRemoteService(null) { it.registerPassword(email, password) } }
 
-    override fun resendVerification(email: String): EngineAuthOperationResult = if (isClosed) {
+    override fun resendVerification(email: String): EngineAuthOperationResult = if (closed()) {
         EngineAuthOperationResult.unavailable()
     } else {
-        connection.service?.resendVerification(email) ?: EngineAuthOperationResult.unavailable()
+        withRemoteService(null) { it.resendVerification(email) } ?: EngineAuthOperationResult.unavailable()
     }
 
     override fun verifyEmail(verificationToken: ByteArray, deviceLabel: String): EngineAuthOperationResult =
         withSecret(verificationToken) {
-            connection.service?.verifyEmail(verificationToken, deviceLabel)
+            withRemoteService(null) { it.verifyEmail(verificationToken, deviceLabel) }
         }
 
     override fun loginPassword(email: String, password: ByteArray, deviceLabel: String): EngineAuthOperationResult =
         withSecret(password) {
-            connection.service?.loginPassword(email, password, deviceLabel)
+            withRemoteService(null) { it.loginPassword(email, password, deviceLabel) }
         }
 
-    override fun logout(): EngineAuthOperationResult = if (isClosed) {
+    override fun logout(): EngineAuthOperationResult = if (closed()) {
         EngineAuthOperationResult.unavailable()
     } else {
-        connection.service?.logout() ?: EngineAuthOperationResult.unavailable()
+        withRemoteService(null) { it.logout() } ?: EngineAuthOperationResult.unavailable()
     }
 
     private inline fun withSecret(
         secret: ByteArray,
         operation: () -> EngineAuthOperationResult?
     ): EngineAuthOperationResult = try {
-        if (isClosed) {
+        if (closed()) {
             EngineAuthOperationResult.unavailable()
         } else {
             operation() ?: EngineAuthOperationResult.unavailable()
@@ -131,26 +155,33 @@ class AidlEngineGateway(
         val service = connection.service
 
         return when {
-            isClosed -> unavailableResult(command)
+            closed() -> unavailableResult(command)
 
             service == null && !command.isReplayableAfterReconnect() -> unavailableResult(command)
 
             service == null -> queuedResult(command)
 
             else -> {
-                service.dispatch(command)
-                logCommand(
-                    command = command,
-                    status = STATUS_APPLIED
-                )
-                EngineDispatchResult(
-                    snapshot = snapshot(),
-                    event = EngineEvent(
-                        type = EngineEvent.TYPE_COMMAND_APPLIED,
-                        message = command.type
-                    ),
-                    effects = service.effects()
-                )
+                try {
+                    service.dispatch(command)
+                    val serviceSnapshot = service.snapshot()
+                    synchronized(stateLock) {
+                        if (!isClosed) latestSnapshot = serviceSnapshot
+                    }
+                    val effects = service.effects()
+                    logCommand(command = command, status = STATUS_APPLIED)
+                    EngineDispatchResult(
+                        snapshot = serviceSnapshot,
+                        event = EngineEvent(
+                            type = EngineEvent.TYPE_COMMAND_APPLIED,
+                            message = command.type
+                        ),
+                        effects = effects
+                    )
+                } catch (_: RemoteException) {
+                    invalidateFailedService(service)
+                    unavailableResult(command)
+                }
             }
         }
     }
@@ -159,111 +190,167 @@ class AidlEngineGateway(
         val service = connection.service
 
         return when {
-            isClosed -> unavailableResult(event)
+            closed() -> unavailableResult(event)
 
             service == null && !event.isReplayableAfterReconnect() -> unavailableResult(event)
 
             service == null -> queuedResult(event)
 
             else -> {
-                service.dispatchPlatformEvent(event)
-                logPlatformEvent(
-                    event = event,
-                    status = STATUS_APPLIED
-                )
-                EngineDispatchResult(
-                    snapshot = snapshot(),
-                    event = EngineEvent(
-                        type = EngineEvent.TYPE_PLATFORM_EVENT_APPLIED,
-                        message = event.type
-                    ),
-                    effects = service.effects()
-                )
+                try {
+                    service.dispatchPlatformEvent(event)
+                    val serviceSnapshot = service.snapshot()
+                    synchronized(stateLock) {
+                        if (!isClosed) latestSnapshot = serviceSnapshot
+                    }
+                    val effects = service.effects()
+                    logPlatformEvent(event = event, status = STATUS_APPLIED)
+                    EngineDispatchResult(
+                        snapshot = serviceSnapshot,
+                        event = EngineEvent(
+                            type = EngineEvent.TYPE_PLATFORM_EVENT_APPLIED,
+                            message = event.type
+                        ),
+                        effects = effects
+                    )
+                } catch (_: RemoteException) {
+                    invalidateFailedService(service)
+                    unavailableResult(event)
+                }
             }
         }
     }
 
     override fun observeSnapshots(listener: (EngineSnapshot) -> Unit): AutoCloseable {
-        listeners += listener
-        listener(snapshot())
+        val initialSnapshot = snapshot()
+        val registered = synchronized(stateLock) {
+            if (isClosed) false else listeners.add(listener)
+        }
+        if (registered) callbackExecutor.execute { listener(initialSnapshot) }
 
         return AutoCloseable {
-            listeners -= listener
+            synchronized(stateLock) { listeners -= listener }
         }
     }
 
     override fun observeEngineEvents(listener: (EngineEvent) -> Unit): AutoCloseable {
-        eventListeners += listener
+        synchronized(stateLock) {
+            if (!isClosed) eventListeners += listener
+        }
 
         return AutoCloseable {
-            eventListeners -= listener
+            synchronized(stateLock) { eventListeners -= listener }
         }
     }
 
     override fun close() {
-        isClosed = true
-        notifyAuthAvailabilityChanged()
-        pendingCommands.clear()
-        pendingPlatformEvents.clear()
-        listeners.clear()
-        eventListeners.clear()
-        authAvailabilityListeners.clear()
+        val availabilityCallbacks = synchronized(stateLock) {
+            if (isClosed) return
+            isClosed = true
+            lastAuthAvailability = false
+            pendingCommands.clear()
+            pendingPlatformEvents.clear()
+            listeners.clear()
+            eventListeners.clear()
+            authAvailabilityListeners.toList().also { authAvailabilityListeners.clear() }
+        }
+        if (availabilityCallbacks.isNotEmpty()) {
+            callbackExecutor.execute {
+                availabilityCallbacks.forEach { listener -> listener(false) }
+            }
+        }
         connection.close()
     }
 
     private fun drainPendingCommands() {
-        if (isDrainingPendingCommands) {
-            return
-        }
-
         val service = connection.service ?: return
-        isDrainingPendingCommands = true
+        val claimed = synchronized(stateLock) {
+            if (isClosed || isDrainingPendingCommands) {
+                false
+            } else {
+                isDrainingPendingCommands = true
+                true
+            }
+        }
+        if (!claimed) return
+        var ownsDrain = true
         try {
-            while (pendingCommands.isNotEmpty()) {
-                val command = pendingCommands.removeFirst()
-                service.dispatch(command)
-                val serviceSnapshot = service.snapshot()
-                latestSnapshot = serviceSnapshot
-                logCommand(
-                    command = command,
-                    status = STATUS_REPLAYED
-                )
-                notifySnapshotChanged(serviceSnapshot)
-            }
+            while (true) {
+                when (val work = takePendingWork()) {
+                    null -> {
+                        ownsDrain = false
+                        return
+                    }
 
-            while (pendingPlatformEvents.isNotEmpty()) {
-                val event = pendingPlatformEvents.removeFirst()
-                service.dispatchPlatformEvent(event)
-                val serviceSnapshot = service.snapshot()
-                latestSnapshot = serviceSnapshot
-                logPlatformEvent(
-                    event = event,
-                    status = STATUS_REPLAYED
-                )
-                notifySnapshotChanged(serviceSnapshot)
+                    is PendingWork.Command -> {
+                        service.dispatch(work.value)
+                        val serviceSnapshot = service.snapshot()
+                        synchronized(stateLock) {
+                            if (!isClosed) latestSnapshot = serviceSnapshot
+                        }
+                        logCommand(command = work.value, status = STATUS_REPLAYED)
+                        notifySnapshotChanged(serviceSnapshot)
+                    }
+
+                    is PendingWork.PlatformEvent -> {
+                        service.dispatchPlatformEvent(work.value)
+                        val serviceSnapshot = service.snapshot()
+                        synchronized(stateLock) {
+                            if (!isClosed) latestSnapshot = serviceSnapshot
+                        }
+                        logPlatformEvent(event = work.value, status = STATUS_REPLAYED)
+                        notifySnapshotChanged(serviceSnapshot)
+                    }
+                }
             }
+        } catch (_: RemoteException) {
+            invalidateFailedService(service)
         } finally {
-            isDrainingPendingCommands = false
+            if (ownsDrain) {
+                val shouldRestart = synchronized(stateLock) {
+                    isDrainingPendingCommands = false
+                    !isClosed && (pendingCommands.isNotEmpty() || pendingPlatformEvents.isNotEmpty())
+                }
+                if (shouldRestart) drainPendingCommands()
+            }
+        }
+    }
+
+    private fun takePendingWork(): PendingWork? = synchronized(stateLock) {
+        when {
+            pendingCommands.isNotEmpty() -> PendingWork.Command(pendingCommands.removeFirst())
+            pendingPlatformEvents.isNotEmpty() -> PendingWork.PlatformEvent(pendingPlatformEvents.removeFirst())
+            else -> {
+                isDrainingPendingCommands = false
+                null
+            }
         }
     }
 
     private fun notifySnapshotChanged(snapshot: EngineSnapshot) {
-        listeners.toList().forEach { listener ->
-            listener(snapshot)
+        val callbacks = synchronized(stateLock) { listeners.toList() }
+        if (callbacks.isNotEmpty()) callbackExecutor.execute {
+            if (!closed()) callbacks.forEach { listener -> listener(snapshot) }
         }
     }
 
     private fun notifyEngineEvent(event: EngineEvent) {
-        eventListeners.toList().forEach { listener ->
-            listener(event)
+        val callbacks = synchronized(stateLock) { eventListeners.toList() }
+        if (callbacks.isNotEmpty()) callbackExecutor.execute {
+            if (!closed()) callbacks.forEach { listener -> listener(event) }
         }
     }
 
     private fun notifyAuthAvailabilityChanged() {
         val available = isAuthAvailable
-        if (lastAuthAvailability == available) return
-        lastAuthAvailability = available
-        authAvailabilityListeners.toList().forEach { listener -> listener(available) }
+        val callbacks = synchronized(stateLock) {
+            if (lastAuthAvailability == available) return
+            lastAuthAvailability = available
+            authAvailabilityListeners.toList()
+        }
+        if (callbacks.isNotEmpty()) callbackExecutor.execute {
+            callbacks.forEach { listener -> listener(available) }
+        }
     }
 
     private fun EngineService.effects(): List<EngineEffect> = List(
@@ -271,15 +358,42 @@ class AidlEngineGateway(
         init = ::effect
     ).filterNotNull()
 
-    private fun queuedResult(command: EngineCommand): EngineDispatchResult {
-        if (pendingCommands.size == MAX_PENDING_COMMANDS) {
-            pendingCommands.removeFirst()
+    private inline fun <T> withRemoteService(
+        unavailableValue: T,
+        operation: (EngineService) -> T
+    ): T {
+        val service = connection.service ?: return unavailableValue
+        return try {
+            operation(service)
+        } catch (_: RemoteException) {
+            invalidateFailedService(service)
+            unavailableValue
         }
-        pendingCommands += command
+    }
+
+    private fun invalidateFailedService(service: EngineService) {
+        connection.invalidate(service)
+        notifyAuthAvailabilityChanged()
+    }
+
+    private fun queuedResult(command: EngineCommand): EngineDispatchResult {
+        val queued = synchronized(stateLock) {
+            if (isClosed) {
+                false
+            } else {
+                if (pendingCommands.size == MAX_PENDING_COMMANDS) {
+                    pendingCommands.removeFirst()
+                }
+                pendingCommands += command
+                true
+            }
+        }
+        if (!queued) return unavailableResult(command)
         logCommand(
             command = command,
             status = STATUS_QUEUED
         )
+        drainPendingCommands()
 
         return EngineDispatchResult(
             snapshot = snapshot(),
@@ -291,14 +405,23 @@ class AidlEngineGateway(
     }
 
     private fun queuedResult(event: EnginePlatformEvent): EngineDispatchResult {
-        if (pendingPlatformEvents.size == MAX_PENDING_EVENTS) {
-            pendingPlatformEvents.removeFirst()
+        val queued = synchronized(stateLock) {
+            if (isClosed) {
+                false
+            } else {
+                if (pendingPlatformEvents.size == MAX_PENDING_EVENTS) {
+                    pendingPlatformEvents.removeFirst()
+                }
+                pendingPlatformEvents += event
+                true
+            }
         }
-        pendingPlatformEvents += event
+        if (!queued) return unavailableResult(event)
         logPlatformEvent(
             event = event,
             status = STATUS_QUEUED
         )
+        drainPendingCommands()
 
         return EngineDispatchResult(
             snapshot = snapshot(),
@@ -365,23 +488,25 @@ class AidlEngineGateway(
         type != EnginePlatformEvent.TYPE_PLAYBACK_COMPLETED
 
     private fun logCommand(command: EngineCommand, status: String) {
+        val pendingCount = synchronized(stateLock) { pendingCommands.size }
         telemetryLogger?.debug(
             name = EVENT_ENGINE_GATEWAY_COMMAND,
             attributes = mapOf(
                 ATTRIBUTE_COMMAND_TYPE to command.type,
                 ATTRIBUTE_STATUS to status,
-                ATTRIBUTE_PENDING_COUNT to pendingCommands.size.toString()
+                ATTRIBUTE_PENDING_COUNT to pendingCount.toString()
             )
         )
     }
 
     private fun logPlatformEvent(event: EnginePlatformEvent, status: String) {
+        val pendingCount = synchronized(stateLock) { pendingPlatformEvents.size }
         telemetryLogger?.debug(
             name = EVENT_ENGINE_GATEWAY_PLATFORM_EVENT,
             attributes = mapOf(
                 ATTRIBUTE_PLATFORM_EVENT_TYPE to event.type,
                 ATTRIBUTE_STATUS to status,
-                ATTRIBUTE_PENDING_COUNT to pendingPlatformEvents.size.toString()
+                ATTRIBUTE_PENDING_COUNT to pendingCount.toString()
             )
         )
     }
@@ -394,6 +519,14 @@ class AidlEngineGateway(
                 ATTRIBUTE_MESSAGE_PRESENT to (event.message != null).toString()
             )
         )
+    }
+
+    private fun closed(): Boolean = synchronized(stateLock) { isClosed }
+
+    private sealed interface PendingWork {
+        data class Command(val value: EngineCommand) : PendingWork
+
+        data class PlatformEvent(val value: EnginePlatformEvent) : PendingWork
     }
 
     private companion object {

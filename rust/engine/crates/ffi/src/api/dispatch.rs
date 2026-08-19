@@ -169,6 +169,8 @@ fn account_command_from_ffi(command_type: i32, payload: Option<&str>) -> Option<
 fn discovery_command_from_ffi(command_type: i32, payload: Option<&str>) -> Option<EngineCommand> {
     let wire = match command_type {
         crate::FFI_COMMAND_LOAD_DISCOVERY_FEED => EngineCommandType::LOAD_DISCOVERY_FEED_WIRE,
+        crate::FFI_COMMAND_LOAD_FOR_YOU_FEED => EngineCommandType::LOAD_FOR_YOU_FEED_WIRE,
+        crate::FFI_COMMAND_LOAD_RECOMMENDATIONS => EngineCommandType::LOAD_RECOMMENDATIONS_WIRE,
         crate::FFI_COMMAND_LOAD_NEXT_DISCOVERY_PAGE => {
             EngineCommandType::LOAD_NEXT_DISCOVERY_PAGE_WIRE
         }
@@ -358,6 +360,8 @@ pub unsafe extern "C" fn panda_engine_dispatch(
                     )
                 }
                 crate::FFI_COMMAND_LOAD_DISCOVERY_FEED
+                | crate::FFI_COMMAND_LOAD_FOR_YOU_FEED
+                | crate::FFI_COMMAND_LOAD_RECOMMENDATIONS
                 | crate::FFI_COMMAND_LOAD_NEXT_DISCOVERY_PAGE => {
                     discovery_command_from_ffi(command_type, payload_str.as_deref()).unwrap_or_else(
                         || EngineCommand::from_wire("invalid_discovery_payload", None),

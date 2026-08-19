@@ -20,6 +20,10 @@
     <string name="pandawave_auth_login_rejected">We couldn’t sign you in. Check your details and try again.</string>
     <string name="pandawave_auth_policy_mismatch">PandaWave and Canopy disagree about the account requirements. Update the app or try again later.</string>
     <string name="pandawave_auth_rate_limited">Please wait before trying again.</string>
+    <string name="pandawave_auth_canopy_unreachable">Canopy can’t be reached. For emulator development, make sure it listens on 0.0.0.0:50051.</string>
+    <string name="pandawave_auth_server_configuration_failed">Canopy’s connection configuration is invalid. Check the app and server configuration.</string>
+    <string name="pandawave_auth_canopy_server_failed">Canopy encountered a server error. Try again later.</string>
+    <string name="pandawave_auth_app_backend_mismatch">PandaWave and Canopy are incompatible. Update the app or server and try again.</string>
     <string name="pandawave_auth_try_later">Something went wrong. Try again later.</string>
     <string name="pandawave_auth_storage_failed">Sign-in could not be stored securely.</string>
     <string name="pandawave_auth_unconfirmed">We couldn’t confirm the request. Check your email, or try again later.</string>

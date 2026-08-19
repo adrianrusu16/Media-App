@@ -35,6 +35,8 @@ interface RustEngine {
     fun browseResult(index: Int): EngineCatalogItem?
 
     fun discoveryResult(index: Int): EngineCatalogItem? = null
+    fun forYouResult(index: Int): EngineCatalogItem? = null
+    fun recommendationResult(index: Int): EngineCatalogItem? = null
 
     fun profilePreferenceValue(key: String): String? = null
 

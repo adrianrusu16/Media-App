@@ -74,7 +74,7 @@ pub use crate::model::backend::{
 };
 pub use crate::model::catalog::{EngineAlbum, EngineArtist, EngineTrack};
 pub use crate::model::command::{EngineCommand, EngineCommandType};
-pub use crate::model::discovery::{DiscoveryPort, EngineDiscoveryIdentity};
+pub use crate::model::discovery::{DiscoveryFeed, DiscoveryPort, EngineDiscoveryIdentity};
 pub use crate::model::effect::EngineEffect;
 pub use crate::model::error::{EngineError, EngineErrorType};
 pub use crate::model::event::{EngineEvent, EngineEventType};

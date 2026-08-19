@@ -68,6 +68,8 @@ class PandaEngineNativeSnapshotMapperTest {
                 6L,
                 1L,
                 1L,
+                8L,
+                9L,
             )
         )
         val snapshot = projection.snapshot
@@ -132,6 +134,8 @@ class PandaEngineNativeSnapshotMapperTest {
         assertEquals(6, snapshot.discoveryResultsCount)
         assertTrue(snapshot.hasDiscoveryNextPage)
         assertTrue(snapshot.hasHistoryNextPage)
+        assertEquals(8, snapshot.forYouResultsCount)
+        assertEquals(9, snapshot.recommendationsResultsCount)
     }
 
     @Test

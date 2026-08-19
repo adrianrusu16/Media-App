@@ -29,6 +29,8 @@ class InProcessEngineGateway(private val engine: RustEngine) :
 
     override fun browseResult(index: Int): EngineCatalogItem? = engine.browseResult(index)
     override fun discoveryResult(index: Int): EngineCatalogItem? = engine.discoveryResult(index)
+    override fun forYouResult(index: Int): EngineCatalogItem? = engine.forYouResult(index)
+    override fun recommendationResult(index: Int): EngineCatalogItem? = engine.recommendationResult(index)
     override fun profilePreferenceValue(key: String): String? = engine.profilePreferenceValue(key)
 
     override fun searchResult(index: Int): EngineCatalogItem? = engine.searchResult(index)

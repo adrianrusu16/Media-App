@@ -402,6 +402,61 @@ pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_eng
 }
 
 #[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeForYouResultValues(
+    mut env: JNIEnv,
+    _: JObject,
+    handle: jlong,
+    index: jint,
+) -> jobjectArray {
+    home_feed_result_values(&mut env, handle, index, |snapshot| {
+        &snapshot.for_you_results
+    })
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeRecommendationResultValues(
+    mut env: JNIEnv,
+    _: JObject,
+    handle: jlong,
+    index: jint,
+) -> jobjectArray {
+    home_feed_result_values(&mut env, handle, index, |snapshot| {
+        &snapshot.recommendations_results
+    })
+}
+
+fn home_feed_result_values(
+    env: &mut JNIEnv,
+    handle: jlong,
+    index: jint,
+    select: impl FnOnce(&panda_engine_core::EngineSnapshot) -> &Vec<panda_engine_core::MediaItem>,
+) -> jobjectArray {
+    let Some(item) = (unsafe { (handle as *const PandaEngine).as_ref() })
+        .map(|engine| engine.engine.snapshot())
+        .and_then(|snapshot| {
+            usize::try_from(index)
+                .ok()
+                .and_then(|index| select(&snapshot).get(index).cloned())
+        })
+    else {
+        return ptr::null_mut();
+    };
+    strings_to_jobject_array(
+        env,
+        vec![
+            item.id,
+            item.title,
+            item.artist,
+            item.album.unwrap_or_default(),
+            item.thumbnail_url.unwrap_or_default(),
+            item.source_uri.unwrap_or_default(),
+            item.mime_type.unwrap_or_default(),
+            crate::mappings::media_item_type_to_ffi(&item.item_type).to_string(),
+        ],
+    )
+}
+
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeProfilePreferenceValue(
     mut env: JNIEnv,
     _: JObject,
@@ -1184,7 +1239,7 @@ fn snapshot_to_jlong_array(env: &mut JNIEnv, snapshot: FfiEngineSnapshot) -> jlo
     array.into_raw()
 }
 
-fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 56] {
+fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 58] {
     [
         snapshot.playback_state as jlong,
         snapshot.restriction_state as jlong,
@@ -1242,6 +1297,8 @@ fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 56] {
         snapshot.discovery_results_count as jlong,
         bool_to_jlong(snapshot.has_discovery_next_page),
         bool_to_jlong(snapshot.has_history_next_page),
+        snapshot.for_you_results_count as jlong,
+        snapshot.recommendations_results_count as jlong,
     ]
 }
 
@@ -1319,6 +1376,8 @@ mod tests {
             discovery_results_count: 6,
             has_discovery_next_page: true,
             has_history_next_page: true,
+            for_you_results_count: 8,
+            recommendations_results_count: 9,
             playback_state: FFI_PLAYBACK_PLAYING,
             restriction_state: FFI_RESTRICTION_UNKNOWN,
             updated_at_epoch_millis: 42,
@@ -1365,7 +1424,7 @@ mod tests {
         };
 
         let values = snapshot_to_jlong_values(snapshot);
-        assert_eq!(values.len(), 56);
+        assert_eq!(values.len(), 58);
         assert_eq!(
             &values[..45],
             &[
@@ -1417,7 +1476,7 @@ mod tests {
             ]
         );
         assert_eq!(&values[45..50], &[6, 7, 1, 0, 1]);
-        assert_eq!(&values[50..], &[1, 2, 1, 6, 1, 1]);
+        assert_eq!(&values[50..], &[1, 2, 1, 6, 1, 1, 8, 9]);
     }
 
     #[test]
