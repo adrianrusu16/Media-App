@@ -5,6 +5,7 @@
     <string name="pandawave_now_playing_action_skip_next">Skip next</string>
     <string name="pandawave_now_playing_action_skip_previous">Skip previous</string>
     <string name="pandawave_now_playing_controls_unavailable">Controls unavailable</string>
+    <string name="pandawave_now_playing_playback_error">Unable to play this song</string>
     <string name="pandawave_now_playing_enable_visualization">Enable music visualization</string>
     <string name="pandawave_now_playing_show_playback_controls">Show playback controls</string>
     <string name="pandawave_now_playing_idle_title">Nothing playing</string>

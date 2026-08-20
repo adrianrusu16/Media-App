@@ -252,6 +252,7 @@ private fun NowPlayingInteractiveScreen(
         playLabel = stringResource(R.string.pandawave_now_playing_action_play),
         pauseLabel = stringResource(R.string.pandawave_now_playing_action_pause),
         controlsUnavailableLabel = stringResource(R.string.pandawave_now_playing_controls_unavailable),
+        playbackErrorLabel = stringResource(R.string.pandawave_now_playing_playback_error),
         fallbackTitle = fallbackTitle,
         fallbackDetail = fallbackDetail
     )

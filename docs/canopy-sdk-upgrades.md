@@ -6,7 +6,7 @@ the resolved lockfile entries, and every shipped `client-connection.json`
 contract are one compatibility unit. They must move together in a single
 change.
 
-The currently supported unit is Canopy release `v0.3.0`, BSR commit
+The currently supported unit is Canopy API `v0.2.0`, BSR commit
 `af019e2d7fa245a2a7d9fc21a4dd9afa`, Prost
 `=0.5.0-00000000000000-af019e2d7fa2.2`, and Tonic
 `=0.5.0-00000000000000-af019e2d7fa2.4`.

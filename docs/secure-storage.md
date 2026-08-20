@@ -19,8 +19,9 @@ rotation, account identity, or storage policy.
 
 ## Boundary Rule
 
-Rust owns auth, session, database, and sync policy. Android owns only the
-platform-backed cryptographic operation:
+Rust owns client auth state, session rotation, and session persistence. Canopy
+owns accounts, PostgreSQL data, media, and server authorization policy. Android
+owns only the platform-backed cryptographic operation:
 
 ```text
 Rust secret material
@@ -29,7 +30,7 @@ Kotlin secure storage adapter
         |
 Android Keystore AES-GCM key
         |
-EncryptedSecret persisted by Rust-owned session/local storage
+Encrypted session envelope persisted by the Rust-owned file store
 ```
 
 ## Security Notes
@@ -42,8 +43,9 @@ EncryptedSecret persisted by Rust-owned session/local storage
   hiding aliases is not a security boundary.
 - Callers must not log plaintext, ciphertext, IVs, aliases, session envelope
   fields, account identifiers, or errors with secret payloads.
-- Persistence policy belongs to Rust-owned session/local storage. Kotlin
-  performs only platform cryptographic operations and returns encrypted bytes.
+- Session persistence policy belongs to Rust. Kotlin performs only platform
+  cryptographic operations and returns encrypted bytes. This bridge is not a
+  general client database or media-storage layer.
 
 The implementation follows Android Keystore guidance for AES/GCM/NoPadding with
 an Android Keystore-generated key.

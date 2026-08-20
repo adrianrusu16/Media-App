@@ -959,7 +959,11 @@ impl Engine {
                             next_snapshot.playback_state = PlaybackState::Buffering;
                         }
                         Err(error) => {
-                            next_snapshot = next_snapshot.with_error(Some(error));
+                            let mut failed_media = media.clone();
+                            failed_media.source_uri = None;
+                            next_snapshot = next_snapshot
+                                .with_media(failed_media)
+                                .with_error(Some(error));
                             next_snapshot.playback_state = PlaybackState::Error;
                         }
                     }

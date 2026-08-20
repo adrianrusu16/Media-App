@@ -56,6 +56,19 @@ class NowPlayingUiModelTest {
     }
 
     @Test
+    fun `playback error disables controls and shows a playback failure`() {
+        val model = NowPlayingState(
+            title = "Broken Track",
+            playbackState = NowPlayingPlaybackState.Idle,
+            engineConnection = BambooEngineConnectionUiState.Ready,
+            hasPlaybackError = true
+        ).toTestUiModel()
+
+        assertFalse(model.controlsEnabled)
+        assertEquals("Unable to play this song", model.availabilityLabel)
+    }
+
+    @Test
     fun `volume is clamped to zero to one hundred`() {
         assertEquals(0F, NowPlayingVolumeUiModel.from(-20F).value)
         assertEquals(100F, NowPlayingVolumeUiModel.from(120F).value)
@@ -67,6 +80,7 @@ private fun NowPlayingState.toTestUiModel(): NowPlayingUiModel = toNowPlayingUiM
     playLabel = "Play",
     pauseLabel = "Pause",
     controlsUnavailableLabel = "Controls unavailable",
+    playbackErrorLabel = "Unable to play this song",
     fallbackTitle = "Nothing playing",
     fallbackDetail = "Ready when you are"
 )

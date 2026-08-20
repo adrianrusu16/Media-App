@@ -13,23 +13,29 @@ flowchart LR
     BambooUI["BambooUI\nUI and design system"]
     PandaEngine["PandaEngine\nRust engine and middleware"]
     Canopy["Canopy\ngRPC backend"]
-    JadeStore["JadeStore\nCanopy persistence"]
-    JadeCache["JadeCache\nCanopy cache"]
-    JadeSync["JadeSync\nfuture sync"]
+    Postgres["PostgreSQL\nmetadata, identity, policy"]
+    ManagedMedia["Backend-owned\nlocal media"]
+    Nginx["Nginx\ncapability streaming"]
     PandaOS["PandaOS\nfuture AAOS image"]
 
     PandaOS -->|Media APIs, widgets, system UI| PandaWave
     PandaWave --> BambooUI
     PandaWave -->|AIDL + JNI host boundary| PandaEngine
     PandaEngine -->|gRPC| Canopy
-    Canopy --> JadeStore
-    Canopy --> JadeCache
-    Canopy --> JadeSync
+    Canopy --> Postgres
+    Canopy --> ManagedMedia
+    ManagedMedia --> Nginx
+    PandaWave -->|opaque URL range requests| Nginx
 ```
+
+Canopy owns the persistent backend data plane and playback authorization.
+PandaWave receives catalog/domain projections and opaque stream capabilities;
+it does not connect to PostgreSQL, ingest local media, or reproduce Canopy
+authorization policy on-device.
 
 ## AAOS Media Declaration
 
-The final app declares itself as an Android Automotive media app with the
+The app declares itself as an Android Automotive media app with the
 `com.android.automotive` descriptor:
 
 ```xml
@@ -38,7 +44,7 @@ The final app declares itself as an Android Automotive media app with the
 </automotiveApp>
 ```
 
-During drive mode, driver-safe browsing should flow through the AAOS media host
+During drive mode, driver-safe browsing flows through the AAOS media host
 and PandaWave's Media3 `MediaLibraryService`. The Compose activity remains
 subject to platform UX restrictions.
 

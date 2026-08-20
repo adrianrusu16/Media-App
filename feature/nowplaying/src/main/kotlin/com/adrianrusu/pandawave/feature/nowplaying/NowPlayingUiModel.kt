@@ -35,10 +35,12 @@ internal fun NowPlayingState.toNowPlayingUiModel(
     playLabel: String,
     pauseLabel: String,
     controlsUnavailableLabel: String,
+    playbackErrorLabel: String,
     fallbackTitle: String,
     fallbackDetail: String
 ): NowPlayingUiModel {
-    val controlsEnabled = engineConnection.status == BambooEngineConnectionStatus.Ready
+    val controlsEnabled = engineConnection.status == BambooEngineConnectionStatus.Ready &&
+        !hasPlaybackError
     val primaryActionLabel = if (isPlaying) pauseLabel else playLabel
 
     return NowPlayingUiModel(
@@ -52,10 +54,10 @@ internal fun NowPlayingState.toNowPlayingUiModel(
         } else {
             NowPlayingPrimaryControlIcon.PandaPaw
         },
-        availabilityLabel = if (controlsEnabled) {
-            primaryActionLabel
-        } else {
-            controlsUnavailableLabel
+        availabilityLabel = when {
+            hasPlaybackError -> playbackErrorLabel
+            controlsEnabled -> primaryActionLabel
+            else -> controlsUnavailableLabel
         },
         volume = NowPlayingVolumeUiModel.from(volume)
     )

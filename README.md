@@ -13,10 +13,14 @@ PandaWave is an AAOS-first music application designed around platform media
 integration, safety-aware automotive UX, and a Rust runtime that owns the
 important product state.
 
-Kotlin and Compose provide the Android UI and platform adapter layer. Rust owns
-API access, local data, playback state, user/session state, telemetry policy,
-and security-sensitive business logic. AIDL is the primary boundary between the
-Android surface and the engine.
+Kotlin and Compose provide the Android UI and platform adapter layer.
+PandaEngine owns client-side domain decisions, Canopy API integration, playback
+state, session coordination, telemetry policy, and security-sensitive business
+logic. Canopy owns managed media, PostgreSQL-backed metadata and authorization
+policy, and Nginx streaming. PandaWave persists only narrowly scoped client
+state such as the encrypted session envelope; it does not carry a local media
+database. AIDL is the Android process boundary, and the Kotlin host calls the
+Rust engine through the implemented JNI/FFI binding.
 
 ## Architecture Roadmap
 

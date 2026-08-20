@@ -51,7 +51,7 @@ of PandaEngine.
 
 ## Service Model
 
-The engine should be hosted by a non-exported Android service boundary. Android
+The engine is hosted by a non-exported Android service boundary. Android
 callers observe the same gateway contract, and the service owns one native
 PandaEngine instance through the Kotlin host.
 
@@ -73,25 +73,25 @@ sequenceDiagram
     Gateway-->>Caller: projected gateway state
 ```
 
-## Integration Milestones
+## Implemented Host Capabilities
 
 1. **FFI Facade**
-   Expose `panda_engine_core` through a compact C ABI with explicit ownership,
+   `panda_engine_core` is exposed through a compact C ABI with explicit ownership,
    stable discriminants, ABI-safe structs, and panic containment.
 
 2. **JNI Shim**
-   Add Android-native JNI entrypoints that match the Kotlin native host. The
-   shim should call the Rust FFI facade and convert FFI structs into
+   Android-native JNI entrypoints match the Kotlin native host. The shim calls
+   the Rust FFI facade and converts FFI structs into
    Kotlin-friendly primitives or DTOs.
 
 3. **Native Engine Selection**
-   Use a native-only production factory. Fake engines are explicit test/local
+   Production uses a native-only factory. Fake engines are explicit test/local
    fixtures and must not be selected silently by production service code.
 
 4. **Contract Expansion**
-   Expand AIDL/Kotlin commands, snapshots, events, and effects to match the
-   Rust engine contract intentionally. Do not expose every Rust field by habit;
-   expose fields that callers need through stable host contracts.
+   AIDL/Kotlin commands, snapshots, events, effects, authentication operations,
+   profile/history/library/playlist operations, and query APIs intentionally
+   expose the Rust contract fields required by Android callers.
 
    Current snapshot projection includes playback state, restriction state,
    update time, active-session/error flags, result counts, playback speed,
@@ -117,7 +117,7 @@ sequenceDiagram
    payloads into domain command types at the FFI boundary.
 
 5. **Effect Requests**
-   Route engine effect requests to Android executors, then report platform
+   Engine effect requests are routed to Android executors, which report platform
    events back into PandaEngine. The engine defines what work is needed; Android
    decides how framework-specific work is executed.
    Playback source preparation is a dedicated effect request, separate from
@@ -125,7 +125,7 @@ sequenceDiagram
    metadata changes.
 
 6. **Engine-Backed Catalog Contract**
-   Expose browse/search commands and result-query APIs through the engine
+   Browse/search commands and result-query APIs are exposed through the engine
    boundary. Android projection into framework media items belongs to the
    platform integration layer.
 
@@ -169,3 +169,9 @@ explicit `CanopyOperation` entry that defines retry replay and authentication
 requirements. Raw configuration JSON, protobuf messages, gRPC status objects,
 bearer tokens, playback capabilities, and pagination cursors do not cross into
 Kotlin.
+
+The server-side data plane remains entirely behind Canopy: PostgreSQL stores
+metadata, identity, and authorization state; Canopy manages the local media
+library and issues opaque playback capabilities; Nginx serves ranged media
+responses. The Android host persists only the Rust-owned encrypted session
+envelope and never receives backend database or stream-signing credentials.

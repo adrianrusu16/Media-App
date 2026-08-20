@@ -4,7 +4,7 @@ Rust is the source of truth for PandaWave domain state. Android owns platform
 integration, process lifecycle, AIDL, Media3, AAOS UX restrictions, RRO access,
 and secure platform services.
 
-## Current Milestone
+## Current Integration
 
 The repository now contains a Rust workspace at `rust/engine` with
 `panda_engine_core` and `panda_engine_ffi`. PandaEngine owns the source-of-truth
@@ -25,13 +25,17 @@ host through `PandaEngineFactory`. Native-load failures are hard integration
 errors, not production fallback paths. `:core:rust-bridge` also declares the
 generated `jniLibs` lane used to package Rust Android builds.
 
-The next binding layer is also scaffolded:
+The native binding and production host are implemented:
 
-- `panda_engine_ffi` exposes a small C ABI over `panda_engine_core`.
-- `PandaEngine` defines the Kotlin wrapper shape for the future JNI/native
-  library.
+- `panda_engine_ffi` exposes the C ABI over `panda_engine_core` and the
+  Android-native JNI entrypoints that translate JVM values into that ABI.
+- The Kotlin `PandaEngine` loads `panda_engine_ffi`, owns the native handle,
+  installs the encrypted session store, dispatches commands and platform
+  events, and maps native snapshots, results, and effects.
 - `MediaEngineService` depends on the `RustEngine` interface and uses the
   native-only factory.
+- The Gradle native lane builds and packages the Rust library for the supported
+  Android ABIs as part of normal app builds.
 
 The fake engine remains an explicit test/local fixture only.
 
@@ -61,7 +65,13 @@ Playback uses direct opaque capabilities from `ResolvePlayback`. Android and
 Media3 receive the resolved URL, MIME type, and expiry as data-plane inputs, and
 must preserve the URL byte-for-byte instead of rebuilding or decoding it.
 
-## Intended Flow
+Canopy owns the persistent application data plane: backend-managed local media,
+PostgreSQL metadata and authorization policy, and Nginx streaming. Supabase is
+not part of the current architecture, and PandaEngine does not embed a
+provider-specific catalog or client media database. Its durable client
+persistence is limited to scoped state such as the encrypted session envelope.
+
+## Runtime Flow
 
 ```text
 Android gateway caller
@@ -85,11 +95,11 @@ PandaEngine owns playback, session readiness, queue, catalog, and platform-aware
 media behavior. Android callers project those snapshots into their own surface
 state, then send user input back as engine commands.
 
-Platform lifecycle changes enter the same boundary as commands through
-`EnginePlatformEvent`. The first events are intentionally no-op state-machine
-inputs that update engine time and emit `platform_event_applied`; later reducers
-can use the same path for suspend-to-RAM, resume, UX restriction, and service
-recovery behavior.
+Platform lifecycle and playback changes enter the same boundary as commands
+through `EnginePlatformEvent`. The current reducers handle media load/error,
+audio focus, suspend-to-RAM, playback completion, vehicle driving state, and UX
+restriction changes while returning the resulting canonical snapshot and
+effects through the host boundary.
 
 Theme selection remains profile/preference state instead of playback engine
 state. Android may project a server-backed profile preference into UI state and
@@ -98,10 +108,10 @@ becomes part of a broader profile contract shared with backend/user state.
 
 ## Boundary Rule
 
-Kotlin can own platform shapes, but Rust owns decisions. Kotlin should not grow
-parallel business logic for playback, auth, user state, catalog normalization, or
-provider policy. Temporary fake implementations should stay small and be replaced
-by Rust calls as soon as the native binding exists.
+Kotlin can own platform shapes, but Rust owns client-side domain decisions.
+Kotlin must not grow parallel business logic for playback, auth, user state,
+catalog normalization, or Canopy operation policy. Fake engines remain explicit
+test fixtures and are never production fallback paths.
 
 ## Wire Values
 

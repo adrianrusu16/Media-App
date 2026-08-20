@@ -6,8 +6,10 @@ of truth, while Android owns the vehicle and platform surfaces.
 
 ## Principles
 
-- Rust is the canonical source of truth for app, playback, catalog, user, data,
-  and telemetry state.
+- Rust is the canonical source of truth for client-side domain decisions,
+  playback, catalog projections, session coordination, and telemetry state.
+- Canopy is the authority for accounts, persistent metadata, authorization
+  policy, media resolution, and stream-capability issuance.
 - AIDL is the primary Android-side boundary to the engine.
 - Kotlin owns Android lifecycle, Compose UI, Media3 integration, Hilt wiring,
   Android Keystore access, AAOS UX restrictions, and RRO resource access.
@@ -27,7 +29,11 @@ flowchart TD
     Car["AAOS adapters: UX restrictions, RROs, vehicle signals"]
     Aidl["AIDL engine service contract"]
     Rust["PandaEngine source-of-truth runtime"]
-    Data["Canopy gRPC backend, optional provider adapters, Rust-owned encrypted local state"]
+    Canopy["Canopy gRPC control plane\ncatalog, accounts, metadata, policy"]
+    Postgres["PostgreSQL\nmetadata, identity, authorization state"]
+    ManagedMedia["Backend-owned local media"]
+    Nginx["Nginx\ncapability-protected streaming"]
+    Session["Encrypted session envelope\nRust-owned file, Keystore cryptography"]
     Player["Platform player: ExoPlayer or OEM adapter"]
 
     System --> Media3
@@ -35,13 +41,18 @@ flowchart TD
     Media3 --> Aidl
     Car --> Aidl
     Aidl --> Rust
-    Rust --> Data
+    Rust -->|gRPC| Canopy
+    Canopy --> Postgres
+    Canopy --> ManagedMedia
+    ManagedMedia --> Nginx
+    Rust --> Session
     Rust --> Aidl
     Aidl --> Player
+    Player -->|opaque capability URL and range requests| Nginx
     Player --> Media3
 ```
 
-The native engine host plan is tracked in
+The implemented native engine host boundary is documented in
 [native-engine-host.md](native-engine-host.md). That document is the source of
 truth for the AIDL, JNI, Rust FFI, and PandaEngine hosting boundary.
 
@@ -50,7 +61,7 @@ Android platform integration details are tracked in
 document owns AAOS declarations, Media3 projection, content-provider/cache
 bridges, and the Android native packaging lane.
 
-## Planned Modules
+## Module Responsibilities
 
 | Area | Modules | Responsibility |
 | --- | --- | --- |
@@ -60,9 +71,9 @@ bridges, and the Android native packaging lane.
 | Automotive | `:core:automotive`, `:core:vehicle`, `:core:carui` | UX restrictions, RRO bridge, vehicle signal abstraction, CarUiLib/OEM hooks |
 | Media | `:core:media-adapter` | Media3 service/session and platform playback execution |
 | Engine boundary | `:core:rust-bridge` | AIDL client, service binding, DTO mapping |
-| Security | `:core:secure-storage-adapter` | Android Keystore bridge for Rust-managed encrypted storage |
+| Security | `:core:secure-storage-adapter` | Android Keystore cryptography for the Rust-owned encrypted session envelope |
 | Observability | `:core:telemetry-adapter` | Platform sinks for logs, crashes, traces, and redacted telemetry |
-| Rust runtime | `:rust:engine` | Canopy auth/API adapters, local encrypted state, playback state, catalog, user, sync, telemetry policy |
+| Rust runtime | `:rust:engine` | Canopy client adapters, session coordination and encrypted session persistence, playback state, catalog projections, user state, and telemetry policy |
 
 ## Naming
 
@@ -70,7 +81,8 @@ bridges, and the Android native packaging lane.
 - PandaEngine is the Rust source-of-truth engine and middleware runtime.
 - Canopy is the gRPC backend that PandaEngine talks to.
 - BambooUI is the UI and design-system family.
-- JadeStore, JadeCache, and JadeSync belong to the Canopy backend ecosystem.
+- PostgreSQL, managed media storage, and Nginx are Canopy deployment concerns;
+  they are not PandaWave client modules.
 - PandaOS is the future AAOS/AOSP image that can surface PandaWave through
   Android media APIs.
 - `RustEngine` remains the Kotlin interface for the Android-to-Rust boundary.
@@ -80,7 +92,10 @@ bridges, and the Android native packaging lane.
   controls, and theme/design-system elements. Domain and adapter internals
   should use Panda or neutral media names instead.
 
-## Milestones
+## Milestone History
+
+The original implementation sequence remains useful as project history. The
+outcomes below use the current Canopy and client ownership terminology.
 
 | Milestone | Commit Theme | Outcome |
 | --- | --- | --- |
@@ -90,11 +105,11 @@ bridges, and the Android native packaging lane.
 | 4 | `chore: add modular project structure` | Core and feature modules created with empty contracts |
 | 5 | `feat: add AIDL engine service boundary` | Bound service, stable command/snapshot DTO shape, fake engine |
 | 6 | `feat: add Rust engine skeleton` | Rust workspace, Android build wiring, smoke test through AIDL adapter |
-| 7 | `feat: add secure storage bridge` | Android Keystore-backed key access for Rust-managed encrypted data |
+| 7 | `feat: add secure storage bridge` | Android Keystore-backed cryptography for the Rust-owned session envelope |
 | 8 | `feat: add Media3 playback foundation` | MediaLibraryService, MediaSession, player adapter, system controls |
 | 9 | `feat: add automotive UX restriction handling` | Restriction monitor, safe navigation rules, simplified restricted mini-player |
 | 10 | `feat: add RRO-ready design tokens` | Overlayable resources and Compose theme bridge |
-| 11 | `feat: add Rust-owned data layer` | Canopy-backed catalog/auth/profile data, local encrypted state, provider abstraction, fake providers for tests |
+| 11 | `feat: integrate Canopy data services` | Rust Canopy clients for catalog, auth, profile, history, library, playlists, and discovery; Canopy retains PostgreSQL policy/metadata, managed media, and Nginx streaming ownership |
 | 12 | `feat: add settings and profile flows` | User settings, profile state, privacy controls |
 | 13 | `chore: add observability pipeline` | Structured logging, crash reporting, traces, telemetry redaction |
 | 14 | `test: add unit and instrumentation coverage` | Kotlin, Rust, Media3, Compose, and automotive adapter tests |
@@ -102,7 +117,7 @@ bridges, and the Android native packaging lane.
 
 ## AIDL Boundary
 
-The AIDL service should expose coarse commands and snapshots instead of a chatty
+The AIDL service exposes coarse commands and snapshots instead of a chatty
 getter API. Kotlin components dispatch events and observe snapshots. Rust
 validates commands, updates canonical state, and returns platform work as typed
 commands.
@@ -115,14 +130,16 @@ while `InProcessEngineGateway` remains useful for fast tests and local
 fake-engine scenarios. UI repositories, use cases, and Bamboo Media3 surfaces
 stay on the same gateway boundary.
 `BambooPlaybackRepository` subscribes to gateway snapshots and engine events so
-changes from system media controls, Media3, or future service-side work can
+changes from system media controls, Media3, or service-side work can
 update mini-player and Now Playing state without waiting for a local screen
 intent.
 Because service binding is asynchronous, the AIDL gateway queues early commands
 and replays them once the engine service connects. This keeps startup bootstrap
 and first media commands from being lost during process creation.
 
-Example service shape:
+Representative core of the service contract (the full interface also exposes
+typed authentication, catalog, profile, history, library, playlist, and result
+query operations):
 
 ```aidl
 interface IMediaEngineService {
@@ -153,9 +170,8 @@ the in-app mini-player.
 Settings is the first destination with its own feature MVI stack, use cases,
 ViewModel, repository, and Hilt bindings. Its privacy and personalization
 controls observe AAOS UX restrictions and become parked-only when required.
-Playback-facing UI state is mapped from the shared `BambooPlaybackRepository` so
-PandaEngine can replace the fake implementation without changing Compose
-screens.
+Playback-facing UI state is mapped from the shared `BambooPlaybackRepository`,
+keeping Compose screens independent of the native engine host.
 Now Playing and the app-shell mini-player consume the same Bamboo playback
 state. The full Now Playing destination hides the shell mini-player because it
 would otherwise duplicate the summary of the active screen.
@@ -171,10 +187,11 @@ PandaEngine playback command -> AIDL -> PlatformPlayer -> ExoPlayer/OEM adapter
 Player event -> AIDL -> PandaEngine -> canonical playback snapshot
 ```
 
-The first Android playback foundation is intentionally platform-only: a Media3
-`MediaLibraryService` exposes an `ExoPlayer`-backed session to AAOS and media
-controllers, while library contents and command policy stay reserved for the
-Rust engine wiring milestone.
+The Android playback foundation uses a Media3 `MediaLibraryService` and an
+`ExoPlayer`-backed session for AAOS and media controllers. Browse, search,
+command policy, and playback-source resolution now cross the AIDL/JNI boundary
+to PandaEngine. Canopy returns an opaque capability URL, and Media3 streams that
+URL directly from Nginx without rebuilding it.
 Media3 play-state changes are projected into `BambooPlaybackRepository`, so system and
 AAOS media controls share the same command gating and Rust boundary as in-app controls. Bamboo playback snapshots are projected back into Media3 metadata and play readiness so platform surfaces show the same current track as Compose. Media3 controller commands are also gated by engine readiness so AAOS controls stay disabled until PandaEngine is explicitly ready.
 
@@ -185,13 +202,15 @@ AAOS media controls share the same command gating and Rust boundary as in-app co
 - Treat `client-connection.json` as a secret-free deployment handoff. It may
   contain public gRPC, streaming, OpenAPI, verification, and package-version
   values, but never operator credentials.
-- Keep auth/session rotation, backend operation policy, database, and provider
-  logic behind the Rust boundary. Canopy remains the server-side authorization
-  authority.
+- Keep Canopy transport mapping, authentication metadata, session rotation,
+  retry classification, and client-side operation policy in Rust. PostgreSQL,
+  media ingestion/storage, server authorization policy, and stream signing stay
+  entirely in Canopy.
 - Require TLS for non-loopback Canopy deployments. Debug loopback cleartext is
   selected only by the Android service's debuggable application flag.
-- Store encryption material through Android Keystore and expose only a narrow
-  platform key provider to Rust.
+- Protect the Rust-owned session envelope through Android Keystore and expose
+  only a narrow cryptographic adapter to Rust. This store is not a client media
+  database.
 - Redact tokens, user identifiers, playback capabilities, request bodies,
   Canopy configuration, TLS trust details, and native errors from logs.
 - Route Android logs and diagnostics through the telemetry adapter so redaction
@@ -205,9 +224,9 @@ AAOS media controls share the same command gating and Rust boundary as in-app co
 ## Automotive Integration
 
 - Use Media3 and `MediaSession` as the platform media path.
-- Declare the final app as an Android Automotive media app with the
+- The app declares itself as an Android Automotive media app with the
   `com.android.automotive` descriptor. During drive mode, driver-safe browsing
-  should flow through the AAOS media host and the app's Media3
+  flows through the AAOS media host and the app's Media3
   `MediaLibraryService`; the Compose activity remains subject to platform UX
   restrictions.
 - Observe AAOS UX restrictions with a platform adapter and project them into

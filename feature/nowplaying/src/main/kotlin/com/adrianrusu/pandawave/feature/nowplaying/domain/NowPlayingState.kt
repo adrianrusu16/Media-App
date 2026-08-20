@@ -20,6 +20,7 @@ data class NowPlayingState(
     val ambientModeEnabled: Boolean = false,
     val ambientTimeoutSeconds: Int = 15,
     val visualizerPermissionState: VisualizerPermissionState = VisualizerPermissionState.Unknown,
+    val hasPlaybackError: Boolean = false,
     val updatedAtEpochMillis: Long = 0L,
     val progressAnchor: BambooPlaybackProgressAnchor = BambooPlaybackProgressAnchor()
 ) {

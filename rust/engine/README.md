@@ -3,8 +3,8 @@
 This workspace contains **PandaEngine**, the Rust source-of-truth engine for PandaWave.
 
 Android modules communicate with the engine through the AIDL service boundary in
-`:core:rust-bridge`. The Android native host will call this workspace through a
-thin handwritten JNI shim over the `panda_engine_ffi` C ABI. Rust owns
+`:core:rust-bridge`. The Kotlin `PandaEngine` host calls this workspace through
+the implemented handwritten JNI shim over the `panda_engine_ffi` C ABI. Rust owns
 deterministic domain behavior: commands, events, snapshots, middleware,
 recovery, and effect emission.
 
@@ -40,10 +40,12 @@ If you are changing architecture/module boundaries, also run `cargo test --works
 ```mermaid
 flowchart LR
     subgraph Android[Android / AAOS]
-        UI[UI + Service]
+        UI[UI + AIDL service]
+        HOST[Kotlin PandaEngine host]
     end
 
     subgraph FFI[crates/ffi]
+        JNI[jni_bridge Android entrypoints]
         API[api::* extern C fns]
         TYPES[types + mappings + constants]
         HANDLE[engine_handle]
@@ -61,7 +63,9 @@ flowchart LR
         CANOPY[Canopy gRPC]
     end
 
-    UI --> API
+    UI --> HOST
+    HOST --> JNI
+    JNI --> API
     API --> HANDLE
     HANDLE --> ENGINE
     ENGINE --> MW
@@ -99,7 +103,8 @@ crates/ffi
 - `crates/app_core/src/middleware/` — trait + standard/analytics/pipeline modules.
 - `crates/app_core/src/data/` — queue, repository abstractions, persistence contracts.
 - `crates/app_core/src/networking/` — transport traits, canopy adapters, retry wrappers.
-- `crates/ffi/src/lib.rs` — stable C ABI exports and curated re-exports.
+- `crates/ffi/src/jni_bridge.rs` — implemented Android JNI entrypoints and JVM/native conversion.
+- `crates/ffi/src/lib.rs` — stable C ABI exports, JNI registration surface, and curated re-exports.
 
 ## Local Verification
 
@@ -152,6 +157,7 @@ cargo check -p panda_engine_core -p panda_engine_ffi
 - **Async Repository Contracts**: Async repository operations and busy-state transitions are explicitly tested.
 - **Transport Isolation**: Core depends on traits (`BackendClient`, `AudioSourceClient`) rather than transport SDKs.
 - **Canopy gRPC Path**: pinned BSR Prost/Tonic packages, immutable connection-asset verification, shared channel reuse, operation-aware auth/retry policy, TLS roots, and health mapping.
+- **Narrow Client Persistence**: durable storage is limited to the encrypted session envelope; Canopy owns managed media, PostgreSQL metadata/policy, and Nginx streaming.
 - **Paged Search**: Unary `Search` and `Browse` calls preserve opaque continuation tokens for UI pagination.
 - **Retry Hardening**: `CanopyOperation` and `AudioSourceOperation` classify replay safety, authentication requirements, exponential backoff, jitter, and retry time budgets.
 - **Cancellation Safety**: Explicit cancellation coverage for long-running async networking paths.
@@ -184,7 +190,7 @@ flowchart TB
         subgraph DataLayer[data layer]
             REPO_TRAIT[MediaRepository trait]
             REMOTE[RemoteRepository&lt;C&gt;]
-            CACHE[local item cache\nget_by_id]
+            CACHE[in-memory item cache\nget_by_id]
         end
 
         subgraph NetLayer[networking layer]

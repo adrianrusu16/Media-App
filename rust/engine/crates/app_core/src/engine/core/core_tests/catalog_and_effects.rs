@@ -456,6 +456,10 @@ async fn play_media_by_id_source_resolution_failure_moves_to_error() {
         .await;
 
     assert_eq!(PlaybackState::Error, outcome.snapshot.playback_state);
+    assert_eq!(outcome.snapshot.media_id.as_deref(), Some("track-1"));
+    assert_eq!(outcome.snapshot.title.as_deref(), Some("Broken Track"));
+    assert_eq!(outcome.snapshot.artist.as_deref(), Some("PandaWave"));
+    assert_eq!(outcome.snapshot.source_uri, None);
     assert_eq!(
         outcome
             .snapshot

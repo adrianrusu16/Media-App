@@ -1,9 +1,8 @@
 # Module Structure
 
-This is the intended modular layout for PandaWave. The modules will be
-created incrementally after the Gradle convention layer is in place.
+This is the current modular layout and dependency direction for PandaWave.
 
-## Target Layout
+## Current Layout
 
 ```text
 media_app/
@@ -34,7 +33,7 @@ media_app/
     rust-bridge/
       AIDL client, service binding, parcelable mapping, PandaEngine adapter
     secure-storage-adapter/
-      Android Keystore bridge for Rust-managed encrypted storage
+      Android Keystore cryptography for the Rust-owned session envelope
     telemetry-adapter/
       Android logging, crash, trace, and telemetry sinks
     testing/
@@ -49,7 +48,7 @@ media_app/
     library/
       User library browsing
     search/
-      Safe search and provider-backed discovery
+      Safe search and Canopy-backed discovery
     nowplaying/
       Full now-playing experience
     settings/
@@ -61,13 +60,13 @@ media_app/
 
   provider/
     jamendo/
-      Optional Jamendo provider adapter behind Rust-owned provider policy
+      Legacy empty scaffold retained in Gradle; not part of production data flow
 
   rust/
     engine/
-      Rust workspace for Canopy auth/API adapters, local encrypted state,
-      playback, user state, catalog, sync, telemetry policy, and FFI/AIDL
-      integration support
+      Rust workspace for Canopy client adapters, encrypted session persistence,
+      playback, user state, catalog projections, telemetry policy, C ABI, and
+      JNI integration
 
   build-logic/
     Gradle convention plugins for Android app, Android library, Compose, Hilt,
@@ -83,14 +82,28 @@ app -> feature:appshell
 feature:appshell -> feature:* (navigation destinations, as they become concrete)
 core:playback -> core:automotive
 core:rust-bridge -> AIDL service boundary
-Rust engine -> Canopy gRPC, optional provider adapters, local encrypted state
+Rust engine -> Canopy gRPC control plane
+Rust engine -> encrypted session file through Android Keystore cryptography
+Media3 player -> Canopy-issued opaque URL -> Nginx streaming
 ```
 
-Feature modules should not call Canopy, provider adapters, SQLite, native code,
-or platform cryptographic APIs directly. They dispatch user/system events to
-the engine boundary and render snapshots returned by Rust.
+Feature modules do not call Canopy clients, JNI/native code, or platform
+cryptographic APIs directly. They dispatch user/system events to the engine
+boundary and render snapshots returned by Rust. The empty `:provider:jamendo`
+module is a legacy scaffold only; no production module depends on it.
 
-## Product Flavors
+## Backend And Client Data Ownership
+
+Canopy owns backend-managed local media, PostgreSQL metadata and authorization
+policy, and Nginx streaming. PandaWave does not maintain a parallel media
+database or provider-specific production catalog. The only durable encrypted
+client store in the current architecture is the Rust-owned session envelope,
+with cryptographic operations supplied by Android Keystore.
+
+## Product Flavor Direction
+
+The repository does not currently declare product flavors. If the OEM boundary
+is introduced, the intended split is:
 
 ```text
 play

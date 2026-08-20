@@ -11,6 +11,16 @@ Canopy remains the authority for authorization policy. PandaEngine may know
 which client auth state or metadata a call requires, but it must not duplicate
 track, playlist, profile, or account access policy.
 
+## Data Ownership
+
+Canopy owns the persistent application data plane: backend-managed local media,
+PostgreSQL metadata, accounts, sessions, and authorization policy, plus Nginx
+streaming. PandaEngine consumes typed gRPC contracts and opaque playback
+capabilities. PandaWave never connects directly to PostgreSQL, carries backend
+credentials, or maintains a parallel client media database. Its durable local
+secret state is limited to the encrypted session envelope described in
+[secure-storage.md](secure-storage.md).
+
 ## Deployment Configuration
 
 Every runnable variant supplies a `client-connection.json` asset matching the

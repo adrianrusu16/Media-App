@@ -120,7 +120,7 @@ fn verifier_rejects_mixed_or_generated_sdk_contracts() {
         &stale_release
             .root
             .join("app/src/debug/assets/client-connection.json"),
-        "\"release\": \"v0.3.0\"",
+        "\"release\": \"v0.2.0\"",
         "\"release\": \"v0.1.0\"",
     );
     assert_rejected(
@@ -277,7 +277,7 @@ fn verifier_discovers_and_rejects_a_third_shipped_artifact() {
         .root
         .join("feature/canopy/src/debug/assets/client-connection.json");
     copy_file(&source, &third);
-    replace_in_file(&third, "\"release\": \"v0.3.0\"", "\"release\": \"v0.1.0\"");
+    replace_in_file(&third, "\"release\": \"v0.2.0\"", "\"release\": \"v0.1.0\"");
 
     assert_rejected(
         "stale third shipped connection artifact",

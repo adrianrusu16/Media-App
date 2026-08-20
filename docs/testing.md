@@ -38,6 +38,17 @@ device/runtime behavior, and native packaging smoke paths.
 Instrumentation tests may still use Kotlin language features, including `use`,
 but they should not depend on the host-side JUnit Platform runner.
 
+`AndroidEngineProcessRecoveryTest` is the process-isolation regression test. It
+binds the real AIDL service, kills the exact instrumented application's
+`:engine` PID, observes disconnect and reconnect events, verifies that Android
+started a replacement process with a different PID, and dispatches a platform
+event through the recovered Binder connection. Run it on a connected emulator
+with:
+
+```powershell
+.\gradlew.bat :core:rust-bridge:connectedDebugAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=com.adrianrusu.pandawave.core.rust.bridge.gateway.AndroidEngineProcessRecoveryTest'
+```
+
 
 ## Canopy static and compatibility gates
 

@@ -163,7 +163,9 @@ where
     match retry {
         Ok(response) => Ok(response),
         Err(status) if status.code() == Code::Unauthenticated => {
-            coordinator.invalidate_if_current(&replacement).await?;
+            if operation.auth_requirement() == AuthRequirement::AccessAuthenticated {
+                coordinator.invalidate_if_current(&replacement).await?;
+            }
             Err(map_operation_status(status, false))
         }
         Err(status) => Err(map_operation_status(status, false)),
@@ -910,7 +912,7 @@ mod tests {
 
         let error = execute_with_auth_at(
             Some(&coordinator),
-            CanopyOperation::GetMedia,
+            CanopyOperation::GetProfile,
             1_000,
             || Request::new(()),
             move |_| {
@@ -932,7 +934,7 @@ mod tests {
         let later_counter = attempts.clone();
         let later = execute_with_auth_at(
             Some(&coordinator),
-            CanopyOperation::GetMedia,
+            CanopyOperation::GetProfile,
             1_000,
             || Request::new(()),
             move |_| {
@@ -945,6 +947,41 @@ mod tests {
         assert_eq!(later.error_type, EngineErrorType::LoginRequired);
         assert_eq!(attempts.load(Ordering::SeqCst), 2);
         assert_eq!(auth.refreshes.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn optional_access_rejection_preserves_the_refreshed_session() {
+        let (coordinator, auth) = coordinator(
+            Some(envelope("rejected-access", "refresh-1", 20_000)),
+            envelope("rotated-access", "refresh-2", 30_000),
+        );
+        let attempts = Arc::new(AtomicUsize::new(0));
+        let counter = attempts.clone();
+
+        let error = execute_with_auth_at(
+            Some(&coordinator),
+            CanopyOperation::ResolvePlayback,
+            1_000,
+            || Request::new(()),
+            move |_| {
+                counter.fetch_add(1, Ordering::SeqCst);
+                async { Err::<Response<()>, _>(Status::unauthenticated("playback rejected")) }
+            },
+        )
+        .await
+        .unwrap_err();
+
+        assert_eq!(error.error_type, EngineErrorType::LoginRequired);
+        assert_eq!(attempts.load(Ordering::SeqCst), 2);
+        assert_eq!(auth.refreshes.load(Ordering::SeqCst), 1);
+        assert!(matches!(
+            coordinator.auth_state().unwrap(),
+            crate::AuthState::Authenticated { .. }
+        ));
+        assert_eq!(
+            coordinator.access_token_snapshot().unwrap().as_deref(),
+            Some("rotated-access")
+        );
     }
 
     #[tokio::test]
