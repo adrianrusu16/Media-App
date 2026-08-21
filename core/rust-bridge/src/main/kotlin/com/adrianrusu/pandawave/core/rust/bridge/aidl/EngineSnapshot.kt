@@ -56,6 +56,7 @@ data class EngineSnapshot(
     ,val hasHistoryNextPage: Boolean = false
     ,val forYouResultsCount: Int = 0
     ,val recommendationsResultsCount: Int = 0
+    ,val backendAvailability: EngineBackendAvailability = EngineBackendAvailability.connecting()
 ) : Parcelable {
     constructor(parcel: Parcel) : this(
         playbackState = parcel.readString().orEmpty(),
@@ -120,6 +121,10 @@ data class EngineSnapshot(
         ,hasHistoryNextPage = parcel.readBooleanValue()
         ,forYouResultsCount = parcel.readInt()
         ,recommendationsResultsCount = parcel.readInt()
+        ,backendAvailability = EngineBackendAvailability(
+            status = parcel.readString() ?: EngineBackendAvailability.CONNECTING,
+            reason = parcel.readString()
+        )
     )
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
@@ -182,6 +187,8 @@ data class EngineSnapshot(
         parcel.writeBooleanValue(hasHistoryNextPage)
         parcel.writeInt(forYouResultsCount)
         parcel.writeInt(recommendationsResultsCount)
+        parcel.writeString(backendAvailability.status)
+        parcel.writeString(backendAvailability.reason)
     }
 
     override fun describeContents(): Int = 0
@@ -295,6 +302,23 @@ data class EngineBackendDependencyStatus(
     val status: String,
     val message: String
 )
+
+data class EngineBackendAvailability(
+    val status: String,
+    val reason: String? = null
+) {
+    companion object {
+        const val CONNECTING = "connecting"
+        const val AVAILABLE = "available"
+        const val UNAVAILABLE = "unavailable"
+        const val REASON_NETWORK_UNAVAILABLE = "network_unavailable"
+        const val REASON_CONNECTION_FAILED = "connection_failed"
+        const val REASON_TIMEOUT = "timeout"
+        const val REASON_SERVICE_UNAVAILABLE = "service_unavailable"
+
+        fun connecting() = EngineBackendAvailability(CONNECTING)
+    }
+}
 
 data class EngineControlState(val isVisible: Boolean, val isEnabled: Boolean, val isActive: Boolean) {
     companion object {

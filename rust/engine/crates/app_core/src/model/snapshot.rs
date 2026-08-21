@@ -1,7 +1,7 @@
 use crate::data::repository::MediaItem;
 use crate::data::session::MediaSession;
 use crate::model::auth::AuthState;
-use crate::model::backend::EngineBackendStatus;
+use crate::model::backend::{BackendAvailability, EngineBackendStatus};
 use crate::model::error::EngineError;
 use crate::model::playback::{DrivingState, PlaybackState, PlayerControls, RestrictionState};
 use crate::model::preferences::ThemePreferenceState;
@@ -30,6 +30,11 @@ pub struct EngineSnapshot {
     /// Latest successfully retrieved backend health projection.
     #[serde(default)]
     pub backend_status: Option<EngineBackendStatus>,
+    /// Dynamic reachability of the configured backend. This stays separate
+    /// from the last successful health payload so an outage never invalidates
+    /// local engine state.
+    #[serde(default)]
+    pub backend_availability: BackendAvailability,
     /// Unique identifier for the current media item.
     pub media_id: Option<String>,
     /// Displayable title of the current media.
@@ -211,6 +216,13 @@ impl EngineSnapshot {
     #[must_use]
     pub fn with_backend_status(mut self, status: Option<EngineBackendStatus>) -> Self {
         self.backend_status = status;
+        self
+    }
+
+    /// Functional update for backend reachability.
+    #[must_use]
+    pub fn with_backend_availability(mut self, availability: BackendAvailability) -> Self {
+        self.backend_availability = availability;
         self
     }
 

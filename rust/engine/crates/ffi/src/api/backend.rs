@@ -40,8 +40,15 @@ pub(crate) fn configure_backend(
     let Some(config) = config else {
         return Ok(());
     };
-    let connected = engine.runtime.block_on(CanopyChannel::connect(&config));
-    match connected {
+    // Reachability is runtime state. A valid configuration must create an
+    // engine even when Canopy is currently down.
+    let channel = {
+        // Tonic's lazy channel installs its background transport task at
+        // construction time, so create it in PandaEngine's long-lived runtime.
+        let _entered = engine.runtime.enter();
+        CanopyChannel::connect_lazy(&config)
+    };
+    match channel {
         Ok(channel) => finish_configuration(engine, config, channel, mode),
         Err(error) => {
             fail_configuration(engine);
@@ -114,6 +121,7 @@ fn finish_configuration(
         inner.set_account_port(composition.account);
         inner.set_system_port(composition.system);
         inner.set_auth_state_provider(session.clone());
+        inner.set_backend_availability(panda_engine_core::BackendAvailability::Connecting);
     });
     *engine.auth_runtime.lock().unwrap() = Some(crate::engine_handle::EngineAuthRuntime {
         coordinator: session,
@@ -220,6 +228,24 @@ mod concurrency_tests {
     fn configuration_api_requires_only_shared_engine_access() {
         let _: fn(&PandaEngine, &str, DeploymentMode) -> Result<(), EngineError> =
             configure_backend;
+    }
+
+    #[test]
+    fn valid_configuration_creates_an_engine_without_a_live_backend() {
+        let engine = build_engine(0);
+        let config = valid_config_json()
+            .replace("\"environment\": \"production\"", "\"environment\": \"development\"")
+            .replace("https://canopy.example.com", "http://127.0.0.1:1")
+            .replace("https://stream.example.com", "http://127.0.0.1:2")
+            .replace("https://api.example.com", "http://127.0.0.1:3");
+
+        configure_backend(&engine, &config, DeploymentMode::Development).unwrap();
+
+        assert!(engine.backend_is_configured());
+        assert_eq!(
+            engine.engine.snapshot().backend_availability,
+            panda_engine_core::BackendAvailability::Connecting
+        );
     }
 
     #[test]

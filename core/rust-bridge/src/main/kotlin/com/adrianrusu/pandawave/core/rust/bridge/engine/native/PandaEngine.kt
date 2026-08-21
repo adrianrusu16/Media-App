@@ -2,6 +2,7 @@ package com.adrianrusu.pandawave.core.rust.bridge.engine.native
 
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineBackendDependencyStatus
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineBackendStatus
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineBackendAvailability
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAccount
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthSession
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthState
@@ -47,6 +48,24 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     internal fun configureBackend(configJson: String, isDevelopment: Boolean) {
         check(nativeConfigureBackend(nativeHandle, configJson, isDevelopment)) {
             "PandaEngine backend configuration failed"
+        }
+    }
+
+    override fun setBackendAvailability(availability: EngineBackendAvailability) {
+        val nativeAvailability = when (availability.status) {
+            EngineBackendAvailability.CONNECTING -> NATIVE_BACKEND_CONNECTING
+            EngineBackendAvailability.AVAILABLE -> NATIVE_BACKEND_AVAILABLE
+            EngineBackendAvailability.UNAVAILABLE -> NATIVE_BACKEND_UNAVAILABLE
+            else -> return
+        }
+        val nativeReason = when (availability.reason) {
+            EngineBackendAvailability.REASON_NETWORK_UNAVAILABLE -> NATIVE_BACKEND_REASON_NETWORK_UNAVAILABLE
+            EngineBackendAvailability.REASON_TIMEOUT -> NATIVE_BACKEND_REASON_TIMEOUT
+            EngineBackendAvailability.REASON_SERVICE_UNAVAILABLE -> NATIVE_BACKEND_REASON_SERVICE_UNAVAILABLE
+            else -> NATIVE_BACKEND_REASON_CONNECTION_FAILED
+        }
+        check(nativeSetBackendAvailability(nativeHandle, nativeAvailability, nativeReason)) {
+            "PandaEngine failed to update backend availability."
         }
     }
 
@@ -227,6 +246,8 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         isDevelopment: Boolean
     ): Boolean
 
+    private external fun nativeSetBackendAvailability(handle: Long, availability: Int, reason: Int): Boolean
+
     private external fun nativeInstallSessionStore(
         handle: Long,
         sessionPath: String,
@@ -402,8 +423,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         speed: Float,
         playbackInstanceId: Long
     ): EngineEffect? {
-        val effectType = type.toEngineEffectType()
-        return when (effectType) {
+        return when (val effectType = type.toEngineEffectType()) {
             EngineEffect.TYPE_UNKNOWN -> null
 
             else -> EngineEffect(
@@ -428,6 +448,14 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
 
         @JvmStatic
         private external fun nativeCreate(nowEpochMillis: Long): Long
+
+        private const val NATIVE_BACKEND_CONNECTING = 0
+        private const val NATIVE_BACKEND_AVAILABLE = 1
+        private const val NATIVE_BACKEND_UNAVAILABLE = 2
+        private const val NATIVE_BACKEND_REASON_NETWORK_UNAVAILABLE = 1
+        private const val NATIVE_BACKEND_REASON_CONNECTION_FAILED = 2
+        private const val NATIVE_BACKEND_REASON_TIMEOUT = 3
+        private const val NATIVE_BACKEND_REASON_SERVICE_UNAVAILABLE = 4
 
         private const val COMMAND_BOOTSTRAP = 0
         private const val COMMAND_PLAY = 1
@@ -896,7 +924,7 @@ internal object PandaEngineNativeSnapshotMapper {
                 hasSavedTracksNextPage = nativeValues[SNAPSHOT_HAS_SAVED_NEXT_PAGE_INDEX].toBoolean(),
                 hasLikedTracksNextPage = nativeValues[SNAPSHOT_HAS_LIKED_NEXT_PAGE_INDEX].toBoolean()
                 ,playlistsCount = nativeValues[45].toInt(), playlistTracksCount = nativeValues[46].toInt(), hasPlaylistsNextPage = nativeValues[47].toBoolean(), hasPlaylistTracksNextPage = nativeValues[48].toBoolean(), hasPlaylistReconciliation = nativeValues[49].toBoolean()
-                ,protectedAccount = null, deviceSessions = emptyList(), deviceSessionsCount = nativeValues[51].toInt(), hasDeviceSessionsNextPage = nativeValues[52].toBoolean(), discoveryResultsCount = nativeValues[53].toInt(), hasDiscoveryNextPage = nativeValues[54].toBoolean(), hasHistoryNextPage = nativeValues[55].toBoolean(), forYouResultsCount = nativeValues[56].toInt(), recommendationsResultsCount = nativeValues[57].toInt()
+                ,protectedAccount = null, deviceSessions = emptyList(), deviceSessionsCount = nativeValues[51].toInt(), hasDeviceSessionsNextPage = nativeValues[52].toBoolean(), discoveryResultsCount = nativeValues[53].toInt(), hasDiscoveryNextPage = nativeValues[54].toBoolean(), hasHistoryNextPage = nativeValues[55].toBoolean(), forYouResultsCount = nativeValues[56].toInt(), recommendationsResultsCount = nativeValues[57].toInt(), backendAvailability = backendAvailabilityFromNative(nativeValues[SNAPSHOT_BACKEND_AVAILABILITY_INDEX].toInt(), nativeValues[SNAPSHOT_BACKEND_UNAVAILABLE_REASON_INDEX].toInt())
             ),
             metadataRevision = nativeValues[SNAPSHOT_METADATA_REVISION_INDEX],
             backendStatus = nativeValues[SNAPSHOT_HAS_BACKEND_STATUS_INDEX]
@@ -949,6 +977,20 @@ internal object PandaEngineNativeSnapshotMapper {
         else -> EngineSnapshot.ERROR_UNKNOWN
     }
 
+    private fun backendAvailabilityFromNative(status: Int, reason: Int): EngineBackendAvailability = when (status) {
+        BACKEND_AVAILABLE -> EngineBackendAvailability(EngineBackendAvailability.AVAILABLE)
+        BACKEND_UNAVAILABLE -> EngineBackendAvailability(
+            EngineBackendAvailability.UNAVAILABLE,
+            when (reason) {
+                BACKEND_REASON_NETWORK_UNAVAILABLE -> EngineBackendAvailability.REASON_NETWORK_UNAVAILABLE
+                BACKEND_REASON_TIMEOUT -> EngineBackendAvailability.REASON_TIMEOUT
+                BACKEND_REASON_SERVICE_UNAVAILABLE -> EngineBackendAvailability.REASON_SERVICE_UNAVAILABLE
+                else -> EngineBackendAvailability.REASON_CONNECTION_FAILED
+            }
+        )
+        else -> EngineBackendAvailability.connecting()
+    }
+
     private fun themePreferenceFromNative(value: Int): String = when (value) {
         THEME_BAMBOO_GROVE_LIGHT -> EngineThemePreference.THEME_BAMBOO_GROVE_LIGHT
         THEME_MOONLIT_BAMBOO_DARK -> EngineThemePreference.THEME_MOONLIT_BAMBOO_DARK
@@ -997,7 +1039,7 @@ internal object PandaEngineNativeSnapshotMapper {
     private const val PREFERENCE_SOURCE_LOCAL_USER = 2
     private const val PREFERENCE_SOURCE_REMOTE_PROFILE = 3
 
-    private const val SNAPSHOT_VALUE_COUNT = 58
+    private const val SNAPSHOT_VALUE_COUNT = 60
     private const val SNAPSHOT_PLAYBACK_INDEX = 0
     private const val SNAPSHOT_RESTRICTION_INDEX = 1
     private const val SNAPSHOT_UPDATED_AT_INDEX = 2
@@ -1043,6 +1085,15 @@ internal object PandaEngineNativeSnapshotMapper {
     private const val SNAPSHOT_LIBRARY_PENDING_COUNT_INDEX = 42
     private const val SNAPSHOT_HAS_SAVED_NEXT_PAGE_INDEX = 43
     private const val SNAPSHOT_HAS_LIKED_NEXT_PAGE_INDEX = 44
+    private const val SNAPSHOT_BACKEND_AVAILABILITY_INDEX = 58
+    private const val SNAPSHOT_BACKEND_UNAVAILABLE_REASON_INDEX = 59
     private const val AUTH_ANONYMOUS = 0
     private const val AUTH_AUTHENTICATED = 1
+
+    private const val BACKEND_CONNECTING = 0
+    private const val BACKEND_AVAILABLE = 1
+    private const val BACKEND_UNAVAILABLE = 2
+    private const val BACKEND_REASON_NETWORK_UNAVAILABLE = 1
+    private const val BACKEND_REASON_TIMEOUT = 3
+    private const val BACKEND_REASON_SERVICE_UNAVAILABLE = 4
 }

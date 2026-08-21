@@ -15,7 +15,10 @@ pub struct CanopyChannel {
 }
 
 impl CanopyChannel {
-    pub async fn connect(config: &CanopyConnectionConfig) -> Result<Self, EngineError> {
+    /// Builds a reconnectable channel without requiring Canopy to be online.
+    /// Endpoint validation and TLS configuration still happen eagerly; the
+    /// actual connection is attempted by the first RPC and retried by Tonic.
+    pub fn connect_lazy(config: &CanopyConnectionConfig) -> Result<Self, EngineError> {
         let mut endpoint = Endpoint::from_shared(config.grpc_endpoint().to_string())
             .map_err(|_| {
                 EngineError::new(
@@ -31,15 +34,9 @@ impl CanopyChannel {
                 tls_config(config.tls_server_name(), config.private_ca_pem()),
             )?;
         }
-        let channel = endpoint.connect().await.map_err(|error| {
-            let _ = error;
-            EngineError::new(
-                EngineErrorType::Transport,
-                "failed to connect to Canopy",
-                false,
-            )
-        })?;
-        Ok(Self { channel })
+        Ok(Self {
+            channel: endpoint.connect_lazy(),
+        })
     }
 
     /// Creates a lazy transport for composition tests without opening a network connection.

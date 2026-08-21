@@ -78,10 +78,17 @@ impl Engine {
                 };
                 match result {
                     Ok(status) => {
-                        next_snapshot = next_snapshot.with_backend_status(Some(status));
+                        next_snapshot = next_snapshot
+                            .with_backend_status(Some(status))
+                            .with_backend_availability(crate::BackendAvailability::Available);
                     }
                     Err(error) => {
-                        next_snapshot = next_snapshot.with_error(Some(error));
+                        let availability = crate::BackendAvailability::Unavailable(
+                            backend_unavailable_reason(&error),
+                        );
+                        next_snapshot = next_snapshot
+                            .with_error(Some(error))
+                            .with_backend_availability(availability);
                     }
                 }
             }
@@ -106,22 +113,21 @@ impl Engine {
             }
             EngineCommandType::SkipPrevious => {
                 const PREVIOUS_TRACK_THRESHOLD_MILLIS: u64 = 10_000;
-                let select_previous = self.snapshot.position_millis < PREVIOUS_TRACK_THRESHOLD_MILLIS
+                let select_previous = self.snapshot.position_millis
+                    < PREVIOUS_TRACK_THRESHOLD_MILLIS
                     && self.queue.has_previous();
 
                 if select_previous {
                     if let Some(prev_media) = self.queue.previous_item().cloned() {
                         match self.resolve_playback_source(&prev_media).await {
                             Ok(media) => {
-                                next_snapshot = self.update_media_state(
-                                    &media,
-                                    next_snapshot,
-                                    &mut effects,
-                                );
+                                next_snapshot =
+                                    self.update_media_state(&media, next_snapshot, &mut effects);
                                 next_snapshot.playback_state = PlaybackState::Buffering;
                             }
                             Err(error) => {
-                                next_snapshot = next_snapshot.with_error(Some(error)).with_busy(false);
+                                next_snapshot =
+                                    next_snapshot.with_error(Some(error)).with_busy(false);
                                 next_snapshot.playback_state = PlaybackState::Error;
                             }
                         }
@@ -1097,6 +1103,19 @@ impl Engine {
             _ => {}
         }
 
+        let backend_unavailable = next_snapshot.last_error.as_ref().and_then(|error| {
+            matches!(
+                error.error_type,
+                EngineErrorType::NetworkError
+                    | EngineErrorType::Transport
+                    | EngineErrorType::ServiceUnavailable
+            )
+            .then(|| crate::BackendAvailability::Unavailable(backend_unavailable_reason(error)))
+        });
+        if let Some(availability) = backend_unavailable {
+            next_snapshot.backend_availability = availability;
+        }
+
         self.snapshot = next_snapshot;
         self.snapshot.controls = self.derive_controls(&self.snapshot);
 
@@ -1204,6 +1223,15 @@ impl Engine {
         }
         snapshot.profile = Some(profile);
         snapshot.profile_preferences = values;
+    }
+}
+
+fn backend_unavailable_reason(error: &crate::EngineError) -> crate::BackendUnavailableReason {
+    match error.error_type {
+        EngineErrorType::NetworkError => crate::BackendUnavailableReason::NetworkUnavailable,
+        EngineErrorType::Transport => crate::BackendUnavailableReason::Timeout,
+        EngineErrorType::ServiceUnavailable => crate::BackendUnavailableReason::ServiceUnavailable,
+        _ => crate::BackendUnavailableReason::ConnectionFailed,
     }
 }
 

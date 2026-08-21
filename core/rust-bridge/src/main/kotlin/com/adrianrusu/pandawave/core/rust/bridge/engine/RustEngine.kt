@@ -7,6 +7,7 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineBackendAvailability
 
 interface RustEngine {
     fun registerPassword(email: String, password: ByteArray): EngineAuthOperationResult =
@@ -31,6 +32,9 @@ interface RustEngine {
     fun setAudioSourceResolver(resolver: AudioSourceResolver)
 
     fun snapshot(): EngineSnapshot
+
+    /** Updates transient backend reachability without recreating the engine. */
+    fun setBackendAvailability(availability: EngineBackendAvailability) = Unit
 
     fun browseResult(index: Int): EngineCatalogItem?
 

@@ -41,3 +41,23 @@ pub struct EngineBackendStatus {
     pub dependencies: Vec<EngineDependencyStatus>,
     pub checked_at_epoch_millis: Option<u64>,
 }
+
+/// Runtime reachability of the configured backend. Configuration validity is
+/// deliberately not represented here: an engine with a valid configuration
+/// remains usable while its backend is temporarily unreachable.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+pub enum BackendAvailability {
+    #[default]
+    Connecting,
+    Available,
+    Unavailable(BackendUnavailableReason),
+}
+
+/// A safe, display-independent classification of a transient backend outage.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum BackendUnavailableReason {
+    NetworkUnavailable,
+    ConnectionFailed,
+    Timeout,
+    ServiceUnavailable,
+}

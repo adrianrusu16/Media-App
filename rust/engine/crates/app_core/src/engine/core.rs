@@ -270,6 +270,12 @@ impl std::fmt::Debug for Engine {
 }
 
 impl Engine {
+    /// Updates reachability without rebuilding the engine or losing local
+    /// playback/queue/session state. The Android connection supervisor owns
+    /// when this is called; the engine remains the snapshot source of truth.
+    pub fn set_backend_availability(&mut self, availability: crate::BackendAvailability) {
+        self.snapshot.backend_availability = availability;
+    }
     /// Initializes a new engine instance with the given timestamp.
     pub fn new(now_epoch_millis: u64) -> Self {
         let bus = Arc::new(EventBus::default());

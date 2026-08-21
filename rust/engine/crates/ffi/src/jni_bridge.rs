@@ -25,8 +25,8 @@ use crate::{
     panda_engine_get_current_source_uri, panda_engine_get_current_thumbnail_url,
     panda_engine_get_current_title, panda_engine_get_current_user_id,
     panda_engine_get_effect_media_id, panda_engine_get_effect_notify_message,
-    panda_engine_get_effect_position_millis, panda_engine_get_effect_playback_instance_id, panda_engine_get_effect_speed,
-    panda_engine_get_effect_type, panda_engine_get_effects_count,
+    panda_engine_get_effect_playback_instance_id, panda_engine_get_effect_position_millis,
+    panda_engine_get_effect_speed, panda_engine_get_effect_type, panda_engine_get_effects_count,
     panda_engine_get_last_event_message, panda_engine_get_search_result_album,
     panda_engine_get_search_result_artist, panda_engine_get_search_result_id,
     panda_engine_get_search_result_item_type, panda_engine_get_search_result_mime_type,
@@ -34,7 +34,9 @@ use crate::{
     panda_engine_get_search_result_title, panda_engine_snapshot,
 };
 use panda_engine_core::networking::canopy::DeploymentMode;
-use panda_engine_core::{EncryptedFileSessionStore, SessionStore};
+use panda_engine_core::{
+    BackendAvailability, BackendUnavailableReason, EncryptedFileSessionStore, SessionStore,
+};
 use std::path::PathBuf;
 
 #[unsafe(no_mangle)]
@@ -113,6 +115,38 @@ pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_eng
         DeploymentMode::Production
     };
     configure_backend(engine, config_json, mode).is_ok().into()
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeSetBackendAvailability(
+    _env: JNIEnv,
+    _this: JObject,
+    handle: jlong,
+    availability: jint,
+    reason: jint,
+) -> jboolean {
+    let Some(engine) = (unsafe { (handle as *const PandaEngine).as_ref() }) else {
+        return false.into();
+    };
+    let availability = match availability {
+        crate::FFI_BACKEND_CONNECTING => BackendAvailability::Connecting,
+        crate::FFI_BACKEND_AVAILABLE => BackendAvailability::Available,
+        crate::FFI_BACKEND_UNAVAILABLE => BackendAvailability::Unavailable(match reason {
+            crate::FFI_BACKEND_REASON_NETWORK_UNAVAILABLE => {
+                BackendUnavailableReason::NetworkUnavailable
+            }
+            crate::FFI_BACKEND_REASON_TIMEOUT => BackendUnavailableReason::Timeout,
+            crate::FFI_BACKEND_REASON_SERVICE_UNAVAILABLE => {
+                BackendUnavailableReason::ServiceUnavailable
+            }
+            _ => BackendUnavailableReason::ConnectionFailed,
+        }),
+        _ => return false.into(),
+    };
+    engine
+        .engine
+        .with_engine(|inner| inner.set_backend_availability(availability));
+    true.into()
 }
 
 #[unsafe(no_mangle)]
@@ -804,7 +838,9 @@ pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_eng
     handle: jlong,
     index: jint,
 ) -> jlong {
-    unsafe { panda_engine_get_effect_playback_instance_id(handle as *const PandaEngine, index as usize) }
+    unsafe {
+        panda_engine_get_effect_playback_instance_id(handle as *const PandaEngine, index as usize)
+    }
 }
 
 #[unsafe(no_mangle)]
@@ -1249,7 +1285,7 @@ fn snapshot_to_jlong_array(env: &mut JNIEnv, snapshot: FfiEngineSnapshot) -> jlo
     array.into_raw()
 }
 
-fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 58] {
+fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 60] {
     [
         snapshot.playback_state as jlong,
         snapshot.restriction_state as jlong,
@@ -1309,6 +1345,8 @@ fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 58] {
         bool_to_jlong(snapshot.has_history_next_page),
         snapshot.for_you_results_count as jlong,
         snapshot.recommendations_results_count as jlong,
+        snapshot.backend_availability as jlong,
+        snapshot.backend_unavailable_reason as jlong,
     ]
 }
 
@@ -1388,6 +1426,8 @@ mod tests {
             has_history_next_page: true,
             for_you_results_count: 8,
             recommendations_results_count: 9,
+            backend_availability: crate::FFI_BACKEND_UNAVAILABLE,
+            backend_unavailable_reason: crate::FFI_BACKEND_REASON_TIMEOUT,
             playback_state: FFI_PLAYBACK_PLAYING,
             restriction_state: FFI_RESTRICTION_UNKNOWN,
             updated_at_epoch_millis: 42,
@@ -1434,7 +1474,7 @@ mod tests {
         };
 
         let values = snapshot_to_jlong_values(snapshot);
-        assert_eq!(values.len(), 58);
+        assert_eq!(values.len(), 60);
         assert_eq!(
             &values[..45],
             &[
@@ -1486,7 +1526,7 @@ mod tests {
             ]
         );
         assert_eq!(&values[45..50], &[6, 7, 1, 0, 1]);
-        assert_eq!(&values[50..], &[1, 2, 1, 6, 1, 1, 8, 9]);
+        assert_eq!(&values[50..], &[1, 2, 1, 6, 1, 1, 8, 9, 2, 3]);
     }
 
     #[test]

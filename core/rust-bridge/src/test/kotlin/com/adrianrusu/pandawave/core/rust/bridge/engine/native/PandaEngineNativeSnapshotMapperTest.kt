@@ -2,6 +2,7 @@ package com.adrianrusu.pandawave.core.rust.bridge.engine.native
 
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthState
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineBackendAvailability
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -70,6 +71,8 @@ class PandaEngineNativeSnapshotMapperTest {
                 1L,
                 8L,
                 9L,
+                2L,
+                3L,
             )
         )
         val snapshot = projection.snapshot
@@ -136,6 +139,8 @@ class PandaEngineNativeSnapshotMapperTest {
         assertTrue(snapshot.hasHistoryNextPage)
         assertEquals(8, snapshot.forYouResultsCount)
         assertEquals(9, snapshot.recommendationsResultsCount)
+        assertEquals(EngineBackendAvailability.UNAVAILABLE, snapshot.backendAvailability.status)
+        assertEquals(EngineBackendAvailability.REASON_TIMEOUT, snapshot.backendAvailability.reason)
     }
 
     @Test
@@ -145,6 +150,32 @@ class PandaEngineNativeSnapshotMapperTest {
         }
 
         assertTrue(result.isFailure)
+    }
+
+    @Test
+    fun `available native backend projection is surfaced as available`() {
+        val nativeValues = LongArray(60)
+        nativeValues[58] = 1L
+
+        val snapshot = PandaEngineNativeSnapshotMapper.toProjection(nativeValues).snapshot
+
+        assertEquals(EngineBackendAvailability.AVAILABLE, snapshot.backendAvailability.status)
+        assertEquals(null, snapshot.backendAvailability.reason)
+    }
+
+    @Test
+    fun `network outage native backend projection preserves its reason`() {
+        val nativeValues = LongArray(60)
+        nativeValues[58] = 2L
+        nativeValues[59] = 1L
+
+        val snapshot = PandaEngineNativeSnapshotMapper.toProjection(nativeValues).snapshot
+
+        assertEquals(EngineBackendAvailability.UNAVAILABLE, snapshot.backendAvailability.status)
+        assertEquals(
+            EngineBackendAvailability.REASON_NETWORK_UNAVAILABLE,
+            snapshot.backendAvailability.reason
+        )
     }
 
     @Test

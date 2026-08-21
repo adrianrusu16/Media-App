@@ -70,7 +70,8 @@ pub use crate::model::auth::{
     AuthSessionEnvelope, AuthState, EngineAccountIdentity, account_retry_class,
 };
 pub use crate::model::backend::{
-    EngineBackendStatus, EngineDependencyStatus, EngineStatusValue, RetryClass,
+    BackendAvailability, BackendUnavailableReason, EngineBackendStatus, EngineDependencyStatus,
+    EngineStatusValue, RetryClass,
 };
 pub use crate::model::catalog::{EngineAlbum, EngineArtist, EngineTrack};
 pub use crate::model::command::{EngineCommand, EngineCommandType};
