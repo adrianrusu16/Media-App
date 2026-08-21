@@ -173,7 +173,9 @@ impl EngineSnapshot {
 
     /// Returns true if the snapshot indicates that the engine can currently accept and process user commands.
     pub fn can_dispatch(&self) -> bool {
-        !self.is_busy && self.playback_state != PlaybackState::Buffering
+        // A source load is deliberately supersedable: transport commands must
+        // remain valid while buffering so a newer selection can replace it.
+        !self.is_busy
     }
 
     /// Functional update for the playback state, returning a new snapshot.
@@ -360,7 +362,7 @@ mod tests {
     }
 
     #[test]
-    fn can_dispatch_is_blocked_when_busy_or_buffering() {
+    fn can_dispatch_is_blocked_when_busy_but_not_buffering() {
         let idle = EngineSnapshot::idle(1);
         assert!(idle.can_dispatch());
 
@@ -368,7 +370,7 @@ mod tests {
         assert!(!busy.can_dispatch());
 
         let buffering = idle.with_playback_state(PlaybackState::Buffering, 2);
-        assert!(!buffering.can_dispatch());
+        assert!(buffering.can_dispatch());
     }
 
     #[test]

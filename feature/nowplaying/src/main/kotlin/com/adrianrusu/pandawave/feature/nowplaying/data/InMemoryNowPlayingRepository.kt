@@ -60,6 +60,7 @@ internal fun NowPlayingState.withPlaybackState(playback: BambooPlaybackState): N
     isParked = playback.vehicleSafety.isParked,
     isUxUnrestricted = playback.vehicleSafety.isUxUnrestricted,
     hasPlaybackError = playback.hasError,
+    controls = playback.controls,
     updatedAtEpochMillis = playback.updatedAtEpochMillis,
     progressAnchor = BambooPlaybackProgressAnchor.fromPlaybackState(playback)
 )
@@ -67,6 +68,7 @@ internal fun NowPlayingState.withPlaybackState(playback: BambooPlaybackState): N
 private fun BambooPlaybackStatus.toNowPlayingPlaybackState(): NowPlayingPlaybackState = when (this) {
     BambooPlaybackStatus.Playing -> NowPlayingPlaybackState.Playing
     BambooPlaybackStatus.Paused -> NowPlayingPlaybackState.Paused
+    BambooPlaybackStatus.Ended -> NowPlayingPlaybackState.Idle
     BambooPlaybackStatus.Idle -> NowPlayingPlaybackState.Idle
 }
 

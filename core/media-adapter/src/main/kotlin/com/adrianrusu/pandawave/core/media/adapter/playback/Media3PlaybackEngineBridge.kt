@@ -28,6 +28,7 @@ class Media3PlaybackEngineBridge(
     private val effectExecutor: BambooPlaybackEffectExecutor = NoOpBambooPlaybackEffectExecutor,
     private val playbackMetricsProvider: PlaybackCompletionMetricsProvider =
         PlaybackCompletionMetricsProvider { null },
+    private val playbackInstanceIdProvider: () -> Long? = { null },
 ) : Player.Listener,
     AutoCloseable {
     private val telemetryLogger = telemetryLogger.forModule(TelemetryModule.Media3)
@@ -93,7 +94,12 @@ class Media3PlaybackEngineBridge(
     override fun onPlaybackStateChanged(playbackState: Int) {
         when (playbackState) {
             Player.STATE_READY -> {
-                dispatchPlatformEvent(EnginePlatformEvent.TYPE_MEDIA_LOADED)
+                playbackInstanceIdProvider()?.let { instanceId ->
+                    dispatchPlatformEvent(
+                        EnginePlatformEvent.TYPE_MEDIA_LOADED,
+                        EngineCommandPayloads.playbackObservation(instanceId)
+                    )
+                }
             }
 
             Player.STATE_BUFFERING -> {
@@ -117,14 +123,19 @@ class Media3PlaybackEngineBridge(
         } else {
             positionMillis.toDouble().div(durationMillis.toDouble()).coerceIn(0.0, 1.0)
         }
+        val playbackInstanceId = playbackInstanceIdProvider() ?: return
         dispatchPlatformEvent(
             EnginePlatformEvent.TYPE_PLAYBACK_COMPLETED,
-            EngineCommandPayloads.playbackCompleted(trackId, durationMillis, completionRatio),
+            EngineCommandPayloads.playbackCompleted(trackId, durationMillis, completionRatio, playbackInstanceId),
         )
     }
 
     override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-        dispatchPlatformEvent(EnginePlatformEvent.TYPE_MEDIA_ERROR, error.message)
+        val playbackInstanceId = playbackInstanceIdProvider() ?: return
+        dispatchPlatformEvent(
+            EnginePlatformEvent.TYPE_MEDIA_ERROR,
+            EngineCommandPayloads.playbackObservation(playbackInstanceId, error.toEngineFailureKind())
+        )
     }
 
     fun dispatchPlayerCommand(playerCommand: Int): Boolean {
@@ -223,6 +234,11 @@ class Media3PlaybackEngineBridge(
         effectSubscription = null
         playbackRepository.close()
     }
+}
+
+private fun androidx.media3.common.PlaybackException.toEngineFailureKind(): String = when (errorCode) {
+    androidx.media3.common.PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS -> "source_rejected"
+    else -> "unknown"
 }
 
 internal object Media3PlaybackTelemetryEvents {

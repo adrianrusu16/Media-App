@@ -35,6 +35,11 @@ impl QueueManager {
     }
 
     /// Moves to the next item in the queue based on the repeat mode.
+    ///
+    /// With repeat disabled, reaching either end is intentionally a no-op:
+    /// callers receive `None` and the cursor remains unchanged. Treating an
+    /// unavailable target as the current item prevents the engine from
+    /// distinguishing a real selection from a boundary press.
     pub fn next_item(&mut self) -> Option<&MediaItem> {
         if self.items.is_empty() {
             return None;
@@ -48,7 +53,7 @@ impl QueueManager {
                 if current + 1 < self.items.len() {
                     current + 1
                 } else {
-                    current // or None? For now, stay on last
+                    return None;
                 }
             }
         };
@@ -58,6 +63,9 @@ impl QueueManager {
     }
 
     /// Moves to the previous item in the queue.
+    ///
+    /// With repeat disabled, the first item has no previous queue target. A
+    /// transport policy may still restart it, but that is not a queue mutation.
     pub fn previous_item(&mut self) -> Option<&MediaItem> {
         if self.items.is_empty() {
             return None;
@@ -68,7 +76,7 @@ impl QueueManager {
             if self.repeat_mode == RepeatMode::All {
                 self.items.len() - 1
             } else {
-                0
+                return None;
             }
         } else {
             current - 1
@@ -122,5 +130,10 @@ impl QueueManager {
     /// Returns the current index in the queue.
     pub fn current_index(&self) -> Option<usize> {
         self.current_index
+    }
+
+    /// Returns whether the queue has a current selection that can be restarted.
+    pub fn has_current(&self) -> bool {
+        self.current_item().is_some()
     }
 }

@@ -10,7 +10,7 @@ use crate::mappings::{command_from_ffi, platform_event_from_ffi};
 use crate::{
     FFI_COMMAND_APPLY_REMOTE_THEME_PREFERENCE, FFI_COMMAND_BROWSE,
     FFI_COMMAND_HYDRATE_THEME_PREFERENCE, FFI_COMMAND_LOAD_NEXT_CATALOG_PAGE,
-    FFI_COMMAND_PLAY_MEDIA_BY_ID, FFI_COMMAND_PROCESS_VOICE, FFI_COMMAND_SEARCH, FFI_COMMAND_SEEK,
+    FFI_COMMAND_PLAY_MEDIA_BY_ID, FFI_COMMAND_PLAY_QUEUE, FFI_COMMAND_PROCESS_VOICE, FFI_COMMAND_SEARCH, FFI_COMMAND_SEEK,
     FFI_COMMAND_SET_SPEED, FFI_COMMAND_SET_THEME_PREFERENCE, FFI_COMMAND_START_SESSION,
     FFI_COMMAND_UNKNOWN, FfiEngineOutcome, PandaEngine,
 };
@@ -276,6 +276,10 @@ pub unsafe extern "C" fn panda_engine_dispatch(
                         media_id: payload_str.clone().unwrap_or_default(),
                     },
                     None,
+                ),
+                FFI_COMMAND_PLAY_QUEUE => EngineCommand::from_wire(
+                    EngineCommandType::PLAY_QUEUE_WIRE,
+                    payload_str.clone(),
                 ),
                 FFI_COMMAND_HYDRATE_THEME_PREFERENCE => parse_theme_payload(payload_str.as_deref())
                     .and_then(|payload| ThemePreference::from_wire(&payload.theme_id))

@@ -47,6 +47,91 @@ async fn skip_updates_metadata() {
 }
 
 #[tokio::test]
+async fn skip_previous_restarts_current_item_after_threshold_and_selects_previous_before_it() {
+    let mut engine = Engine::new(100);
+    engine
+        .dispatch(EngineCommand::start_session("user1".to_string()), 120)
+        .await;
+    engine.queue().set_items(vec![
+        MediaItem {
+            id: "1".into(),
+            title: "Song 1".into(),
+            source_uri: Some("https://media.test/1".into()),
+            ..Default::default()
+        },
+        MediaItem {
+            id: "2".into(),
+            title: "Song 2".into(),
+            source_uri: Some("https://media.test/2".into()),
+            ..Default::default()
+        },
+    ]);
+    engine.queue().set_current_index(1);
+    engine.snapshot = engine
+        .snapshot
+        .clone()
+        .with_media(engine.queue().current_item().cloned().unwrap())
+        .with_playback_state(PlaybackState::Playing, 150)
+        .with_position(12_000);
+
+    let restarted = engine.dispatch(EngineCommand::skip_previous(), 200).await;
+    assert_eq!(restarted.snapshot.media_id.as_deref(), Some("2"));
+    assert_eq!(restarted.snapshot.position_millis, 0);
+    assert!(restarted.effects.contains(&EngineEffect::Seek(0)));
+    assert!(!restarted
+        .effects
+        .iter()
+        .any(|effect| matches!(effect, EngineEffect::PreparePlaybackSource { .. })));
+
+    engine.snapshot.position_millis = 5_000;
+    let selected = engine.dispatch(EngineCommand::skip_previous(), 250).await;
+    assert_eq!(selected.snapshot.media_id.as_deref(), Some("1"));
+    assert_eq!(selected.snapshot.playback_state, PlaybackState::Buffering);
+    assert!(selected.effects.contains(&EngineEffect::PreparePlaybackSource {
+        media_id: "1".into(),
+        playback_instance_id: 1,
+    }));
+}
+
+#[tokio::test]
+async fn play_queue_preserves_order_and_exposes_boundary_transport() {
+    let mut engine = Engine::new(100);
+    engine.set_repository(Box::new(InMemoryRepository::new(vec![
+        MediaItem {
+            id: "first".into(),
+            title: "First".into(),
+            source_uri: Some("https://media.test/first".into()),
+            ..Default::default()
+        },
+        MediaItem {
+            id: "second".into(),
+            title: "Second".into(),
+            source_uri: Some("https://media.test/second".into()),
+            ..Default::default()
+        },
+    ])));
+
+    let first = engine
+        .dispatch(
+            EngineCommand::play_queue(vec!["second".into(), "first".into()], 0),
+            200,
+        )
+        .await;
+    assert_eq!(first.snapshot.media_id.as_deref(), Some("second"));
+    assert!(first.snapshot.controls.skip_prev.is_enabled);
+    assert!(first.snapshot.controls.skip_next.is_enabled);
+
+    let next = engine.dispatch(EngineCommand::skip_next(), 250).await;
+    assert_eq!(next.snapshot.media_id.as_deref(), Some("first"));
+    assert!(!next.snapshot.controls.skip_next.is_enabled);
+    assert!(next.snapshot.controls.skip_prev.is_enabled);
+
+    let boundary = engine.dispatch(EngineCommand::skip_next(), 300).await;
+    assert_eq!(boundary.snapshot.media_id.as_deref(), Some("first"));
+    assert!(boundary.effects.is_empty());
+}
+
+#[tokio::test]
 async fn engine_search_finds_items() {
     let mut engine = Engine::new(100);
     let items = vec![
@@ -321,6 +406,7 @@ async fn play_command_emits_effects() {
             .effects
             .contains(&EngineEffect::PreparePlaybackSource {
                 media_id: "1".to_string(),
+                playback_instance_id: 1,
             })
     );
     assert!(outcome.effects.contains(&EngineEffect::UpdateMetadata {
@@ -373,6 +459,7 @@ async fn play_media_by_id_resolves_playback_source() {
             .effects
             .contains(&EngineEffect::PreparePlaybackSource {
                 media_id: "track-1".to_string(),
+                playback_instance_id: 1,
             })
     );
     assert!(outcome.effects.contains(&EngineEffect::UpdateMetadata {
@@ -429,6 +516,7 @@ async fn play_media_by_id_projects_canonical_playback_capability_verbatim() {
             .effects
             .contains(&EngineEffect::PreparePlaybackSource {
                 media_id: "track-1".into(),
+                playback_instance_id: 1,
             })
     );
 }

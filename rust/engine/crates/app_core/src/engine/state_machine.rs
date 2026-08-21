@@ -22,16 +22,15 @@ impl StateMachine {
 
             // State: Playing
             (PlaybackState::Playing, EngineCommandType::Pause) => PlaybackState::Paused,
-            (PlaybackState::Playing, EngineCommandType::SkipNext)
-            | (PlaybackState::Playing, EngineCommandType::SkipPrevious) => PlaybackState::Buffering,
 
             // State: Paused
             (PlaybackState::Paused, EngineCommandType::Play) => PlaybackState::Playing,
-            (PlaybackState::Paused, EngineCommandType::SkipNext)
-            | (PlaybackState::Paused, EngineCommandType::SkipPrevious) => PlaybackState::Buffering,
 
             // State: Error
             (PlaybackState::Error, EngineCommandType::Play) => PlaybackState::Buffering,
+
+            // State: Ended
+            (PlaybackState::Ended, EngineCommandType::Play) => PlaybackState::Buffering,
 
             // Default: preserve current state for unrecognized transitions
             (current, _) => current,
@@ -178,16 +177,16 @@ mod tests {
     }
 
     #[test]
-    fn test_playing_to_buffering_on_skip() {
+    fn test_playing_skip_is_policy_driven_and_preserves_state_until_resolved() {
         assert_eq!(
-            PlaybackState::Buffering,
+            PlaybackState::Playing,
             StateMachine::next_state_from_command(
                 PlaybackState::Playing,
                 &EngineCommandType::SkipNext
             )
         );
         assert_eq!(
-            PlaybackState::Buffering,
+            PlaybackState::Playing,
             StateMachine::next_state_from_command(
                 PlaybackState::Playing,
                 &EngineCommandType::SkipPrevious
@@ -204,16 +203,16 @@ mod tests {
     }
 
     #[test]
-    fn test_paused_to_buffering_on_skip() {
+    fn test_paused_skip_is_policy_driven_and_preserves_state_until_resolved() {
         assert_eq!(
-            PlaybackState::Buffering,
+            PlaybackState::Paused,
             StateMachine::next_state_from_command(
                 PlaybackState::Paused,
                 &EngineCommandType::SkipNext
             )
         );
         assert_eq!(
-            PlaybackState::Buffering,
+            PlaybackState::Paused,
             StateMachine::next_state_from_command(
                 PlaybackState::Paused,
                 &EngineCommandType::SkipPrevious

@@ -67,7 +67,8 @@ data class BambooVehicleSafetyState(
 enum class BambooPlaybackStatus {
     Idle,
     Playing,
-    Paused
+    Paused,
+    Ended
 }
 
 data class BambooEngineConnectionUiState(val status: BambooEngineConnectionStatus) {

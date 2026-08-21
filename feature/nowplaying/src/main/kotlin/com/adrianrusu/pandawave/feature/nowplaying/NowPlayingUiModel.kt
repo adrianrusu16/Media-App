@@ -7,6 +7,8 @@ internal data class NowPlayingUiModel(
     val title: String,
     val detailLabel: String,
     val controlsEnabled: Boolean,
+    val canSkipPrevious: Boolean,
+    val canSkipNext: Boolean,
     val isDriveRestricted: Boolean,
     val primaryActionLabel: String,
     val primaryControlIcon: NowPlayingPrimaryControlIcon,
@@ -47,6 +49,8 @@ internal fun NowPlayingState.toNowPlayingUiModel(
         title = title.ifBlank { fallbackTitle },
         detailLabel = artist.ifBlank { fallbackDetail },
         controlsEnabled = controlsEnabled,
+        canSkipPrevious = controlsEnabled && controls.skipPrevious.isEnabled,
+        canSkipNext = controlsEnabled && controls.skipNext.isEnabled,
         isDriveRestricted = restriction.isRestricted,
         primaryActionLabel = primaryActionLabel,
         primaryControlIcon = if (isPlaying) {

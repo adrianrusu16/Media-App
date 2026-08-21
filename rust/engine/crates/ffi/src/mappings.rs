@@ -42,6 +42,10 @@ pub(crate) fn command_from_ffi(command_type: i32) -> EngineCommandType {
         FFI_COMMAND_PLAY_MEDIA_BY_ID => EngineCommandType::PlayMediaById {
             media_id: String::new(),
         },
+        FFI_COMMAND_PLAY_QUEUE => EngineCommandType::PlayQueue {
+            media_ids: Vec::new(),
+            start_index: 0,
+        },
         FFI_COMMAND_HYDRATE_THEME_PREFERENCE => EngineCommandType::HydrateThemePreference {
             theme: ThemePreference::SystemDefault,
         },
@@ -142,6 +146,7 @@ pub(crate) fn playback_to_ffi(playback_state: PlaybackState) -> i32 {
         PlaybackState::Paused => FFI_PLAYBACK_PAUSED,
         PlaybackState::Buffering => FFI_PLAYBACK_BUFFERING,
         PlaybackState::Error => FFI_PLAYBACK_ERROR,
+        PlaybackState::Ended => FFI_PLAYBACK_ENDED,
     }
 }
 

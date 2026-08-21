@@ -25,7 +25,7 @@ use crate::{
     panda_engine_get_current_source_uri, panda_engine_get_current_thumbnail_url,
     panda_engine_get_current_title, panda_engine_get_current_user_id,
     panda_engine_get_effect_media_id, panda_engine_get_effect_notify_message,
-    panda_engine_get_effect_position_millis, panda_engine_get_effect_speed,
+    panda_engine_get_effect_position_millis, panda_engine_get_effect_playback_instance_id, panda_engine_get_effect_speed,
     panda_engine_get_effect_type, panda_engine_get_effects_count,
     panda_engine_get_last_event_message, panda_engine_get_search_result_album,
     panda_engine_get_search_result_artist, panda_engine_get_search_result_id,
@@ -795,6 +795,16 @@ pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_eng
     index: jint,
 ) -> jlong {
     unsafe { panda_engine_get_effect_position_millis(handle as *const PandaEngine, index as usize) }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeEffectPlaybackInstanceId(
+    _env: JNIEnv,
+    _this: JObject,
+    handle: jlong,
+    index: jint,
+) -> jlong {
+    unsafe { panda_engine_get_effect_playback_instance_id(handle as *const PandaEngine, index as usize) }
 }
 
 #[unsafe(no_mangle)]

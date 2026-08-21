@@ -14,7 +14,7 @@ impl Engine {
                     EngineEffect::Play => player.play(),
                     EngineEffect::Pause => player.pause(),
                     EngineEffect::Stop => player.stop(),
-                    EngineEffect::PreparePlaybackSource { media_id } => player.prepare(media_id),
+                    EngineEffect::PreparePlaybackSource { media_id, .. } => player.prepare(media_id),
                     EngineEffect::Seek(position_millis) => player.seek(*position_millis),
                     EngineEffect::SetSpeed(speed) => player.set_speed(*speed),
                     _ => {}
@@ -25,14 +25,19 @@ impl Engine {
 
     /// Helper to update the snapshot with new media and emit metadata effects.
     pub(super) fn update_media_state(
+        &mut self,
         resolved: &ResolvedPlaybackMedia,
         snapshot: EngineSnapshot,
         effects: &mut Vec<EngineEffect>,
     ) -> EngineSnapshot {
         let media = &resolved.media;
         let next_snapshot = snapshot.with_media(media.clone());
+        self.next_playback_instance_id = self.next_playback_instance_id.saturating_add(1);
+        self.current_playback_instance_id = Some(self.next_playback_instance_id);
+        self.source_retry_attempted_for = None;
         effects.push(EngineEffect::PreparePlaybackSource {
             media_id: media.id.clone(),
+            playback_instance_id: self.next_playback_instance_id,
         });
         effects.push(EngineEffect::UpdateMetadata {
             media_id: media.id.clone(),

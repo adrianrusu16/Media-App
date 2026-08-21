@@ -35,7 +35,7 @@ pub use query::{
     panda_engine_get_discovery_result_item_type, panda_engine_get_discovery_result_mime_type,
     panda_engine_get_discovery_result_source_uri, panda_engine_get_discovery_result_thumbnail_url,
     panda_engine_get_discovery_result_title, panda_engine_get_effect_media_id,
-    panda_engine_get_effect_notify_message, panda_engine_get_effect_position_millis,
+    panda_engine_get_effect_notify_message, panda_engine_get_effect_playback_instance_id, panda_engine_get_effect_position_millis,
     panda_engine_get_effect_speed, panda_engine_get_effect_type, panda_engine_get_effects_count,
     panda_engine_get_effects_types, panda_engine_get_last_error_message,
     panda_engine_get_last_event_message, panda_engine_get_pending_library_track_id,

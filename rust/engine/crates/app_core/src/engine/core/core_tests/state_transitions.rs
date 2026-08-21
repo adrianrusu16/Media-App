@@ -44,7 +44,7 @@ async fn unknown_command_preserves_playback_state() {
 }
 
 #[tokio::test]
-async fn skip_command_from_playing_moves_to_buffering() {
+async fn unavailable_skip_next_from_playing_is_a_true_no_op() {
     let mut engine = Engine::new(100);
     engine
         .dispatch(EngineCommand::start_session("user1".to_string()), 150)
@@ -63,9 +63,10 @@ async fn skip_command_from_playing_moves_to_buffering() {
         .dispatch(EngineCommand::new(EngineCommandType::SkipNext, None), 300)
         .await;
 
-    assert_eq!(PlaybackState::Buffering, outcome.snapshot.playback_state);
-    assert_eq!(300, outcome.snapshot.updated_at_epoch_millis);
+    assert_eq!(PlaybackState::Playing, outcome.snapshot.playback_state);
+    assert_eq!(250, outcome.snapshot.updated_at_epoch_millis);
     assert_eq!(Some("skip_next".to_owned()), outcome.event.message);
+    assert!(outcome.effects.is_empty());
 }
 
 #[tokio::test]
@@ -95,6 +96,83 @@ async fn platform_event_can_drive_state_transitions() {
         outcome.event.event_type
     );
     assert_eq!(Some("media_loaded".to_owned()), outcome.event.message);
+}
+
+#[tokio::test]
+async fn playback_completion_ends_current_item_without_advancing_the_queue() {
+    let mut engine = Engine::new(100);
+    let items = vec![
+        MediaItem {
+            id: "first".to_owned(),
+            source_uri: Some("https://media.test/first".to_owned()),
+            ..Default::default()
+        },
+        MediaItem {
+            id: "second".to_owned(),
+            source_uri: Some("https://media.test/second".to_owned()),
+            ..Default::default()
+        },
+    ];
+    engine.set_repository(Box::new(InMemoryRepository::new(items.clone())));
+    engine.queue().set_items(items);
+    engine
+        .dispatch(EngineCommand::start_session("user1".to_owned()), 50)
+        .await;
+    engine.snapshot = engine
+        .snapshot
+        .clone()
+        .with_media(engine.queue().current_item().cloned().unwrap())
+        .with_playback_state(PlaybackState::Playing, 100);
+
+    let outcome = engine
+        .dispatch_platform_event(
+            EnginePlatformEvent::playback_completed("first", 1_000, 1.0),
+            200,
+        )
+        .await;
+
+    assert_eq!(PlaybackState::Ended, outcome.snapshot.playback_state);
+    assert_eq!(Some("first"), outcome.snapshot.media_id.as_deref());
+    assert_eq!(Some("first"), engine.queue().current_item().map(|item| item.id.as_str()));
+    assert_eq!(
+        vec![EngineEffect::Stop, EngineEffect::AbandonAudioFocus],
+        outcome.effects
+    );
+
+    let restarted = engine.dispatch(EngineCommand::play(), 300).await;
+    assert_eq!(PlaybackState::Buffering, restarted.snapshot.playback_state);
+    assert_eq!(0, restarted.snapshot.position_millis);
+    assert!(restarted.effects.contains(&EngineEffect::Seek(0)));
+    assert!(!restarted
+        .effects
+        .iter()
+        .any(|effect| matches!(effect, EngineEffect::PreparePlaybackSource { .. })));
+}
+
+#[tokio::test]
+async fn stale_player_observation_cannot_mutate_a_newer_selection() {
+    let mut engine = Engine::new(100);
+    let items = vec![
+        MediaItem { id: "a".into(), source_uri: Some("https://media.test/a".into()), ..Default::default() },
+        MediaItem { id: "b".into(), source_uri: Some("https://media.test/b".into()), ..Default::default() },
+    ];
+    engine.set_repository(Box::new(InMemoryRepository::new(items.clone())));
+    engine.queue().set_items(items);
+    engine.dispatch(EngineCommand::start_session("user".into()), 110).await;
+    engine.dispatch(EngineCommand::play(), 120).await;
+    engine.dispatch(EngineCommand::skip_next(), 130).await;
+
+    let outcome = engine.dispatch_platform_event(
+        EnginePlatformEvent::new(
+            EnginePlatformEventType::MediaError,
+            Some(r#"{"version":1,"playback_instance_id":1,"kind":"unknown"}"#.into()),
+        ),
+        140,
+    ).await;
+
+    assert_eq!(Some("b"), outcome.snapshot.media_id.as_deref());
+    assert_eq!(PlaybackState::Buffering, outcome.snapshot.playback_state);
+    assert!(outcome.effects.is_empty());
 }
 
 #[tokio::test]

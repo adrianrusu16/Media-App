@@ -6,6 +6,7 @@ import com.adrianrusu.pandawave.core.playback.BambooEngineConnectionUiState
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackProgress
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackProgressAnchor
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackProgressProjector
+import com.adrianrusu.pandawave.core.playback.BambooPlaybackControls
 
 data class NowPlayingState(
     val mediaId: String? = null,
@@ -21,6 +22,7 @@ data class NowPlayingState(
     val ambientTimeoutSeconds: Int = 15,
     val visualizerPermissionState: VisualizerPermissionState = VisualizerPermissionState.Unknown,
     val hasPlaybackError: Boolean = false,
+    val controls: BambooPlaybackControls = BambooPlaybackControls.default(),
     val updatedAtEpochMillis: Long = 0L,
     val progressAnchor: BambooPlaybackProgressAnchor = BambooPlaybackProgressAnchor()
 ) {

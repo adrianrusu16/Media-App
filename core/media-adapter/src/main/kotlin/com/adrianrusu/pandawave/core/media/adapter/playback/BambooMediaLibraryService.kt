@@ -73,11 +73,15 @@ class BambooMediaLibraryService : MediaLibraryService() {
                     durationMillis = exoPlayer.duration,
                 )
             },
+            playbackInstanceIdProvider = {
+                exoPlayer.currentMediaItem?.localConfiguration?.tag as? Long
+            }
         )
         val sessionPlayer = BambooMediaSessionPlayer(
             delegate = exoPlayer,
             playbackEngineBridge = playbackEngineBridge,
-            controlsEnabled = { playbackRepository.state.value.canDispatchEngineCommands }
+            controlsEnabled = { playbackRepository.state.value.canDispatchEngineCommands },
+            controls = { playbackRepository.state.value.controls }
         )
         val catalogSource = EngineBambooCatalogSource(
             playbackBridge = playbackEngineBridge,
@@ -88,6 +92,7 @@ class BambooMediaLibraryService : MediaLibraryService() {
             sessionPlayer,
             BambooMediaLibrarySessionCallback(
                 controlsEnabled = { playbackRepository.state.value.canDispatchEngineCommands },
+                controls = { playbackRepository.state.value.controls },
                 catalog = BambooMediaLibraryCatalog(
                     source = catalogSource
                 ),

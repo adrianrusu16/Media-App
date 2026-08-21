@@ -75,22 +75,20 @@ fn test_empty_queue_handling() {
 }
 
 #[test]
-fn test_next_item_repeat_none_clamps_on_last() {
+fn test_next_item_repeat_none_is_unavailable_on_last_without_mutating_cursor() {
     let mut qm = QueueManager::new(mock_items());
     qm.set_current_index(1);
 
-    let next = qm.next_item().unwrap();
-    assert_eq!(next.id, "2");
+    assert!(qm.next_item().is_none());
     assert_eq!(qm.current_index(), Some(1));
 }
 
 #[test]
-fn test_previous_item_repeat_none_clamps_on_first() {
+fn test_previous_item_repeat_none_is_unavailable_on_first_without_mutating_cursor() {
     let mut qm = QueueManager::new(mock_items());
     qm.set_current_index(0);
 
-    let prev = qm.previous_item().unwrap();
-    assert_eq!(prev.id, "1");
+    assert!(qm.previous_item().is_none());
     assert_eq!(qm.current_index(), Some(0));
 }
 

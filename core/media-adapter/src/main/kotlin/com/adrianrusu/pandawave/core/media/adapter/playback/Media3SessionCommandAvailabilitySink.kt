@@ -3,15 +3,16 @@ package com.adrianrusu.pandawave.core.media.adapter.playback
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.media3.session.MediaSession
+import com.adrianrusu.pandawave.core.playback.BambooPlaybackControls
 
 @UnstableApi
 internal class Media3SessionCommandAvailabilitySink(private val sessionProvider: () -> MediaLibrarySession?) :
     BambooMediaSessionCommandAvailabilitySink {
-    override fun project(controlsEnabled: Boolean) {
+    override fun project(controls: BambooPlaybackControls) {
         val session = sessionProvider() ?: return
         val playerCommands = BambooMediaSessionCommandPolicy.availablePlayerCommands(
             playerCommands = session.player.availableCommands,
-            controlsEnabled = controlsEnabled
+            controls = controls
         )
 
         session.connectedControllers.forEach { controller ->

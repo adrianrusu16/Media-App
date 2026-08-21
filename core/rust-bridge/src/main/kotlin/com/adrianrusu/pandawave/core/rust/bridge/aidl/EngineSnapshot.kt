@@ -192,6 +192,7 @@ data class EngineSnapshot(
         const val PLAYBACK_PAUSED = "paused"
         const val PLAYBACK_BUFFERING = "buffering"
         const val PLAYBACK_ERROR = "error"
+        const val PLAYBACK_ENDED = "ended"
         const val RESTRICTION_UNKNOWN = "unknown"
         const val RESTRICTION_UNRESTRICTED = "unrestricted"
         const val RESTRICTION_RESTRICTED = "restricted"

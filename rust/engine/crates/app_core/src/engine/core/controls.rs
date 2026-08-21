@@ -15,12 +15,12 @@ impl Engine {
 
         let can_dispatch = snapshot.can_dispatch();
         let is_playing = snapshot.playback_state == PlaybackState::Playing;
-        let is_buffering = snapshot.playback_state == PlaybackState::Buffering;
+        let has_current_item = self.queue.has_current();
 
         PlayerControls {
             play_pause: ControlState {
                 is_visible: true,
-                is_enabled: can_dispatch || is_buffering,
+                is_enabled: can_dispatch,
                 is_active: is_playing,
             },
             skip_next: ControlState {
@@ -30,7 +30,9 @@ impl Engine {
             },
             skip_prev: ControlState {
                 is_visible: true,
-                is_enabled: can_dispatch && self.queue.has_previous(),
+                // Previous may restart the current item even at the first
+                // queue position, so policy—not just queue geometry—decides it.
+                is_enabled: can_dispatch && has_current_item,
                 is_active: false,
             },
             show_play_icon: !is_playing,

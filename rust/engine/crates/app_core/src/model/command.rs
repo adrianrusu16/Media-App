@@ -135,6 +135,14 @@ struct RevokeDeviceSessionPayload {
     session_id: String,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct PlayQueuePayload {
+    version: u32,
+    media_ids: Vec<String>,
+    start_index: usize,
+}
+
 /// Represents the different types of commands the engine can process.
 #[derive(Clone, Debug, PartialEq)]
 pub enum EngineCommandType {
@@ -324,6 +332,11 @@ pub enum EngineCommandType {
     PlayMediaById {
         media_id: String,
     },
+    /// Plays an immutable, ordered queue snapshot from the selected index.
+    PlayQueue {
+        media_ids: Vec<String>,
+        start_index: usize,
+    },
     /// Sets a sleep timer for a specific duration in milliseconds.
     SetSleepTimer {
         duration_millis: Option<u64>,
@@ -424,6 +437,8 @@ impl EngineCommandType {
     pub const PROCESS_VOICE_AUDIO_WIRE: &'static str = "process_voice_audio";
     /// Wire value for PlayMediaById command.
     pub const PLAY_MEDIA_BY_ID_WIRE: &'static str = "play_media_by_id";
+    /// Wire value for PlayQueue command.
+    pub const PLAY_QUEUE_WIRE: &'static str = "play_queue";
     /// Wire value for SetSleepTimer command.
     pub const SET_SLEEP_TIMER_WIRE: &'static str = "set_sleep_timer";
 
@@ -579,6 +594,10 @@ impl EngineCommandType {
             Self::PLAY_MEDIA_BY_ID_WIRE => Self::PlayMediaById {
                 media_id: "".to_string(),
             },
+            Self::PLAY_QUEUE_WIRE => Self::PlayQueue {
+                media_ids: Vec::new(),
+                start_index: 0,
+            },
             Self::SET_SLEEP_TIMER_WIRE => Self::SetSleepTimer {
                 duration_millis: None,
             },
@@ -650,6 +669,7 @@ impl EngineCommandType {
             Self::StopVoiceInteraction => Self::STOP_VOICE_INTERACTION_WIRE,
             Self::ProcessVoiceAudio { .. } => Self::PROCESS_VOICE_AUDIO_WIRE,
             Self::PlayMediaById { .. } => Self::PLAY_MEDIA_BY_ID_WIRE,
+            Self::PlayQueue { .. } => Self::PLAY_QUEUE_WIRE,
             Self::SetSleepTimer { .. } => Self::SET_SLEEP_TIMER_WIRE,
             Self::Unknown(value) => value.as_str(),
         }
@@ -761,6 +781,9 @@ impl EngineCommand {
             EngineCommandType::REVOKE_DEVICE_SESSION_WIRE => payload
                 .as_deref()
                 .and_then(parse_revoke_device_session_payload),
+            EngineCommandType::PLAY_QUEUE_WIRE => payload
+                .as_deref()
+                .and_then(parse_play_queue_payload),
             _ => Some(EngineCommandType::from_wire(command_type.clone())),
         };
         Self::new(
@@ -1104,6 +1127,17 @@ impl EngineCommand {
         Self::new(EngineCommandType::PlayMediaById { media_id }, None)
     }
 
+    /// Creates a PlayQueue command from an ordered media snapshot.
+    pub fn play_queue(media_ids: Vec<String>, start_index: usize) -> Self {
+        Self::new(
+            EngineCommandType::PlayQueue {
+                media_ids,
+                start_index,
+            },
+            None,
+        )
+    }
+
     /// Creates a SetSleepTimer command.
     pub fn set_sleep_timer(duration_millis: Option<u64>) -> Self {
         Self::new(EngineCommandType::SetSleepTimer { duration_millis }, None)
@@ -1366,6 +1400,18 @@ fn parse_revoke_device_session_payload(payload: &str) -> Option<EngineCommandTyp
     )
 }
 
+fn parse_play_queue_payload(payload: &str) -> Option<EngineCommandType> {
+    let payload: PlayQueuePayload = serde_json::from_str(payload).ok()?;
+    (payload.version == CATALOG_PAYLOAD_VERSION
+        && !payload.media_ids.is_empty()
+        && payload.media_ids.iter().all(|id| !id.trim().is_empty())
+        && payload.start_index < payload.media_ids.len())
+        .then_some(EngineCommandType::PlayQueue {
+            media_ids: payload.media_ids,
+            start_index: payload.start_index,
+        })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1429,6 +1475,22 @@ mod tests {
             EngineCommandType::Unknown("invalid_wire".to_string())
         );
         assert_eq!(command.payload.as_deref(), Some("payload"));
+    }
+
+    #[test]
+    fn play_queue_decodes_a_valid_ordered_snapshot() {
+        let command = EngineCommand::from_wire(
+            EngineCommandType::PLAY_QUEUE_WIRE,
+            Some(r#"{"version":1,"media_ids":["a","b"],"start_index":1}"#.into()),
+        );
+
+        assert_eq!(
+            command.command_type,
+            EngineCommandType::PlayQueue {
+                media_ids: vec!["a".into(), "b".into()],
+                start_index: 1,
+            }
+        );
     }
 
     #[test]

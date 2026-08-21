@@ -152,7 +152,8 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         mediaId = nativeEffectMediaId(nativeHandle, index),
         message = nativeEffectNotifyMessage(nativeHandle, index),
         positionMillis = nativeEffectPositionMillis(nativeHandle, index),
-        speed = nativeEffectSpeed(nativeHandle, index)
+        speed = nativeEffectSpeed(nativeHandle, index),
+        playbackInstanceId = nativeEffectPlaybackInstanceId(nativeHandle, index)
     )
 
     override fun dispatch(command: EngineCommand): EngineDispatchResult {
@@ -278,6 +279,8 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
 
     private external fun nativeEffectPositionMillis(handle: Long, index: Int): Long
 
+    private external fun nativeEffectPlaybackInstanceId(handle: Long, index: Int): Long
+
     private external fun nativeEffectSpeed(handle: Long, index: Int): Float
 
     private external fun nativeSearchResultId(handle: Long, index: Int): String?
@@ -396,7 +399,8 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         mediaId: String?,
         message: String?,
         positionMillis: Long,
-        speed: Float
+        speed: Float,
+        playbackInstanceId: Long
     ): EngineEffect? {
         val effectType = type.toEngineEffectType()
         return when (effectType) {
@@ -407,7 +411,8 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
                 mediaId = mediaId.takeUnless { value -> value.isNullOrBlank() },
                 message = message.takeUnless { value -> value.isNullOrBlank() },
                 positionMillis = positionMillis.takeUnless { value -> value < 0L },
-                speed = speed.takeUnless { value -> value.isNaN() }
+                speed = speed.takeUnless { value -> value.isNaN() },
+                playbackInstanceId = playbackInstanceId.takeUnless { value -> value < 0L }
             )
         }
     }
@@ -480,6 +485,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         private const val COMMAND_LOAD_NEXT_DISCOVERY_PAGE = 56
         private const val COMMAND_LOAD_FOR_YOU_FEED = 57
         private const val COMMAND_LOAD_RECOMMENDATIONS = 58
+        private const val COMMAND_PLAY_QUEUE = 59
         private const val COMMAND_UNKNOWN = -1
 
         private const val PLATFORM_EVENT_APP_FOREGROUNDED = 0
@@ -524,6 +530,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             EngineCommand.TYPE_SET_SPEED -> COMMAND_SET_SPEED
             EngineCommand.TYPE_SEEK -> COMMAND_SEEK
             EngineCommand.TYPE_PLAY_MEDIA_BY_ID -> COMMAND_PLAY_MEDIA_BY_ID
+            EngineCommand.TYPE_PLAY_QUEUE -> COMMAND_PLAY_QUEUE
             EngineCommand.TYPE_HYDRATE_THEME_PREFERENCE -> COMMAND_HYDRATE_THEME_PREFERENCE
             EngineCommand.TYPE_SET_THEME_PREFERENCE -> COMMAND_SET_THEME_PREFERENCE
             EngineCommand.TYPE_APPLY_REMOTE_THEME_PREFERENCE -> COMMAND_APPLY_REMOTE_THEME_PREFERENCE
@@ -914,6 +921,7 @@ internal object PandaEngineNativeSnapshotMapper {
         PLAYBACK_PAUSED -> EngineSnapshot.PLAYBACK_PAUSED
         PLAYBACK_BUFFERING -> EngineSnapshot.PLAYBACK_BUFFERING
         PLAYBACK_ERROR -> EngineSnapshot.PLAYBACK_ERROR
+        PLAYBACK_ENDED -> EngineSnapshot.PLAYBACK_ENDED
         else -> EngineSnapshot.PLAYBACK_IDLE
     }
 
@@ -963,6 +971,7 @@ internal object PandaEngineNativeSnapshotMapper {
     private const val PLAYBACK_PAUSED = 2
     private const val PLAYBACK_BUFFERING = 3
     private const val PLAYBACK_ERROR = 4
+    private const val PLAYBACK_ENDED = 5
 
     private const val RESTRICTION_UNKNOWN = 0
     private const val RESTRICTION_UNRESTRICTED = 1

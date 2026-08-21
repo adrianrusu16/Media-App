@@ -3,16 +3,19 @@ package com.adrianrusu.pandawave.core.media.adapter.playback
 import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import com.adrianrusu.pandawave.core.playback.BambooControlState
+import com.adrianrusu.pandawave.core.playback.BambooPlaybackControls
 
 @UnstableApi
 internal class BambooMediaSessionPlayer(
     delegate: Player,
     private val playbackEngineBridge: Media3PlaybackEngineBridge,
-    private val controlsEnabled: () -> Boolean
+    private val controlsEnabled: () -> Boolean,
+    private val controls: () -> BambooPlaybackControls = { controlsFor(controlsEnabled()) }
 ) : ForwardingPlayer(delegate) {
     override fun getAvailableCommands(): Player.Commands = BambooMediaSessionCommandPolicy.availablePlayerCommands(
         playerCommands = super.getAvailableCommands(),
-        controlsEnabled = controlsEnabled()
+        controls = controls()
     )
 
     override fun play() {
@@ -54,4 +57,9 @@ internal class BambooMediaSessionPlayer(
     override fun setPlaybackSpeed(speed: Float) {
         playbackEngineBridge.dispatchPlaybackSpeed(speed)
     }
+}
+
+private fun controlsFor(enabled: Boolean): BambooPlaybackControls {
+    val control = if (enabled) BambooControlState.enabled() else BambooControlState.hidden()
+    return BambooPlaybackControls(control, control, control, showPlayIcon = true)
 }

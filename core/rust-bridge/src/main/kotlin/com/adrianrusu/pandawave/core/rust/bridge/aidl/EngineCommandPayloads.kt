@@ -11,6 +11,12 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
 
 object EngineCommandPayloads {
+    fun playbackObservation(playbackInstanceId: Long, kind: String? = null): String = buildJsonObject {
+        put(KEY_VERSION, PAYLOAD_VERSION)
+        put("playback_instance_id", playbackInstanceId)
+        kind?.let { put("kind", it) }
+    }.toString()
+
     fun deviceSessionsPage(pageSize: Int): String = buildJsonObject {
         put(KEY_VERSION, PAYLOAD_VERSION)
         put("page", buildJsonObject { put("page_size", pageSize) })
@@ -79,6 +85,15 @@ object EngineCommandPayloads {
 
     fun mediaId(mediaId: String): String = mediaId.trim()
 
+    fun playQueue(mediaIds: List<String>, startIndex: Int): String = buildJsonObject {
+        val normalizedIds = mediaIds.map(String::trim).filter(String::isNotBlank)
+        require(normalizedIds.isNotEmpty()) { "A playback queue requires at least one media ID." }
+        require(startIndex in normalizedIds.indices) { "The queue start index must select an item." }
+        put(KEY_VERSION, PAYLOAD_VERSION)
+        put("media_ids", buildJsonArray { normalizedIds.forEach(::add) })
+        put("start_index", startIndex)
+    }.toString()
+
     fun themePreference(themeId: String): String = buildThemePreferencePayload(themeId).toString()
 
     fun upsertProfile(displayName: String?): String = buildJsonObject {
@@ -144,11 +159,12 @@ object EngineCommandPayloads {
         put("ordered_membership_ids", buildJsonArray { orderedMembershipIds.forEach { add(it.trim()) } })
     }.toString()
 
-    fun playbackCompleted(trackId: String, durationMillis: Long, completionRatio: Double): String =
+    fun playbackCompleted(trackId: String, durationMillis: Long, completionRatio: Double, playbackInstanceId: Long? = null): String =
         buildJsonObject {
             put(KEY_VERSION, PAYLOAD_VERSION)
             put(KEY_TRACK_ID, trackId.trim())
             put(KEY_DURATION_MILLIS, durationMillis.coerceAtLeast(0L))
+            playbackInstanceId?.let { put("playback_instance_id", it) }
             put(KEY_COMPLETION_RATIO, completionRatio.takeIf(Double::isFinite)?.coerceIn(0.0, 1.0) ?: 0.0)
         }.toString()
 

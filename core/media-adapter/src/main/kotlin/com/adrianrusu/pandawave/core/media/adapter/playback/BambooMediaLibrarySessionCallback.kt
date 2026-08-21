@@ -9,6 +9,8 @@ import androidx.media3.session.MediaSession
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import com.adrianrusu.pandawave.core.playback.BambooControlState
+import com.adrianrusu.pandawave.core.playback.BambooPlaybackControls
 
 /**
  * Media3 session callback for platform controllers.
@@ -20,7 +22,8 @@ import com.google.common.util.concurrent.ListenableFuture
 internal class BambooMediaLibrarySessionCallback(
     private val controlsEnabled: () -> Boolean,
     private val catalog: BambooMediaLibraryCatalog,
-    private val playbackBridge: Media3PlaybackEngineBridge
+    private val playbackBridge: Media3PlaybackEngineBridge,
+    private val controls: () -> BambooPlaybackControls = { controlsFor(controlsEnabled()) }
 ) : MediaLibrarySession.Callback {
     override fun onConnect(
         session: MediaSession,
@@ -29,7 +32,7 @@ internal class BambooMediaLibrarySessionCallback(
         .setAvailablePlayerCommands(
             BambooMediaSessionCommandPolicy.availablePlayerCommands(
                 playerCommands = session.player.availableCommands,
-                controlsEnabled = controlsEnabled()
+                controls = controls()
             )
         )
         .build()
@@ -82,4 +85,9 @@ internal class BambooMediaLibrarySessionCallback(
         mediaItems.firstOrNull()?.mediaId?.let(playbackBridge::dispatchCatalogPlay)
         return Futures.immediateFuture(mediaItems)
     }
+}
+
+private fun controlsFor(enabled: Boolean): BambooPlaybackControls {
+    val control = if (enabled) BambooControlState.enabled() else BambooControlState.hidden()
+    return BambooPlaybackControls(control, control, control, showPlayIcon = true)
 }

@@ -20,7 +20,7 @@ async fn controls_are_derived_correctly() {
     let snapshot = engine.snapshot();
     assert!(snapshot.controls.show_play_icon);
     assert!(snapshot.controls.play_pause.is_enabled);
-    assert!(!snapshot.controls.skip_prev.is_enabled);
+    assert!(snapshot.controls.skip_prev.is_enabled);
     assert!(snapshot.controls.skip_next.is_enabled);
 
     // Playing state
@@ -46,7 +46,7 @@ async fn controls_are_derived_correctly() {
 
     // Skip to end
     engine.dispatch(EngineCommand::skip_next(), 140).await;
-    // Skip moves state to Buffering, we need to load it to Playing to enable controls
+    // Skip moves state to Buffering, then the player observation confirms it.
     engine
         .dispatch_platform_event(
             EnginePlatformEvent::new(EnginePlatformEventType::MediaLoaded, None),

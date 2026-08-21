@@ -8,7 +8,8 @@ data class EngineEffect(
     val mediaId: String? = null,
     val message: String? = null,
     val positionMillis: Long? = null,
-    val speed: Float? = null
+    val speed: Float? = null,
+    val playbackInstanceId: Long? = null
 ) : Parcelable {
     init {
         require(type.isNotBlank()) {
@@ -21,7 +22,8 @@ data class EngineEffect(
         mediaId = parcel.readString(),
         message = parcel.readString(),
         positionMillis = parcel.readNullableLong(),
-        speed = parcel.readNullableFloat()
+        speed = parcel.readNullableFloat(),
+        playbackInstanceId = parcel.readNullableLong()
     )
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
@@ -30,6 +32,7 @@ data class EngineEffect(
         parcel.writeString(message)
         parcel.writeNullableLong(positionMillis)
         parcel.writeNullableFloat(speed)
+        parcel.writeNullableLong(playbackInstanceId)
     }
 
     override fun describeContents(): Int = 0

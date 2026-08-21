@@ -34,7 +34,11 @@ pub enum EngineEffect {
     UnduckAudio,
     /// Signal the platform to consume the latest resolved playback projection
     /// for this media identifier and prepare it for playback.
-    PreparePlaybackSource { media_id: String },
+    PreparePlaybackSource {
+        media_id: String,
+        /// Opaque generation which identifies this exact source load.
+        playback_instance_id: u64,
+    },
     /// Update the system's media session metadata.
     UpdateMetadata {
         media_id: String,

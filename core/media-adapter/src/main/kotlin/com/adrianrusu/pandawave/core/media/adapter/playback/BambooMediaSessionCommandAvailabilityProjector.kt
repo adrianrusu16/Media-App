@@ -1,6 +1,7 @@
 package com.adrianrusu.pandawave.core.media.adapter.playback
 
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
+import com.adrianrusu.pandawave.core.playback.BambooPlaybackControls
 
 /**
  * Projects PandaEngine readiness into Media3 controller command availability.
@@ -10,7 +11,7 @@ internal class BambooMediaSessionCommandAvailabilityProjector(
     private val sink: BambooMediaSessionCommandAvailabilitySink
 ) : AutoCloseable {
     private var subscription: AutoCloseable? = null
-    private var lastControlsEnabled: Boolean? = null
+    private var lastControls: BambooPlaybackControls? = null
 
     fun start() {
         if (subscription != null) {
@@ -18,24 +19,24 @@ internal class BambooMediaSessionCommandAvailabilityProjector(
         }
 
         subscription = playbackRepository.observe { playbackState ->
-            val controlsEnabled = playbackState.canDispatchEngineCommands
+            val controls = playbackState.controls
 
-            if (controlsEnabled == lastControlsEnabled) {
+            if (controls == lastControls) {
                 return@observe
             }
 
-            lastControlsEnabled = controlsEnabled
-            sink.project(controlsEnabled)
+            lastControls = controls
+            sink.project(controls)
         }
     }
 
     override fun close() {
         subscription?.close()
         subscription = null
-        lastControlsEnabled = null
+        lastControls = null
     }
 }
 
 internal interface BambooMediaSessionCommandAvailabilitySink {
-    fun project(controlsEnabled: Boolean)
+    fun project(controls: BambooPlaybackControls)
 }

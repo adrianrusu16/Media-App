@@ -90,32 +90,60 @@ impl Engine {
                     match self.resolve_playback_source(&next_media).await {
                         Ok(media) => {
                             next_snapshot =
-                                Self::update_media_state(&media, next_snapshot, &mut effects);
+                                self.update_media_state(&media, next_snapshot, &mut effects);
+                            next_snapshot.playback_state = PlaybackState::Buffering;
                         }
                         Err(error) => {
                             next_snapshot = next_snapshot.with_error(Some(error)).with_busy(false);
                             next_snapshot.playback_state = PlaybackState::Error;
                         }
                     }
+                } else {
+                    // A boundary press is a true no-op. Do not enter Buffering
+                    // or issue a source load merely because Next was pressed.
+                    next_snapshot = self.snapshot.clone();
                 }
             }
             EngineCommandType::SkipPrevious => {
-                if let Some(prev_media) = self.queue.previous_item().cloned() {
-                    match self.resolve_playback_source(&prev_media).await {
-                        Ok(media) => {
-                            next_snapshot =
-                                Self::update_media_state(&media, next_snapshot, &mut effects);
-                        }
-                        Err(error) => {
-                            next_snapshot = next_snapshot.with_error(Some(error)).with_busy(false);
-                            next_snapshot.playback_state = PlaybackState::Error;
+                const PREVIOUS_TRACK_THRESHOLD_MILLIS: u64 = 10_000;
+                let select_previous = self.snapshot.position_millis < PREVIOUS_TRACK_THRESHOLD_MILLIS
+                    && self.queue.has_previous();
+
+                if select_previous {
+                    if let Some(prev_media) = self.queue.previous_item().cloned() {
+                        match self.resolve_playback_source(&prev_media).await {
+                            Ok(media) => {
+                                next_snapshot = self.update_media_state(
+                                    &media,
+                                    next_snapshot,
+                                    &mut effects,
+                                );
+                                next_snapshot.playback_state = PlaybackState::Buffering;
+                            }
+                            Err(error) => {
+                                next_snapshot = next_snapshot.with_error(Some(error)).with_busy(false);
+                                next_snapshot.playback_state = PlaybackState::Error;
+                            }
                         }
                     }
+                } else if self.queue.has_current() {
+                    // Restarting is a seek, not a new source load. It preserves
+                    // the current selection and desired play/pause intent.
+                    next_snapshot.position_millis = 0;
+                    effects.push(EngineEffect::Seek(0));
+                } else {
+                    next_snapshot = self.snapshot.clone();
                 }
             }
             EngineCommandType::Play => {
                 if next_snapshot.session.is_some() {
-                    if self.snapshot.media_id.is_none() {
+                    if prev_playback_state == PlaybackState::Ended {
+                        // A completed item is still the current queue item.
+                        // Restart it locally rather than resolving another
+                        // short-lived source capability.
+                        next_snapshot.position_millis = 0;
+                        effects.push(EngineEffect::Seek(0));
+                    } else if self.snapshot.media_id.is_none() {
                         let selected_media = self
                             .queue
                             .current_item()
@@ -124,7 +152,7 @@ impl Engine {
                         if let Some(media) = selected_media {
                             match self.resolve_playback_source(&media).await {
                                 Ok(media) => {
-                                    next_snapshot = Self::update_media_state(
+                                    next_snapshot = self.update_media_state(
                                         &media,
                                         next_snapshot,
                                         &mut effects,
@@ -929,7 +957,7 @@ impl Engine {
                     match self.resolve_playback_source(&media).await {
                         Ok(media) => {
                             next_snapshot =
-                                Self::update_media_state(&media, next_snapshot, &mut effects);
+                                self.update_media_state(&media, next_snapshot, &mut effects);
                             next_snapshot.playback_state = PlaybackState::Buffering;
                         }
                         Err(error) => {
@@ -952,14 +980,67 @@ impl Engine {
                     .get_by_id(media_id)
                     .or_else(|| discovery_track_by_id(&next_snapshot, media_id))
                 {
+                    // A direct play request is a single-item immutable queue
+                    // context. Playlist playback replaces it with an ordered
+                    // queue snapshot at the host boundary.
+                    self.queue.set_items(vec![media.clone()]);
                     match self.resolve_playback_source(&media).await {
                         Ok(media) => {
                             next_snapshot =
-                                Self::update_media_state(&media, next_snapshot, &mut effects);
+                                self.update_media_state(&media, next_snapshot, &mut effects);
                             next_snapshot.playback_state = PlaybackState::Buffering;
                         }
                         Err(error) => {
                             let mut failed_media = media.clone();
+                            failed_media.source_uri = None;
+                            next_snapshot = next_snapshot
+                                .with_media(failed_media)
+                                .with_error(Some(error));
+                            next_snapshot.playback_state = PlaybackState::Error;
+                        }
+                    }
+                }
+                next_snapshot = next_snapshot.with_busy(false);
+            }
+            EngineCommandType::PlayQueue {
+                media_ids,
+                start_index,
+            } => {
+                next_snapshot = next_snapshot.with_busy(true);
+                let queue_items = media_ids
+                    .iter()
+                    .map(|media_id| {
+                        self.repository
+                            .get_by_id(media_id)
+                            .or_else(|| discovery_track_by_id(&next_snapshot, media_id))
+                            .or_else(|| {
+                                next_snapshot
+                                    .playlist_tracks
+                                    .iter()
+                                    .find(|item| item.track.id == *media_id)
+                                    .map(|item| project_discovery_track(item.track.clone()))
+                            })
+                            // Canopy source resolution requires only the stable
+                            // media identity. Metadata can be filled from the
+                            // catalog/playlist projection independently.
+                            .unwrap_or_else(|| MediaItem {
+                                id: media_id.clone(),
+                                ..Default::default()
+                            })
+                    })
+                    .collect::<Vec<_>>();
+                self.queue.set_items(queue_items);
+                self.queue.set_current_index(*start_index);
+
+                if let Some(media) = self.queue.current_item().cloned() {
+                    match self.resolve_playback_source(&media).await {
+                        Ok(media) => {
+                            next_snapshot =
+                                self.update_media_state(&media, next_snapshot, &mut effects);
+                            next_snapshot.playback_state = PlaybackState::Buffering;
+                        }
+                        Err(error) => {
+                            let mut failed_media = media;
                             failed_media.source_uri = None;
                             next_snapshot = next_snapshot
                                 .with_media(failed_media)
@@ -1004,6 +1085,10 @@ impl Engine {
                     effects.push(EngineEffect::Pause);
                 }
                 PlaybackState::Idle => {
+                    effects.push(EngineEffect::Stop);
+                    effects.push(EngineEffect::AbandonAudioFocus);
+                }
+                PlaybackState::Ended => {
                     effects.push(EngineEffect::Stop);
                     effects.push(EngineEffect::AbandonAudioFocus);
                 }

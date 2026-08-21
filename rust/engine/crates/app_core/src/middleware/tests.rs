@@ -72,7 +72,7 @@ fn test_throttling_middleware_keys_on_wire_command_type() {
 }
 
 #[tokio::test]
-async fn test_validation_middleware_detects_busy() {
+async fn test_validation_middleware_allows_transport_while_buffering() {
     let middleware = ValidationMiddleware;
     let mut engine = Engine::new(100);
     let _ = engine
@@ -85,9 +85,9 @@ async fn test_validation_middleware_detects_busy() {
         ..Default::default()
     }]);
     let _ = engine.dispatch(EngineCommand::play(), 150).await;
-    let command = EngineCommand::play();
+    let command = EngineCommand::skip_next();
     let result = middleware.before_dispatch(&engine, &command);
-    assert!(result.is_err());
+    assert!(result.is_ok());
 }
 
 #[tokio::test]
@@ -162,7 +162,7 @@ fn test_middleware_pipeline_execution() {
 }
 
 #[tokio::test]
-async fn test_engine_rejects_command_when_validation_fails() {
+async fn test_engine_allows_command_when_validation_sees_buffering() {
     let mut pipeline = MiddlewarePipeline::new();
     pipeline.add(Box::new(ValidationMiddleware));
 
@@ -179,16 +179,10 @@ async fn test_engine_rejects_command_when_validation_fails() {
     let _ = engine.dispatch(EngineCommand::play(), 150).await;
     engine.set_middleware(pipeline);
 
-    let outcome = engine.dispatch(EngineCommand::play(), 200).await;
+    let outcome = engine.dispatch(EngineCommand::skip_next(), 200).await;
 
     assert!(outcome.effects.is_empty());
-    let err = outcome
-        .snapshot
-        .last_error
-        .as_ref()
-        .expect("expected middleware rejection error");
-    assert_eq!(err.error_type, EngineErrorType::CommandRejected);
-    assert!(err.message.contains("Rejecting command"));
+    assert!(outcome.snapshot.last_error.is_none());
 }
 
 #[tokio::test]

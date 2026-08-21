@@ -520,7 +520,7 @@ private fun NowPlayingControls(
             TransportRoundAction(
                 icon = PandaWaveIcons.SkipPrevious,
                 contentDescription = stringResource(R.string.pandawave_now_playing_action_skip_previous),
-                enabled = uiModel.controlsEnabled,
+                enabled = uiModel.canSkipPrevious,
                 onClick = onSkipPreviousClick
             )
             PrimaryPlaybackButton(
@@ -531,7 +531,7 @@ private fun NowPlayingControls(
             TransportRoundAction(
                 icon = PandaWaveIcons.SkipNext,
                 contentDescription = stringResource(R.string.pandawave_now_playing_action_skip_next),
-                enabled = uiModel.controlsEnabled,
+                enabled = uiModel.canSkipNext,
                 onClick = onSkipNextClick
             )
         }

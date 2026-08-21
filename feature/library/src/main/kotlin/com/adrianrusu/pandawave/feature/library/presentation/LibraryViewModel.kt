@@ -22,7 +22,16 @@ class LibraryViewModel @Inject constructor(
     fun selectTab(tab: LibraryTab) = repository.selectTab(tab)
     fun refresh() = repository.refresh()
     fun loadNext() = repository.loadNext(state.value.selectedTab)
-    fun play(mediaId: String) = playbackRepository.dispatch(BambooPlaybackIntent.PlayMedia(mediaId))
+    fun play(mediaId: String) {
+        val current = state.value
+        val queue = current.playlistTracks.map { it.mediaId }
+        val selectedIndex = queue.indexOf(mediaId)
+        if (current.selectedPlaylistId != null && selectedIndex >= 0) {
+            playbackRepository.dispatch(BambooPlaybackIntent.PlayQueue(queue, selectedIndex))
+        } else {
+            playbackRepository.dispatch(BambooPlaybackIntent.PlayMedia(mediaId))
+        }
+    }
     fun save(mediaId: String) = repository.save(mediaId)
     fun removeSaved(mediaId: String) = repository.removeSaved(mediaId)
     fun like(mediaId: String) = repository.like(mediaId)

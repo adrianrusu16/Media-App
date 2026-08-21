@@ -1,3 +1,5 @@
+use serde::Deserialize;
+
 /// Represents the types of platform-level events the engine can handle.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum EnginePlatformEventType {
@@ -95,6 +97,16 @@ pub struct EnginePlatformEvent {
     pub event_type: EnginePlatformEventType,
     /// Optional JSON-encoded or raw string payload for the event.
     pub payload: Option<String>,
+}
+
+/// Versioned identity envelope emitted by PandaWave for player observations.
+/// It deliberately carries no capability or source URL.
+#[derive(Deserialize)]
+pub(crate) struct PlaybackObservationPayload {
+    pub version: u8,
+    pub playback_instance_id: u64,
+    #[serde(default)]
+    pub kind: Option<String>,
 }
 
 impl EnginePlatformEvent {

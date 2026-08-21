@@ -44,6 +44,7 @@ internal object BambooPlaybackStateProjector {
     private fun String.toPlaybackStatus(): BambooPlaybackStatus = when (this) {
         EngineSnapshot.PLAYBACK_PLAYING -> BambooPlaybackStatus.Playing
         EngineSnapshot.PLAYBACK_PAUSED -> BambooPlaybackStatus.Paused
+        EngineSnapshot.PLAYBACK_ENDED -> BambooPlaybackStatus.Ended
         else -> BambooPlaybackStatus.Idle
     }
 

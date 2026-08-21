@@ -62,7 +62,11 @@ internal class Media3EngineEffectExecutor(
             return logStaleProjection(effect)
         }
 
-        player.setMediaItem(projection.mediaItem, projection.positionMillis)
+        val playbackInstanceId = effect.playbackInstanceId ?: return logMissingPayload(effect)
+        player.setMediaItem(
+            projection.mediaItem.buildUpon().setTag(playbackInstanceId).build(),
+            projection.positionMillis
+        )
     }
 
     private fun seek(effect: EngineEffect) {

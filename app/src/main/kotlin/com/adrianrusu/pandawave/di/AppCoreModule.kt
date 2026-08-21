@@ -2,6 +2,8 @@ package com.adrianrusu.pandawave.di
 
 import android.content.Context
 import android.content.pm.ApplicationInfo
+import android.os.Handler
+import android.os.Looper
 import androidx.datastore.core.DataStore
 import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.Preferences
@@ -94,10 +96,19 @@ object AppCoreModule {
     fun provideAidlEngineGateway(
         connection: EngineServiceConnection,
         telemetryLogger: TelemetryLogger
-    ): AidlEngineGateway = AidlEngineGateway(
-        connection = connection,
-        telemetryLogger = telemetryLogger
-    )
+    ): AidlEngineGateway {
+        val mainHandler = Handler(Looper.getMainLooper())
+        return AidlEngineGateway(
+            connection = connection,
+            telemetryLogger = telemetryLogger,
+            // AIDL listener calls arrive on Binder threads. All listeners below
+            // eventually project into Media3, whose player and session are owned
+            // by the main looper, so delivery must cross that boundary here.
+            callbackExecutor = java.util.concurrent.Executor { runnable ->
+                mainHandler.post(runnable)
+            }
+        )
+    }
 
     @Provides
     @Singleton
