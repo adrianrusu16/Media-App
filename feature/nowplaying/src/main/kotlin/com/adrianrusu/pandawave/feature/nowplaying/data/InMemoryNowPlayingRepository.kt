@@ -39,6 +39,9 @@ internal class InMemoryNowPlayingRepository(private val playbackRepository: Bamb
             NowPlayingIntent.TogglePlayback -> playbackRepository.dispatch(BambooPlaybackIntent.TogglePlayback)
             NowPlayingIntent.SkipPrevious -> playbackRepository.dispatch(BambooPlaybackIntent.SkipPrevious)
             NowPlayingIntent.SkipNext -> playbackRepository.dispatch(BambooPlaybackIntent.SkipNext)
+            is NowPlayingIntent.SetVolume -> playbackRepository.dispatch(
+                BambooPlaybackIntent.SetVolume(intent.volume)
+            )
         }
     }
 
@@ -62,12 +65,14 @@ internal fun NowPlayingState.withPlaybackState(playback: BambooPlaybackState): N
     hasPlaybackError = playback.hasError,
     controls = playback.controls,
     updatedAtEpochMillis = playback.updatedAtEpochMillis,
+    volume = playback.volume,
     progressAnchor = BambooPlaybackProgressAnchor.fromPlaybackState(playback)
 )
 
 private fun BambooPlaybackStatus.toNowPlayingPlaybackState(): NowPlayingPlaybackState = when (this) {
     BambooPlaybackStatus.Playing -> NowPlayingPlaybackState.Playing
     BambooPlaybackStatus.Paused -> NowPlayingPlaybackState.Paused
+    BambooPlaybackStatus.Recovering -> NowPlayingPlaybackState.Playing
     BambooPlaybackStatus.Ended -> NowPlayingPlaybackState.Idle
     BambooPlaybackStatus.Idle -> NowPlayingPlaybackState.Idle
 }

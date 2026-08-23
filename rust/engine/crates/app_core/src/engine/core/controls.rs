@@ -14,7 +14,10 @@ impl Engine {
         use crate::model::playback::{ControlState, PlayerControls};
 
         let can_dispatch = snapshot.can_dispatch();
-        let is_playing = snapshot.playback_state == PlaybackState::Playing;
+        let is_playing = matches!(
+            snapshot.playback_state,
+            PlaybackState::Playing | PlaybackState::Recovering
+        );
         let has_current_item = self.queue.has_current();
 
         PlayerControls {

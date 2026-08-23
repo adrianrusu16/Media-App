@@ -133,6 +133,16 @@ struct DeviceSessionsOperation {
     page_size: u32,
 }
 
+/// Bounded recovery policy for the current logical playback context. The
+/// instance IDs make each budget stale-safe while the intent survives local
+/// player recreation and a subsequent source-capability refresh.
+#[derive(Default)]
+struct PlaybackRecoveryState {
+    source_refresh_attempted_for: Option<u64>,
+    decoder_attempted_for: Option<u64>,
+    desired_play_when_ready: bool,
+}
+
 fn project_discovery_track(track: crate::EngineTrack) -> crate::MediaItem {
     crate::MediaItem {
         id: track.id,
@@ -207,7 +217,7 @@ pub struct Engine {
     next_catalog_operation_sequence: u64,
     next_playback_instance_id: u64,
     current_playback_instance_id: Option<u64>,
-    source_retry_attempted_for: Option<u64>,
+    recovery: PlaybackRecoveryState,
     feed_projection_identity: Option<AuthIdentity>,
     discovery_operation: Option<DiscoveryOperation>,
     player: Option<Box<dyn MediaPlayer>>,
@@ -251,7 +261,7 @@ impl Default for Engine {
             next_catalog_operation_sequence: 0,
             next_playback_instance_id: 0,
             current_playback_instance_id: None,
-            source_retry_attempted_for: None,
+            recovery: PlaybackRecoveryState::default(),
             feed_projection_identity: None,
             discovery_operation: None,
 
@@ -318,7 +328,7 @@ impl Engine {
             next_catalog_operation_sequence: 0,
             next_playback_instance_id: 0,
             current_playback_instance_id: None,
-            source_retry_attempted_for: None,
+            recovery: PlaybackRecoveryState::default(),
             feed_projection_identity: None,
             discovery_operation: None,
 
@@ -563,6 +573,9 @@ impl Engine {
 
     fn clear_history_projection(snapshot: &mut EngineSnapshot) {
         snapshot.history_settings = None;
+        snapshot.history_state.generation = snapshot.history_state.generation.saturating_add(1);
+        snapshot.history_state.availability = crate::EngineHistoryAvailability::Unknown;
+        snapshot.history_state.refresh_state = crate::EngineHistoryRefreshState::Idle;
         snapshot.history_entries.clear();
         snapshot.history_next_page_token = None;
         snapshot.history_deleted_count = 0;

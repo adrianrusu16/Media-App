@@ -23,6 +23,7 @@ pub(crate) fn effect_to_ffi(effect: &EngineEffect) -> i32 {
         EngineEffect::DuckAudio => FFI_EFFECT_DUCK_AUDIO,
         EngineEffect::UnduckAudio => FFI_EFFECT_UNDUCK_AUDIO,
         EngineEffect::PreparePlaybackSource { .. } => FFI_EFFECT_PREPARE_PLAYBACK_SOURCE,
+        EngineEffect::RecreatePlayerAndLoad { .. } => FFI_EFFECT_RECREATE_PLAYER_AND_LOAD,
     }
 }
 
@@ -147,6 +148,7 @@ pub(crate) fn playback_to_ffi(playback_state: PlaybackState) -> i32 {
         PlaybackState::Buffering => FFI_PLAYBACK_BUFFERING,
         PlaybackState::Error => FFI_PLAYBACK_ERROR,
         PlaybackState::Ended => FFI_PLAYBACK_ENDED,
+        PlaybackState::Recovering => FFI_PLAYBACK_RECOVERING,
     }
 }
 

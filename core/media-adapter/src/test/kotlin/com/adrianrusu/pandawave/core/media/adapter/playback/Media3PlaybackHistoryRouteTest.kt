@@ -24,6 +24,7 @@ class Media3PlaybackHistoryRouteTest {
             playbackMetricsProvider = PlaybackCompletionMetricsProvider {
                 PlaybackCompletionMetrics(positionMillis = 750, durationMillis = 1_000)
             },
+            playbackInstanceIdProvider = { 42L },
         )
 
         bridge.onPlaybackStateChanged(Player.STATE_ENDED)

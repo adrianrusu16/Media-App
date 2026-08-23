@@ -24,7 +24,8 @@ data class NowPlayingState(
     val hasPlaybackError: Boolean = false,
     val controls: BambooPlaybackControls = BambooPlaybackControls.default(),
     val updatedAtEpochMillis: Long = 0L,
-    val progressAnchor: BambooPlaybackProgressAnchor = BambooPlaybackProgressAnchor()
+    val progressAnchor: BambooPlaybackProgressAnchor = BambooPlaybackProgressAnchor(),
+    val volume: Float = 1F
 ) {
     val isPlaying: Boolean
         get() = playbackState == NowPlayingPlaybackState.Playing

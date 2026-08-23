@@ -11,6 +11,7 @@ internal data class BambooMediaSessionStateProjection(
     val mediaItem: MediaItem,
     val playWhenReady: Boolean,
     val positionMillis: Long,
+    val volume: Float = 1F,
     val playbackExpiresAtEpochMillis: Long? = null,
     val contentType: String? = null
 )
@@ -46,9 +47,12 @@ internal fun BambooPlaybackState.toMediaSessionStateProjection(
             .build(),
         playWhenReady = playbackStatus == BambooPlaybackStatus.Playing,
         positionMillis = positionMillis.coerceAtLeast(0L),
+        volume = volume.coerceIn(MIN_VOLUME, MAX_VOLUME),
         playbackExpiresAtEpochMillis = playbackExpiresAtEpochMillis,
         contentType = mimeType
     )
 }
 
 private const val FALLBACK_MEDIA_ID = "pandawave.playback.current"
+private const val MIN_VOLUME = 0F
+private const val MAX_VOLUME = 1F

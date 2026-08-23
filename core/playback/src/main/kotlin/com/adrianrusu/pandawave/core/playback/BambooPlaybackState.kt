@@ -17,6 +17,7 @@ data class BambooPlaybackState(
     val updatedAtEpochMillis: Long = 0L,
     val positionMillis: Long = 0L,
     val playbackSpeed: Float = 1F,
+    val volume: Float = DEFAULT_VOLUME,
     val hasActiveSession: Boolean = false,
     val hasError: Boolean = false,
     val errorType: String = "none",
@@ -68,8 +69,11 @@ enum class BambooPlaybackStatus {
     Idle,
     Playing,
     Paused,
+    Recovering,
     Ended
 }
+
+private const val DEFAULT_VOLUME = 1F
 
 data class BambooEngineConnectionUiState(val status: BambooEngineConnectionStatus) {
     companion object {

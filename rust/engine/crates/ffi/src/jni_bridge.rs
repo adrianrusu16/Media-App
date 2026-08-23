@@ -549,6 +549,27 @@ pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_eng
 }
 
 #[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeHistoryEntryValues(
+    mut env: JNIEnv,
+    _this: JObject,
+    handle: jlong,
+    index: jint,
+) -> jobjectArray {
+    let Some(snapshot) =
+        (unsafe { (handle as *const PandaEngine).as_ref() }).map(|engine| engine.engine.snapshot())
+    else {
+        return ptr::null_mut();
+    };
+    let Some(item) = usize::try_from(index)
+        .ok()
+        .and_then(|index| snapshot.history_entries.get(index))
+    else {
+        return ptr::null_mut();
+    };
+    strings_to_jobject_array(&mut env, history_entry_to_strings(item))
+}
+
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativePendingLibraryTrackId(
     env: JNIEnv,
     _this: JObject,
@@ -1182,6 +1203,33 @@ fn library_track_to_strings(item: &panda_engine_core::EngineLibraryTrack) -> Vec
     ]
 }
 
+fn history_entry_to_strings(item: &panda_engine_core::EngineHistoryEntry) -> Vec<String> {
+    let track = item.track.as_ref();
+    vec![
+        item.id.clone(),
+        track.map(|track| track.id.clone()).unwrap_or_default(),
+        track
+            .map(|track| track.title.clone())
+            .unwrap_or_else(|| "Unavailable track".into()),
+        track
+            .map(|track| track.artist.name.clone())
+            .unwrap_or_default(),
+        track
+            .and_then(|track| track.album.as_ref())
+            .map(|album| album.title.clone())
+            .unwrap_or_default(),
+        track
+            .and_then(|track| track.artwork_id.clone())
+            .unwrap_or_default(),
+        item.played_at_epoch_millis
+            .map(|value| value.to_string())
+            .unwrap_or_default(),
+        item.duration_millis.to_string(),
+        item.completion_ratio.to_string(),
+        if track.is_some() { "1" } else { "0" }.into(),
+    ]
+}
+
 fn backend_status_to_strings(status: &panda_engine_core::EngineBackendStatus) -> Vec<String> {
     let mut values = Vec::with_capacity(5 + status.dependencies.len() * 3);
     values.push(if status.healthy { "1" } else { "0" }.into());
@@ -1285,7 +1333,7 @@ fn snapshot_to_jlong_array(env: &mut JNIEnv, snapshot: FfiEngineSnapshot) -> jlo
     array.into_raw()
 }
 
-fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 60] {
+fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 61] {
     [
         snapshot.playback_state as jlong,
         snapshot.restriction_state as jlong,
@@ -1347,6 +1395,7 @@ fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 60] {
         snapshot.recommendations_results_count as jlong,
         snapshot.backend_availability as jlong,
         snapshot.backend_unavailable_reason as jlong,
+        snapshot.history_generation as jlong,
     ]
 }
 
@@ -1428,6 +1477,7 @@ mod tests {
             recommendations_results_count: 9,
             backend_availability: crate::FFI_BACKEND_UNAVAILABLE,
             backend_unavailable_reason: crate::FFI_BACKEND_REASON_TIMEOUT,
+            history_generation: 11,
             playback_state: FFI_PLAYBACK_PLAYING,
             restriction_state: FFI_RESTRICTION_UNKNOWN,
             updated_at_epoch_millis: 42,
@@ -1474,7 +1524,7 @@ mod tests {
         };
 
         let values = snapshot_to_jlong_values(snapshot);
-        assert_eq!(values.len(), 60);
+        assert_eq!(values.len(), 61);
         assert_eq!(
             &values[..45],
             &[
@@ -1526,7 +1576,7 @@ mod tests {
             ]
         );
         assert_eq!(&values[45..50], &[6, 7, 1, 0, 1]);
-        assert_eq!(&values[50..], &[1, 2, 1, 6, 1, 1, 8, 9, 2, 3]);
+        assert_eq!(&values[50..], &[1, 2, 1, 6, 1, 1, 8, 9, 2, 3, 11]);
     }
 
     #[test]

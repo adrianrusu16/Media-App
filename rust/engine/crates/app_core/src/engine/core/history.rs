@@ -3,6 +3,9 @@ use serde::Deserialize;
 use super::*;
 use crate::EngineErrorType;
 
+const DEFAULT_HISTORY_PAGE_SIZE: u32 = 40;
+const MAX_HISTORY_PAGE_SIZE: u32 = 50;
+
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct PlaybackCompletedPayload {
@@ -52,11 +55,9 @@ impl Engine {
                         self.history_projection_identity = Some(identity);
                         snapshot.history_settings = Some(update.settings);
                         snapshot.history_deleted_count = update.deleted_count;
-                        if !update.settings.enabled {
-                            self.history_operation = None;
-                            snapshot.history_entries.clear();
-                            snapshot.history_next_page_token = None;
-                        }
+                        snapshot.history_state.availability =
+                            crate::EngineHistoryAvailability::Available;
+                        self.invalidate_history_pages(snapshot);
                     }
                     Err(error) => snapshot.last_error = Some(error),
                 }
@@ -65,6 +66,7 @@ impl Engine {
                 self.history_operation = None;
                 snapshot.history_entries.clear();
                 snapshot.history_next_page_token = None;
+                let page = Self::bounded_history_page_request(page.clone());
                 let result = match Self::history_context(snapshot, self.history_port.clone()) {
                     Ok((identity, port)) => {
                         let result = port.list(&identity.history_identity(), page.clone()).await;
@@ -77,6 +79,10 @@ impl Engine {
                     Ok((identity, page_result)) => {
                         snapshot.history_entries = page_result.items;
                         snapshot.history_next_page_token = page_result.next_page_token;
+                        snapshot.history_state.availability =
+                            crate::EngineHistoryAvailability::Available;
+                        snapshot.history_state.refresh_state =
+                            crate::EngineHistoryRefreshState::Idle;
                         self.history_projection_identity = Some(identity.clone());
                         self.history_operation = Some(HistoryOperation {
                             auth_identity: identity,
@@ -101,7 +107,7 @@ impl Engine {
                             .list(
                                 &identity.history_identity(),
                                 crate::EnginePageRequest {
-                                    page_size: operation.page_size,
+                                    page_size: Self::bounded_history_page_size(operation.page_size),
                                     page_token: Some(token),
                                 },
                             )
@@ -117,8 +123,12 @@ impl Engine {
                 };
                 match result {
                     Ok(page_result) => {
-                        snapshot.history_entries.extend(page_result.items);
+                        snapshot.history_entries = page_result.items;
                         snapshot.history_next_page_token = page_result.next_page_token;
+                        snapshot.history_state.availability =
+                            crate::EngineHistoryAvailability::Available;
+                        snapshot.history_state.refresh_state =
+                            crate::EngineHistoryRefreshState::Idle;
                     }
                     Err(error) => snapshot.last_error = Some(error),
                 }
@@ -139,13 +149,17 @@ impl Engine {
                     Err(error) => Err(error),
                 };
                 match result {
-                    Ok(()) => snapshot
-                        .history_entries
-                        .retain(|entry| entry.id != *history_id),
+                    Ok(()) => {
+                        snapshot
+                            .history_entries
+                            .retain(|entry| entry.id != *history_id);
+                        self.invalidate_history_pages(snapshot);
+                    }
                     Err(error) if error.error_type == EngineErrorType::NotFound => {
                         snapshot
                             .history_entries
                             .retain(|entry| entry.id != *history_id);
+                        self.invalidate_history_pages(snapshot);
                     }
                     Err(error) => snapshot.last_error = Some(error),
                 }
@@ -163,12 +177,12 @@ impl Engine {
                         snapshot.history_deleted_count = deleted_count;
                         snapshot.history_entries.clear();
                         snapshot.history_next_page_token = None;
-                        self.history_operation = None;
+                        self.invalidate_history_pages(snapshot);
                     }
                     Err(error) if error.error_type == EngineErrorType::NotFound => {
                         snapshot.history_entries.clear();
                         snapshot.history_next_page_token = None;
-                        self.history_operation = None;
+                        self.invalidate_history_pages(snapshot);
                     }
                     Err(error) => snapshot.last_error = Some(error),
                 }
@@ -198,6 +212,8 @@ impl Engine {
                 Ok((identity, settings)) => {
                     self.history_projection_identity = Some(identity);
                     snapshot.history_settings = Some(settings);
+                    snapshot.history_state.availability =
+                        crate::EngineHistoryAvailability::Available;
                 }
                 Err(error) => {
                     snapshot.last_error = Some(error);
@@ -247,9 +263,34 @@ impl Engine {
             }
             Err(error) => Err(error),
         };
-        if let Err(error) = result {
-            snapshot.last_error = Some(error);
+        match result {
+            Ok(true) => self.invalidate_history_pages(snapshot),
+            Ok(false) => {}
+            Err(error) => snapshot.last_error = Some(error),
         }
+    }
+
+    fn bounded_history_page_request(
+        mut page: crate::EnginePageRequest,
+    ) -> crate::EnginePageRequest {
+        page.page_size = Self::bounded_history_page_size(page.page_size);
+        page
+    }
+
+    fn bounded_history_page_size(page_size: u32) -> u32 {
+        if page_size == 0 {
+            DEFAULT_HISTORY_PAGE_SIZE
+        } else {
+            page_size.min(MAX_HISTORY_PAGE_SIZE)
+        }
+    }
+
+    fn invalidate_history_pages(&mut self, snapshot: &mut EngineSnapshot) {
+        snapshot.history_state.generation = snapshot.history_state.generation.saturating_add(1);
+        snapshot.history_state.refresh_state = crate::EngineHistoryRefreshState::Idle;
+        snapshot.history_entries.clear();
+        snapshot.history_next_page_token = None;
+        self.history_operation = None;
     }
 
     fn history_context(

@@ -39,6 +39,14 @@ pub enum EngineEffect {
         /// Opaque generation which identifies this exact source load.
         playback_instance_id: u64,
     },
+    /// Rebuild the platform player before loading the current, already-resolved
+    /// source. This is reserved for a fatal local decoder failure; it must not
+    /// trigger another backend capability resolution.
+    RecreatePlayerAndLoad {
+        media_id: String,
+        playback_instance_id: u64,
+        position_millis: u64,
+    },
     /// Update the system's media session metadata.
     UpdateMetadata {
         media_id: String,
@@ -80,6 +88,8 @@ impl EngineEffect {
     pub const UPDATE_METADATA_WIRE: &'static str = "update_metadata";
     /// Wire value for PreparePlaybackSource effect.
     pub const PREPARE_PLAYBACK_SOURCE_WIRE: &'static str = "prepare_playback_source";
+    /// Wire value for a local player recreation after a decoder failure.
+    pub const RECREATE_PLAYER_AND_LOAD_WIRE: &'static str = "recreate_player_and_load";
 
     /// Returns the wire string representation of the effect type.
     pub fn as_wire(&self) -> &'static str {
@@ -99,6 +109,7 @@ impl EngineEffect {
             Self::DuckAudio => Self::DUCK_AUDIO_WIRE,
             Self::UnduckAudio => Self::UNDUCK_AUDIO_WIRE,
             Self::PreparePlaybackSource { .. } => Self::PREPARE_PLAYBACK_SOURCE_WIRE,
+            Self::RecreatePlayerAndLoad { .. } => Self::RECREATE_PLAYER_AND_LOAD_WIRE,
             Self::UpdateMetadata { .. } => Self::UPDATE_METADATA_WIRE,
         }
     }

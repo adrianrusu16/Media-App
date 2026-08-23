@@ -6,6 +6,10 @@ import kotlin.math.abs
 
 internal class Media3PlayerStateSink(private val player: Player) : BambooMediaSessionStateSink {
     override fun project(projection: BambooMediaSessionStateProjection) {
+        if (player.volume != projection.volume) {
+            player.volume = projection.volume
+        }
+
         if (projection.mediaItem.localConfiguration == null) {
             return
         }

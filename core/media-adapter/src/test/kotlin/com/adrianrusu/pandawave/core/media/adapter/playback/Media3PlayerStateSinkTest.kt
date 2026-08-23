@@ -18,6 +18,7 @@ class Media3PlayerStateSinkTest {
             when (method.name) {
                 "getCurrentMediaItem" -> null
                 "getCurrentPosition" -> 0L
+                "getVolume" -> 1F
                 "getPlaybackState" -> Player.STATE_IDLE
                 "getPlayWhenReady" -> false
                 else -> null

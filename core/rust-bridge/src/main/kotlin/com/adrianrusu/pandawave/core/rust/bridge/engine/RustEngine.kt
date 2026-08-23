@@ -5,9 +5,9 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineLibraryItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthOperationResult
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineBackendAvailability
 
 interface RustEngine {
     fun registerPassword(email: String, password: ByteArray): EngineAuthOperationResult =
@@ -33,8 +33,20 @@ interface RustEngine {
 
     fun snapshot(): EngineSnapshot
 
-    /** Updates transient backend reachability without recreating the engine. */
-    fun setBackendAvailability(availability: EngineBackendAvailability) = Unit
+    /**
+     * Starts engine-owned backend health monitoring. The host supplies only result delivery;
+     * probe cadence and retry policy remain an engine concern.
+     */
+    fun startBackendHealthMonitoring(
+        onDispatchResult: (EngineDispatchResult) -> Unit,
+        onSnapshotChanged: (EngineSnapshot) -> Unit
+    ) = Unit
+
+    /** Stops engine-owned backend health monitoring without destroying the engine. */
+    fun stopBackendHealthMonitoring() = Unit
+
+    /** Reports a platform connectivity observation without prescribing a probe schedule. */
+    fun hintNetworkAvailability(isAvailable: Boolean) = Unit
 
     fun browseResult(index: Int): EngineCatalogItem?
 
@@ -45,6 +57,8 @@ interface RustEngine {
     fun profilePreferenceValue(key: String): String? = null
 
     fun searchResult(index: Int): EngineCatalogItem?
+
+    fun historyEntry(index: Int): EngineHistoryItem? = null
 
     fun savedTrack(index: Int): EngineLibraryItem? = null
     fun playlist(index: Int): com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistItem? = null

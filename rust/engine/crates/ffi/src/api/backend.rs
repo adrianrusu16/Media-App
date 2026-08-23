@@ -234,7 +234,10 @@ mod concurrency_tests {
     fn valid_configuration_creates_an_engine_without_a_live_backend() {
         let engine = build_engine(0);
         let config = valid_config_json()
-            .replace("\"environment\": \"production\"", "\"environment\": \"development\"")
+            .replace(
+                "\"environment\": \"production\"",
+                "\"environment\": \"development\"",
+            )
             .replace("https://canopy.example.com", "http://127.0.0.1:1")
             .replace("https://stream.example.com", "http://127.0.0.1:2")
             .replace("https://api.example.com", "http://127.0.0.1:3");

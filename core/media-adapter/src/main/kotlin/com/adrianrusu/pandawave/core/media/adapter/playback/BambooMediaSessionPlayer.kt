@@ -57,6 +57,10 @@ internal class BambooMediaSessionPlayer(
     override fun setPlaybackSpeed(speed: Float) {
         playbackEngineBridge.dispatchPlaybackSpeed(speed)
     }
+
+    override fun setVolume(volume: Float) {
+        playbackEngineBridge.dispatchVolume(volume)
+    }
 }
 
 private fun controlsFor(enabled: Boolean): BambooPlaybackControls {

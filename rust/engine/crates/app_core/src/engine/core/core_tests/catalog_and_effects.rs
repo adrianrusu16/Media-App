@@ -78,19 +78,25 @@ async fn skip_previous_restarts_current_item_after_threshold_and_selects_previou
     assert_eq!(restarted.snapshot.media_id.as_deref(), Some("2"));
     assert_eq!(restarted.snapshot.position_millis, 0);
     assert!(restarted.effects.contains(&EngineEffect::Seek(0)));
-    assert!(!restarted
-        .effects
-        .iter()
-        .any(|effect| matches!(effect, EngineEffect::PreparePlaybackSource { .. })));
+    assert!(
+        !restarted
+            .effects
+            .iter()
+            .any(|effect| matches!(effect, EngineEffect::PreparePlaybackSource { .. }))
+    );
 
     engine.snapshot.position_millis = 5_000;
     let selected = engine.dispatch(EngineCommand::skip_previous(), 250).await;
     assert_eq!(selected.snapshot.media_id.as_deref(), Some("1"));
     assert_eq!(selected.snapshot.playback_state, PlaybackState::Buffering);
-    assert!(selected.effects.contains(&EngineEffect::PreparePlaybackSource {
-        media_id: "1".into(),
-        playback_instance_id: 1,
-    }));
+    assert!(
+        selected
+            .effects
+            .contains(&EngineEffect::PreparePlaybackSource {
+                media_id: "1".into(),
+                playback_instance_id: 1,
+            })
+    );
 }
 
 #[tokio::test]

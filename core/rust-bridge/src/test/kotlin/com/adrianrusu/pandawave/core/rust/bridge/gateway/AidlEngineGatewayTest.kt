@@ -6,6 +6,7 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineLibraryItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistReconciliation
@@ -61,6 +62,38 @@ class AidlEngineGatewayTest {
             .lowercase()
         for (forbidden in listOf("access_token", "refresh_token", "credential", "canopy")) {
             assertFalse(publicSurface.contains(forbidden), "library transport leaked $forbidden")
+        }
+    }
+
+    @Test
+    fun `history projections round trip through the service gateway without credentials`() {
+        val history = EngineHistoryItem(
+            historyId = "history-1",
+            mediaId = "track-1",
+            title = "Recently played",
+            artist = "Artist",
+            album = "Album",
+            artworkUri = "content://pandawave/art/track-1",
+            playedAtEpochMillis = 1_000L,
+            listenedDurationMillis = 90_000L,
+            completionRatio = 0.75F,
+            playable = true,
+        )
+        val service = RecordingEngineService(
+            initialSnapshot = EngineSnapshot.idle(1L).copy(historyEntriesCount = 1),
+            history = listOf(history),
+        )
+        val gateway = AidlEngineGateway(FakeEngineServiceConnection(service))
+
+        assertEquals(history, gateway.historyEntry(0))
+        assertNull(gateway.historyEntry(1))
+
+        val publicSurface = listOf(EngineHistoryItem::class.java, EngineService::class.java, EngineGateway::class.java)
+            .flatMap { type -> type.declaredFields.map { it.name } + type.methods.map { it.name } }
+            .joinToString(" ")
+            .lowercase()
+        for (forbidden in listOf("access_token", "refresh_token", "credential", "canopy")) {
+            assertFalse(publicSurface.contains(forbidden), "history transport leaked $forbidden")
         }
     }
 
@@ -885,6 +918,7 @@ private class RecordingEngineService(
     initialSnapshot: EngineSnapshot,
     private val saved: List<EngineLibraryItem> = emptyList(),
     private val liked: List<EngineLibraryItem> = emptyList(),
+    private val history: List<EngineHistoryItem> = emptyList(),
     private val pending: List<String> = emptyList(),
     private val playlists: List<EnginePlaylistItem> = emptyList(),
     private val playlistTracks: List<EnginePlaylistTrackItem> = emptyList(),
@@ -919,6 +953,8 @@ private class RecordingEngineService(
     override fun savedTrack(index: Int): EngineLibraryItem? = saved.getOrNull(index)
 
     override fun likedTrack(index: Int): EngineLibraryItem? = liked.getOrNull(index)
+
+    override fun historyEntry(index: Int): EngineHistoryItem? = history.getOrNull(index)
 
     override fun pendingLibraryTrackId(index: Int): String? = pending.getOrNull(index)
 

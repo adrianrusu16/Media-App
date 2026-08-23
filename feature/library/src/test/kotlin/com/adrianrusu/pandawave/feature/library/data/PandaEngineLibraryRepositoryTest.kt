@@ -7,6 +7,7 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineLibraryItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistReconciliation
@@ -41,6 +42,8 @@ class PandaEngineLibraryRepositoryTest {
             listOf(
                 EngineCommand.TYPE_LIST_SAVED_TRACKS,
                 EngineCommand.TYPE_LIST_LIKED_TRACKS,
+                EngineCommand.TYPE_LOAD_HISTORY_SETTINGS,
+                EngineCommand.TYPE_LIST_HISTORY,
                 EngineCommand.TYPE_LIST_PLAYLISTS,
             ),
             gateway.commands.map(EngineCommand::type),
@@ -60,15 +63,74 @@ class PandaEngineLibraryRepositoryTest {
 
         repository.loadNext(LibraryTab.SAVED)
         repository.loadNext(LibraryTab.LIKED)
+        repository.loadNext(LibraryTab.HISTORY)
 
         assertEquals(
             listOf(
                 EngineCommand.TYPE_LOAD_NEXT_SAVED_TRACKS_PAGE,
                 EngineCommand.TYPE_LOAD_NEXT_LIKED_TRACKS_PAGE,
+                EngineCommand.TYPE_LOAD_NEXT_HISTORY_PAGE,
             ),
             gateway.commands.map(EngineCommand::type),
         )
-        assertEquals(listOf(null, null), gateway.commands.map(EngineCommand::payload))
+        assertEquals(listOf(null, null, null), gateway.commands.map(EngineCommand::payload))
+    }
+
+    @Test
+    fun `history projection appends bounded pages and resets on generation changes`() {
+        val gateway = RecordingLibraryGateway(
+            snapshot = authenticatedSnapshot(historyEntriesCount = 1, hasHistoryNextPage = true),
+            history = listOf(
+                EngineHistoryItem(
+                    historyId = "history-1", mediaId = "track-1", title = "First",
+                    artist = "Artist", album = null, artworkUri = "art-1",
+                    playedAtEpochMillis = 1_000, listenedDurationMillis = 90_000,
+                    completionRatio = 0.8F, playable = true,
+                ),
+                EngineHistoryItem(
+                    historyId = "history-2", mediaId = "track-2", title = "Second",
+                    artist = "Artist", album = null, artworkUri = null,
+                    playedAtEpochMillis = 2_000, listenedDurationMillis = 120_000,
+                    completionRatio = 1F, playable = true,
+                ),
+            ),
+        )
+        val repository = PandaEngineLibraryRepository(gateway)
+        repository.start()
+
+        assertEquals(listOf("history-1"), repository.state.value.historyEntries.map { it.historyId })
+
+        gateway.commands.clear()
+        repository.loadNext(LibraryTab.HISTORY)
+
+        assertEquals(listOf(EngineCommand.TYPE_LOAD_NEXT_HISTORY_PAGE), gateway.commands.map(EngineCommand::type))
+        assertEquals(listOf("history-1", "history-2"), repository.state.value.historyEntries.map { it.historyId })
+
+        gateway.emit(authenticatedSnapshot(historyGeneration = 2))
+
+        assertTrue(repository.state.value.historyEntries.isEmpty())
+    }
+
+    @Test
+    fun `signed out snapshots clear cached history entries`() {
+        val gateway = RecordingLibraryGateway(
+            snapshot = authenticatedSnapshot(historyEntriesCount = 1),
+            history = listOf(historyItem("history-1", "track-1")),
+        )
+        val repository = PandaEngineLibraryRepository(gateway)
+        repository.start()
+        repository.selectTab(LibraryTab.HISTORY)
+        gateway.commands.clear()
+
+        assertEquals(listOf("history-1"), repository.state.value.historyEntries.map { it.historyId })
+
+        gateway.emit(EngineSnapshot.idle(2L))
+
+        assertTrue(repository.state.value.isSignedOut)
+        assertEquals(LibraryTab.HISTORY, repository.state.value.selectedTab)
+        assertTrue(repository.state.value.historyEntries.isEmpty())
+        assertFalse(repository.state.value.hasHistoryNextPage)
+        assertEquals(emptyList(), gateway.commands.map(EngineCommand::type))
     }
 
     @Test
@@ -144,19 +206,21 @@ class PandaEngineLibraryRepositoryTest {
             listOf(
                 EngineCommand.TYPE_LIST_SAVED_TRACKS,
                 EngineCommand.TYPE_LIST_LIKED_TRACKS,
+                EngineCommand.TYPE_LOAD_HISTORY_SETTINGS,
+                EngineCommand.TYPE_LIST_HISTORY,
                 EngineCommand.TYPE_LIST_PLAYLISTS,
             ),
             gateway.commands.map(EngineCommand::type),
         )
 
         gateway.emit(authenticatedSnapshot(accountId = "account-1", sessionId = "session-1"))
-        assertEquals(3, gateway.commands.size)
+        assertEquals(5, gateway.commands.size)
 
         gateway.emit(authenticatedSnapshot(accountId = "account-2", sessionId = "session-2"))
-        assertEquals(6, gateway.commands.size)
+        assertEquals(10, gateway.commands.size)
 
         gateway.emit(authenticatedSnapshot(accountId = "account-2", sessionId = "session-3"))
-        assertEquals(9, gateway.commands.size)
+        assertEquals(15, gateway.commands.size)
     }
 
     @Test
@@ -175,6 +239,7 @@ class PandaEngineLibraryRepositoryTest {
                 LibraryLoad(EngineCommand.TYPE_LIST_SAVED_TRACKS, "account-1", "session-1"),
                 LibraryLoad(EngineCommand.TYPE_LIST_SAVED_TRACKS, "account-2", "session-2"),
                 LibraryLoad(EngineCommand.TYPE_LIST_LIKED_TRACKS, "account-2", "session-2"),
+                LibraryLoad(EngineCommand.TYPE_LIST_HISTORY, "account-2", "session-2"),
                 LibraryLoad(EngineCommand.TYPE_LIST_PLAYLISTS, "account-2", "session-2"),
             ),
             gateway.libraryLoads,
@@ -189,6 +254,9 @@ class PandaEngineLibraryRepositoryTest {
         hasLikedTracksNextPage: Boolean = false,
         playlistsCount: Int = 0,
         playlistTracksCount: Int = 0,
+        historyEntriesCount: Int = 0,
+        hasHistoryNextPage: Boolean = false,
+        historyGeneration: Long = 0,
         hasPlaylistsNextPage: Boolean = false,
         hasPlaylistTracksNextPage: Boolean = false,
         hasPlaylistReconciliation: Boolean = false,
@@ -202,6 +270,9 @@ class PandaEngineLibraryRepositoryTest {
         ),
         savedTracksCount = savedTracksCount,
         likedTracksCount = likedTracksCount,
+        historyEntriesCount = historyEntriesCount,
+        hasHistoryNextPage = hasHistoryNextPage,
+        historyGeneration = historyGeneration,
         libraryPendingCount = libraryPendingCount,
         hasSavedTracksNextPage = hasSavedTracksNextPage,
         hasLikedTracksNextPage = hasLikedTracksNextPage,
@@ -221,12 +292,26 @@ class PandaEngineLibraryRepositoryTest {
         durationMillis = 120_000,
         relationshipAtEpochMillis = 1_000,
     )
+
+    private fun historyItem(historyId: String, mediaId: String) = EngineHistoryItem(
+        historyId = historyId,
+        mediaId = mediaId,
+        title = "Played $mediaId",
+        artist = "Artist",
+        album = null,
+        artworkUri = "art-$mediaId",
+        playedAtEpochMillis = 1_000,
+        listenedDurationMillis = 90_000,
+        completionRatio = 0.8F,
+        playable = true,
+    )
 }
 
 private class RecordingLibraryGateway(
     snapshot: EngineSnapshot,
     private val saved: List<EngineLibraryItem> = emptyList(),
     private val liked: List<EngineLibraryItem> = emptyList(),
+    private val history: List<EngineHistoryItem> = emptyList(),
     private val pending: List<String> = emptyList(),
     private val playlists: List<EnginePlaylistItem> = emptyList(),
     private val playlistTracks: List<EnginePlaylistTrackItem> = emptyList(),
@@ -236,6 +321,7 @@ private class RecordingLibraryGateway(
     private val replaceOnFirstSavedLoad: EngineSnapshot? = null,
 ) : EngineGateway {
     private var current = snapshot
+    private var historyOffset = 0
     private var replacedDuringSavedLoad = false
     private val listeners = mutableListOf<(EngineSnapshot) -> Unit>()
     val commands = mutableListOf<EngineCommand>()
@@ -246,6 +332,7 @@ private class RecordingLibraryGateway(
     override fun searchResult(index: Int): EngineCatalogItem? = null
     override fun savedTrack(index: Int): EngineLibraryItem? = saved.getOrNull(index)
     override fun likedTrack(index: Int): EngineLibraryItem? = liked.getOrNull(index)
+    override fun historyEntry(index: Int): EngineHistoryItem? = history.getOrNull(historyOffset + index)
     override fun pendingLibraryTrackId(index: Int): String? = pending.getOrNull(index)
     override fun playlist(index: Int): EnginePlaylistItem? = playlists.getOrNull(index)
     override fun playlistTrack(index: Int): EnginePlaylistTrackItem? = playlistTracks.getOrNull(index)
@@ -254,12 +341,28 @@ private class RecordingLibraryGateway(
 
     override fun dispatch(command: EngineCommand): EngineDispatchResult {
         commands += command
-        if (command.type in setOf(EngineCommand.TYPE_LIST_SAVED_TRACKS, EngineCommand.TYPE_LIST_LIKED_TRACKS, EngineCommand.TYPE_LIST_PLAYLISTS)) {
+        if (command.type in setOf(EngineCommand.TYPE_LIST_SAVED_TRACKS, EngineCommand.TYPE_LIST_LIKED_TRACKS, EngineCommand.TYPE_LIST_HISTORY, EngineCommand.TYPE_LIST_PLAYLISTS)) {
             libraryLoads += LibraryLoad(
                 type = command.type,
                 accountId = current.authState.account?.id.orEmpty(),
                 sessionId = current.authState.session?.id.orEmpty(),
             )
+        }
+        when (command.type) {
+            EngineCommand.TYPE_LIST_HISTORY -> {
+                historyOffset = 0
+                current = current.copy(
+                    historyEntriesCount = minOf(current.historyEntriesCount.coerceAtLeast(1), history.size),
+                    hasHistoryNextPage = history.size > current.historyEntriesCount.coerceAtLeast(1),
+                )
+            }
+            EngineCommand.TYPE_LOAD_NEXT_HISTORY_PAGE -> {
+                historyOffset = minOf(historyOffset + current.historyEntriesCount, history.size)
+                current = current.copy(
+                    historyEntriesCount = (history.size - historyOffset).coerceIn(0, 1),
+                    hasHistoryNextPage = historyOffset + 1 < history.size,
+                )
+            }
         }
         if (!replacedDuringSavedLoad && command.type == EngineCommand.TYPE_LIST_SAVED_TRACKS) {
             replaceOnFirstSavedLoad?.let { replacement ->

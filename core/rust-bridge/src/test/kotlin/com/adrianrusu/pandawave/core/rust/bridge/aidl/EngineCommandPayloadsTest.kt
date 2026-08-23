@@ -3,8 +3,33 @@ package com.adrianrusu.pandawave.core.rust.bridge.aidl
 import com.adrianrusu.pandawave.core.rust.bridge.engine.native.PandaEngine
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 class EngineCommandPayloadsTest {
+    @Test
+    fun `decoder failure payload carries typed diagnostics and intent`() {
+        val payload = Json.parseToJsonElement(
+            EngineCommandPayloads.decoderFailed(
+                playbackInstanceId = 41L,
+                positionMillis = 183_200L,
+                decoder = "c2.android.mp3.decoder",
+                errorCode = 4003,
+                phase = "decoding",
+                playWhenReady = true
+            )
+        ).jsonObject
+
+        assertEquals("decoder_failed", payload.getValue("kind").jsonPrimitive.content)
+        assertEquals("41", payload.getValue("playback_instance_id").jsonPrimitive.content)
+        assertEquals("183200", payload.getValue("position_ms").jsonPrimitive.content)
+        assertEquals("c2.android.mp3.decoder", payload.getValue("decoder").jsonPrimitive.content)
+        assertEquals("4003", payload.getValue("error_code").jsonPrimitive.content)
+        assertEquals("decoding", payload.getValue("phase").jsonPrimitive.content)
+        assertEquals("true", payload.getValue("play_when_ready").jsonPrimitive.content)
+    }
+
     @Test
     fun `discovery payloads and native discriminants are append only and token opaque`() {
         assertEquals(

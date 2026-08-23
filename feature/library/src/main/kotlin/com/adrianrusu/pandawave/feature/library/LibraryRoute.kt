@@ -33,6 +33,7 @@ import com.adrianrusu.pandawave.core.designsystem.tokens.md
 import com.adrianrusu.pandawave.core.designsystem.tokens.sm
 import com.adrianrusu.pandawave.core.ui.discovery.BambooSectionHeader
 import com.adrianrusu.pandawave.core.ui.focus.BambooRotaryColumn
+import com.adrianrusu.pandawave.feature.library.domain.LibraryHistoryEntry
 import com.adrianrusu.pandawave.feature.library.domain.LibraryState
 import com.adrianrusu.pandawave.feature.library.domain.LibraryTab
 import com.adrianrusu.pandawave.feature.library.domain.LibraryTrack
@@ -119,6 +120,12 @@ fun LibraryRoute(
                 onClick = { onSelectTab(LibraryTab.LIKED) },
             )
             LibraryTabButton(
+                modifier = Modifier.weight(1f).testTag("library-tab-history"),
+                selected = state.selectedTab == LibraryTab.HISTORY,
+                text = stringResource(R.string.pandawave_library_history),
+                onClick = { onSelectTab(LibraryTab.HISTORY) },
+            )
+            LibraryTabButton(
                 modifier = Modifier.weight(1f).testTag("library-tab-playlists"),
                 selected = state.selectedTab == LibraryTab.PLAYLISTS,
                 text = stringResource(R.string.pandawave_library_playlists),
@@ -134,7 +141,7 @@ fun LibraryRoute(
             return@BambooRotaryColumn
         }
 
-        if (state.isLoading && state.selectedTracks.isEmpty() && state.playlists.isEmpty()) {
+        if (state.isLoading && state.selectedTracks.isEmpty() && state.playlists.isEmpty() && state.historyEntries.isEmpty()) {
             Row(
                 modifier = Modifier.fillMaxWidth().testTag("library-loading"),
                 horizontalArrangement = Arrangement.Center,
@@ -170,17 +177,29 @@ fun LibraryRoute(
             }
         }
 
-        if (!state.isLoading && state.selectedTracks.isEmpty() && state.selectedTab != LibraryTab.PLAYLISTS && state.errorType == null) {
+        if (!state.isLoading && state.selectedTab != LibraryTab.PLAYLISTS && state.isSelectedContentEmpty() && state.errorType == null) {
             Text(
                 text = stringResource(
-                    if (state.selectedTab == LibraryTab.SAVED) R.string.pandawave_library_empty_saved
-                    else R.string.pandawave_library_empty_liked
+                    when (state.selectedTab) {
+                        LibraryTab.SAVED -> R.string.pandawave_library_empty_saved
+                        LibraryTab.LIKED -> R.string.pandawave_library_empty_liked
+                        LibraryTab.HISTORY -> R.string.pandawave_library_empty_history
+                        LibraryTab.PLAYLISTS -> R.string.pandawave_library_empty_playlists
+                    }
                 ),
                 modifier = Modifier.testTag("library-empty"),
             )
         }
 
-        if (state.selectedTab == LibraryTab.PLAYLISTS) {
+        if (state.selectedTab == LibraryTab.HISTORY) {
+            state.historyEntries.forEach { entry ->
+                LibraryHistoryRow(
+                    entry = entry,
+                    onPlay = onPlay,
+                    onOpenNowPlaying = onOpenNowPlaying,
+                )
+            }
+        } else if (state.selectedTab == LibraryTab.PLAYLISTS) {
             PlaylistLibraryContent(
                 state = state,
                 onCreatePlaylist = onCreatePlaylist,
@@ -223,6 +242,13 @@ fun LibraryRoute(
             }
         }
     }
+}
+
+private fun LibraryState.isSelectedContentEmpty(): Boolean = when (selectedTab) {
+    LibraryTab.SAVED,
+    LibraryTab.LIKED -> selectedTracks.isEmpty()
+    LibraryTab.HISTORY -> historyEntries.isEmpty()
+    LibraryTab.PLAYLISTS -> playlists.isEmpty() && selectedPlaylistId == null
 }
 
 @Composable
@@ -564,6 +590,41 @@ private fun LibraryTrackRow(
                     LibrarySaveButton(track.mediaId, saved, pending, onSave, onRemoveSaved, Modifier.weight(1f))
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun LibraryHistoryRow(
+    entry: LibraryHistoryEntry,
+    onPlay: (String) -> Unit,
+    onOpenNowPlaying: () -> Unit,
+) {
+    val tokens = LocalPandaWaveDesignTokens.current
+    val playableMediaId = entry.mediaId?.takeIf { entry.playable && it.isNotBlank() }
+    val clickModifier = playableMediaId?.let { mediaId ->
+        Modifier.clickable {
+            onPlay(mediaId)
+            onOpenNowPlaying()
+        }
+    } ?: Modifier
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("library-history-${entry.historyId}")
+            .then(clickModifier),
+        tonalElevation = tokens.elevation.cardResting,
+        shape = MaterialTheme.shapes.small,
+    ) {
+        Column(
+            modifier = Modifier.padding(tokens.spacing.md),
+            verticalArrangement = Arrangement.spacedBy(tokens.spacing.sm),
+        ) {
+            Text(entry.title, style = MaterialTheme.typography.titleMedium)
+            Text(
+                listOfNotNull(entry.artist, entry.album).joinToString(" · "),
+                style = MaterialTheme.typography.bodyMedium,
+            )
         }
     }
 }

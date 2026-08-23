@@ -34,6 +34,7 @@ class InProcessEngineGateway(private val engine: RustEngine) :
     override fun profilePreferenceValue(key: String): String? = engine.profilePreferenceValue(key)
 
     override fun searchResult(index: Int): EngineCatalogItem? = engine.searchResult(index)
+    override fun historyEntry(index: Int) = engine.historyEntry(index)
     override fun savedTrack(index: Int) = engine.savedTrack(index)
     override fun likedTrack(index: Int) = engine.likedTrack(index)
     override fun pendingLibraryTrackId(index: Int) = engine.pendingLibraryTrackId(index)

@@ -64,7 +64,9 @@ internal object BambooMediaSessionCommandPolicy {
 
 private val MetadataCommandTypes = listOf(
     Player.COMMAND_GET_CURRENT_MEDIA_ITEM,
-    Player.COMMAND_GET_METADATA
+    Player.COMMAND_GET_METADATA,
+    Player.COMMAND_GET_VOLUME,
+    Player.COMMAND_SET_VOLUME
 )
 
 private val PlayPauseCommandTypes = listOf(

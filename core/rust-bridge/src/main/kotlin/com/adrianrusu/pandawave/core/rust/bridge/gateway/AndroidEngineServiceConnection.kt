@@ -10,6 +10,7 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthOperationResult
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistReconciliation
@@ -194,6 +195,7 @@ class AndroidEngineServiceConnection(
         override fun profilePreferenceValue(key: String): String? = remote.getProfilePreferenceValue(key)
 
         override fun searchResult(index: Int): EngineCatalogItem? = remote.getSearchResult(index)
+        override fun historyEntry(index: Int): EngineHistoryItem? = remote.getHistoryEntry(index)
         override fun savedTrack(index: Int) = remote.getSavedTrack(index)
         override fun likedTrack(index: Int) = remote.getLikedTrack(index)
         override fun pendingLibraryTrackId(index: Int) = remote.getPendingLibraryTrackId(index)

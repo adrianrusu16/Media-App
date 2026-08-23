@@ -100,6 +100,8 @@ pub struct FfiEngineSnapshot {
     /// Appended runtime reachability fields preserve existing C offsets.
     pub backend_availability: i32,
     pub backend_unavailable_reason: i32,
+    /// Appended history invalidation generation preserves existing C offsets.
+    pub history_generation: u64,
 }
 
 /// C-compatible representation of the engine outcome.
@@ -139,6 +141,7 @@ impl FfiEngineSnapshot {
             recommendations_results_count: 0,
             backend_availability: crate::FFI_BACKEND_CONNECTING,
             backend_unavailable_reason: crate::FFI_BACKEND_REASON_NONE,
+            history_generation: 0,
             playback_state: FFI_COMMAND_UNKNOWN,
             restriction_state: FFI_COMMAND_UNKNOWN,
             updated_at_epoch_millis: 0,
@@ -250,6 +253,7 @@ impl From<&EngineSnapshot> for FfiEngineSnapshot {
                 ) => crate::FFI_BACKEND_REASON_SERVICE_UNAVAILABLE,
                 _ => crate::FFI_BACKEND_REASON_NONE,
             },
+            history_generation: snapshot.history_state.generation,
             playback_state: playback_to_ffi(snapshot.playback_state),
             restriction_state: restriction_to_ffi(snapshot.restriction_state),
             updated_at_epoch_millis: snapshot.updated_at_epoch_millis,

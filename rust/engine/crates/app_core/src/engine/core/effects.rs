@@ -14,7 +14,9 @@ impl Engine {
                     EngineEffect::Play => player.play(),
                     EngineEffect::Pause => player.pause(),
                     EngineEffect::Stop => player.stop(),
-                    EngineEffect::PreparePlaybackSource { media_id, .. } => player.prepare(media_id),
+                    EngineEffect::PreparePlaybackSource { media_id, .. } => {
+                        player.prepare(media_id)
+                    }
                     EngineEffect::Seek(position_millis) => player.seek(*position_millis),
                     EngineEffect::SetSpeed(speed) => player.set_speed(*speed),
                     _ => {}
@@ -34,7 +36,10 @@ impl Engine {
         let next_snapshot = snapshot.with_media(media.clone());
         self.next_playback_instance_id = self.next_playback_instance_id.saturating_add(1);
         self.current_playback_instance_id = Some(self.next_playback_instance_id);
-        self.source_retry_attempted_for = None;
+        self.recovery = PlaybackRecoveryState {
+            desired_play_when_ready: true,
+            ..Default::default()
+        };
         effects.push(EngineEffect::PreparePlaybackSource {
             media_id: media.id.clone(),
             playback_instance_id: self.next_playback_instance_id,

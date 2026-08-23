@@ -65,6 +65,9 @@ pub struct EngineSnapshot {
     /// Server-backed playback-history consent for the current authenticated identity.
     #[serde(default)]
     pub history_settings: Option<crate::EngineHistorySettings>,
+    /// Lightweight playback-history state used to invalidate paged projections.
+    #[serde(default)]
+    pub history_state: crate::EngineHistoryState,
     /// Current engine-owned playback-history page projection.
     #[serde(default)]
     pub history_entries: Vec<crate::EngineHistoryEntry>,

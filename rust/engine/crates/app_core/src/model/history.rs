@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{EngineError, EngineErrorType, EnginePageRequest, EnginePagedResult, EngineTrack};
+use crate::{
+    EngineError, EngineErrorType, EnginePageRequest, EnginePageToken, EnginePagedResult,
+    EngineTrack,
+};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EngineHistoryIdentity {
@@ -35,6 +38,63 @@ pub struct EngineHistorySettings {
 pub struct EngineHistorySettingsUpdate {
     pub settings: EngineHistorySettings,
     pub deleted_count: u64,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum EngineHistoryAvailability {
+    Unknown,
+    Available,
+    LoginRequired,
+    Unavailable,
+}
+
+impl Default for EngineHistoryAvailability {
+    fn default() -> Self {
+        Self::Unknown
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum EngineHistoryRefreshState {
+    Idle,
+    Loading,
+    Degraded,
+}
+
+impl Default for EngineHistoryRefreshState {
+    fn default() -> Self {
+        Self::Idle
+    }
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+pub struct EngineHistoryState {
+    pub generation: u64,
+    pub availability: EngineHistoryAvailability,
+    pub refresh_state: EngineHistoryRefreshState,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct EngineHistoryPageKey(EnginePageToken);
+
+impl EngineHistoryPageKey {
+    pub fn from_token(token: EnginePageToken) -> Self {
+        Self(token)
+    }
+
+    pub fn into_token(self) -> EnginePageToken {
+        self.0
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct EngineHistoryPage {
+    pub generation: u64,
+    pub items: Vec<EngineHistoryEntry>,
+    pub next_key: Option<EngineHistoryPageKey>,
+    pub previous_key: Option<EngineHistoryPageKey>,
+    pub end_reached: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

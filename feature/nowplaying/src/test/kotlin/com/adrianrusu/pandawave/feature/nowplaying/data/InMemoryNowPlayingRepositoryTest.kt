@@ -38,6 +38,7 @@ class InMemoryNowPlayingRepositoryTest {
                 positionMillis = 10_000L,
                 durationMillis = 40_000L,
                 playbackSpeed = 1.5F,
+                volume = 0.72F,
                 hasError = true
             )
         )
@@ -55,6 +56,7 @@ class InMemoryNowPlayingRepositoryTest {
         assertTrue(repository.state.value.isParked)
         assertTrue(repository.state.value.isUxUnrestricted)
         assertTrue(repository.state.value.hasPlaybackError)
+        assertEquals(0.72F, repository.state.value.volume)
         assertEquals(13_000L, repository.state.value.progressAt(nowMillis = 2_100L).positionMillis)
         assertEquals(0.325F, repository.state.value.progressAt(nowMillis = 2_100L).fraction)
     }
@@ -69,13 +71,15 @@ class InMemoryNowPlayingRepositoryTest {
         repository.dispatch(NowPlayingIntent.TogglePlayback)
         repository.dispatch(NowPlayingIntent.SkipPrevious)
         repository.dispatch(NowPlayingIntent.SkipNext)
+        repository.dispatch(NowPlayingIntent.SetVolume(0.25F))
 
         assertEquals(
             listOf(
                 BambooPlaybackIntent.Refresh,
                 BambooPlaybackIntent.TogglePlayback,
                 BambooPlaybackIntent.SkipPrevious,
-                BambooPlaybackIntent.SkipNext
+                BambooPlaybackIntent.SkipNext,
+                BambooPlaybackIntent.SetVolume(0.25F)
             ),
             playback.intents
         )

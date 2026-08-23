@@ -9,6 +9,7 @@ object BambooPlaybackIntentNames {
     const val SKIP_NEXT = "skip_next"
     const val SEEK_TO = "seek_to"
     const val SET_SPEED = "set_speed"
+    const val SET_VOLUME = "set_volume"
     const val PLAY_MEDIA = "play_media"
     const val PLAY_QUEUE = "play_queue"
     const val SEARCH_CATALOG = "search_catalog"
@@ -25,6 +26,7 @@ object BambooPlaybackIntentNames {
         BambooPlaybackIntent.SkipNext -> SKIP_NEXT
         is BambooPlaybackIntent.SeekTo -> SEEK_TO
         is BambooPlaybackIntent.SetSpeed -> SET_SPEED
+        is BambooPlaybackIntent.SetVolume -> SET_VOLUME
         is BambooPlaybackIntent.PlayMedia -> PLAY_MEDIA
         is BambooPlaybackIntent.PlayQueue -> PLAY_QUEUE
         is BambooPlaybackIntent.SearchCatalog -> SEARCH_CATALOG

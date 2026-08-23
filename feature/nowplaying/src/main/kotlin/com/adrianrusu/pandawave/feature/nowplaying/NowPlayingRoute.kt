@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -27,7 +28,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -233,9 +233,6 @@ private fun NowPlayingInteractiveScreen(
     var nowMillis by remember(state.progressAnchor) {
         mutableLongStateOf(System.currentTimeMillis())
     }
-    var volume by remember {
-        mutableFloatStateOf(DEFAULT_VOLUME_VALUE)
-    }
     val progress = state.progressAt(nowMillis)
     val fallbackTitle = when (state.playbackState) {
         NowPlayingPlaybackState.Playing -> stringResource(R.string.pandawave_now_playing_playing_title)
@@ -248,7 +245,7 @@ private fun NowPlayingInteractiveScreen(
         NowPlayingPlaybackState.Idle -> stringResource(R.string.pandawave_now_playing_idle_subtitle)
     }
     val uiModel = state.toNowPlayingUiModel(
-        volume = volume,
+        volume = state.volume * MAX_VOLUME_VALUE,
         playLabel = stringResource(R.string.pandawave_now_playing_action_play),
         pauseLabel = stringResource(R.string.pandawave_now_playing_action_pause),
         controlsUnavailableLabel = stringResource(R.string.pandawave_now_playing_controls_unavailable),
@@ -315,7 +312,7 @@ private fun NowPlayingInteractiveScreen(
             NowPlayingFooter(
                 volume = uiModel.volume,
                 onVolumeChange = { nextVolume ->
-                    volume = nextVolume
+                    onIntent(NowPlayingIntent.SetVolume(nextVolume / MAX_VOLUME_VALUE))
                 },
                 onLibraryClick = onLibraryClick
             )
@@ -449,7 +446,7 @@ private fun LeafProgressTrack(progress: Float, modifier: Modifier = Modifier) {
     val tokens = LocalPandaWaveDesignTokens.current
     val clampedProgress = progress.coerceIn(MIN_PROGRESS_FRACTION, MAX_PROGRESS_FRACTION)
 
-    Box(
+    BoxWithConstraints(
         modifier = modifier.height(tokens.components.progressThumbSize),
         contentAlignment = Alignment.CenterStart
     ) {
@@ -468,9 +465,9 @@ private fun LeafProgressTrack(progress: Float, modifier: Modifier = Modifier) {
                 .background(Color(tokens.colors.primary).copy(alpha = PROGRESS_ACTIVE_ALPHA))
         )
         Box(
-            modifier = Modifier
-                .fillMaxWidth(clampedProgress)
-                .height(tokens.components.progressThumbSize),
+            modifier = Modifier.offset(
+                x = (maxWidth - tokens.components.progressThumbSize) * clampedProgress
+            ),
             contentAlignment = Alignment.CenterEnd
         ) {
             Surface(
@@ -748,7 +745,6 @@ private fun Long.toPlaybackTimeLabel(): String {
     return "$minutes:${seconds.toString().padStart(2, '0')}"
 }
 
-private const val DEFAULT_VOLUME_VALUE = 45F
 private const val MIN_VOLUME_VALUE = 0F
 private const val MAX_VOLUME_VALUE = 100F
 private const val NOW_PLAYING_PROGRESS_TICK_MILLIS = 1_000L

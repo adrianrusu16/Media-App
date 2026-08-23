@@ -8,7 +8,10 @@ impl Engine {
         now_epoch_millis: u64,
     ) -> EngineOutcome {
         let observation = event.payload.as_deref().and_then(|payload| {
-            serde_json::from_str::<crate::model::platform_event::PlaybackObservationPayload>(payload).ok()
+            serde_json::from_str::<crate::model::platform_event::PlaybackObservationPayload>(
+                payload,
+            )
+            .ok()
         });
         if matches!(
             event.event_type,
@@ -23,43 +26,162 @@ impl Engine {
             // useful to the platform for logging but never authoritative here.
             return EngineOutcome {
                 snapshot: self.snapshot.clone(),
-                event: EngineEvent::platform_event_applied(Some(event.event_type.as_wire().to_owned())),
+                event: EngineEvent::platform_event_applied(Some(
+                    event.event_type.as_wire().to_owned(),
+                )),
                 effects: Vec::new(),
             };
         }
 
         if event.event_type == EnginePlatformEventType::MediaError
-            && observation.as_ref().is_some_and(|value| value.kind.as_deref() == Some("source_rejected"))
+            && observation
+                .as_ref()
+                .is_some_and(|value| value.kind.as_deref() == Some("source_rejected"))
         {
-            let instance_id = observation.expect("checked above").playback_instance_id;
-            if self.source_retry_attempted_for == Some(instance_id) {
-                self.snapshot = self.snapshot.clone()
+            let instance_id = observation
+                .as_ref()
+                .expect("checked above")
+                .playback_instance_id;
+            if self.recovery.source_refresh_attempted_for == Some(instance_id) {
+                self.snapshot = self
+                    .snapshot
+                    .clone()
                     .with_playback_state(PlaybackState::Error, now_epoch_millis)
-                    .with_error(Some(EngineError::player_error("resolved source was rejected after refresh")));
+                    .with_error(Some(EngineError::player_error(
+                        "resolved source was rejected after refresh",
+                    )));
             } else if let Some(media) = self.queue.current_item().cloned() {
-                self.source_retry_attempted_for = Some(instance_id);
+                self.recovery.source_refresh_attempted_for = Some(instance_id);
                 match self.resolve_playback_source(&media).await {
                     Ok(resolved) => {
+                        let desired_play_when_ready = self.recovery.desired_play_when_ready;
+                        let decoder_recovery_was_used =
+                            self.recovery.decoder_attempted_for.is_some();
                         let mut effects = Vec::new();
-                        let snapshot = self.snapshot.clone().with_playback_state(PlaybackState::Buffering, now_epoch_millis);
+                        let snapshot = self.snapshot.clone().with_playback_state(
+                            if desired_play_when_ready {
+                                PlaybackState::Buffering
+                            } else {
+                                PlaybackState::Paused
+                            },
+                            now_epoch_millis,
+                        );
                         self.snapshot = self.update_media_state(&resolved, snapshot, &mut effects);
-                        self.source_retry_attempted_for = self.current_playback_instance_id;
+                        self.recovery.desired_play_when_ready = desired_play_when_ready;
+                        if decoder_recovery_was_used {
+                            // A refreshed Canopy capability starts a new source
+                            // instance, but not a new logical-track recovery budget.
+                            self.recovery.decoder_attempted_for = self.current_playback_instance_id;
+                        }
+                        self.recovery.source_refresh_attempted_for =
+                            self.current_playback_instance_id;
                         self.snapshot.controls = self.derive_controls(&self.snapshot);
-                        effects.push(EngineEffect::RequestAudioFocus);
-                        effects.push(EngineEffect::Play);
+                        if self.recovery.desired_play_when_ready {
+                            effects.push(EngineEffect::RequestAudioFocus);
+                            effects.push(EngineEffect::Play);
+                        }
                         let outcome = EngineOutcome {
                             snapshot: self.snapshot.clone(),
-                            event: EngineEvent::platform_event_applied(Some(event.event_type.as_wire().to_owned())),
+                            event: EngineEvent::platform_event_applied(Some(
+                                event.event_type.as_wire().to_owned(),
+                            )),
                             effects,
                         };
                         self.execute_effects(&outcome.effects);
                         return outcome;
                     }
-                    Err(error) => self.snapshot = self.snapshot.clone()
-                        .with_playback_state(PlaybackState::Error, now_epoch_millis)
-                        .with_error(Some(error)),
+                    Err(error) => {
+                        self.snapshot = self
+                            .snapshot
+                            .clone()
+                            .with_playback_state(PlaybackState::Error, now_epoch_millis)
+                            .with_error(Some(error))
+                    }
                 }
             }
+        }
+        if event.event_type == EnginePlatformEventType::MediaError
+            && observation
+                .as_ref()
+                .is_some_and(|value| value.kind.as_deref() == Some("decoder_failed"))
+        {
+            let instance_id = observation
+                .as_ref()
+                .expect("checked above")
+                .playback_instance_id;
+            let observation = observation.as_ref().expect("checked above");
+            self.recovery.desired_play_when_ready = observation
+                .play_when_ready
+                .unwrap_or(self.recovery.desired_play_when_ready);
+            warn!(
+                playback_instance_id = instance_id,
+                failure_position_ms = ?observation.position_ms,
+                decoder = ?observation.decoder,
+                error_code = ?observation.error_code,
+                phase = ?observation.phase,
+                "Media3 decoder failure observed"
+            );
+            if self.recovery.decoder_attempted_for != Some(instance_id)
+                && let Some(media_id) = self.snapshot.media_id.clone()
+            {
+                // A decoder failure is local to the platform player. Keep the
+                // resolved capability and give a fresh player one bounded retry.
+                self.next_playback_instance_id = self.next_playback_instance_id.saturating_add(1);
+                let replacement_instance_id = self.next_playback_instance_id;
+                self.current_playback_instance_id = Some(replacement_instance_id);
+                self.recovery.decoder_attempted_for = Some(replacement_instance_id);
+
+                self.snapshot = self
+                    .snapshot
+                    .clone()
+                    .with_playback_state(PlaybackState::Recovering, now_epoch_millis)
+                    .with_error(None)
+                    .with_busy(true);
+                self.snapshot.controls = self.derive_controls(&self.snapshot);
+                let mut effects = vec![EngineEffect::RecreatePlayerAndLoad {
+                    media_id,
+                    playback_instance_id: replacement_instance_id,
+                    // Do not seek into the fatal sample. This is the engine's
+                    // most recently confirmed safe position, not position_ms.
+                    position_millis: self.snapshot.position_millis,
+                }];
+                if self.recovery.desired_play_when_ready {
+                    effects.push(EngineEffect::RequestAudioFocus);
+                    effects.push(EngineEffect::Play);
+                }
+                let outcome = EngineOutcome {
+                    snapshot: self.snapshot.clone(),
+                    event: EngineEvent::platform_event_applied(Some(
+                        event.event_type.as_wire().to_owned(),
+                    )),
+                    effects,
+                };
+                self.execute_effects(&outcome.effects);
+                return outcome;
+            }
+
+            self.snapshot = self
+                .snapshot
+                .clone()
+                .with_playback_state(PlaybackState::Error, now_epoch_millis)
+                .with_busy(false)
+                .with_error(Some(EngineError::player_error(
+                    "Playback could not continue because the device audio decoder failed.",
+                )));
+            self.snapshot.controls = self.derive_controls(&self.snapshot);
+            let effects = vec![EngineEffect::NotifyUser {
+                message: "Playback could not continue because the device audio decoder failed."
+                    .to_owned(),
+            }];
+            let outcome = EngineOutcome {
+                snapshot: self.snapshot.clone(),
+                event: EngineEvent::platform_event_applied(Some(
+                    event.event_type.as_wire().to_owned(),
+                )),
+                effects,
+            };
+            self.execute_effects(&outcome.effects);
+            return outcome;
         }
         if event.event_type == EnginePlatformEventType::MediaButtonPressed
             && let Some(payload) = &event.payload
@@ -98,8 +220,14 @@ impl Engine {
 
         let prev_playback_state = self.snapshot.playback_state;
 
-        let next_playback_state =
-            StateMachine::next_state_from_platform_event(prev_playback_state, &event.event_type);
+        let next_playback_state = if prev_playback_state == PlaybackState::Recovering
+            && event.event_type == EnginePlatformEventType::MediaLoaded
+            && !self.recovery.desired_play_when_ready
+        {
+            PlaybackState::Paused
+        } else {
+            StateMachine::next_state_from_platform_event(prev_playback_state, &event.event_type)
+        };
 
         let mut next_snapshot = self
             .snapshot

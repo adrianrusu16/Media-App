@@ -24,6 +24,7 @@
     <string name="pandawave_library_downloaded_calm_description">Available without a connection.</string>
     <string name="pandawave_library_saved">Saved</string>
     <string name="pandawave_library_liked">Liked</string>
+    <string name="pandawave_library_history">History</string>
     <string name="pandawave_library_playlists">Playlists</string>
     <string name="pandawave_library_playlist_name">Playlist name</string>
     <string name="pandawave_library_playlist_description">Description (optional)</string>
@@ -44,6 +45,7 @@
     <string name="pandawave_library_signed_out">Sign in to view saved and liked tracks.</string>
     <string name="pandawave_library_empty_saved">No saved tracks yet.</string>
     <string name="pandawave_library_empty_liked">No liked tracks yet.</string>
+    <string name="pandawave_library_empty_history">No listening history yet.</string>
     <string name="pandawave_library_network_error">Library is temporarily unavailable.</string>
     <string name="pandawave_library_error">Library could not be updated.</string>
     <string name="pandawave_library_retry">Retry</string>

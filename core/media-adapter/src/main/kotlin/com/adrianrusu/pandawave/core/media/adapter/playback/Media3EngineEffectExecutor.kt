@@ -16,10 +16,12 @@ internal object NoOpBambooPlaybackEffectExecutor : BambooPlaybackEffectExecutor 
 }
 
 internal class Media3EngineEffectExecutor(
-    private val player: Media3EffectPlayer,
+    private val player: () -> Media3EffectPlayer,
     private val audioFocusController: BambooAudioFocusController,
     telemetryLogger: TelemetryLogger,
-    private val currentProjection: () -> BambooMediaSessionStateProjection? = { null }
+    private val currentProjection: () -> BambooMediaSessionStateProjection? = { null },
+    private val recreatePlayer: () -> Unit = {},
+    private val notifyUser: (String) -> Unit = {}
 ) : BambooPlaybackEffectExecutor {
     private val telemetryLogger = telemetryLogger.forModule(TelemetryModule.Media3)
 
@@ -37,9 +39,11 @@ internal class Media3EngineEffectExecutor(
             EngineEffect.TYPE_REQUEST_AUDIO_FOCUS -> audioFocusController.requestAudioFocus()
             EngineEffect.TYPE_ABANDON_AUDIO_FOCUS -> audioFocusController.abandonAudioFocus()
             EngineEffect.TYPE_PLAY -> play()
-            EngineEffect.TYPE_PAUSE -> player.pause()
-            EngineEffect.TYPE_STOP -> player.stop()
+            EngineEffect.TYPE_PAUSE -> player().pause()
+            EngineEffect.TYPE_STOP -> player().stop()
             EngineEffect.TYPE_PREPARE_PLAYBACK_SOURCE -> preparePlaybackSource(effect)
+            EngineEffect.TYPE_RECREATE_PLAYER_AND_LOAD -> recreatePlayerAndLoad(effect)
+            EngineEffect.TYPE_NOTIFY_USER -> effect.message?.let(notifyUser) ?: logMissingPayload(effect)
             EngineEffect.TYPE_UPDATE_METADATA -> logNoOp(effect)
             EngineEffect.TYPE_SEEK -> seek(effect)
             EngineEffect.TYPE_SET_SPEED -> setSpeed(effect)
@@ -48,6 +52,7 @@ internal class Media3EngineEffectExecutor(
     }
 
     private fun play() {
+        val player = player()
         if (player.playbackState == Player.STATE_IDLE) {
             player.prepare()
         }
@@ -63,20 +68,26 @@ internal class Media3EngineEffectExecutor(
         }
 
         val playbackInstanceId = effect.playbackInstanceId ?: return logMissingPayload(effect)
-        player.setMediaItem(
+        player().setMediaItem(
             projection.mediaItem.buildUpon().setTag(playbackInstanceId).build(),
-            projection.positionMillis
+            effect.positionMillis ?: projection.positionMillis
         )
+    }
+
+    private fun recreatePlayerAndLoad(effect: EngineEffect) {
+        recreatePlayer()
+        preparePlaybackSource(effect)
+        player().prepare()
     }
 
     private fun seek(effect: EngineEffect) {
         val positionMillis = effect.positionMillis ?: return logMissingPayload(effect)
-        player.seekTo(positionMillis.coerceAtLeast(MIN_POSITION_MILLIS))
+        player().seekTo(positionMillis.coerceAtLeast(MIN_POSITION_MILLIS))
     }
 
     private fun setSpeed(effect: EngineEffect) {
         val speed = effect.speed ?: return logMissingPayload(effect)
-        player.setPlaybackSpeed(speed.coerceAtLeast(MIN_PLAYBACK_SPEED))
+        player().setPlaybackSpeed(speed.coerceAtLeast(MIN_PLAYBACK_SPEED))
     }
 
     private fun logMissingPayload(effect: EngineEffect) {

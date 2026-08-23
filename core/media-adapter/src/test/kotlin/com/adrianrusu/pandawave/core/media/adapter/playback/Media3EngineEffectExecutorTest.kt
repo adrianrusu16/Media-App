@@ -34,7 +34,8 @@ class Media3EngineEffectExecutorTest {
             listOf(
                 EngineEffect(
                     type = EngineEffect.TYPE_PREPARE_PLAYBACK_SOURCE,
-                    mediaId = "track-1"
+                    mediaId = "track-1",
+                    playbackInstanceId = 42L
                 ),
                 EngineEffect(
                     type = EngineEffect.TYPE_UPDATE_METADATA,
@@ -146,6 +147,40 @@ class Media3EngineEffectExecutorTest {
     }
 
     @Test
+    fun `decoder recovery recreates the player and restores the requested position`() {
+        val player = RecordingEffectPlayer(playbackState = Player.STATE_IDLE)
+        var recreations = 0
+        val executor = Media3EngineEffectExecutor(
+            player = { player },
+            audioFocusController = RecordingAudioFocusController(),
+            telemetryLogger = TelemetryLogger(sink = TelemetrySink { }, clock = { 42L }),
+            currentProjection = {
+                BambooMediaSessionStateProjection(
+                    mediaItem = MediaItem.Builder().setMediaId("track-1").build(),
+                    playWhenReady = true,
+                    positionMillis = 1_000L
+                )
+            },
+            recreatePlayer = { recreations += 1 }
+        )
+
+        executor.execute(
+            listOf(
+                EngineEffect(
+                    type = EngineEffect.TYPE_RECREATE_PLAYER_AND_LOAD,
+                    mediaId = "track-1",
+                    positionMillis = 9_000L,
+                    playbackInstanceId = 42L
+                ),
+                EngineEffect(type = EngineEffect.TYPE_PLAY)
+            )
+        )
+
+        assertEquals(1, recreations)
+        assertEquals(listOf("setMediaItem:track-1:9000", "prepare", "play"), player.calls)
+    }
+
+    @Test
     fun `missing effect payloads are ignored`() {
         val telemetrySink = RecordingEffectTelemetrySink()
         val player = RecordingEffectPlayer(playbackState = Player.STATE_READY)
@@ -180,7 +215,7 @@ private fun effectExecutor(
     telemetrySink: TelemetrySink = TelemetrySink { },
     currentProjection: () -> BambooMediaSessionStateProjection? = { null }
 ): Media3EngineEffectExecutor = Media3EngineEffectExecutor(
-    player = player,
+    player = { player },
     audioFocusController = focusController,
     telemetryLogger = TelemetryLogger(
         sink = telemetrySink,
@@ -189,7 +224,7 @@ private fun effectExecutor(
     currentProjection = currentProjection
 )
 
-private class RecordingEffectPlayer(override val playbackState: Int) : Media3EffectPlayer {
+private class RecordingEffectPlayer(override var playbackState: Int) : Media3EffectPlayer {
     val calls = mutableListOf<String>()
 
     override fun setMediaItem(mediaItem: MediaItem, positionMillis: Long) {
@@ -198,6 +233,7 @@ private class RecordingEffectPlayer(override val playbackState: Int) : Media3Eff
 
     override fun prepare() {
         calls += "prepare"
+        playbackState = Player.STATE_BUFFERING
     }
 
     override fun play() {

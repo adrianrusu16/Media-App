@@ -29,6 +29,7 @@ class Media3PlaybackEngineBridge(
     private val playbackMetricsProvider: PlaybackCompletionMetricsProvider =
         PlaybackCompletionMetricsProvider { null },
     private val playbackInstanceIdProvider: () -> Long? = { null },
+    private val playerSnapshotProvider: () -> Media3PlayerSnapshot? = { null },
 ) : Player.Listener,
     AutoCloseable {
     private val telemetryLogger = telemetryLogger.forModule(TelemetryModule.Media3)
@@ -132,9 +133,22 @@ class Media3PlaybackEngineBridge(
 
     override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
         val playbackInstanceId = playbackInstanceIdProvider() ?: return
+        val failureKind = error.toEngineFailureKind()
         dispatchPlatformEvent(
             EnginePlatformEvent.TYPE_MEDIA_ERROR,
-            EngineCommandPayloads.playbackObservation(playbackInstanceId, error.toEngineFailureKind())
+            if (failureKind == "decoder_failed") {
+                val player = playerSnapshotProvider()
+                EngineCommandPayloads.decoderFailed(
+                    playbackInstanceId = playbackInstanceId,
+                    positionMillis = player?.positionMillis ?: 0L,
+                    decoder = error.decoderName(),
+                    errorCode = error.errorCode,
+                    phase = error.decoderFailurePhase(),
+                    playWhenReady = player?.playWhenReady ?: true
+                )
+            } else {
+                EngineCommandPayloads.playbackObservation(playbackInstanceId, failureKind)
+            }
         )
     }
 
@@ -187,6 +201,18 @@ class Media3PlaybackEngineBridge(
         return true
     }
 
+    fun dispatchVolume(volume: Float): Boolean {
+        val intent = BambooPlaybackIntent.SetVolume(volume.coerceIn(MIN_VOLUME, MAX_VOLUME))
+        playbackRepository.dispatch(intent)
+        return true
+    }
+
+    override fun onVolumeChanged(volume: Float) {
+        if (platformProjectionDepth == 0) {
+            dispatchVolume(volume)
+        }
+    }
+
     fun dispatchCatalogBrowse(parentId: String) {
         val intent = BambooPlaybackIntent.BrowseCatalog(parentId = parentId)
         telemetryLogger.debug(
@@ -236,10 +262,30 @@ class Media3PlaybackEngineBridge(
     }
 }
 
+data class Media3PlayerSnapshot(
+    val positionMillis: Long,
+    val playWhenReady: Boolean
+)
+
 private fun androidx.media3.common.PlaybackException.toEngineFailureKind(): String = when (errorCode) {
     androidx.media3.common.PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS -> "source_rejected"
+    androidx.media3.common.PlaybackException.ERROR_CODE_DECODER_INIT_FAILED,
+    androidx.media3.common.PlaybackException.ERROR_CODE_DECODING_FAILED -> "decoder_failed"
     else -> "unknown"
 }
+
+private fun androidx.media3.common.PlaybackException.decoderFailurePhase(): String = when (errorCode) {
+    androidx.media3.common.PlaybackException.ERROR_CODE_DECODER_INIT_FAILED -> "initialization"
+    androidx.media3.common.PlaybackException.ERROR_CODE_DECODING_FAILED -> "decoding"
+    else -> "unknown"
+}
+
+private fun androidx.media3.common.PlaybackException.decoderName(): String? = cause
+    ?.message
+    ?.let { message -> DECODER_NAME_PATTERN.find(message)?.groupValues?.getOrNull(1) }
+    ?.takeIf(String::isNotBlank)
+
+private val DECODER_NAME_PATTERN = Regex("(?:Decoder failed:|decoder(?:Name)?[=:])\\s*([^\\s,]+)")
 
 internal object Media3PlaybackTelemetryEvents {
     const val PLAY_WHEN_READY_RECEIVED = "media3.play_when_ready.received"
@@ -264,3 +310,6 @@ internal object Media3PlaybackTelemetryAttributes {
 internal object Media3PlaybackTelemetryValues {
     const val PLATFORM_PROJECTION = "platform_projection"
 }
+
+private const val MIN_VOLUME = 0F
+private const val MAX_VOLUME = 1F

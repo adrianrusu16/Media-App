@@ -54,6 +54,7 @@ data class EngineEffect(
         const val TYPE_DUCK_AUDIO = "duck_audio"
         const val TYPE_UNDUCK_AUDIO = "unduck_audio"
         const val TYPE_PREPARE_PLAYBACK_SOURCE = "prepare_playback_source"
+        const val TYPE_RECREATE_PLAYER_AND_LOAD = "recreate_player_and_load"
         const val TYPE_UNKNOWN = "unknown"
 
         @JvmField

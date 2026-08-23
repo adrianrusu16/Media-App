@@ -12,6 +12,7 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineControlState
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineLibraryItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistTrackItem
@@ -25,11 +26,24 @@ import com.adrianrusu.pandawave.core.rust.bridge.engine.EngineDispatchResult
 import com.adrianrusu.pandawave.core.rust.bridge.engine.RustEngine
 import com.adrianrusu.pandawave.core.secure.storage.SecureSecretProtector
 import java.io.File
+import java.util.concurrent.Executors
+import java.util.concurrent.RejectedExecutionException
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.ScheduledFuture
+import java.util.concurrent.ThreadLocalRandom
+import java.util.concurrent.TimeUnit
 
 class PandaEngine private constructor(private val nativeHandle: Long, private val clock: () -> Long) :
     RustEngine,
     AutoCloseable {
     private val metadataCache = NativeEngineMetadataCache(::queryNativeMetadata)
+    private val probeExecutor: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor()
+    private val probeLock = Any()
+    private var scheduledProbe: ScheduledFuture<*>? = null
+    private var probeInFlight = false
+    private var consecutiveProbeFailures = 0
+    private var onHealthDispatchResult: ((EngineDispatchResult) -> Unit)? = null
+    private var onHealthSnapshotChanged: ((EngineSnapshot) -> Unit)? = null
 
     init {
         check(nativeHandle != 0L) { "PandaEngine native handle must not be zero." }
@@ -51,7 +65,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         }
     }
 
-    override fun setBackendAvailability(availability: EngineBackendAvailability) {
+    private fun setBackendAvailability(availability: EngineBackendAvailability) {
         val nativeAvailability = when (availability.status) {
             EngineBackendAvailability.CONNECTING -> NATIVE_BACKEND_CONNECTING
             EngineBackendAvailability.AVAILABLE -> NATIVE_BACKEND_AVAILABLE
@@ -67,6 +81,45 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         check(nativeSetBackendAvailability(nativeHandle, nativeAvailability, nativeReason)) {
             "PandaEngine failed to update backend availability."
         }
+    }
+
+    override fun startBackendHealthMonitoring(
+        onDispatchResult: (EngineDispatchResult) -> Unit,
+        onSnapshotChanged: (EngineSnapshot) -> Unit
+    ) {
+        synchronized(probeLock) {
+            onHealthDispatchResult = onDispatchResult
+            onHealthSnapshotChanged = onSnapshotChanged
+        }
+        requestHealthProbe(delayMillis = 0)
+    }
+
+    override fun stopBackendHealthMonitoring() {
+        synchronized(probeLock) {
+            scheduledProbe?.cancel(false)
+            scheduledProbe = null
+            onHealthDispatchResult = null
+            onHealthSnapshotChanged = null
+        }
+    }
+
+    override fun hintNetworkAvailability(isAvailable: Boolean) {
+        if (healthDispatchResult() == null) return
+
+        if (isAvailable) {
+            synchronized(probeLock) { consecutiveProbeFailures = 0 }
+            requestHealthProbe(delayMillis = 0, replaceScheduled = true)
+            return
+        }
+
+        setBackendAvailability(
+            EngineBackendAvailability(
+                EngineBackendAvailability.UNAVAILABLE,
+                EngineBackendAvailability.REASON_NETWORK_UNAVAILABLE
+            )
+        )
+        healthSnapshotChanged()?.invoke(snapshot())
+        requestHealthProbe(delayMillis = nextProbeDelayMillis())
     }
 
     override fun snapshot(): EngineSnapshot = nativeSnapshot(nativeHandle).toEngineSnapshot()
@@ -164,6 +217,9 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         itemType = nativeSearchResultItemType(nativeHandle, index)
     )
 
+    override fun historyEntry(index: Int): EngineHistoryItem? =
+        PandaEngineNativeHistoryItemMapper.toDomain(nativeHistoryEntryValues(nativeHandle, index))
+
     override fun effectCount(): Int = nativeEffectCount(nativeHandle)
 
     override fun effect(index: Int): EngineEffect? = effectItem(
@@ -212,7 +268,75 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     }
 
     override fun close() {
+        stopBackendHealthMonitoring()
+        probeExecutor.shutdownNow()
         nativeDestroy(nativeHandle)
+    }
+
+    /** Runs only the idempotent status RPC. User operations are never replayed. */
+    private fun requestHealthProbe(delayMillis: Long, replaceScheduled: Boolean = false) {
+        synchronized(probeLock) {
+            if (probeInFlight) return
+            if (scheduledProbe != null) {
+                if (!replaceScheduled) return
+                scheduledProbe?.cancel(false)
+            }
+            scheduledProbe = try {
+                probeExecutor.schedule(::runHealthProbe, delayMillis, TimeUnit.MILLISECONDS)
+            } catch (_: RejectedExecutionException) {
+                null
+            }
+        }
+    }
+
+    private fun runHealthProbe() {
+        synchronized(probeLock) {
+            scheduledProbe = null
+            if (probeInFlight || onHealthDispatchResult == null) return
+            probeInFlight = true
+        }
+
+        var nextDelayMillis: Long? = null
+        try {
+            val result = dispatch(
+                EngineCommand(EngineCommand.TYPE_REFRESH_BACKEND_STATUS, null)
+            )
+            healthDispatchResult()?.invoke(result)
+            nextDelayMillis = if (
+                result.snapshot.backendAvailability.status == EngineBackendAvailability.AVAILABLE
+            ) {
+                synchronized(probeLock) { consecutiveProbeFailures = 0 }
+                HEALTHY_PROBE_INTERVAL_MILLIS
+            } else {
+                synchronized(probeLock) {
+                    consecutiveProbeFailures = (consecutiveProbeFailures + 1)
+                        .coerceAtMost(BACKOFF_DELAYS_MILLIS.lastIndex)
+                }
+                nextProbeDelayMillis()
+            }
+        } finally {
+            synchronized(probeLock) { probeInFlight = false }
+        }
+        nextDelayMillis
+            ?.takeIf { healthDispatchResult() != null }
+            ?.let { delayMillis -> requestHealthProbe(delayMillis) }
+    }
+
+    private fun nextProbeDelayMillis(): Long {
+        val base = synchronized(probeLock) {
+            BACKOFF_DELAYS_MILLIS[
+                consecutiveProbeFailures.coerceIn(0, BACKOFF_DELAYS_MILLIS.lastIndex)
+            ]
+        }
+        return (base * ThreadLocalRandom.current().nextDouble(0.8, 1.2)).toLong()
+    }
+
+    private fun healthDispatchResult(): ((EngineDispatchResult) -> Unit)? = synchronized(probeLock) {
+        onHealthDispatchResult
+    }
+
+    private fun healthSnapshotChanged(): ((EngineSnapshot) -> Unit)? = synchronized(probeLock) {
+        onHealthSnapshotChanged
     }
 
     private external fun nativeSnapshot(handle: Long): LongArray
@@ -285,6 +409,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     private external fun nativeRecommendationResultValues(handle: Long, index: Int): Array<String>?
     private external fun nativeProfilePreferenceValue(handle: Long, key: String): String?
     private external fun nativeLikedTrackValues(handle: Long, index: Int): Array<String>?
+    private external fun nativeHistoryEntryValues(handle: Long, index: Int): Array<String>?
     private external fun nativePendingLibraryTrackId(handle: Long, index: Int): String?
     private external fun nativePlaylistValues(handle: Long, index: Int): Array<String>?
     private external fun nativePlaylistTrackValues(handle: Long, index: Int): Array<String>?
@@ -438,6 +563,10 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     }
 
     companion object {
+        private const val HEALTHY_PROBE_INTERVAL_MILLIS = 60_000L
+        private val BACKOFF_DELAYS_MILLIS =
+            longArrayOf(1_000L, 2_000L, 5_000L, 10_000L, 30_000L, 60_000L)
+
         fun create(clock: () -> Long = System::currentTimeMillis): PandaEngine {
             PandaEngineLibrary.load()
             return PandaEngine(
@@ -544,6 +673,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         private const val EFFECT_DUCK_AUDIO = 13
         private const val EFFECT_UNDUCK_AUDIO = 14
         private const val EFFECT_PREPARE_PLAYBACK_SOURCE = 15
+        private const val EFFECT_RECREATE_PLAYER_AND_LOAD = 16
 
         private fun EngineCommand.toNativeCommandType(): Int = when (type) {
             EngineCommand.TYPE_BOOTSTRAP -> COMMAND_BOOTSTRAP
@@ -705,6 +835,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             EFFECT_DUCK_AUDIO -> EngineEffect.TYPE_DUCK_AUDIO
             EFFECT_UNDUCK_AUDIO -> EngineEffect.TYPE_UNDUCK_AUDIO
             EFFECT_PREPARE_PLAYBACK_SOURCE -> EngineEffect.TYPE_PREPARE_PLAYBACK_SOURCE
+            EFFECT_RECREATE_PLAYER_AND_LOAD -> EngineEffect.TYPE_RECREATE_PLAYER_AND_LOAD
             else -> EngineEffect.TYPE_UNKNOWN
         }
     }
@@ -850,6 +981,42 @@ internal object PandaEngineNativeLibraryItemMapper {
     }
 }
 
+internal object PandaEngineNativeHistoryItemMapper {
+    fun toDomain(values: Array<String>?): EngineHistoryItem? {
+        if (values == null || values.size != VALUE_COUNT) return null
+        return runCatching {
+            EngineHistoryItem(
+                historyId = values[HISTORY_ID_INDEX],
+                mediaId = values[MEDIA_ID_INDEX].ifEmpty { null },
+                title = values[TITLE_INDEX],
+                artist = values[ARTIST_INDEX].ifEmpty { null },
+                album = values[ALBUM_INDEX].ifEmpty { null },
+                artworkUri = values[ARTWORK_INDEX].ifEmpty { null },
+                playedAtEpochMillis = values[PLAYED_AT_INDEX].takeIf(String::isNotEmpty)?.toLong(),
+                listenedDurationMillis = values[DURATION_INDEX].toLong(),
+                completionRatio = values[COMPLETION_INDEX].toFloat(),
+                playable = when (values[PLAYABLE_INDEX]) {
+                    "1" -> true
+                    "0" -> false
+                    else -> error("invalid playable flag")
+                },
+            )
+        }.getOrNull()
+    }
+
+    private const val HISTORY_ID_INDEX = 0
+    private const val MEDIA_ID_INDEX = 1
+    private const val TITLE_INDEX = 2
+    private const val ARTIST_INDEX = 3
+    private const val ALBUM_INDEX = 4
+    private const val ARTWORK_INDEX = 5
+    private const val PLAYED_AT_INDEX = 6
+    private const val DURATION_INDEX = 7
+    private const val COMPLETION_INDEX = 8
+    private const val PLAYABLE_INDEX = 9
+    private const val VALUE_COUNT = 10
+}
+
 internal object PandaEngineNativeSnapshotMapper {
     fun toProjection(nativeValues: LongArray): NativeEngineSnapshotProjection {
         require(nativeValues.size >= SNAPSHOT_VALUE_COUNT) {
@@ -918,6 +1085,7 @@ internal object PandaEngineNativeSnapshotMapper {
                 historyEnabled = nativeValues[SNAPSHOT_HISTORY_ENABLED_INDEX].toBoolean(),
                 historyDeletedCount = nativeValues[SNAPSHOT_HISTORY_DELETED_COUNT_INDEX],
                 historyEntriesCount = nativeValues[SNAPSHOT_HISTORY_ENTRIES_COUNT_INDEX].toInt(),
+                historyGeneration = nativeValues[SNAPSHOT_HISTORY_GENERATION_INDEX],
                 savedTracksCount = nativeValues[SNAPSHOT_SAVED_TRACKS_COUNT_INDEX].toInt(),
                 likedTracksCount = nativeValues[SNAPSHOT_LIKED_TRACKS_COUNT_INDEX].toInt(),
                 libraryPendingCount = nativeValues[SNAPSHOT_LIBRARY_PENDING_COUNT_INDEX].toInt(),
@@ -950,6 +1118,7 @@ internal object PandaEngineNativeSnapshotMapper {
         PLAYBACK_BUFFERING -> EngineSnapshot.PLAYBACK_BUFFERING
         PLAYBACK_ERROR -> EngineSnapshot.PLAYBACK_ERROR
         PLAYBACK_ENDED -> EngineSnapshot.PLAYBACK_ENDED
+        PLAYBACK_RECOVERING -> EngineSnapshot.PLAYBACK_RECOVERING
         else -> EngineSnapshot.PLAYBACK_IDLE
     }
 
@@ -1014,6 +1183,7 @@ internal object PandaEngineNativeSnapshotMapper {
     private const val PLAYBACK_BUFFERING = 3
     private const val PLAYBACK_ERROR = 4
     private const val PLAYBACK_ENDED = 5
+    private const val PLAYBACK_RECOVERING = 6
 
     private const val RESTRICTION_UNKNOWN = 0
     private const val RESTRICTION_UNRESTRICTED = 1
@@ -1039,7 +1209,7 @@ internal object PandaEngineNativeSnapshotMapper {
     private const val PREFERENCE_SOURCE_LOCAL_USER = 2
     private const val PREFERENCE_SOURCE_REMOTE_PROFILE = 3
 
-    private const val SNAPSHOT_VALUE_COUNT = 60
+    private const val SNAPSHOT_VALUE_COUNT = 61
     private const val SNAPSHOT_PLAYBACK_INDEX = 0
     private const val SNAPSHOT_RESTRICTION_INDEX = 1
     private const val SNAPSHOT_UPDATED_AT_INDEX = 2
@@ -1087,6 +1257,7 @@ internal object PandaEngineNativeSnapshotMapper {
     private const val SNAPSHOT_HAS_LIKED_NEXT_PAGE_INDEX = 44
     private const val SNAPSHOT_BACKEND_AVAILABILITY_INDEX = 58
     private const val SNAPSHOT_BACKEND_UNAVAILABLE_REASON_INDEX = 59
+    private const val SNAPSHOT_HISTORY_GENERATION_INDEX = 60
     private const val AUTH_ANONYMOUS = 0
     private const val AUTH_AUTHENTICATED = 1
 

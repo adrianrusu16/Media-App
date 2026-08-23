@@ -9,10 +9,10 @@ import android.os.IBinder
 import android.os.RemoteCallbackList
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthOperationResult
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineBackendAvailability
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistReconciliation
@@ -23,35 +23,21 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.IMediaEngineService
 import com.adrianrusu.pandawave.core.rust.bridge.config.EngineConnectionConfigLoader
 import com.adrianrusu.pandawave.core.secure.storage.keystore.AndroidKeystoreSecureSecretProtector
 import java.io.File
-import java.util.concurrent.Executors
-import java.util.concurrent.ScheduledExecutorService
-import java.util.concurrent.ScheduledFuture
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.ThreadLocalRandom
-import java.util.concurrent.RejectedExecutionException
 
 class MediaEngineService : Service() {
     private val listeners = RemoteCallbackList<IEngineListener>()
     @Volatile
     private var engine: RustEngine? = null
     private var unavailableSnapshot: EngineSnapshot = unavailableSnapshot()
-    private val probeExecutor: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor()
-    private val probeLock = Any()
-    private var scheduledProbe: ScheduledFuture<*>? = null
-    private var probeInFlight = false
-    @Volatile
-    private var consecutiveProbeFailures = 0
     private var connectivityManager: ConnectivityManager? = null
 
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) {
-            consecutiveProbeFailures = 0
-            requestHealthProbe(delayMillis = 0, replaceScheduled = true)
+            engine?.hintNetworkAvailability(isAvailable = true)
         }
 
         override fun onLost(network: Network) {
-            publishBackendUnavailable(EngineBackendAvailability.REASON_NETWORK_UNAVAILABLE)
-            requestHealthProbe(delayMillis = nextProbeDelayMillis())
+            engine?.hintNetworkAvailability(isAvailable = false)
         }
     }
 
@@ -68,7 +54,7 @@ class MediaEngineService : Service() {
             )
         }.getOrNull()
         unavailableSnapshot = unavailableSnapshot()
-        if (engine != null) startBackendSupervisor()
+        if (engine != null) startNetworkHints()
     }
 
     private val binder = object : IMediaEngineService.Stub() {
@@ -112,6 +98,7 @@ class MediaEngineService : Service() {
         override fun getProfilePreferenceValue(key: String): String? = engine?.profilePreferenceValue(key)
 
         override fun getSearchResult(index: Int): EngineCatalogItem? = engine?.searchResult(index)
+        override fun getHistoryEntry(index: Int): EngineHistoryItem? = engine?.historyEntry(index)
         override fun getSavedTrack(index: Int) = engine?.savedTrack(index)
         override fun getLikedTrack(index: Int) = engine?.likedTrack(index)
         override fun getPendingLibraryTrackId(index: Int) = engine?.pendingLibraryTrackId(index)
@@ -159,7 +146,7 @@ class MediaEngineService : Service() {
     override fun onBind(intent: Intent?): IBinder = binder
 
     override fun onDestroy() {
-        stopBackendSupervisor()
+        stopNetworkHints()
         listeners.kill()
         (engine as? AutoCloseable)?.close()
         engine = null
@@ -204,17 +191,23 @@ class MediaEngineService : Service() {
         canDispatch = false
     )
 
-    private fun startBackendSupervisor() {
+    private fun startNetworkHints() {
+        engine?.startBackendHealthMonitoring(
+            onDispatchResult = { result ->
+                notifySnapshotChanged(result.snapshot)
+                notifyEngineEvent(result.event)
+            },
+            onSnapshotChanged = ::notifySnapshotChanged
+        )
         connectivityManager = getSystemService(ConnectivityManager::class.java)
         try {
             connectivityManager?.registerDefaultNetworkCallback(networkCallback)
         } catch (_: SecurityException) {
-            // Health probes still provide recovery when network callbacks are unavailable.
+            // Monitoring continues when platform connectivity hints are unavailable.
         }
-        requestHealthProbe(delayMillis = 0)
     }
 
-    private fun stopBackendSupervisor() {
+    private fun stopNetworkHints() {
         connectivityManager?.let { manager ->
             try {
                 manager.unregisterNetworkCallback(networkCallback)
@@ -223,73 +216,11 @@ class MediaEngineService : Service() {
             }
         }
         connectivityManager = null
-        synchronized(probeLock) {
-            scheduledProbe?.cancel(false)
-            scheduledProbe = null
-        }
-        probeExecutor.shutdownNow()
-    }
-
-    /** Runs only the idempotent status RPC. User operations are never replayed. */
-    private fun requestHealthProbe(delayMillis: Long, replaceScheduled: Boolean = false) {
-        synchronized(probeLock) {
-            if (probeInFlight) return
-            if (scheduledProbe != null) {
-                if (!replaceScheduled) return
-                scheduledProbe?.cancel(false)
-            }
-            scheduledProbe = try {
-                probeExecutor.schedule(::runHealthProbe, delayMillis, TimeUnit.MILLISECONDS)
-            } catch (_: RejectedExecutionException) {
-                null
-            }
-        }
-    }
-
-    private fun runHealthProbe() {
-        synchronized(probeLock) {
-            scheduledProbe = null
-            if (probeInFlight) return
-            probeInFlight = true
-        }
-        var nextDelayMillis: Long? = null
-        try {
-            val activeEngine = engine ?: return
-            val result = activeEngine.dispatch(EngineCommand(EngineCommand.TYPE_REFRESH_BACKEND_STATUS, null))
-            notifySnapshotChanged(result.snapshot)
-            notifyEngineEvent(result.event)
-            if (result.snapshot.backendAvailability.status == EngineBackendAvailability.AVAILABLE) {
-                consecutiveProbeFailures = 0
-                nextDelayMillis = HEALTHY_PROBE_INTERVAL_MILLIS
-            } else {
-                consecutiveProbeFailures = (consecutiveProbeFailures + 1).coerceAtMost(BACKOFF_DELAYS_MILLIS.lastIndex)
-                nextDelayMillis = nextProbeDelayMillis()
-            }
-        } finally {
-            synchronized(probeLock) { probeInFlight = false }
-        }
-        nextDelayMillis?.let { delayMillis -> requestHealthProbe(delayMillis) }
-    }
-
-    private fun nextProbeDelayMillis(): Long {
-        val base = BACKOFF_DELAYS_MILLIS[
-            consecutiveProbeFailures.coerceIn(0, BACKOFF_DELAYS_MILLIS.lastIndex)
-        ]
-        return (base * ThreadLocalRandom.current().nextDouble(0.8, 1.2)).toLong()
-    }
-
-    private fun publishBackendUnavailable(reason: String) {
-        val activeEngine = engine ?: return
-        activeEngine.setBackendAvailability(
-            EngineBackendAvailability(EngineBackendAvailability.UNAVAILABLE, reason)
-        )
-        notifySnapshotChanged(activeEngine.snapshot())
+        engine?.stopBackendHealthMonitoring()
     }
 
     private companion object {
         const val SESSION_FILE_RELATIVE_PATH = "panda-engine/session.bin"
-        const val HEALTHY_PROBE_INTERVAL_MILLIS = 60_000L
-        val BACKOFF_DELAYS_MILLIS = longArrayOf(1_000L, 2_000L, 5_000L, 10_000L, 30_000L, 60_000L)
     }
 
 }

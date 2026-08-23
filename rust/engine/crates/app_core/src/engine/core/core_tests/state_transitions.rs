@@ -133,7 +133,10 @@ async fn playback_completion_ends_current_item_without_advancing_the_queue() {
 
     assert_eq!(PlaybackState::Ended, outcome.snapshot.playback_state);
     assert_eq!(Some("first"), outcome.snapshot.media_id.as_deref());
-    assert_eq!(Some("first"), engine.queue().current_item().map(|item| item.id.as_str()));
+    assert_eq!(
+        Some("first"),
+        engine.queue().current_item().map(|item| item.id.as_str())
+    );
     assert_eq!(
         vec![EngineEffect::Stop, EngineEffect::AbandonAudioFocus],
         outcome.effects
@@ -143,36 +146,160 @@ async fn playback_completion_ends_current_item_without_advancing_the_queue() {
     assert_eq!(PlaybackState::Buffering, restarted.snapshot.playback_state);
     assert_eq!(0, restarted.snapshot.position_millis);
     assert!(restarted.effects.contains(&EngineEffect::Seek(0)));
-    assert!(!restarted
-        .effects
-        .iter()
-        .any(|effect| matches!(effect, EngineEffect::PreparePlaybackSource { .. })));
+    assert!(
+        !restarted
+            .effects
+            .iter()
+            .any(|effect| matches!(effect, EngineEffect::PreparePlaybackSource { .. }))
+    );
 }
 
 #[tokio::test]
 async fn stale_player_observation_cannot_mutate_a_newer_selection() {
     let mut engine = Engine::new(100);
     let items = vec![
-        MediaItem { id: "a".into(), source_uri: Some("https://media.test/a".into()), ..Default::default() },
-        MediaItem { id: "b".into(), source_uri: Some("https://media.test/b".into()), ..Default::default() },
+        MediaItem {
+            id: "a".into(),
+            source_uri: Some("https://media.test/a".into()),
+            ..Default::default()
+        },
+        MediaItem {
+            id: "b".into(),
+            source_uri: Some("https://media.test/b".into()),
+            ..Default::default()
+        },
     ];
     engine.set_repository(Box::new(InMemoryRepository::new(items.clone())));
     engine.queue().set_items(items);
-    engine.dispatch(EngineCommand::start_session("user".into()), 110).await;
+    engine
+        .dispatch(EngineCommand::start_session("user".into()), 110)
+        .await;
     engine.dispatch(EngineCommand::play(), 120).await;
     engine.dispatch(EngineCommand::skip_next(), 130).await;
 
-    let outcome = engine.dispatch_platform_event(
-        EnginePlatformEvent::new(
-            EnginePlatformEventType::MediaError,
-            Some(r#"{"version":1,"playback_instance_id":1,"kind":"unknown"}"#.into()),
-        ),
-        140,
-    ).await;
+    let outcome = engine
+        .dispatch_platform_event(
+            EnginePlatformEvent::new(
+                EnginePlatformEventType::MediaError,
+                Some(r#"{"version":1,"playback_instance_id":1,"kind":"unknown"}"#.into()),
+            ),
+            140,
+        )
+        .await;
 
     assert_eq!(Some("b"), outcome.snapshot.media_id.as_deref());
     assert_eq!(PlaybackState::Buffering, outcome.snapshot.playback_state);
     assert!(outcome.effects.is_empty());
+}
+
+#[tokio::test]
+async fn decoder_failure_recreates_the_local_player_once_without_resolving_a_new_source() {
+    let mut engine = Engine::new(100);
+    let item = MediaItem {
+        id: "track-1".into(),
+        source_uri: Some("https://media.test/capability".into()),
+        ..Default::default()
+    };
+    engine.set_repository(Box::new(InMemoryRepository::new(vec![item.clone()])));
+    engine.queue().set_items(vec![item]);
+    engine
+        .dispatch(EngineCommand::start_session("user".into()), 110)
+        .await;
+    engine.dispatch(EngineCommand::play(), 120).await;
+    engine
+        .dispatch_platform_event(
+            EnginePlatformEvent::new(
+                EnginePlatformEventType::MediaLoaded,
+                Some(r#"{"version":1,"playback_instance_id":1}"#.into()),
+            ),
+            130,
+        )
+        .await;
+    engine.snapshot = engine.snapshot.clone().with_position(182_900);
+
+    let recovered = engine
+        .dispatch_platform_event(
+            EnginePlatformEvent::new(
+                EnginePlatformEventType::MediaError,
+                Some(r#"{"version":1,"playback_instance_id":1,"kind":"decoder_failed"}"#.into()),
+            ),
+            140,
+        )
+        .await;
+
+    assert_eq!(PlaybackState::Recovering, recovered.snapshot.playback_state);
+    assert!(
+        recovered
+            .effects
+            .contains(&EngineEffect::RecreatePlayerAndLoad {
+                media_id: "track-1".into(),
+                playback_instance_id: 2,
+                position_millis: 182_900,
+            })
+    );
+    assert!(recovered.effects.contains(&EngineEffect::Play));
+
+    let exhausted = engine
+        .dispatch_platform_event(
+            EnginePlatformEvent::new(
+                EnginePlatformEventType::MediaError,
+                Some(r#"{"version":1,"playback_instance_id":2,"kind":"decoder_failed"}"#.into()),
+            ),
+            150,
+        )
+        .await;
+
+    assert_eq!(PlaybackState::Error, exhausted.snapshot.playback_state);
+    assert!(matches!(
+        exhausted.effects.as_slice(),
+        [EngineEffect::NotifyUser { message }]
+            if message == "Playback could not continue because the device audio decoder failed."
+    ));
+}
+
+#[tokio::test]
+async fn decoder_recovery_preserves_a_paused_player_intent() {
+    let mut engine = Engine::new(100);
+    let item = MediaItem {
+        id: "track-1".into(),
+        source_uri: Some("https://media.test/capability".into()),
+        ..Default::default()
+    };
+    engine.set_repository(Box::new(InMemoryRepository::new(vec![item.clone()])));
+    engine.queue().set_items(vec![item]);
+    engine
+        .dispatch(EngineCommand::start_session("user".into()), 110)
+        .await;
+    engine.dispatch(EngineCommand::play(), 120).await;
+    engine
+        .dispatch_platform_event(
+            EnginePlatformEvent::new(
+                EnginePlatformEventType::MediaLoaded,
+                Some(r#"{"version":1,"playback_instance_id":1}"#.into()),
+            ),
+            130,
+        )
+        .await;
+
+    let recovered = engine
+        .dispatch_platform_event(
+            EnginePlatformEvent::new(
+                EnginePlatformEventType::MediaError,
+                Some(r#"{"version":1,"playback_instance_id":1,"kind":"decoder_failed","position_ms":183350,"decoder":"c2.android.mp3.decoder","error_code":4003,"phase":"decoding","play_when_ready":false}"#.into()),
+            ),
+            140,
+        )
+        .await;
+
+    assert_eq!(PlaybackState::Recovering, recovered.snapshot.playback_state);
+    assert!(
+        recovered
+            .effects
+            .iter()
+            .any(|effect| matches!(effect, EngineEffect::RecreatePlayerAndLoad { .. }))
+    );
+    assert!(!recovered.effects.contains(&EngineEffect::Play));
+    assert!(!recovered.effects.contains(&EngineEffect::RequestAudioFocus));
 }
 
 #[tokio::test]

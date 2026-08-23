@@ -15,7 +15,9 @@ impl Engine {
                         let effects = vec![
                             EngineEffect::PreparePlaybackSource {
                                 media_id: media_id.clone(),
-                                playback_instance_id: self.current_playback_instance_id.unwrap_or_default(),
+                                playback_instance_id: self
+                                    .current_playback_instance_id
+                                    .unwrap_or_default(),
                             },
                             EngineEffect::UpdateMetadata {
                                 media_id: media_id.clone(),
@@ -33,7 +35,9 @@ impl Engine {
                         let effects = vec![
                             EngineEffect::PreparePlaybackSource {
                                 media_id: media_id.clone(),
-                                playback_instance_id: self.current_playback_instance_id.unwrap_or_default(),
+                                playback_instance_id: self
+                                    .current_playback_instance_id
+                                    .unwrap_or_default(),
                             },
                             EngineEffect::UpdateMetadata {
                                 media_id: media_id.clone(),

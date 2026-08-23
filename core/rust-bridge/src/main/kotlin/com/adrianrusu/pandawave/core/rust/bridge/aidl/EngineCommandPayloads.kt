@@ -17,6 +17,24 @@ object EngineCommandPayloads {
         kind?.let { put("kind", it) }
     }.toString()
 
+    fun decoderFailed(
+        playbackInstanceId: Long,
+        positionMillis: Long,
+        decoder: String?,
+        errorCode: Int,
+        phase: String,
+        playWhenReady: Boolean
+    ): String = buildJsonObject {
+        put(KEY_VERSION, PAYLOAD_VERSION)
+        put("playback_instance_id", playbackInstanceId)
+        put("kind", "decoder_failed")
+        put("position_ms", positionMillis.coerceAtLeast(0L))
+        decoder?.takeIf(String::isNotBlank)?.let { put("decoder", it) }
+        put("error_code", errorCode)
+        put("phase", phase)
+        put("play_when_ready", playWhenReady)
+    }.toString()
+
     fun deviceSessionsPage(pageSize: Int): String = buildJsonObject {
         put(KEY_VERSION, PAYLOAD_VERSION)
         put("page", buildJsonObject { put("page_size", pageSize) })

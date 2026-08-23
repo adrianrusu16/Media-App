@@ -9,6 +9,12 @@ import kotlin.test.assertTrue
 
 class BambooMediaSessionStateProjectionTest {
     @Test
+    fun `projection clamps volume to the player range`() {
+        assertEquals(0F, BambooPlaybackState(volume = -1F).toMediaSessionStateProjection().volume)
+        assertEquals(1F, BambooPlaybackState(volume = 2F).toMediaSessionStateProjection().volume)
+    }
+
+    @Test
     fun `playing state maps to playable media item`() {
         val parsedUris = mutableListOf<String>()
         val projection = BambooPlaybackState(

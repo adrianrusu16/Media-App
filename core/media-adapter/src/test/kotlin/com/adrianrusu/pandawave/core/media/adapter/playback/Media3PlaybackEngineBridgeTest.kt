@@ -134,6 +134,35 @@ class Media3PlaybackEngineBridgeTest {
     }
 
     @Test
+    fun `volume changes dispatch through playback repository`() {
+        val repository = RecordingPlaybackRepository()
+        val bridge = Media3PlaybackEngineBridge(repository, testTelemetryLogger())
+
+        bridge.dispatchVolume(1.5F)
+        bridge.onVolumeChanged(0.25F)
+
+        assertEquals(
+            listOf<BambooPlaybackIntent>(
+                BambooPlaybackIntent.SetVolume(1F),
+                BambooPlaybackIntent.SetVolume(0.25F)
+            ),
+            repository.intents
+        )
+    }
+
+    @Test
+    fun `projected volume changes do not dispatch playback intents`() {
+        val repository = RecordingPlaybackRepository()
+        val bridge = Media3PlaybackEngineBridge(repository, testTelemetryLogger())
+
+        bridge.projectPlatformPlaybackState {
+            bridge.onVolumeChanged(0.25F)
+        }
+
+        assertEquals(emptyList<BambooPlaybackIntent>(), repository.intents)
+    }
+
+    @Test
     fun `catalog browse and search dispatch through playback repository`() {
         val repository = RecordingPlaybackRepository()
         val bridge = Media3PlaybackEngineBridge(repository, testTelemetryLogger())
@@ -218,7 +247,7 @@ class Media3PlaybackEngineBridgeTest {
             telemetrySink.events[2].attributes[Media3PlaybackTelemetryAttributes.MEDIA_ID_PRESENT]
         )
         assertEquals(
-            emptySet(),
+            emptySet<String>(),
             telemetrySink.events
                 .flatMap { it.attributes.values }
                 .intersect(setOf("private-parent", "secret query", "private-media-id"))

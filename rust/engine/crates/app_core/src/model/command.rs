@@ -781,9 +781,9 @@ impl EngineCommand {
             EngineCommandType::REVOKE_DEVICE_SESSION_WIRE => payload
                 .as_deref()
                 .and_then(parse_revoke_device_session_payload),
-            EngineCommandType::PLAY_QUEUE_WIRE => payload
-                .as_deref()
-                .and_then(parse_play_queue_payload),
+            EngineCommandType::PLAY_QUEUE_WIRE => {
+                payload.as_deref().and_then(parse_play_queue_payload)
+            }
             _ => Some(EngineCommandType::from_wire(command_type.clone())),
         };
         Self::new(
@@ -1406,10 +1406,10 @@ fn parse_play_queue_payload(payload: &str) -> Option<EngineCommandType> {
         && !payload.media_ids.is_empty()
         && payload.media_ids.iter().all(|id| !id.trim().is_empty())
         && payload.start_index < payload.media_ids.len())
-        .then_some(EngineCommandType::PlayQueue {
-            media_ids: payload.media_ids,
-            start_index: payload.start_index,
-        })
+    .then_some(EngineCommandType::PlayQueue {
+        media_ids: payload.media_ids,
+        start_index: payload.start_index,
+    })
 }
 
 #[cfg(test)]

@@ -92,6 +92,7 @@ class AidlEngineGateway(
     override fun profilePreferenceValue(key: String): String? = withRemoteService(null) { it.profilePreferenceValue(key) }
 
     override fun searchResult(index: Int): EngineCatalogItem? = withRemoteService(null) { it.searchResult(index) }
+    override fun historyEntry(index: Int) = withRemoteService(null) { it.historyEntry(index) }
     override fun savedTrack(index: Int) = withRemoteService(null) { it.savedTrack(index) }
     override fun likedTrack(index: Int) = withRemoteService(null) { it.likedTrack(index) }
     override fun pendingLibraryTrackId(index: Int) = withRemoteService(null) { it.pendingLibraryTrackId(index) }

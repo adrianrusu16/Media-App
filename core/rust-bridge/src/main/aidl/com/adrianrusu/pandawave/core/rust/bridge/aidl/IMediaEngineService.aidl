@@ -3,6 +3,7 @@ package com.adrianrusu.pandawave.core.rust.bridge.aidl;
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand;
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthOperationResult;
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem;
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryItem;
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineLibraryItem;
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistItem;
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistTrackItem;
@@ -21,6 +22,7 @@ interface IMediaEngineService {
     EngineSnapshot getSnapshot();
     EngineCatalogItem getBrowseResult(int index);
     EngineCatalogItem getSearchResult(int index);
+    EngineHistoryItem getHistoryEntry(int index);
     int getEffectCount();
     EngineEffect getEffect(int index);
     void dispatch(in EngineCommand command);

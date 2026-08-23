@@ -37,6 +37,7 @@ data class EngineSnapshot(
     val historyEnabled: Boolean = false,
     val historyDeletedCount: Long = 0L,
     val historyEntriesCount: Int = 0,
+    val historyGeneration: Long = 0L,
     val savedTracksCount: Int = 0,
     val likedTracksCount: Int = 0,
     val libraryPendingCount: Int = 0,
@@ -102,6 +103,7 @@ data class EngineSnapshot(
         historyEnabled = parcel.readBooleanValue(),
         historyDeletedCount = parcel.readLong(),
         historyEntriesCount = parcel.readInt(),
+        historyGeneration = parcel.readLong(),
         savedTracksCount = parcel.readInt(),
         likedTracksCount = parcel.readInt(),
         libraryPendingCount = parcel.readInt(),
@@ -167,6 +169,7 @@ data class EngineSnapshot(
         parcel.writeBooleanValue(historyEnabled)
         parcel.writeLong(historyDeletedCount)
         parcel.writeInt(historyEntriesCount)
+        parcel.writeLong(historyGeneration)
         parcel.writeInt(savedTracksCount)
         parcel.writeInt(likedTracksCount)
         parcel.writeInt(libraryPendingCount)
@@ -200,6 +203,7 @@ data class EngineSnapshot(
         const val PLAYBACK_BUFFERING = "buffering"
         const val PLAYBACK_ERROR = "error"
         const val PLAYBACK_ENDED = "ended"
+        const val PLAYBACK_RECOVERING = "recovering"
         const val RESTRICTION_UNKNOWN = "unknown"
         const val RESTRICTION_UNRESTRICTED = "unrestricted"
         const val RESTRICTION_RESTRICTED = "restricted"

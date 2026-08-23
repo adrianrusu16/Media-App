@@ -10,6 +10,7 @@ use crate::{
 fn ffi_snapshot_projects_only_history_consent_and_counts() {
     let mut snapshot = EngineSnapshot::idle(1);
     snapshot.history_settings = Some(EngineHistorySettings { enabled: true });
+    snapshot.history_state.generation = 3;
     snapshot.history_deleted_count = 7;
     snapshot.history_entries = vec![EngineHistoryEntry {
         id: "history-1".into(),
@@ -25,6 +26,7 @@ fn ffi_snapshot_projects_only_history_consent_and_counts() {
     assert!(ffi.history_enabled);
     assert_eq!(ffi.history_deleted_count, 7);
     assert_eq!(ffi.history_entries_count, 1);
+    assert_eq!(ffi.history_generation, 3);
 }
 
 #[test]

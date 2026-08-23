@@ -107,6 +107,22 @@ pub(crate) struct PlaybackObservationPayload {
     pub playback_instance_id: u64,
     #[serde(default)]
     pub kind: Option<String>,
+    /// Position reported at the failure boundary. It is diagnostic only: decoder
+    /// recovery deliberately seeks to the engine's earlier safe position.
+    #[serde(default)]
+    pub position_ms: Option<u64>,
+    /// Android's decoder identifier, when Media3 exposes one.
+    #[serde(default)]
+    pub decoder: Option<String>,
+    /// Media3's stable playback error code.
+    #[serde(default)]
+    pub error_code: Option<i32>,
+    /// Decoder lifecycle phase, such as `initialization` or `decoding`.
+    #[serde(default)]
+    pub phase: Option<String>,
+    /// Playback intent captured from the failed player before it is released.
+    #[serde(default)]
+    pub play_when_ready: Option<bool>,
 }
 
 impl EnginePlatformEvent {

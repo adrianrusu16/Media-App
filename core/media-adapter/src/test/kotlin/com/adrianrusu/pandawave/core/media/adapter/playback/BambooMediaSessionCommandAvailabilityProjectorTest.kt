@@ -1,7 +1,8 @@
 package com.adrianrusu.pandawave.core.media.adapter.playback
 
-import com.adrianrusu.pandawave.core.playback.BambooEngineConnectionUiState
+import com.adrianrusu.pandawave.core.playback.BambooControlState
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackIntent
+import com.adrianrusu.pandawave.core.playback.BambooPlaybackControls
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackState
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
@@ -12,9 +13,9 @@ import kotlinx.coroutines.flow.StateFlow
 
 class BambooMediaSessionCommandAvailabilityProjectorTest {
     @Test
-    fun `start projects current engine readiness`() {
+    fun `start projects current controls`() {
         val repository = CommandAvailabilityRecordingPlaybackRepository(
-            BambooPlaybackState(engineConnection = BambooEngineConnectionUiState.Ready)
+            BambooPlaybackState(controls = enabledControls())
         )
         val sink = RecordingCommandAvailabilitySink()
         val projector = BambooMediaSessionCommandAvailabilityProjector(
@@ -43,7 +44,7 @@ class BambooMediaSessionCommandAvailabilityProjectorTest {
     }
 
     @Test
-    fun `readiness change updates command availability`() {
+    fun `controls change updates command availability`() {
         val repository = CommandAvailabilityRecordingPlaybackRepository(BambooPlaybackState())
         val sink = RecordingCommandAvailabilitySink()
         val projector = BambooMediaSessionCommandAvailabilityProjector(
@@ -52,7 +53,7 @@ class BambooMediaSessionCommandAvailabilityProjectorTest {
         )
 
         projector.start()
-        repository.push(BambooPlaybackState(engineConnection = BambooEngineConnectionUiState.Ready))
+        repository.push(BambooPlaybackState(controls = enabledControls()))
 
         assertEquals(listOf(false, true), sink.values)
     }
@@ -68,7 +69,7 @@ class BambooMediaSessionCommandAvailabilityProjectorTest {
 
         projector.start()
         projector.close()
-        repository.push(BambooPlaybackState(engineConnection = BambooEngineConnectionUiState.Ready))
+        repository.push(BambooPlaybackState(controls = enabledControls()))
 
         assertEquals(listOf(false), sink.values)
     }
@@ -77,10 +78,17 @@ class BambooMediaSessionCommandAvailabilityProjectorTest {
 private class RecordingCommandAvailabilitySink : BambooMediaSessionCommandAvailabilitySink {
     val values = mutableListOf<Boolean>()
 
-    override fun project(controlsEnabled: Boolean) {
-        values += controlsEnabled
+    override fun project(controls: BambooPlaybackControls) {
+        values += controls.playPause.isEnabled
     }
 }
+
+private fun enabledControls(): BambooPlaybackControls = BambooPlaybackControls(
+    playPause = BambooControlState.enabled(),
+    skipNext = BambooControlState.enabled(),
+    skipPrevious = BambooControlState.enabled(),
+    showPlayIcon = true,
+)
 
 private class CommandAvailabilityRecordingPlaybackRepository(initialState: BambooPlaybackState) :
     BambooPlaybackRepository {

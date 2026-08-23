@@ -5,6 +5,7 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommandPayloads
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
 
@@ -53,6 +54,23 @@ internal class FakePandaEngine(private val clock: () -> Long = System::currentTi
             sourceUri = PandaWaveAudioSourceContract.sourceUriForTrack("search-$index"),
             mimeType = DEFAULT_AUDIO_MIME_TYPE,
             itemType = EngineCatalogItem.TYPE_TRACK
+        )
+
+        else -> null
+    }
+
+    override fun historyEntry(index: Int): EngineHistoryItem? = when {
+        index in 0 until currentSnapshot.historyEntriesCount -> EngineHistoryItem(
+            historyId = "history-$index",
+            mediaId = "history-track-$index",
+            title = "Played track $index",
+            artist = "PandaWave",
+            album = "Recently played",
+            artworkUri = "content://pandawave/history/history-track-$index",
+            playedAtEpochMillis = clock() - index * 60_000L,
+            listenedDurationMillis = 180_000L,
+            completionRatio = 1F,
+            playable = true,
         )
 
         else -> null

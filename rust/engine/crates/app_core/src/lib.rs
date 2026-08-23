@@ -80,8 +80,10 @@ pub use crate::model::effect::EngineEffect;
 pub use crate::model::error::{EngineError, EngineErrorType};
 pub use crate::model::event::{EngineEvent, EngineEventType};
 pub use crate::model::history::{
-    EngineHistoryEntry, EngineHistoryIdentity, EngineHistorySettings, EngineHistorySettingsUpdate,
-    EnginePlaybackRecord, HistoryPort, normalize_completion_ratio,
+    EngineHistoryAvailability, EngineHistoryEntry, EngineHistoryIdentity, EngineHistoryPage,
+    EngineHistoryPageKey, EngineHistoryRefreshState, EngineHistorySettings,
+    EngineHistorySettingsUpdate, EngineHistoryState, EnginePlaybackRecord, HistoryPort,
+    normalize_completion_ratio,
 };
 pub use crate::model::library::{
     EngineLibraryIdentity, EngineLibraryRelationshipKind, EngineLibraryTrack, LibraryPort,

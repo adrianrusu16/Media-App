@@ -6,10 +6,13 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import com.adrianrusu.pandawave.core.model.catalog.BambooCatalogNode
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommandPayloads
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryItem
 import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineGateway
 
 internal interface BambooCatalogSource {
-    fun children(parentId: String): List<BambooCatalogNode>
+    fun children(parentId: String, page: Int, pageSize: Int): List<BambooCatalogNode>
     fun search(query: String): List<BambooCatalogNode>
 }
 
@@ -17,12 +20,22 @@ internal class EngineBambooCatalogSource(
     private val playbackBridge: Media3PlaybackEngineBridge,
     private val engineGateway: EngineGateway
 ) : BambooCatalogSource {
-    override fun children(parentId: String): List<BambooCatalogNode> {
+    private var historyCacheKey: HistoryCacheKey? = null
+    private val historyCache = mutableListOf<BambooCatalogNode>()
+    private var hasHistoryNextPage = false
+
+    override fun children(parentId: String, page: Int, pageSize: Int): List<BambooCatalogNode> {
+        if (parentId == LibraryItems.HISTORY_MEDIA_ID) {
+            return historyChildren(page = page, pageSize = pageSize)
+        }
         playbackBridge.dispatchCatalogBrowse(parentId.toEngineParentId())
         val engineResults = engineGateway.browseResults()
         return when {
-            parentId == LibraryItems.ROOT_MEDIA_ID && engineResults.isEmpty() -> rootChildren
-            else -> engineResults
+            parentId == LibraryItems.ROOT_MEDIA_ID && engineResults.isEmpty() ->
+                rootChildren.paged(page = page, pageSize = pageSize)
+
+            engineResults.isEmpty() -> emptyList()
+            else -> engineResults.paged(page = page, pageSize = pageSize)
         }
     }
 
@@ -47,13 +60,46 @@ internal class EngineBambooCatalogSource(
             isPlayable = false
         ),
         BambooCatalogNode(
-            mediaId = "pandawave.library.recent",
+            mediaId = LibraryItems.HISTORY_MEDIA_ID,
             title = "Recently played",
             subtitle = "Listening history from PandaEngine",
             isBrowsable = true,
             isPlayable = false
         )
     )
+
+    private fun historyChildren(page: Int, pageSize: Int): List<BambooCatalogNode> {
+        if (page < 0 || pageSize < 1) return emptyList()
+        val requestSize = pageSize.coerceIn(1, MAX_HISTORY_PAGE_SIZE)
+        val requiredCount = (page + 1) * pageSize
+        val currentKey = engineGateway.snapshot().historyCacheKey()
+        if (historyCacheKey != currentKey || page == 0) {
+            historyCacheKey = currentKey
+            historyCache.clear()
+            hasHistoryNextPage = false
+            if (currentKey == null) return emptyList()
+            appendHistoryPage(
+                EngineCommand(
+                    EngineCommand.TYPE_LIST_HISTORY,
+                    EngineCommandPayloads.historyPage(requestSize),
+                ),
+            )
+        }
+        while (historyCache.size < requiredCount && hasHistoryNextPage) {
+            appendHistoryPage(EngineCommand(EngineCommand.TYPE_LOAD_NEXT_HISTORY_PAGE, null))
+        }
+        return historyCache.paged(page = page, pageSize = pageSize)
+    }
+
+    private fun appendHistoryPage(command: EngineCommand) {
+        val outcome = engineGateway.dispatch(command)
+        val snapshot = outcome.snapshot
+        historyCacheKey = snapshot.historyCacheKey()
+        historyCache += List(snapshot.historyEntriesCount.coerceAtLeast(0), engineGateway::historyEntry)
+            .filterNotNull()
+            .mapNotNull(EngineHistoryItem::toCatalogNode)
+        hasHistoryNextPage = snapshot.hasHistoryNextPage
+    }
 }
 
 private fun EngineGateway.searchResults(): List<BambooCatalogNode> = List(
@@ -75,6 +121,22 @@ private fun EngineCatalogItem.toCatalogNode(): BambooCatalogNode = BambooCatalog
     isPlayable = itemType.isPlayableCatalogType()
 )
 
+private fun EngineHistoryItem.toCatalogNode(): BambooCatalogNode? {
+    if (!playable) return null
+    val mediaId = mediaId?.takeIf(String::isNotBlank) ?: return null
+    return BambooCatalogNode(
+        mediaId = mediaId,
+        title = title,
+        subtitle = listOfNotNull(
+            artist.takeUnless { value -> value.isNullOrBlank() },
+            album.takeUnless { value -> value.isNullOrBlank() }
+        ).joinToString(separator = " - ").takeUnless { value -> value.isBlank() },
+        artworkUri = artworkUri,
+        isBrowsable = false,
+        isPlayable = playable,
+    )
+}
+
 private fun EngineCatalogItem.subtitle(): String? = listOfNotNull(
     artist.takeUnless { value -> value.isNullOrBlank() },
     album.takeUnless { value -> value.isNullOrBlank() }
@@ -95,8 +157,11 @@ private fun Int.isPlayableCatalogType(): Boolean = this in setOf(
 internal class BambooMediaLibraryCatalog(private val source: BambooCatalogSource) {
     fun root(): MediaItem = LibraryItems.Root
 
-    fun children(parentId: String, page: Int, pageSize: Int): List<MediaItem> = source.children(parentId)
-        .paged(page = page, pageSize = pageSize)
+    fun children(parentId: String, page: Int, pageSize: Int): List<MediaItem> = source.children(
+        parentId = parentId,
+        page = page,
+        pageSize = pageSize,
+    )
         .map { node -> node.toMediaItem() }
 
     fun search(query: String, page: Int, pageSize: Int): List<MediaItem> = source.search(query)
@@ -107,6 +172,7 @@ internal class BambooMediaLibraryCatalog(private val source: BambooCatalogSource
 internal object LibraryItems {
     const val ROOT_MEDIA_ID = "pandawave.library.root"
     const val ENGINE_ROOT_PARENT_ID = "root"
+    const val HISTORY_MEDIA_ID = "pandawave.library.recent"
 
     val Root: MediaItem = MediaItem.Builder()
         .setMediaId(ROOT_MEDIA_ID)
@@ -123,6 +189,18 @@ internal object LibraryItems {
 private fun String.toEngineParentId(): String = when (this) {
     LibraryItems.ROOT_MEDIA_ID -> LibraryItems.ENGINE_ROOT_PARENT_ID
     else -> this
+}
+
+private data class HistoryCacheKey(
+    val accountId: String,
+    val sessionId: String,
+    val generation: Long,
+)
+
+private fun com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot.historyCacheKey(): HistoryCacheKey? {
+    val accountId = authState.account?.id?.takeIf(String::isNotBlank) ?: return null
+    val sessionId = authState.session?.id?.takeIf(String::isNotBlank) ?: return null
+    return HistoryCacheKey(accountId, sessionId, historyGeneration)
 }
 
 private fun BambooCatalogNode.toMediaItem(): MediaItem = MediaItem.Builder()
@@ -152,3 +230,5 @@ private fun <T> List<T>.paged(page: Int, pageSize: Int): List<T> {
         else -> subList(fromIndex, minOf(fromIndex + pageSize, size))
     }
 }
+
+private const val MAX_HISTORY_PAGE_SIZE = 50

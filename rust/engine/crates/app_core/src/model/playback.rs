@@ -37,6 +37,8 @@ pub enum PlaybackState {
     Paused,
     /// The engine is preparing media for playback (e.g., buffering).
     Buffering,
+    /// The platform decoder failed and PandaWave is rebuilding its local player.
+    Recovering,
     /// The current item reached its terminal position.
     Ended,
     /// An error occurred during playback.
@@ -52,6 +54,8 @@ impl PlaybackState {
     pub const PAUSED_WIRE: &'static str = "paused";
     /// Wire value for Buffering state.
     pub const BUFFERING_WIRE: &'static str = "buffering";
+    /// Wire value for the bounded local decoder-recovery state.
+    pub const RECOVERING_WIRE: &'static str = "recovering";
     /// Wire value for Ended state.
     pub const ENDED_WIRE: &'static str = "ended";
     /// Wire value for Error state.
@@ -64,6 +68,7 @@ impl PlaybackState {
             Self::Playing => Self::PLAYING_WIRE,
             Self::Paused => Self::PAUSED_WIRE,
             Self::Buffering => Self::BUFFERING_WIRE,
+            Self::Recovering => Self::RECOVERING_WIRE,
             Self::Ended => Self::ENDED_WIRE,
             Self::Error => Self::ERROR_WIRE,
         }

@@ -47,6 +47,34 @@ internal object FakePandaEngineReducer {
             updatedAtEpochMillis = nowMillis
         )
 
+        EngineCommand.TYPE_LOAD_HISTORY_SETTINGS -> current.copy(
+            hasHistorySettings = true,
+            historyEnabled = true,
+            updatedAtEpochMillis = nowMillis,
+        )
+
+        EngineCommand.TYPE_LIST_HISTORY -> current.copy(
+            hasHistorySettings = true,
+            historyEnabled = true,
+            historyEntriesCount = 2,
+            hasHistoryNextPage = true,
+            updatedAtEpochMillis = nowMillis,
+        )
+
+        EngineCommand.TYPE_LOAD_NEXT_HISTORY_PAGE -> current.copy(
+            historyEntriesCount = 1,
+            hasHistoryNextPage = false,
+            updatedAtEpochMillis = nowMillis,
+        )
+
+        EngineCommand.TYPE_CLEAR_HISTORY -> current.copy(
+            historyEntriesCount = 0,
+            hasHistoryNextPage = false,
+            historyDeletedCount = current.historyEntriesCount.toLong(),
+            historyGeneration = current.historyGeneration + 1,
+            updatedAtEpochMillis = nowMillis,
+        )
+
         EngineCommand.TYPE_PLAY_MEDIA_BY_ID -> {
             val mediaId = EngineCommandPayloads.parseMediaId(command.payload)
             current.copy(

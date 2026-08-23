@@ -73,6 +73,7 @@ class PandaEngineNativeSnapshotMapperTest {
                 9L,
                 2L,
                 3L,
+                11L,
             )
         )
         val snapshot = projection.snapshot
@@ -141,6 +142,7 @@ class PandaEngineNativeSnapshotMapperTest {
         assertEquals(9, snapshot.recommendationsResultsCount)
         assertEquals(EngineBackendAvailability.UNAVAILABLE, snapshot.backendAvailability.status)
         assertEquals(EngineBackendAvailability.REASON_TIMEOUT, snapshot.backendAvailability.reason)
+        assertEquals(11L, snapshot.historyGeneration)
     }
 
     @Test
@@ -154,7 +156,7 @@ class PandaEngineNativeSnapshotMapperTest {
 
     @Test
     fun `available native backend projection is surfaced as available`() {
-        val nativeValues = LongArray(60)
+        val nativeValues = LongArray(61)
         nativeValues[58] = 1L
 
         val snapshot = PandaEngineNativeSnapshotMapper.toProjection(nativeValues).snapshot
@@ -165,7 +167,7 @@ class PandaEngineNativeSnapshotMapperTest {
 
     @Test
     fun `network outage native backend projection preserves its reason`() {
-        val nativeValues = LongArray(60)
+        val nativeValues = LongArray(61)
         nativeValues[58] = 2L
         nativeValues[59] = 1L
 
@@ -257,6 +259,35 @@ class PandaEngineNativeSnapshotMapperTest {
         val publicSurface = com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineLibraryItem::class.java
             .declaredFields.joinToString(" ") { it.name }.lowercase()
         assertFalse(publicSurface.contains("token"))
+        assertFalse(publicSurface.contains("credential"))
+    }
+
+    @Test
+    fun `history item payloads expose bounded service neutral rows`() {
+        val item = PandaEngineNativeHistoryItemMapper.toDomain(
+            arrayOf("history-1", "track-1", "Played Track", "Artist", "Album", "art-1", "1234", "90000", "0.75", "1")
+        )
+        val unavailable = PandaEngineNativeHistoryItemMapper.toDomain(
+            arrayOf("history-2", "", "Unavailable track", "", "", "", "", "1000", "1", "0")
+        )
+
+        assertEquals("history-1", item?.historyId)
+        assertEquals("track-1", item?.mediaId)
+        assertEquals("Played Track", item?.title)
+        assertEquals("Artist", item?.artist)
+        assertEquals("Album", item?.album)
+        assertEquals("art-1", item?.artworkUri)
+        assertEquals(1_234L, item?.playedAtEpochMillis)
+        assertEquals(90_000L, item?.listenedDurationMillis)
+        assertEquals(0.75F, item?.completionRatio)
+        assertTrue(item?.playable == true)
+        assertEquals(null, unavailable?.mediaId)
+        assertFalse(unavailable?.playable == true)
+
+        val publicSurface = com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryItem::class.java
+            .declaredFields.joinToString(" ") { it.name }.lowercase()
+        assertFalse(publicSurface.contains("token"))
+        assertFalse(publicSurface.contains("cursor"))
         assertFalse(publicSurface.contains("credential"))
     }
 

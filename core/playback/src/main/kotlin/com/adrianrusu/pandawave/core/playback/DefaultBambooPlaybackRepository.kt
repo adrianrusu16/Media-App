@@ -87,6 +87,11 @@ class DefaultBambooPlaybackRepository(
     }
 
     override fun dispatch(intent: BambooPlaybackIntent) {
+        if (intent is BambooPlaybackIntent.SetVolume) {
+            setVolume(intent.volume)
+            return
+        }
+
         telemetryLogger.debug(
             name = PlaybackTelemetryEvents.INTENT_RECEIVED,
             attributes = mapOf(
@@ -131,6 +136,8 @@ class DefaultBambooPlaybackRepository(
                 payload = EngineCommandPayloads.playbackSpeed(intent.speed),
                 sourceIntent = intent
             )
+
+            is BambooPlaybackIntent.SetVolume -> error("Volume intents are handled before engine dispatch")
 
             is BambooPlaybackIntent.PlayMedia -> dispatchEngineCommand(
                 commandType = EngineCommand.TYPE_PLAY_MEDIA_BY_ID,
@@ -277,6 +284,15 @@ class DefaultBambooPlaybackRepository(
         )
     }
 
+    private fun setVolume(volume: Float) {
+        val normalizedVolume = volume.coerceIn(MIN_VOLUME, MAX_VOLUME)
+        if (state.value.volume == normalizedVolume) {
+            return
+        }
+
+        updateState { current -> current.copy(volume = normalizedVolume) }
+    }
+
     private fun dispatchEngineCommand(
         commandType: String,
         payload: String? = null,
@@ -413,6 +429,9 @@ internal object AutomotiveTelemetryAttributes {
     const val PREVIOUS_STATE = "previous_state"
     const val CURRENT_STATE = "current_state"
 }
+
+private const val MIN_VOLUME = 0F
+private const val MAX_VOLUME = 1F
 
 private fun BambooPlaybackState.fromEngineResult(result: EngineDispatchResult): BambooPlaybackState =
     BambooPlaybackStateProjector.fromEngineEvent(

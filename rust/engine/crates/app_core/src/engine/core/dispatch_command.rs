@@ -33,6 +33,15 @@ impl Engine {
 
         self.sync_auth_state_projection();
 
+        match &command.command_type {
+            EngineCommandType::Play => self.recovery.desired_play_when_ready = true,
+            EngineCommandType::Pause => self.recovery.desired_play_when_ready = false,
+            EngineCommandType::PlayMediaById { .. } | EngineCommandType::PlayQueue { .. } => {
+                self.recovery.desired_play_when_ready = true;
+            }
+            _ => {}
+        }
+
         let prev_playback_state = self.snapshot.playback_state;
 
         let next_playback_state =

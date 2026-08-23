@@ -315,7 +315,8 @@ pub unsafe extern "C" fn panda_engine_get_effect_media_id(
         let effects = engine.last_effects.lock().unwrap();
         if let Some(effect) = effects.get(index) {
             let media_id = match effect {
-                EngineEffect::PreparePlaybackSource { media_id, .. } => Some(media_id),
+                EngineEffect::PreparePlaybackSource { media_id, .. }
+                | EngineEffect::RecreatePlayerAndLoad { media_id, .. } => Some(media_id),
                 EngineEffect::UpdateMetadata { media_id, .. } => Some(media_id),
                 _ => None,
             };
@@ -338,8 +339,16 @@ pub unsafe extern "C" fn panda_engine_get_effect_position_millis(
     let engine = unsafe { engine.as_ref() };
     if let Some(engine) = engine {
         let effects = engine.last_effects.lock().unwrap();
-        if let Some(EngineEffect::Seek(position_millis)) = effects.get(index) {
-            return (*position_millis).try_into().unwrap_or(i64::MAX);
+        match effects.get(index) {
+            Some(EngineEffect::Seek(position_millis)) => {
+                return (*position_millis).try_into().unwrap_or(i64::MAX);
+            }
+            Some(EngineEffect::RecreatePlayerAndLoad {
+                position_millis, ..
+            }) => {
+                return (*position_millis).try_into().unwrap_or(i64::MAX);
+            }
+            _ => {}
         }
     }
     -1
@@ -353,8 +362,18 @@ pub unsafe extern "C" fn panda_engine_get_effect_playback_instance_id(
     let engine = unsafe { engine.as_ref() };
     if let Some(engine) = engine {
         let effects = engine.last_effects.lock().unwrap();
-        if let Some(EngineEffect::PreparePlaybackSource { playback_instance_id, .. }) = effects.get(index) {
-            return (*playback_instance_id).try_into().unwrap_or(i64::MAX);
+        match effects.get(index) {
+            Some(EngineEffect::PreparePlaybackSource {
+                playback_instance_id,
+                ..
+            })
+            | Some(EngineEffect::RecreatePlayerAndLoad {
+                playback_instance_id,
+                ..
+            }) => {
+                return (*playback_instance_id).try_into().unwrap_or(i64::MAX);
+            }
+            _ => {}
         }
     }
     -1

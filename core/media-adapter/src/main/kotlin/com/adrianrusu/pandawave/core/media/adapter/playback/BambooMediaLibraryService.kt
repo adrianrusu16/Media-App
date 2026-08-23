@@ -1,5 +1,9 @@
 package com.adrianrusu.pandawave.core.media.adapter.playback
 
+import android.os.Handler
+import android.os.Looper
+import android.widget.Toast
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
@@ -39,11 +43,12 @@ class BambooMediaLibraryService : MediaLibraryService() {
     private var commandAvailabilityProjector: BambooMediaSessionCommandAvailabilityProjector? = null
     private var audioFocusHandler: BambooAudioFocusHandler? = null
     private var audioSessionObserver: ExoPlayerAudioSessionObserver? = null
+    private val mainThreadHandler = Handler(Looper.getMainLooper())
 
     override fun onCreate() {
         super.onCreate()
 
-        val exoPlayer = ExoPlayer.Builder(this).build()
+        val exoPlayer = newPlayer()
         val exoPlayerAudioSessionObserver = ExoPlayerAudioSessionObserver(
             player = exoPlayer,
             repository = audioSessionRepository
@@ -58,25 +63,38 @@ class BambooMediaLibraryService : MediaLibraryService() {
             }
         )
         val effectExecutor = Media3EngineEffectExecutor(
-            player = PlayerMedia3EffectPlayer(exoPlayer),
+            player = { PlayerMedia3EffectPlayer(checkNotNull(player)) },
             audioFocusController = focusHandler,
             telemetryLogger = telemetryLogger,
-            currentProjection = { playbackRepository.state.value.toMediaSessionStateProjection() }
+            currentProjection = { playbackRepository.state.value.toMediaSessionStateProjection() },
+            recreatePlayer = ::recreatePlayerForDecoderFailure,
+            notifyUser = ::showPlaybackFailure
         )
         playbackEngineBridge = Media3PlaybackEngineBridge(
             playbackRepository = playbackRepository,
             telemetryLogger = telemetryLogger,
             effectExecutor = effectExecutor,
             playbackMetricsProvider = PlaybackCompletionMetricsProvider {
+                val currentPlayer = checkNotNull(player)
                 PlaybackCompletionMetrics(
-                    positionMillis = exoPlayer.currentPosition,
-                    durationMillis = exoPlayer.duration,
+                    positionMillis = currentPlayer.currentPosition,
+                    durationMillis = currentPlayer.duration,
                 )
             },
             playbackInstanceIdProvider = {
-                exoPlayer.currentMediaItem?.localConfiguration?.tag as? Long
+                player?.currentMediaItem?.localConfiguration?.tag as? Long
+            },
+            playerSnapshotProvider = {
+                player?.let { currentPlayer ->
+                    Media3PlayerSnapshot(
+                        positionMillis = currentPlayer.currentPosition,
+                        playWhenReady = currentPlayer.playWhenReady
+                    )
+                }
             }
         )
+        // The player owns the initial value; keep shared playback state in sync before projection starts.
+        playbackEngineBridge.dispatchVolume(exoPlayer.volume)
         val sessionPlayer = BambooMediaSessionPlayer(
             delegate = exoPlayer,
             playbackEngineBridge = playbackEngineBridge,
@@ -123,6 +141,76 @@ class BambooMediaLibraryService : MediaLibraryService() {
         playbackStateProjector.start()
         mediaCommandAvailabilityProjector.start()
         exoPlayer.addListener(playbackEngineBridge)
+    }
+
+    /**
+     * A fatal decoder error leaves Media3 in an unusable idle state. Rebuild every
+     * Android-owned object that holds the old player, then let the explicit engine
+     * effect load the same already-resolved source under a new instance id.
+     */
+    private fun recreatePlayerForDecoderFailure() {
+        val bridge = engineBridge ?: return
+        val focusHandler = audioFocusHandler ?: return
+        val previousPlayer = player ?: return
+
+        previousPlayer.removeListener(bridge)
+        audioSessionObserver?.stop()
+        audioSessionObserver = null
+        stateProjector?.close()
+        stateProjector = null
+        session?.release()
+        session = null
+        previousPlayer.release()
+
+        val exoPlayer = newPlayer()
+        val observer = ExoPlayerAudioSessionObserver(
+            player = exoPlayer,
+            repository = audioSessionRepository
+        ).also(ExoPlayerAudioSessionObserver::start)
+        val sessionPlayer = BambooMediaSessionPlayer(
+            delegate = exoPlayer,
+            playbackEngineBridge = bridge,
+            controlsEnabled = { playbackRepository.state.value.canDispatchEngineCommands },
+            controls = { playbackRepository.state.value.controls }
+        )
+        val mediaLibrarySession = MediaLibrarySession.Builder(
+            this,
+            sessionPlayer,
+            BambooMediaLibrarySessionCallback(
+                controlsEnabled = { playbackRepository.state.value.canDispatchEngineCommands },
+                controls = { playbackRepository.state.value.controls },
+                catalog = BambooMediaLibraryCatalog(
+                    source = EngineBambooCatalogSource(
+                        playbackBridge = bridge,
+                        engineGateway = engineGateway
+                    )
+                ),
+                playbackBridge = bridge
+            )
+        ).build()
+        val projector = BambooMediaSessionStateProjector(
+            playbackRepository = playbackRepository,
+            sink = Media3PlayerStateSink(exoPlayer),
+            playbackEngineBridge = bridge
+        )
+
+        player = exoPlayer
+        session = mediaLibrarySession
+        audioSessionObserver = observer
+        stateProjector = projector
+        exoPlayer.addListener(bridge)
+        projector.start()
+    }
+
+    private fun newPlayer(): ExoPlayer = ExoPlayer.Builder(this)
+        // Try an alternate platform decoder before full player recreation.
+        .setRenderersFactory(DefaultRenderersFactory(this).setEnableDecoderFallback(true))
+        .build()
+
+    private fun showPlaybackFailure(message: String) {
+        mainThreadHandler.post {
+            Toast.makeText(applicationContext, message, Toast.LENGTH_LONG).show()
+        }
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? = session

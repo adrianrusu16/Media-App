@@ -20,6 +20,10 @@ impl StateMachine {
             (PlaybackState::Buffering, EngineCommandType::Pause) => PlaybackState::Paused,
             (PlaybackState::Buffering, _) => PlaybackState::Buffering,
 
+            // State: Recovering
+            (PlaybackState::Recovering, EngineCommandType::Pause) => PlaybackState::Paused,
+            (PlaybackState::Recovering, _) => PlaybackState::Recovering,
+
             // State: Playing
             (PlaybackState::Playing, EngineCommandType::Pause) => PlaybackState::Paused,
 
@@ -48,6 +52,14 @@ impl StateMachine {
                 PlaybackState::Playing
             }
             (PlaybackState::Buffering, EnginePlatformEventType::MediaError) => PlaybackState::Error,
+
+            // State: Recovering
+            (PlaybackState::Recovering, EnginePlatformEventType::MediaLoaded) => {
+                PlaybackState::Playing
+            }
+            (PlaybackState::Recovering, EnginePlatformEventType::MediaError) => {
+                PlaybackState::Error
+            }
 
             // State: Playing
             (PlaybackState::Playing, EnginePlatformEventType::MediaError) => PlaybackState::Error,

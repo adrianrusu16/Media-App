@@ -50,6 +50,7 @@ struct RecordingHistoryPort {
     enabled: Mutex<bool>,
     records: Mutex<Vec<EnginePlaybackRecord>>,
     entries: Mutex<Vec<EngineHistoryEntry>>,
+    list_requests: Mutex<Vec<EnginePageRequest>>,
     deleted_ids: Mutex<Vec<String>>,
     clear_count: Mutex<u64>,
 }
@@ -59,13 +60,8 @@ impl RecordingHistoryPort {
         Self {
             enabled: Mutex::new(enabled),
             records: Mutex::new(Vec::new()),
-            entries: Mutex::new(vec![EngineHistoryEntry {
-                id: "history-1".into(),
-                played_at_epoch_millis: Some(1_234),
-                duration_millis: 4_000,
-                completion_ratio: 0.75,
-                track: None,
-            }]),
+            entries: Mutex::new(vec![history_entry("history-1")]),
+            list_requests: Mutex::new(Vec::new()),
             deleted_ids: Mutex::new(Vec::new()),
             clear_count: Mutex::new(0),
         }
@@ -112,11 +108,17 @@ impl HistoryPort for RecordingHistoryPort {
     async fn list(
         &self,
         _: &EngineHistoryIdentity,
-        _: EnginePageRequest,
+        page: EnginePageRequest,
     ) -> Result<EnginePagedResult<EngineHistoryEntry>, panda_engine_core::EngineError> {
+        let is_next = page.page_token.is_some();
+        self.list_requests.lock().unwrap().push(page);
         Ok(EnginePagedResult {
-            items: self.entries.lock().unwrap().clone(),
-            next_page_token: Some(EnginePageToken::new("opaque+/=".into()).unwrap()),
+            items: if is_next {
+                vec![history_entry("history-2")]
+            } else {
+                self.entries.lock().unwrap().clone()
+            },
+            next_page_token: (!is_next).then(|| EnginePageToken::new("opaque+/=".into()).unwrap()),
         })
     }
 
@@ -137,6 +139,16 @@ impl HistoryPort for RecordingHistoryPort {
         let deleted = self.entries.lock().unwrap().drain(..).count() as u64;
         *self.clear_count.lock().unwrap() += 1;
         Ok(deleted)
+    }
+}
+
+fn history_entry(id: &str) -> EngineHistoryEntry {
+    EngineHistoryEntry {
+        id: id.into(),
+        played_at_epoch_millis: Some(1_234),
+        duration_millis: 4_000,
+        completion_ratio: 0.75,
+        track: None,
     }
 }
 
@@ -237,6 +249,71 @@ async fn disabling_history_purges_projected_pages_and_accepts_deleted_count() {
     );
     assert_eq!(outcome.snapshot.history_deleted_count, 1);
     assert!(outcome.snapshot.history_entries.is_empty());
+}
+
+#[tokio::test]
+async fn history_pages_are_bounded_and_do_not_accumulate_in_snapshot() {
+    let port = Arc::new(RecordingHistoryPort::new(true));
+    let auth = Arc::new(MutableAuth::authenticated("account-1", "session-1"));
+    let mut engine = engine(port.clone(), auth);
+
+    let first = engine.dispatch(EngineCommand::list_history(250), 1).await;
+    assert_eq!(
+        port.list_requests.lock().unwrap()[0].page_size,
+        50,
+        "engine clamps oversized history pages before calling the port",
+    );
+    assert_eq!(
+        first
+            .snapshot
+            .history_entries
+            .iter()
+            .map(|entry| entry.id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["history-1"],
+    );
+    assert!(first.snapshot.history_next_page_token.is_some());
+
+    let next = engine
+        .dispatch(EngineCommand::load_next_history_page(), 2)
+        .await;
+
+    assert_eq!(
+        port.list_requests.lock().unwrap()[1]
+            .page_token
+            .as_ref()
+            .map(EnginePageToken::as_str),
+        Some("opaque+/="),
+    );
+    assert_eq!(
+        next.snapshot
+            .history_entries
+            .iter()
+            .map(|entry| entry.id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["history-2"],
+        "next page replaces the projected page instead of creating a full loaded-history snapshot",
+    );
+    assert!(next.snapshot.history_next_page_token.is_none());
+}
+
+#[tokio::test]
+async fn history_generation_changes_invalidate_projected_pages() {
+    let port = Arc::new(RecordingHistoryPort::new(true));
+    let auth = Arc::new(MutableAuth::authenticated("account-1", "session-1"));
+    let mut engine = engine(port.clone(), auth);
+    engine.dispatch(EngineCommand::list_history(25), 1).await;
+
+    let outcome = engine
+        .dispatch_platform_event(
+            EnginePlatformEvent::playback_completed("track-1", 1_000, 1.0),
+            2,
+        )
+        .await;
+
+    assert_eq!(outcome.snapshot.history_state.generation, 1);
+    assert!(outcome.snapshot.history_entries.is_empty());
+    assert!(outcome.snapshot.history_next_page_token.is_none());
 }
 
 #[tokio::test]

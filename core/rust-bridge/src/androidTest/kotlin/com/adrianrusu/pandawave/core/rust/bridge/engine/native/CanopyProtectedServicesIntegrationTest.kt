@@ -130,7 +130,8 @@ class CanopyProtectedServicesIntegrationTest {
                         primary,
                         EngineCommand.TYPE_LOAD_NEXT_HISTORY_PAGE
                     )
-                    assertEquals(firstHistoryPageCount + 1, historyEntries.historyEntriesCount)
+                    assertEquals(firstHistoryPageCount, historyEntries.historyEntriesCount)
+                    assertNotNull(primary.historyEntry(0))
                     dispatchSuccess(
                         primary,
                         EngineCommand.TYPE_UPDATE_HISTORY_SETTINGS,
