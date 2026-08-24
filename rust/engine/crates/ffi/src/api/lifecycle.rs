@@ -78,7 +78,7 @@ pub unsafe extern "C" fn panda_engine_set_observer(
         engine.observer = Some(observer.clone());
         engine
             .engine
-            .with_engine(|e| e.event_bus().subscribe(Box::new(observer)));
+            .with_engine(move |e| e.event_bus().subscribe(Box::new(observer)));
     }
 }
 
@@ -95,8 +95,9 @@ pub unsafe extern "C" fn panda_engine_tick(
     if let Some(engine) = engine {
         let outcomes =
             match run_future_safely(&engine.runtime, engine.engine.tick(now_epoch_millis)) {
-                Some(outcomes) => outcomes,
+                Some(Ok(outcomes)) => outcomes,
                 None => return 0,
+                Some(Err(_)) => return 0,
             };
         if let Some(last) = outcomes.last() {
             remember_outcome(engine, last);
@@ -134,7 +135,7 @@ pub unsafe extern "C" fn panda_engine_enable_vosk(
             Ok(vosk) => {
                 engine
                     .engine
-                    .with_engine(|e| e.set_voice_engine(Box::new(vosk)));
+                    .with_engine(move |e| e.set_voice_engine(Box::new(vosk)));
                 true
             }
             Err(e) => {

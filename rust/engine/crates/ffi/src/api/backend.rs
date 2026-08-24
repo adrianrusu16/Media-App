@@ -109,8 +109,9 @@ fn finish_configuration(
     let session_store = engine.session_store.lock().unwrap().clone();
     let composition = compose_backend(&channel, session_store.clone());
     let session = composition.session.clone();
+    let engine_session = session.clone();
 
-    engine.engine.with_engine(|inner| {
+    engine.engine.with_engine(move |inner| {
         inner.set_repository(Box::new(composition.repository));
         inner.set_playback_port(composition.playback);
         inner.set_discovery_port(composition.discovery);
@@ -120,7 +121,7 @@ fn finish_configuration(
         inner.set_playlist_port(composition.playlist);
         inner.set_account_port(composition.account);
         inner.set_system_port(composition.system);
-        inner.set_auth_state_provider(session.clone());
+        inner.set_auth_state_provider(engine_session);
         inner.set_backend_availability(panda_engine_core::BackendAvailability::Connecting);
     });
     *engine.auth_runtime.lock().unwrap() = Some(crate::engine_handle::EngineAuthRuntime {

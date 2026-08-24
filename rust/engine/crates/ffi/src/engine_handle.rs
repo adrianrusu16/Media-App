@@ -1,10 +1,15 @@
 use std::sync::{Arc, Mutex};
 
+use panda_engine_core::engine::actor::{
+    ActorClockConfig, ActorConfig, ActorFailure, ActorOutcome, ActorOutcomeStatus, ActorStartError,
+    ActorTask, EngineActor, EngineActorHandle, SubmissionError,
+};
+use panda_engine_core::model::config::EngineConfig;
 use panda_engine_core::networking::canopy::CanopyConnectionConfig;
 use panda_engine_core::{
-    ConcurrentEngine, Engine, EngineEffect, EngineEvent, EngineObserver, EngineOutcome,
-    EngineSnapshot, InMemorySessionStore, LoggerMiddleware, MiddlewarePipeline, SessionCoordinator,
-    SessionStore, TelemetryMiddleware,
+    Engine, EngineCommand, EngineEffect, EngineEvent, EngineObserver, EngineOutcome,
+    EnginePlatformEvent, EngineSnapshot, InMemorySessionStore, LoggerMiddleware,
+    MiddlewarePipeline, SessionCoordinator, SessionStore, TelemetryMiddleware,
 };
 use tracing::info;
 
@@ -13,7 +18,7 @@ use crate::mappings::event_to_ffi;
 
 /// Opaque handle to the Rust Engine.
 pub struct PandaEngine {
-    pub(crate) engine: ConcurrentEngine,
+    pub(crate) engine: ActorEngineBridge,
     pub(crate) last_effects: Arc<Mutex<Vec<EngineEffect>>>,
     pub(crate) last_event: Arc<Mutex<Option<EngineEvent>>>,
     pub(crate) observer: Option<Arc<FfiObserver>>,
@@ -22,6 +27,119 @@ pub struct PandaEngine {
     pub(crate) backend_configuration: Mutex<BackendConfigurationState>,
     pub(crate) session_store: Mutex<Arc<dyn SessionStore>>,
     pub(crate) auth_runtime: Mutex<Option<EngineAuthRuntime>>,
+}
+
+pub(crate) struct ActorEngineBridge {
+    handle: EngineActorHandle,
+    runtime: tokio::runtime::Handle,
+    task: Mutex<Option<ActorTask>>,
+}
+
+impl ActorEngineBridge {
+    fn spawn(
+        engine: Engine,
+        runtime: &tokio::runtime::Runtime,
+        config: ActorConfig,
+    ) -> Result<Self, ActorStartError> {
+        let _entered = runtime.enter();
+        let actor = EngineActor::spawn(engine, config)?;
+        let (handle, _events, task) = actor.into_parts();
+        Ok(Self {
+            handle,
+            runtime: runtime.handle().clone(),
+            task: Mutex::new(Some(task)),
+        })
+    }
+
+    pub(crate) async fn dispatch(
+        &self,
+        command: EngineCommand,
+        now_epoch_millis: u64,
+    ) -> Result<EngineOutcome, ActorBridgeError> {
+        self.handle
+            .submit_and_wait(command, now_epoch_millis)
+            .await
+            .map_err(ActorBridgeError::from)
+            .and_then(actor_outcome_to_engine_outcome)
+    }
+
+    pub(crate) async fn dispatch_platform_event(
+        &self,
+        event: EnginePlatformEvent,
+        now_epoch_millis: u64,
+    ) -> Result<EngineOutcome, ActorBridgeError> {
+        self.handle
+            .submit_platform_event_and_wait(event, now_epoch_millis)
+            .await
+            .map_err(ActorBridgeError::from)
+            .and_then(actor_outcome_to_engine_outcome)
+    }
+
+    pub(crate) async fn tick(
+        &self,
+        now_epoch_millis: u64,
+    ) -> Result<Vec<EngineOutcome>, ActorBridgeError> {
+        self.handle
+            .tick_now(now_epoch_millis)
+            .await
+            .map_err(ActorBridgeError::from)
+    }
+
+    pub(crate) fn snapshot(&self) -> EngineSnapshot {
+        self.handle.latest_snapshot().snapshot.as_ref().clone()
+    }
+
+    pub(crate) fn config(&self) -> EngineConfig {
+        self.with_engine(|engine| engine.config().clone())
+    }
+
+    pub(crate) fn with_engine<F, R>(&self, mutation: F) -> R
+    where
+        F: FnOnce(&mut Engine) -> R + Send + 'static,
+        R: Send + 'static,
+    {
+        self.runtime
+            .block_on(self.handle.mutate_engine(mutation))
+            .expect("actor engine mutation failed")
+    }
+}
+
+impl Drop for ActorEngineBridge {
+    fn drop(&mut self) {
+        let _ = self.handle.request_shutdown();
+        if let Some(task) = self.task.lock().unwrap().take() {
+            let _ = self.runtime.block_on(task.wait());
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ActorBridgeError {
+    Submission(SubmissionError),
+    Cancelled,
+    Failed(ActorFailure),
+}
+
+impl From<SubmissionError> for ActorBridgeError {
+    fn from(error: SubmissionError) -> Self {
+        Self::Submission(error)
+    }
+}
+
+fn actor_outcome_to_engine_outcome(
+    outcome: ActorOutcome,
+) -> Result<EngineOutcome, ActorBridgeError> {
+    match outcome.status {
+        ActorOutcomeStatus::Completed => Ok(EngineOutcome {
+            snapshot: outcome.snapshot.as_ref().clone(),
+            event: outcome
+                .event
+                .unwrap_or_else(|| EngineEvent::command_applied(None)),
+            effects: outcome.effects,
+        }),
+        ActorOutcomeStatus::Cancelled(_) => Err(ActorBridgeError::Cancelled),
+        ActorOutcomeStatus::Failed(failure) => Err(ActorBridgeError::Failed(failure)),
+    }
 }
 
 #[derive(Clone)]
@@ -120,7 +238,19 @@ pub(crate) fn build_engine_with_worker_threads(
         .expect("failed to build tokio runtime");
 
     let panda_engine = PandaEngine {
-        engine: ConcurrentEngine::new(engine),
+        engine: ActorEngineBridge::spawn(
+            engine,
+            &runtime,
+            ActorConfig {
+                clock: ActorClockConfig {
+                    start_epoch_millis: now_epoch_millis,
+                    ..ActorClockConfig::default()
+                },
+                split_remote_operations: false,
+                ..ActorConfig::default()
+            },
+        )
+        .expect("failed to spawn PandaEngine actor"),
         last_effects: Arc::new(Mutex::new(Vec::new())),
         last_event: Arc::new(Mutex::new(None)),
         observer: None,

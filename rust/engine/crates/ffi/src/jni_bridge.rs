@@ -145,7 +145,7 @@ pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_eng
     };
     engine
         .engine
-        .with_engine(|inner| inner.set_backend_availability(availability));
+        .with_engine(move |inner| inner.set_backend_availability(availability));
     true.into()
 }
 

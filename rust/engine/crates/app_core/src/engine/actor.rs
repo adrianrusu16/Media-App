@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::collections::{HashMap, HashSet};
 use std::panic::AssertUnwindSafe;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -5,16 +6,18 @@ use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
 use futures_util::FutureExt;
-use tokio::sync::{mpsc, watch};
+use tokio::sync::{mpsc, oneshot, watch};
 use tokio::task::JoinHandle;
 use tokio::time::{Instant, MissedTickBehavior};
 
-use crate::engine::core::Engine;
+use crate::AuthStateProvider;
+use crate::engine::core::{Engine, EngineOutcome};
 use crate::model::auth::AuthState;
 use crate::model::command::{EngineCommand, EngineCommandType};
 use crate::model::effect::EngineEffect;
+use crate::model::event::EngineEvent;
+use crate::model::platform_event::EnginePlatformEvent;
 use crate::model::snapshot::EngineSnapshot;
-use crate::AuthStateProvider;
 
 macro_rules! monotonic_id {
     ($(#[$meta:meta])* $name:ident) => {
@@ -269,6 +272,8 @@ pub struct ActorOutcome {
     pub message_sequence: MessageSequence,
     pub snapshot_revision: SnapshotRevision,
     pub status: ActorOutcomeStatus,
+    pub snapshot: Arc<EngineSnapshot>,
+    pub event: Option<EngineEvent>,
     pub effects: Vec<EngineEffect>,
 }
 
@@ -350,6 +355,7 @@ pub struct ActorConfig {
     pub lifecycle_capacity: usize,
     pub outcome_capacity: usize,
     pub clock: ActorClockConfig,
+    pub split_remote_operations: bool,
 }
 
 impl Default for ActorConfig {
@@ -361,6 +367,7 @@ impl Default for ActorConfig {
             lifecycle_capacity: 4,
             outcome_capacity: 128,
             clock: ActorClockConfig::default(),
+            split_remote_operations: true,
         }
     }
 }
@@ -393,14 +400,69 @@ impl EngineActorHandle {
         let command_id = CommandId::new(self.next_command_id.fetch_add(1, Ordering::Relaxed));
         let message = CommandMessage {
             command_id,
-            command,
+            input: EngineInput::Command(command),
             now_epoch_millis,
+            response: None,
         };
         self.command_tx
             .try_send(message)
             .map(|_| command_id)
             .map_err(|error| {
                 map_try_send_error(error, ActorLane::Command, self.config.command_capacity)
+            })
+    }
+
+    pub async fn submit_and_wait(
+        &self,
+        command: EngineCommand,
+        now_epoch_millis: u64,
+    ) -> Result<ActorOutcome, SubmissionError> {
+        if self.shutting_down.load(Ordering::Acquire) {
+            return Err(SubmissionError::ShuttingDown);
+        }
+
+        let command_id = CommandId::new(self.next_command_id.fetch_add(1, Ordering::Relaxed));
+        let (response_tx, response_rx) = oneshot::channel();
+        let message = CommandMessage {
+            command_id,
+            input: EngineInput::Command(command),
+            now_epoch_millis,
+            response: Some(response_tx),
+        };
+        self.command_tx.try_send(message).map_err(|error| {
+            map_try_send_error(error, ActorLane::Command, self.config.command_capacity)
+        })?;
+        response_rx
+            .await
+            .map_err(|_| SubmissionError::ChannelClosed {
+                lane: ActorLane::Outcome,
+            })
+    }
+
+    pub async fn submit_platform_event_and_wait(
+        &self,
+        event: EnginePlatformEvent,
+        now_epoch_millis: u64,
+    ) -> Result<ActorOutcome, SubmissionError> {
+        if self.shutting_down.load(Ordering::Acquire) {
+            return Err(SubmissionError::ShuttingDown);
+        }
+
+        let command_id = CommandId::new(self.next_command_id.fetch_add(1, Ordering::Relaxed));
+        let (response_tx, response_rx) = oneshot::channel();
+        let message = CommandMessage {
+            command_id,
+            input: EngineInput::PlatformEvent(event),
+            now_epoch_millis,
+            response: Some(response_tx),
+        };
+        self.command_tx.try_send(message).map_err(|error| {
+            map_try_send_error(error, ActorLane::Command, self.config.command_capacity)
+        })?;
+        response_rx
+            .await
+            .map_err(|_| SubmissionError::ChannelClosed {
+                lane: ActorLane::Outcome,
             })
     }
 
@@ -478,6 +540,55 @@ impl EngineActorHandle {
         self.shutting_down.store(true, Ordering::Release);
         Ok(())
     }
+
+    pub async fn tick_now(
+        &self,
+        now_epoch_millis: u64,
+    ) -> Result<Vec<EngineOutcome>, SubmissionError> {
+        let (response_tx, response_rx) = oneshot::channel();
+        self.lifecycle_tx
+            .try_send(LifecycleMessage::ManualTick {
+                now_epoch_millis,
+                response: response_tx,
+            })
+            .map_err(|error| {
+                map_try_send_error(error, ActorLane::Lifecycle, self.config.lifecycle_capacity)
+            })?;
+        response_rx
+            .await
+            .map_err(|_| SubmissionError::ChannelClosed {
+                lane: ActorLane::Outcome,
+            })
+    }
+
+    pub async fn mutate_engine<T, F>(&self, mutation: F) -> Result<T, SubmissionError>
+    where
+        T: Send + 'static,
+        F: FnOnce(&mut Engine) -> T + Send + 'static,
+    {
+        let (response_tx, response_rx) = oneshot::channel();
+        let mutation = Box::new(move |engine: &mut Engine| -> Box<dyn Any + Send> {
+            Box::new(mutation(engine))
+        });
+        self.lifecycle_tx
+            .try_send(LifecycleMessage::MutateEngine {
+                mutation,
+                response: response_tx,
+            })
+            .map_err(|error| {
+                map_try_send_error(error, ActorLane::Lifecycle, self.config.lifecycle_capacity)
+            })?;
+        response_rx
+            .await
+            .map_err(|_| SubmissionError::ChannelClosed {
+                lane: ActorLane::Outcome,
+            })?
+            .downcast::<T>()
+            .map(|value| *value)
+            .map_err(|_| SubmissionError::ChannelClosed {
+                lane: ActorLane::Outcome,
+            })
+    }
 }
 
 fn map_try_send_error<T>(
@@ -494,13 +605,29 @@ fn map_try_send_error<T>(
 #[derive(Debug)]
 struct CommandMessage {
     command_id: CommandId,
-    command: EngineCommand,
+    input: EngineInput,
     now_epoch_millis: u64,
+    response: Option<oneshot::Sender<ActorOutcome>>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
+enum EngineInput {
+    Command(EngineCommand),
+    PlatformEvent(EnginePlatformEvent),
+}
+
+type EngineMutation = Box<dyn FnOnce(&mut Engine) -> Box<dyn Any + Send> + Send>;
+
 enum LifecycleMessage {
     Control(ActorControl),
+    ManualTick {
+        now_epoch_millis: u64,
+        response: oneshot::Sender<Vec<EngineOutcome>>,
+    },
+    MutateEngine {
+        mutation: EngineMutation,
+        response: oneshot::Sender<Box<dyn Any + Send>>,
+    },
     Shutdown,
 }
 
@@ -605,6 +732,7 @@ struct EngineActorState {
     accepted_commands: Vec<CommandId>,
     accepted_set: HashSet<CommandId>,
     terminal_commands: HashSet<CommandId>,
+    command_responses: HashMap<CommandId, oneshot::Sender<ActorOutcome>>,
     pending_operations: HashMap<OperationId, EngineOperation>,
     current_catalog_operation_id: Option<String>,
     current_catalog_next_page_token: Option<crate::EnginePageToken>,
@@ -704,6 +832,27 @@ impl EngineActorState {
                 .await;
                 Ok(None)
             }
+            LifecycleMessage::ManualTick {
+                now_epoch_millis,
+                response,
+            } => {
+                let outcomes = self.process_tick(now_epoch_millis).await;
+                let _ = response.send(outcomes);
+                Ok(None)
+            }
+            LifecycleMessage::MutateEngine { mutation, response } => {
+                let result = mutation(&mut self.engine);
+                let sequence = self.next_sequence();
+                let snapshot_revision = self.publish_snapshot(self.engine.snapshot(), sequence);
+                let _ = response.send(result);
+                self.send_event(ActorEvent::ControlApplied {
+                    control: ActorControl::AuthStateChanged(self.auth_provider.get()),
+                    message_sequence: sequence,
+                    snapshot_revision,
+                })
+                .await;
+                Ok(None)
+            }
             LifecycleMessage::Shutdown => {
                 self.shutting_down.store(true, Ordering::Release);
                 self.drain_queued_commands();
@@ -723,6 +872,8 @@ impl EngineActorState {
                             sequence,
                             snapshot_revision,
                             ActorOutcomeStatus::Cancelled(CancellationReason::ShutdownRequested),
+                            self.current_snapshot(),
+                            None,
                             Vec::new(),
                         )
                         .await;
@@ -737,13 +888,26 @@ impl EngineActorState {
     }
 
     async fn process_command(&mut self, message: CommandMessage) -> Result<(), ActorFailure> {
-        self.accept_command(message.command_id);
+        let CommandMessage {
+            command_id,
+            input,
+            now_epoch_millis,
+            response,
+        } = message;
+        self.accept_command(command_id, response);
 
-        if let Some(operation) = self.prepare_operation(
-            message.command_id,
-            &message.command,
-            message.now_epoch_millis,
-        ) {
+        let command = match input {
+            EngineInput::Command(command) => command,
+            EngineInput::PlatformEvent(event) => {
+                return self
+                    .process_platform_event(command_id, event, now_epoch_millis)
+                    .await;
+            }
+        };
+
+        if self.config.split_remote_operations
+            && let Some(operation) = self.prepare_operation(command_id, &command, now_epoch_millis)
+        {
             self.pending_operations
                 .insert(operation.operation_id, operation.clone());
             self.spawn_operation_worker(&operation);
@@ -756,22 +920,55 @@ impl EngineActorState {
             return Ok(());
         }
 
-        let outcome = AssertUnwindSafe(
-            self.engine
-                .dispatch(message.command, message.now_epoch_millis),
-        )
-        .catch_unwind()
-        .await;
+        let outcome = AssertUnwindSafe(self.engine.dispatch(command, now_epoch_millis))
+            .catch_unwind()
+            .await;
 
         match outcome {
             Ok(outcome) => {
                 let sequence = self.next_sequence();
-                let snapshot_revision = self.publish_snapshot(outcome.snapshot, sequence);
+                let snapshot_revision = self.publish_snapshot(outcome.snapshot.clone(), sequence);
                 self.emit_outcome(
-                    message.command_id,
+                    command_id,
                     sequence,
                     snapshot_revision,
                     ActorOutcomeStatus::Completed,
+                    outcome.snapshot,
+                    Some(outcome.event),
+                    outcome.effects,
+                )
+                .await;
+                Ok(())
+            }
+            Err(_) => {
+                self.fail_all(ActorFailure::Panicked).await;
+                Err(ActorFailure::Panicked)
+            }
+        }
+    }
+
+    async fn process_platform_event(
+        &mut self,
+        command_id: CommandId,
+        event: EnginePlatformEvent,
+        now_epoch_millis: u64,
+    ) -> Result<(), ActorFailure> {
+        let outcome =
+            AssertUnwindSafe(self.engine.dispatch_platform_event(event, now_epoch_millis))
+                .catch_unwind()
+                .await;
+
+        match outcome {
+            Ok(outcome) => {
+                let sequence = self.next_sequence();
+                let snapshot_revision = self.publish_snapshot(outcome.snapshot.clone(), sequence);
+                self.emit_outcome(
+                    command_id,
+                    sequence,
+                    snapshot_revision,
+                    ActorOutcomeStatus::Completed,
+                    outcome.snapshot,
+                    Some(outcome.event),
                     outcome.effects,
                 )
                 .await;
@@ -910,6 +1107,8 @@ impl EngineActorState {
                 sequence,
                 snapshot_revision,
                 ActorOutcomeStatus::Cancelled(CancellationReason::Superseded),
+                self.current_snapshot(),
+                None,
                 Vec::new(),
             )
             .await;
@@ -920,12 +1119,14 @@ impl EngineActorState {
         if let Ok(result) = completion.result {
             self.apply_operation_result(&operation.request, result, &mut snapshot);
         }
-        let snapshot_revision = self.publish_snapshot(snapshot, sequence);
+        let snapshot_revision = self.publish_snapshot(snapshot.clone(), sequence);
         self.emit_outcome(
             completion.command_id,
             sequence,
             snapshot_revision,
             ActorOutcomeStatus::Completed,
+            snapshot,
+            None,
             Vec::new(),
         )
         .await;
@@ -1009,7 +1210,7 @@ impl EngineActorState {
         .await;
     }
 
-    async fn process_tick(&mut self, now_epoch_millis: u64) {
+    async fn process_tick(&mut self, now_epoch_millis: u64) -> Vec<EngineOutcome> {
         let outcomes = self.engine.tick(now_epoch_millis).await;
         let snapshot = outcomes
             .last()
@@ -1023,6 +1224,7 @@ impl EngineActorState {
             snapshot_revision,
         })
         .await;
+        outcomes
     }
 
     async fn fail_all(&mut self, failure: ActorFailure) {
@@ -1037,6 +1239,8 @@ impl EngineActorState {
                     sequence,
                     snapshot_revision,
                     ActorOutcomeStatus::Failed(failure),
+                    self.current_snapshot(),
+                    None,
                     Vec::new(),
                 )
                 .await;
@@ -1046,13 +1250,20 @@ impl EngineActorState {
 
     fn drain_queued_commands(&mut self) {
         while let Ok(message) = self.command_rx.try_recv() {
-            self.accept_command(message.command_id);
+            self.accept_command(message.command_id, message.response);
         }
     }
 
-    fn accept_command(&mut self, command_id: CommandId) {
+    fn accept_command(
+        &mut self,
+        command_id: CommandId,
+        response: Option<oneshot::Sender<ActorOutcome>>,
+    ) {
         if self.accepted_set.insert(command_id) {
             self.accepted_commands.push(command_id);
+            if let Some(response) = response {
+                self.command_responses.insert(command_id, response);
+            }
         }
     }
 
@@ -1062,17 +1273,24 @@ impl EngineActorState {
         message_sequence: MessageSequence,
         snapshot_revision: SnapshotRevision,
         status: ActorOutcomeStatus,
+        snapshot: EngineSnapshot,
+        event: Option<EngineEvent>,
         effects: Vec<EngineEffect>,
     ) {
         self.terminal_commands.insert(command_id);
-        self.send_event(ActorEvent::CommandOutcome(ActorOutcome {
+        let outcome = ActorOutcome {
             command_id,
             message_sequence,
             snapshot_revision,
             status,
+            snapshot: Arc::new(snapshot),
+            event,
             effects,
-        }))
-        .await;
+        };
+        if let Some(response) = self.command_responses.remove(&command_id) {
+            let _ = response.send(outcome.clone());
+        }
+        self.send_event(ActorEvent::CommandOutcome(outcome)).await;
     }
 
     async fn send_event(&self, event: ActorEvent) {
@@ -1240,6 +1458,7 @@ impl EngineActor {
             accepted_commands: Vec::new(),
             accepted_set: HashSet::new(),
             terminal_commands: HashSet::new(),
+            command_responses: HashMap::new(),
             pending_operations: HashMap::new(),
             current_catalog_operation_id: None,
             current_catalog_next_page_token: None,

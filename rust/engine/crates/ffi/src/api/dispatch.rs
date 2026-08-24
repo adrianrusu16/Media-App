@@ -204,8 +204,9 @@ fn dispatch_voice_chunk(
         &engine.runtime,
         engine.engine.dispatch(command, now_epoch_millis),
     ) {
-        Some(outcome) => outcome,
+        Some(Ok(outcome)) => outcome,
         None => return FfiEngineOutcome::invalid(),
+        Some(Err(_)) => return FfiEngineOutcome::invalid(),
     };
     remember_outcome(engine, &outcome);
     FfiEngineOutcome::from((&outcome, FFI_COMMAND_PROCESS_VOICE))
@@ -380,8 +381,9 @@ pub unsafe extern "C" fn panda_engine_dispatch(
                 &engine.runtime,
                 engine.engine.dispatch(command, now_epoch_millis),
             ) {
-                Some(outcome) => outcome,
+                Some(Ok(outcome)) => outcome,
                 None => return FfiEngineOutcome::invalid(),
+                Some(Err(_)) => return FfiEngineOutcome::invalid(),
             };
             remember_outcome(engine, &outcome);
             FfiEngineOutcome::from((&outcome, command_type))
@@ -452,8 +454,9 @@ pub unsafe extern "C" fn panda_engine_dispatch_platform_event(
                     now_epoch_millis,
                 ),
             ) {
-                Some(outcome) => outcome,
+                Some(Ok(outcome)) => outcome,
                 None => return FfiEngineOutcome::invalid(),
+                Some(Err(_)) => return FfiEngineOutcome::invalid(),
             };
             remember_outcome(engine, &outcome);
             FfiEngineOutcome::from((&outcome, FFI_COMMAND_UNKNOWN))

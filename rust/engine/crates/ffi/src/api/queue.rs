@@ -37,7 +37,9 @@ pub unsafe extern "C" fn panda_engine_queue_set_items(
                 ..Default::default()
             });
         }
-        engine.engine.with_engine(|e| e.queue().set_items(items));
+        engine
+            .engine
+            .with_engine(move |e| e.queue().set_items(items));
     }
 }
 
@@ -55,7 +57,7 @@ pub unsafe extern "C" fn panda_engine_queue_set_repeat_mode(engine: *mut PandaEn
         };
         engine
             .engine
-            .with_engine(|e| e.queue().set_repeat_mode(repeat_mode));
+            .with_engine(move |e| e.queue().set_repeat_mode(repeat_mode));
     }
 }
 
@@ -68,6 +70,6 @@ pub unsafe extern "C" fn panda_engine_queue_set_shuffle(engine: *mut PandaEngine
     if let Some(engine) = engine {
         engine
             .engine
-            .with_engine(|e| e.queue().set_shuffle(enabled));
+            .with_engine(move |e| e.queue().set_shuffle(enabled));
     }
 }
