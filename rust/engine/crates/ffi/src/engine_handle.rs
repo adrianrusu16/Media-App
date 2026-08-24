@@ -111,6 +111,7 @@ pub(crate) fn build_engine_with_worker_threads(
     engine.set_middleware(pipeline);
 
     let worker_threads = sanitize_runtime_worker_threads(worker_threads);
+    crate::perfetto_trace::counter("PW.Native.runtimeWorkers", worker_threads as i64);
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(worker_threads)
         .thread_name("panda-engine")

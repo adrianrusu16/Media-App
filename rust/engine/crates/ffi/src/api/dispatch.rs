@@ -222,6 +222,7 @@ pub unsafe extern "C" fn panda_engine_dispatch(
     payload: *const c_char,
     now_epoch_millis: u64,
 ) -> FfiEngineOutcome {
+    let _trace = crate::perfetto_trace::section("PW.Native.dispatch");
     let engine = unsafe { engine.as_mut() };
     let payload_str = if payload.is_null() {
         None
@@ -429,6 +430,7 @@ pub unsafe extern "C" fn panda_engine_dispatch_platform_event(
     payload: *const c_char,
     now_epoch_millis: u64,
 ) -> FfiEngineOutcome {
+    let _trace = crate::perfetto_trace::section("PW.Native.platformEvent");
     let engine = unsafe { engine.as_mut() };
     match engine {
         Some(engine) => {

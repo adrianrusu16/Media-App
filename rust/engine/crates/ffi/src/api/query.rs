@@ -13,6 +13,7 @@ use crate::{FfiEngineConfig, FfiEngineSnapshot, PandaEngine};
 /// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
 /// - The caller must ensure no concurrent mutable access while this function reads engine state.
 pub unsafe extern "C" fn panda_engine_snapshot(engine: *const PandaEngine) -> FfiEngineSnapshot {
+    let _trace = crate::perfetto_trace::section("PW.Native.snapshot");
     let engine = unsafe { engine.as_ref() };
     match engine {
         Some(engine) => FfiEngineSnapshot::from(&engine.engine.snapshot()),

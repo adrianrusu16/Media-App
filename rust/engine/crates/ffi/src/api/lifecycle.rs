@@ -54,6 +54,7 @@ pub extern "C" fn panda_engine_init_logging(max_level: i32) {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn panda_engine_create(now_epoch_millis: u64) -> *mut PandaEngine {
+    let _trace = crate::perfetto_trace::section("PW.Native.create");
     Box::into_raw(Box::new(build_engine(now_epoch_millis)))
 }
 
@@ -89,6 +90,7 @@ pub unsafe extern "C" fn panda_engine_tick(
     engine: *mut PandaEngine,
     now_epoch_millis: u64,
 ) -> usize {
+    let _trace = crate::perfetto_trace::section("PW.Native.tick");
     let engine = unsafe { engine.as_mut() };
     if let Some(engine) = engine {
         let outcomes =
