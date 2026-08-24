@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::Duration;
 
 use crate::engine::core::Engine;
 use crate::model::command::EngineCommand;
@@ -91,25 +92,77 @@ pub enum OperationGeneration {
     Playback(PlaybackInstanceId),
 }
 
-/// Internal asynchronous work envelope. `Request` is immutable owned data; an
-/// operation worker receives this envelope rather than `Engine` or any engine
-/// lock. Task 4 supplies the concrete request enum and effect supervisor.
+/// Immutable request data for work performed outside the state-owning actor.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct EngineOperation<Request> {
-    pub operation_id: OperationId,
-    pub command_id: CommandId,
-    pub generation: OperationGeneration,
-    pub request: Request,
+pub enum EngineOperationRequest {
+    AccountProjection {
+        identity: crate::EngineAccountIdentity,
+    },
+    SearchPage {
+        query: String,
+        page: crate::EnginePageRequest,
+        catalog_operation_id: Option<String>,
+    },
+    PlaylistPage {
+        identity: crate::EnginePlaylistIdentity,
+        page: crate::EnginePageRequest,
+    },
+    HistorySettings {
+        identity: crate::EngineHistoryIdentity,
+    },
+    PlaybackResolution {
+        media_id: String,
+    },
 }
 
-/// Typed completion envelope returned by an operation worker. The generation
-/// captured at launch remains attached through completion validation.
-#[derive(Clone, Debug, PartialEq)]
-pub struct EngineOperationCompletion<Output> {
+/// Internal asynchronous work envelope. A worker receives this immutable value
+/// rather than `Engine` or any engine lock.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EngineOperation {
     pub operation_id: OperationId,
     pub command_id: CommandId,
     pub generation: OperationGeneration,
-    pub result: Result<Output, crate::model::error::EngineError>,
+    pub request: EngineOperationRequest,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum EngineOperationResult {
+    AccountProjection(crate::Account),
+    SearchPage {
+        catalog_operation_id: String,
+        items: Vec<crate::MediaItem>,
+        next_page_token: Option<crate::EnginePageToken>,
+    },
+    PlaylistPage {
+        playlists: Vec<crate::EnginePlaylist>,
+        next_page_token: Option<crate::EnginePageToken>,
+    },
+    HistorySettings(crate::EngineHistorySettings),
+    PlaybackResolved(crate::EnginePlaybackSource),
+}
+
+/// Typed completion returned through the reliable completion ingress. The
+/// generation captured at launch remains attached through validation.
+#[derive(Clone, Debug, PartialEq)]
+pub struct EngineOperationCompletion {
+    pub operation_id: OperationId,
+    pub command_id: CommandId,
+    pub generation: OperationGeneration,
+    pub result: Result<EngineOperationResult, crate::model::error::EngineError>,
+}
+
+impl EngineOperation {
+    pub fn completion(
+        &self,
+        result: Result<EngineOperationResult, crate::model::error::EngineError>,
+    ) -> EngineOperationCompletion {
+        EngineOperationCompletion {
+            operation_id: self.operation_id,
+            command_id: self.command_id,
+            generation: self.generation,
+            result,
+        }
+    }
 }
 
 /// Actor-owned generation snapshot used to reject late operation completions.
@@ -177,6 +230,7 @@ pub enum ActorLane {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CancellationReason {
     ShutdownRequested,
+    Superseded,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -204,7 +258,15 @@ pub struct ActorOutcome {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ActorEvent {
+    /// Terminal outcomes are ordered by actor processing/terminal readiness,
+    /// not by command acceptance. This permits unrelated commands and later
+    /// operations to complete while earlier remote work is pending. Effects
+    /// inside one outcome retain reducer order.
     CommandOutcome(ActorOutcome),
+    OperationLaunched {
+        operation: EngineOperation,
+        message_sequence: MessageSequence,
+    },
     PlayerFactsApplied {
         facts: PlayerFacts,
         message_sequence: MessageSequence,
@@ -213,6 +275,24 @@ pub enum ActorEvent {
         event: PlayerEdgeEvent,
         message_sequence: MessageSequence,
     },
+    ControlApplied {
+        control: ActorControl,
+        message_sequence: MessageSequence,
+        snapshot_revision: SnapshotRevision,
+    },
+    TickProcessed {
+        now_epoch_millis: u64,
+        message_sequence: MessageSequence,
+        snapshot_revision: SnapshotRevision,
+    },
+    ShutdownStarted {
+        message_sequence: MessageSequence,
+    },
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum ActorControl {
+    AuthStateChanged(crate::AuthState),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -225,7 +305,25 @@ pub enum SubmissionError {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ActorStartError {
     InvalidCapacity(ActorLane),
+    InvalidTickInterval,
     RuntimeNotImplemented,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ActorClockConfig {
+    /// Epoch corresponding to actor start. Scheduled ticks derive their times
+    /// from this value rather than accepting caller-supplied tick timestamps.
+    pub start_epoch_millis: u64,
+    pub tick_interval: Duration,
+}
+
+impl Default for ActorClockConfig {
+    fn default() -> Self {
+        Self {
+            start_epoch_millis: 0,
+            tick_interval: Duration::from_secs(1),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -235,6 +333,7 @@ pub struct ActorConfig {
     pub player_edge_capacity: usize,
     pub lifecycle_capacity: usize,
     pub outcome_capacity: usize,
+    pub clock: ActorClockConfig,
 }
 
 impl Default for ActorConfig {
@@ -245,6 +344,7 @@ impl Default for ActorConfig {
             player_edge_capacity: 32,
             lifecycle_capacity: 4,
             outcome_capacity: 128,
+            clock: ActorClockConfig::default(),
         }
     }
 }
@@ -283,6 +383,21 @@ impl EngineActorHandle {
         })
     }
 
+    pub fn try_complete_operation(
+        &self,
+        _completion: EngineOperationCompletion,
+    ) -> Result<(), SubmissionError> {
+        Err(SubmissionError::ChannelClosed {
+            lane: ActorLane::OperationCompletion,
+        })
+    }
+
+    pub fn try_send_control(&self, _control: ActorControl) -> Result<(), SubmissionError> {
+        Err(SubmissionError::ChannelClosed {
+            lane: ActorLane::Lifecycle,
+        })
+    }
+
     pub fn request_shutdown(&self) -> Result<(), SubmissionError> {
         Err(SubmissionError::ChannelClosed {
             lane: ActorLane::Lifecycle,
@@ -302,8 +417,14 @@ impl EngineActorEventReceiver {
 #[derive(Debug)]
 pub struct ActorTask;
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ActorExit {
+    /// Every accepted command has exactly one entry before a clean wait returns.
+    pub terminal_commands: Vec<CommandId>,
+}
+
 impl ActorTask {
-    pub async fn wait(self) -> Result<(), ActorFailure> {
+    pub async fn wait(self) -> Result<ActorExit, ActorFailure> {
         Err(ActorFailure::RuntimeUnavailable)
     }
 }
@@ -342,6 +463,9 @@ impl EngineActor {
                 return Err(ActorStartError::InvalidCapacity(lane));
             }
         }
+        if config.clock.tick_interval.is_zero() {
+            return Err(ActorStartError::InvalidTickInterval);
+        }
         Err(ActorStartError::RuntimeNotImplemented)
     }
 }
@@ -355,55 +479,5 @@ mod tests {
     #[test]
     fn ffi_handle_is_cloneable_send_and_sync_without_engine_access() {
         assert_clone_send_sync::<EngineActorHandle>();
-    }
-
-    #[test]
-    fn identity_or_session_replacement_rejects_an_older_account_completion() {
-        let current = DomainGenerations {
-            account: AccountGeneration::new(2),
-            ..DomainGenerations::default()
-        };
-
-        assert!(!current.is_current(OperationGeneration::Account(AccountGeneration::new(1))));
-    }
-
-    #[test]
-    fn newer_search_rejects_an_older_search_page_completion() {
-        let current = DomainGenerations {
-            search: SearchGeneration::new(8),
-            ..DomainGenerations::default()
-        };
-
-        assert!(!current.is_current(OperationGeneration::Search(SearchGeneration::new(7))));
-    }
-
-    #[test]
-    fn newer_playlist_work_rejects_an_older_playlist_completion() {
-        let current = DomainGenerations {
-            playlist: PlaylistGeneration::new(12),
-            ..DomainGenerations::default()
-        };
-
-        assert!(!current.is_current(OperationGeneration::Playlist(PlaylistGeneration::new(11))));
-    }
-
-    #[test]
-    fn newer_playback_resolution_rejects_an_older_completion() {
-        let current = DomainGenerations {
-            playback: PlaybackInstanceId::new(22),
-            ..DomainGenerations::default()
-        };
-
-        assert!(!current.is_current(OperationGeneration::Playback(PlaybackInstanceId::new(21))));
-    }
-
-    #[test]
-    fn newer_history_work_rejects_an_older_history_completion() {
-        let current = DomainGenerations {
-            history: HistoryGeneration::new(5),
-            ..DomainGenerations::default()
-        };
-
-        assert!(!current.is_current(OperationGeneration::History(HistoryGeneration::new(4))));
     }
 }

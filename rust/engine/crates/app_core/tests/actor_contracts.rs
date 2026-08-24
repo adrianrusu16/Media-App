@@ -3,15 +3,17 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use panda_engine_core::engine::actor::{
-    ActorConfig, ActorEvent, ActorFailure, ActorLane, ActorOutcome, ActorOutcomeStatus, ActorTask,
-    CancellationReason, EngineActor, EngineActorEventReceiver, EngineActorHandle, PlayerEdgeEvent,
-    PlayerFacts, SubmissionError,
+    ActorClockConfig, ActorConfig, ActorControl, ActorEvent, ActorFailure, ActorLane, ActorOutcome,
+    ActorOutcomeStatus, ActorTask, CancellationReason, EngineActor, EngineActorEventReceiver,
+    EngineActorHandle, EngineOperation, EngineOperationCompletion, EngineOperationResult,
+    MessageSequence, PlaybackInstanceId, PlayerEdgeEvent, PlayerFacts, SubmissionError,
 };
 use panda_engine_core::{
-    Account, AuthSession, AuthState, AuthStateProvider, Engine, EngineCommand, EngineEffect,
-    EngineError, EngineHistoryEntry, EngineHistoryIdentity, EngineHistorySettings,
-    EngineHistorySettingsUpdate, EnginePageRequest, EnginePagedResult, EnginePlaybackRecord,
-    HistoryPort, Middleware, MiddlewarePipeline, ThemePreference,
+    Account, AuthSession, AuthState, AuthStateProvider, Engine, EngineCommand, EngineCommandType,
+    EngineEffect, EngineError, EngineHistoryEntry, EngineHistoryIdentity, EngineHistorySettings,
+    EngineHistorySettingsUpdate, EnginePageRequest, EnginePageToken, EnginePagedResult,
+    EnginePlaybackRecord, EnginePlaybackSource, EnginePlaylist, HistoryPort, MediaItem, Middleware,
+    MiddlewarePipeline, ThemePreference,
 };
 use tokio::sync::Notify;
 use tokio::time::timeout;
@@ -45,6 +47,38 @@ async fn next_outcome(events: &mut EngineActorEventReceiver) -> ActorOutcome {
             return outcome;
         }
     }
+}
+
+async fn next_operation(
+    events: &mut EngineActorEventReceiver,
+) -> (EngineOperation, MessageSequence) {
+    loop {
+        let event = timeout(CONTRACT_TIMEOUT, events.recv())
+            .await
+            .expect("actor operation timed out")
+            .expect("actor event channel closed");
+        if let ActorEvent::OperationLaunched {
+            operation,
+            message_sequence,
+        } = event
+        {
+            return (operation, message_sequence);
+        }
+    }
+}
+
+async fn next_event(events: &mut EngineActorEventReceiver) -> ActorEvent {
+    timeout(CONTRACT_TIMEOUT, events.recv())
+        .await
+        .expect("actor event timed out")
+        .expect("actor event channel closed")
+}
+
+fn complete(
+    operation: &EngineOperation,
+    result: EngineOperationResult,
+) -> EngineOperationCompletion {
+    operation.completion(Ok(result))
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -133,10 +167,10 @@ async fn snapshots_are_immutable_and_revisions_advance_only_for_state_changes() 
     next_outcome(&mut actor.events).await;
     let changed_again = actor.handle.latest_snapshot();
 
-    assert!(changed.revision > initial.revision);
+    assert_eq!(changed.revision.get(), 1);
     assert_eq!(unchanged.revision, changed.revision);
     assert!(Arc::ptr_eq(&unchanged.snapshot, &changed.snapshot));
-    assert!(changed_again.revision > unchanged.revision);
+    assert_eq!(changed_again.revision.get(), 2);
     assert_eq!(
         changed.snapshot.theme_preference.theme,
         ThemePreference::ForestTechDark
@@ -148,10 +182,10 @@ async fn snapshots_are_immutable_and_revisions_advance_only_for_state_changes() 
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn explicit_shutdown_cancels_an_accepted_in_flight_command() {
+async fn shutdown_accounts_for_blocked_and_queued_accepted_commands_before_wait_returns() {
     let (engine, port) = engine_with_blocking_history();
     let mut actor = spawn_actor(engine, ActorConfig::default());
-    let pending = actor
+    let blocked = actor
         .handle
         .try_submit(EngineCommand::load_history_settings(), 10)
         .unwrap();
@@ -159,19 +193,51 @@ async fn explicit_shutdown_cancels_an_accepted_in_flight_command() {
         .await
         .expect("history operation never started");
 
-    actor.handle.request_shutdown().unwrap();
-    let outcome = next_outcome(&mut actor.events).await;
+    let queued = [
+        actor
+            .handle
+            .try_submit(
+                EngineCommand::set_theme_preference(ThemePreference::ForestTechDark),
+                20,
+            )
+            .unwrap(),
+        actor.handle.try_submit(EngineCommand::play(), 30).unwrap(),
+        actor.handle.try_submit(EngineCommand::pause(), 40).unwrap(),
+    ];
+    let accepted = [blocked, queued[0], queued[1], queued[2]];
 
-    assert_eq!(outcome.command_id, pending);
+    actor.handle.request_shutdown().unwrap();
+    let mut outcomes = Vec::new();
+    for _ in accepted {
+        outcomes.push(next_outcome(&mut actor.events).await);
+    }
+
+    assert_eq!(outcomes[0].command_id, blocked);
     assert_eq!(
-        outcome.status,
+        outcomes[0].status,
         ActorOutcomeStatus::Cancelled(CancellationReason::ShutdownRequested)
     );
+    let mut terminal_ids = outcomes
+        .iter()
+        .map(|outcome| {
+            assert!(matches!(
+                outcome.status,
+                ActorOutcomeStatus::Completed
+                    | ActorOutcomeStatus::Cancelled(CancellationReason::ShutdownRequested)
+            ));
+            outcome.command_id
+        })
+        .collect::<Vec<_>>();
+    terminal_ids.sort();
+    let mut expected_ids = accepted.to_vec();
+    expected_ids.sort();
+    assert_eq!(terminal_ids, expected_ids);
     assert_eq!(
         actor.handle.try_submit(EngineCommand::play(), 20),
         Err(SubmissionError::ShuttingDown)
     );
-    actor.task.wait().await.expect("shutdown must be clean");
+    let exit = actor.task.wait().await.expect("shutdown must be clean");
+    assert_eq!(exit.terminal_commands, accepted);
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -214,6 +280,733 @@ async fn slow_remote_work_does_not_block_snapshot_reads_or_unrelated_commands() 
 
     port.release.notify_one();
     assert_eq!(next_outcome(&mut actor.events).await.command_id, slow);
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn account_identity_replacement_applies_current_and_rejects_stale_completion() {
+    let mut actor = spawn_actor(Engine::new(0), ActorConfig::default());
+    apply_auth_state(&mut actor, auth_state("account-1", "session-1")).await;
+    let old_command = actor.handle.try_submit(get_account_command(), 10).unwrap();
+    let (old_operation, _) = next_operation(&mut actor.events).await;
+
+    apply_auth_state(&mut actor, auth_state("account-2", "session-1")).await;
+    let before_stale = actor.handle.latest_snapshot();
+    actor
+        .handle
+        .try_complete_operation(complete(
+            &old_operation,
+            EngineOperationResult::AccountProjection(account("account-1")),
+        ))
+        .unwrap();
+    let stale = next_outcome(&mut actor.events).await;
+
+    assert_eq!(stale.command_id, old_command);
+    assert_eq!(
+        stale.status,
+        ActorOutcomeStatus::Cancelled(CancellationReason::Superseded)
+    );
+    assert_eq!(stale.snapshot_revision, before_stale.revision);
+    assert_eq!(
+        actor.handle.latest_snapshot().revision,
+        before_stale.revision
+    );
+    assert_eq!(
+        actor.handle.latest_snapshot().snapshot.as_ref(),
+        before_stale.snapshot.as_ref()
+    );
+    assert!(
+        actor
+            .handle
+            .latest_snapshot()
+            .snapshot
+            .protected_account
+            .is_none()
+    );
+
+    let current_command = actor.handle.try_submit(get_account_command(), 20).unwrap();
+    let (current_operation, _) = next_operation(&mut actor.events).await;
+    actor
+        .handle
+        .try_complete_operation(complete(
+            &current_operation,
+            EngineOperationResult::AccountProjection(account("account-2")),
+        ))
+        .unwrap();
+    let current = next_outcome(&mut actor.events).await;
+
+    assert_eq!(current.command_id, current_command);
+    assert_eq!(current.status, ActorOutcomeStatus::Completed);
+    assert_eq!(
+        actor
+            .handle
+            .latest_snapshot()
+            .snapshot
+            .protected_account
+            .as_ref()
+            .map(|account| account.id.as_str()),
+        Some("account-2")
+    );
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn account_session_replacement_applies_current_and_rejects_stale_completion() {
+    let mut actor = spawn_actor(Engine::new(0), ActorConfig::default());
+    apply_auth_state(&mut actor, auth_state("account-1", "session-1")).await;
+    let old_command = actor.handle.try_submit(get_account_command(), 10).unwrap();
+    let (old_operation, _) = next_operation(&mut actor.events).await;
+
+    apply_auth_state(&mut actor, auth_state("account-1", "session-2")).await;
+    let before_stale = actor.handle.latest_snapshot();
+    actor
+        .handle
+        .try_complete_operation(complete(
+            &old_operation,
+            EngineOperationResult::AccountProjection(account("account-1")),
+        ))
+        .unwrap();
+    let stale = next_outcome(&mut actor.events).await;
+
+    assert_eq!(stale.command_id, old_command);
+    assert_eq!(
+        stale.status,
+        ActorOutcomeStatus::Cancelled(CancellationReason::Superseded)
+    );
+    assert_eq!(
+        actor.handle.latest_snapshot().revision,
+        before_stale.revision
+    );
+    assert!(
+        actor
+            .handle
+            .latest_snapshot()
+            .snapshot
+            .protected_account
+            .is_none()
+    );
+
+    let current_command = actor.handle.try_submit(get_account_command(), 20).unwrap();
+    let (current_operation, _) = next_operation(&mut actor.events).await;
+    actor
+        .handle
+        .try_complete_operation(complete(
+            &current_operation,
+            EngineOperationResult::AccountProjection(account("account-1")),
+        ))
+        .unwrap();
+    let current = next_outcome(&mut actor.events).await;
+
+    assert_eq!(current.command_id, current_command);
+    assert_eq!(current.status, ActorOutcomeStatus::Completed);
+    assert_eq!(
+        actor.handle.latest_snapshot().snapshot.auth_state,
+        auth_state("account-1", "session-2")
+    );
+    assert!(
+        actor
+            .handle
+            .latest_snapshot()
+            .snapshot
+            .protected_account
+            .is_some()
+    );
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn search_pagination_applies_current_pages_and_rejects_a_stale_continuation() {
+    let mut actor = spawn_actor(Engine::new(0), ActorConfig::default());
+    let first_command = actor
+        .handle
+        .try_submit(EngineCommand::search("first".into()), 10)
+        .unwrap();
+    let (first_operation, _) = next_operation(&mut actor.events).await;
+    actor
+        .handle
+        .try_complete_operation(complete(
+            &first_operation,
+            search_result("search-1", vec![media_item("first-1")], Some("next-1")),
+        ))
+        .unwrap();
+    let first = next_outcome(&mut actor.events).await;
+    assert_eq!(first.command_id, first_command);
+    assert_eq!(first.status, ActorOutcomeStatus::Completed);
+    assert_eq!(
+        actor.handle.latest_snapshot().snapshot.search_results,
+        vec![media_item("first-1")]
+    );
+
+    let continuation_command = actor
+        .handle
+        .try_submit(EngineCommand::load_next_catalog_page("search-1".into()), 20)
+        .unwrap();
+    let (continuation_operation, _) = next_operation(&mut actor.events).await;
+    let replacement_command = actor
+        .handle
+        .try_submit(EngineCommand::search("replacement".into()), 30)
+        .unwrap();
+    let (replacement_operation, _) = next_operation(&mut actor.events).await;
+    let before_stale = actor.handle.latest_snapshot();
+
+    actor
+        .handle
+        .try_complete_operation(complete(
+            &continuation_operation,
+            search_result("search-1", vec![media_item("first-2")], None),
+        ))
+        .unwrap();
+    let stale = next_outcome(&mut actor.events).await;
+    assert_eq!(stale.command_id, continuation_command);
+    assert_eq!(
+        stale.status,
+        ActorOutcomeStatus::Cancelled(CancellationReason::Superseded)
+    );
+    assert_eq!(
+        actor.handle.latest_snapshot().revision,
+        before_stale.revision
+    );
+    assert_eq!(
+        actor.handle.latest_snapshot().snapshot.search_results,
+        before_stale.snapshot.search_results
+    );
+
+    actor
+        .handle
+        .try_complete_operation(complete(
+            &replacement_operation,
+            search_result("search-2", vec![media_item("replacement-1")], None),
+        ))
+        .unwrap();
+    let replacement = next_outcome(&mut actor.events).await;
+    assert_eq!(replacement.command_id, replacement_command);
+    assert_eq!(replacement.status, ActorOutcomeStatus::Completed);
+    assert_eq!(
+        actor.handle.latest_snapshot().snapshot.search_results,
+        vec![media_item("replacement-1")]
+    );
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn playlist_replacement_applies_current_and_rejects_stale_completion() {
+    let mut actor = spawn_actor(Engine::new(0), ActorConfig::default());
+    apply_auth_state(&mut actor, auth_state("account-1", "session-1")).await;
+    let old_command = actor
+        .handle
+        .try_submit(list_playlists_command(), 10)
+        .unwrap();
+    let (old_operation, _) = next_operation(&mut actor.events).await;
+    let current_command = actor
+        .handle
+        .try_submit(list_playlists_command(), 20)
+        .unwrap();
+    let (current_operation, _) = next_operation(&mut actor.events).await;
+    let before_stale = actor.handle.latest_snapshot();
+
+    actor
+        .handle
+        .try_complete_operation(complete(
+            &old_operation,
+            EngineOperationResult::PlaylistPage {
+                playlists: vec![playlist("old")],
+                next_page_token: None,
+            },
+        ))
+        .unwrap();
+    let stale = next_outcome(&mut actor.events).await;
+    assert_eq!(stale.command_id, old_command);
+    assert_eq!(
+        stale.status,
+        ActorOutcomeStatus::Cancelled(CancellationReason::Superseded)
+    );
+    assert_eq!(
+        actor.handle.latest_snapshot().revision,
+        before_stale.revision
+    );
+    assert_eq!(
+        actor.handle.latest_snapshot().snapshot.playlists,
+        before_stale.snapshot.playlists
+    );
+
+    actor
+        .handle
+        .try_complete_operation(complete(
+            &current_operation,
+            EngineOperationResult::PlaylistPage {
+                playlists: vec![playlist("current")],
+                next_page_token: None,
+            },
+        ))
+        .unwrap();
+    let current = next_outcome(&mut actor.events).await;
+    assert_eq!(current.command_id, current_command);
+    assert_eq!(current.status, ActorOutcomeStatus::Completed);
+    assert_eq!(
+        actor.handle.latest_snapshot().snapshot.playlists,
+        vec![playlist("current")]
+    );
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn playback_replacement_applies_current_and_rejects_stale_resolution() {
+    let mut actor = spawn_actor(Engine::new(0), ActorConfig::default());
+    let old_command = actor
+        .handle
+        .try_submit(EngineCommand::play_media_by_id("track-old".into()), 10)
+        .unwrap();
+    let (old_operation, _) = next_operation(&mut actor.events).await;
+    let current_command = actor
+        .handle
+        .try_submit(EngineCommand::play_media_by_id("track-current".into()), 20)
+        .unwrap();
+    let (current_operation, _) = next_operation(&mut actor.events).await;
+    let before_stale = actor.handle.latest_snapshot();
+
+    actor
+        .handle
+        .try_complete_operation(complete(
+            &old_operation,
+            EngineOperationResult::PlaybackResolved(playback_source("track-old")),
+        ))
+        .unwrap();
+    let stale = next_outcome(&mut actor.events).await;
+    assert_eq!(stale.command_id, old_command);
+    assert_eq!(
+        stale.status,
+        ActorOutcomeStatus::Cancelled(CancellationReason::Superseded)
+    );
+    assert_eq!(
+        actor.handle.latest_snapshot().revision,
+        before_stale.revision
+    );
+    assert_eq!(
+        actor.handle.latest_snapshot().snapshot.source_uri,
+        before_stale.snapshot.source_uri
+    );
+
+    actor
+        .handle
+        .try_complete_operation(complete(
+            &current_operation,
+            EngineOperationResult::PlaybackResolved(playback_source("track-current")),
+        ))
+        .unwrap();
+    let current = next_outcome(&mut actor.events).await;
+    assert_eq!(current.command_id, current_command);
+    assert_eq!(current.status, ActorOutcomeStatus::Completed);
+    assert_eq!(
+        actor
+            .handle
+            .latest_snapshot()
+            .snapshot
+            .source_uri
+            .as_deref(),
+        Some("https://media.test/track-current")
+    );
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn history_replacement_applies_current_and_rejects_stale_completion() {
+    let mut actor = spawn_actor(Engine::new(0), ActorConfig::default());
+    apply_auth_state(&mut actor, auth_state("account-1", "session-1")).await;
+    let old_command = actor
+        .handle
+        .try_submit(EngineCommand::load_history_settings(), 10)
+        .unwrap();
+    let (old_operation, _) = next_operation(&mut actor.events).await;
+    let current_command = actor
+        .handle
+        .try_submit(EngineCommand::load_history_settings(), 20)
+        .unwrap();
+    let (current_operation, _) = next_operation(&mut actor.events).await;
+    let before_stale = actor.handle.latest_snapshot();
+
+    actor
+        .handle
+        .try_complete_operation(complete(
+            &old_operation,
+            EngineOperationResult::HistorySettings(EngineHistorySettings { enabled: false }),
+        ))
+        .unwrap();
+    let stale = next_outcome(&mut actor.events).await;
+    assert_eq!(stale.command_id, old_command);
+    assert_eq!(
+        stale.status,
+        ActorOutcomeStatus::Cancelled(CancellationReason::Superseded)
+    );
+    assert_eq!(
+        actor.handle.latest_snapshot().revision,
+        before_stale.revision
+    );
+    assert_eq!(
+        actor.handle.latest_snapshot().snapshot.history_settings,
+        before_stale.snapshot.history_settings
+    );
+
+    actor
+        .handle
+        .try_complete_operation(complete(
+            &current_operation,
+            EngineOperationResult::HistorySettings(EngineHistorySettings { enabled: true }),
+        ))
+        .unwrap();
+    let current = next_outcome(&mut actor.events).await;
+    assert_eq!(current.command_id, current_command);
+    assert_eq!(current.status, ActorOutcomeStatus::Completed);
+    assert_eq!(
+        actor.handle.latest_snapshot().snapshot.history_settings,
+        Some(EngineHistorySettings { enabled: true })
+    );
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn actor_owned_ticks_continue_while_commands_are_processed() {
+    let mut actor = spawn_actor(
+        Engine::new(1_000),
+        ActorConfig {
+            clock: ActorClockConfig {
+                start_epoch_millis: 1_000,
+                tick_interval: Duration::from_millis(20),
+            },
+            ..ActorConfig::default()
+        },
+    );
+
+    let first = actor
+        .handle
+        .try_submit(
+            EngineCommand::set_theme_preference(ThemePreference::ForestTechDark),
+            1_005,
+        )
+        .unwrap();
+    assert_eq!(next_outcome(&mut actor.events).await.command_id, first);
+
+    let first_tick = loop {
+        if let ActorEvent::TickProcessed {
+            now_epoch_millis,
+            message_sequence,
+            ..
+        } = next_event(&mut actor.events).await
+        {
+            break (now_epoch_millis, message_sequence);
+        }
+    };
+    assert_eq!(first_tick.0, 1_020);
+
+    let second = actor
+        .handle
+        .try_submit(
+            EngineCommand::set_theme_preference(ThemePreference::BambooGroveLight),
+            1_025,
+        )
+        .unwrap();
+    let second_outcome = next_outcome(&mut actor.events).await;
+    assert_eq!(second_outcome.command_id, second);
+    assert!(second_outcome.message_sequence > first_tick.1);
+
+    let second_tick = loop {
+        if let ActorEvent::TickProcessed {
+            now_epoch_millis,
+            message_sequence,
+            ..
+        } = next_event(&mut actor.events).await
+        {
+            break (now_epoch_millis, message_sequence);
+        }
+    };
+    assert_eq!(second_tick.0, 1_040);
+    assert!(second_tick.1 > second_outcome.message_sequence);
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn message_sequence_is_one_global_counter_across_actor_lanes() {
+    let mut actor = spawn_actor(
+        Engine::new(0),
+        ActorConfig {
+            clock: ActorClockConfig {
+                start_epoch_millis: 0,
+                tick_interval: Duration::from_secs(1),
+            },
+            ..ActorConfig::default()
+        },
+    );
+
+    let local = actor
+        .handle
+        .try_submit(
+            EngineCommand::set_theme_preference(ThemePreference::ForestTechDark),
+            10,
+        )
+        .unwrap();
+    let local_outcome = next_outcome(&mut actor.events).await;
+    assert_eq!(local_outcome.command_id, local);
+    assert_eq!(local_outcome.message_sequence.get(), 1);
+
+    actor
+        .handle
+        .try_submit(EngineCommand::search("sequence".into()), 20)
+        .unwrap();
+    let (operation, launched_sequence) = next_operation(&mut actor.events).await;
+    assert_eq!(launched_sequence.get(), 2);
+    actor
+        .handle
+        .try_complete_operation(complete(
+            &operation,
+            search_result("sequence-1", vec![media_item("sequence")], None),
+        ))
+        .unwrap();
+    assert_eq!(
+        next_outcome(&mut actor.events).await.message_sequence.get(),
+        3
+    );
+
+    let playback = PlaybackInstanceId::new(0);
+    actor
+        .handle
+        .try_publish_player_edge(PlayerEdgeEvent::Ended {
+            playback_instance_id: playback,
+        })
+        .unwrap();
+    match next_event(&mut actor.events).await {
+        ActorEvent::PlayerEdgeApplied {
+            message_sequence, ..
+        } => assert_eq!(message_sequence.get(), 4),
+        other => panic!("unexpected actor event: {other:?}"),
+    }
+
+    actor
+        .handle
+        .try_send_control(ActorControl::AuthStateChanged(auth_state(
+            "account-1",
+            "session-1",
+        )))
+        .unwrap();
+    match next_event(&mut actor.events).await {
+        ActorEvent::ControlApplied {
+            message_sequence, ..
+        } => assert_eq!(message_sequence.get(), 5),
+        other => panic!("unexpected actor event: {other:?}"),
+    }
+
+    actor
+        .handle
+        .publish_player_facts(PlayerFacts {
+            playback_instance_id: playback,
+            position_millis: 100,
+            buffered_position_millis: 200,
+            play_when_ready: true,
+            is_playing: true,
+        })
+        .unwrap();
+    match next_event(&mut actor.events).await {
+        ActorEvent::PlayerFactsApplied {
+            message_sequence, ..
+        } => assert_eq!(message_sequence.get(), 6),
+        other => panic!("unexpected actor event: {other:?}"),
+    }
+
+    let tick = timeout(Duration::from_millis(1_500), async {
+        loop {
+            if let ActorEvent::TickProcessed {
+                message_sequence, ..
+            } = actor
+                .events
+                .recv()
+                .await
+                .expect("actor event channel closed")
+            {
+                break message_sequence;
+            }
+        }
+    })
+    .await
+    .expect("scheduled tick timed out");
+    assert_eq!(tick.get(), 7);
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn operation_completion_lane_is_bounded_reliable_and_drains() {
+    let mut actor = spawn_actor(
+        Engine::new(0),
+        ActorConfig {
+            operation_completion_capacity: 1,
+            ..ActorConfig::default()
+        },
+    );
+    let first_command = actor
+        .handle
+        .try_submit(EngineCommand::search("old".into()), 10)
+        .unwrap();
+    let (first_operation, _) = next_operation(&mut actor.events).await;
+    let second_command = actor
+        .handle
+        .try_submit(EngineCommand::search("current".into()), 20)
+        .unwrap();
+    let (second_operation, _) = next_operation(&mut actor.events).await;
+    let first_completion = complete(
+        &first_operation,
+        search_result("old", vec![media_item("old")], None),
+    );
+    let second_completion = complete(
+        &second_operation,
+        search_result("current", vec![media_item("current")], None),
+    );
+
+    actor
+        .handle
+        .try_complete_operation(first_completion)
+        .unwrap();
+    assert_eq!(
+        actor
+            .handle
+            .try_complete_operation(second_completion.clone()),
+        Err(SubmissionError::MailboxFull {
+            lane: ActorLane::OperationCompletion,
+            capacity: 1,
+        })
+    );
+    let first = next_outcome(&mut actor.events).await;
+    assert_eq!(first.command_id, first_command);
+    assert_eq!(
+        first.status,
+        ActorOutcomeStatus::Cancelled(CancellationReason::Superseded)
+    );
+
+    actor
+        .handle
+        .try_complete_operation(second_completion)
+        .unwrap();
+    let second = next_outcome(&mut actor.events).await;
+    assert_eq!(second.command_id, second_command);
+    assert_eq!(second.status, ActorOutcomeStatus::Completed);
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn player_edge_lane_is_bounded_reliable_and_drains_without_dropping() {
+    let mut actor = spawn_actor(
+        Engine::new(0),
+        ActorConfig {
+            player_edge_capacity: 1,
+            ..ActorConfig::default()
+        },
+    );
+    let playback = PlaybackInstanceId::new(0);
+    let ended = PlayerEdgeEvent::Ended {
+        playback_instance_id: playback,
+    };
+    let failed = PlayerEdgeEvent::PlayerFailed {
+        playback_instance_id: playback,
+        error_code: 42,
+    };
+
+    actor.handle.try_publish_player_edge(ended).unwrap();
+    assert_eq!(
+        actor.handle.try_publish_player_edge(failed),
+        Err(SubmissionError::MailboxFull {
+            lane: ActorLane::PlayerEdge,
+            capacity: 1,
+        })
+    );
+    match next_event(&mut actor.events).await {
+        ActorEvent::PlayerEdgeApplied { event, .. } => assert_eq!(event, ended),
+        other => panic!("unexpected actor event: {other:?}"),
+    }
+
+    actor.handle.try_publish_player_edge(failed).unwrap();
+    match next_event(&mut actor.events).await {
+        ActorEvent::PlayerEdgeApplied { event, .. } => assert_eq!(event, failed),
+        other => panic!("unexpected actor event: {other:?}"),
+    }
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn lifecycle_control_lane_is_bounded_reliable_and_drains_before_shutdown() {
+    let mut actor = spawn_actor(
+        Engine::new(0),
+        ActorConfig {
+            lifecycle_capacity: 1,
+            ..ActorConfig::default()
+        },
+    );
+    let control = ActorControl::AuthStateChanged(auth_state("account-1", "session-1"));
+
+    actor.handle.try_send_control(control.clone()).unwrap();
+    assert_eq!(
+        actor.handle.request_shutdown(),
+        Err(SubmissionError::MailboxFull {
+            lane: ActorLane::Lifecycle,
+            capacity: 1,
+        })
+    );
+    match next_event(&mut actor.events).await {
+        ActorEvent::ControlApplied {
+            control: applied, ..
+        } => assert_eq!(applied, control),
+        other => panic!("unexpected actor event: {other:?}"),
+    }
+
+    actor.handle.request_shutdown().unwrap();
+    match next_event(&mut actor.events).await {
+        ActorEvent::ShutdownStarted { .. } => {}
+        other => panic!("unexpected actor event: {other:?}"),
+    }
+    actor.task.wait().await.expect("shutdown must be clean");
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn async_outcomes_follow_terminal_readiness_not_command_acceptance_order() {
+    let mut actor = spawn_actor(Engine::new(0), ActorConfig::default());
+    apply_auth_state(&mut actor, auth_state("account-1", "session-1")).await;
+    let first = actor
+        .handle
+        .try_submit(EngineCommand::load_history_settings(), 10)
+        .unwrap();
+    let (first_operation, _) = next_operation(&mut actor.events).await;
+    let second = actor
+        .handle
+        .try_submit(EngineCommand::search("second".into()), 20)
+        .unwrap();
+    let (second_operation, _) = next_operation(&mut actor.events).await;
+    let unrelated = actor
+        .handle
+        .try_submit(
+            EngineCommand::set_theme_preference(ThemePreference::ForestTechDark),
+            30,
+        )
+        .unwrap();
+
+    let unrelated_outcome = next_outcome(&mut actor.events).await;
+    assert_eq!(unrelated_outcome.command_id, unrelated);
+
+    actor
+        .handle
+        .try_complete_operation(complete(
+            &second_operation,
+            search_result("second", vec![media_item("second")], None),
+        ))
+        .unwrap();
+    let second_outcome = next_outcome(&mut actor.events).await;
+    assert_eq!(second_outcome.command_id, second);
+
+    actor
+        .handle
+        .try_complete_operation(complete(
+            &first_operation,
+            EngineOperationResult::HistorySettings(EngineHistorySettings { enabled: true }),
+        ))
+        .unwrap();
+    let first_outcome = next_outcome(&mut actor.events).await;
+    assert_eq!(first_outcome.command_id, first);
+
+    assert_eq!(
+        [
+            unrelated_outcome.command_id,
+            second_outcome.command_id,
+            first_outcome.command_id,
+        ],
+        [unrelated, second, first]
+    );
+    assert!(
+        unrelated_outcome.message_sequence < second_outcome.message_sequence
+            && second_outcome.message_sequence < first_outcome.message_sequence
+    );
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -315,7 +1108,7 @@ async fn terminal_player_edges_are_reliable_and_ordered() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn command_outcomes_and_effects_preserve_acceptance_order() {
+async fn synchronous_command_outcomes_and_effects_preserve_acceptance_order() {
     let mut actor = spawn_actor(Engine::new(0), ActorConfig::default());
     let start = actor
         .handle
@@ -337,6 +1130,107 @@ async fn command_outcomes_and_effects_preserve_acceptance_order() {
         }]
     );
     assert_eq!(ended.effects, vec![EngineEffect::SessionEnded]);
+}
+
+async fn apply_auth_state(actor: &mut RunningActor, state: AuthState) -> MessageSequence {
+    actor
+        .handle
+        .try_send_control(ActorControl::AuthStateChanged(state.clone()))
+        .unwrap();
+    match next_event(&mut actor.events).await {
+        ActorEvent::ControlApplied {
+            control: ActorControl::AuthStateChanged(applied),
+            message_sequence,
+            ..
+        } => {
+            assert_eq!(applied, state);
+            message_sequence
+        }
+        other => panic!("unexpected actor event: {other:?}"),
+    }
+}
+
+fn auth_state(account_id: &str, session_id: &str) -> AuthState {
+    AuthState::Authenticated {
+        account: account(account_id),
+        session: AuthSession {
+            id: session_id.into(),
+            device_label: "PandaWave".into(),
+            created_at_epoch_millis: 1,
+            last_used_at_epoch_millis: 1,
+            expires_at_epoch_millis: 10_000,
+            current: true,
+        },
+    }
+}
+
+fn account(id: &str) -> Account {
+    Account {
+        id: id.into(),
+        primary_email: format!("{id}@example.com"),
+        status: "active".into(),
+        created_at_epoch_millis: 1,
+    }
+}
+
+fn get_account_command() -> EngineCommand {
+    EngineCommand::new(EngineCommandType::GetAccount, None)
+}
+
+fn list_playlists_command() -> EngineCommand {
+    EngineCommand::new(
+        EngineCommandType::ListPlaylists {
+            page: EnginePageRequest {
+                page_size: 20,
+                page_token: None,
+            },
+        },
+        None,
+    )
+}
+
+fn media_item(id: &str) -> MediaItem {
+    MediaItem {
+        id: id.into(),
+        title: id.into(),
+        artist: "Artist".into(),
+        ..MediaItem::default()
+    }
+}
+
+fn search_result(
+    operation_id: &str,
+    items: Vec<MediaItem>,
+    next_page_token: Option<&str>,
+) -> EngineOperationResult {
+    EngineOperationResult::SearchPage {
+        catalog_operation_id: operation_id.into(),
+        items,
+        next_page_token: next_page_token
+            .map(|token| EnginePageToken::new(token.into()).expect("valid page token")),
+    }
+}
+
+fn playlist(id: &str) -> EnginePlaylist {
+    EnginePlaylist {
+        id: id.into(),
+        name: id.into(),
+        description: None,
+        revision: 1,
+        created_at_epoch_millis: 1,
+        updated_at_epoch_millis: 1,
+    }
+}
+
+fn playback_source(track_id: &str) -> EnginePlaybackSource {
+    EnginePlaybackSource {
+        track_id: track_id.into(),
+        url: format!("https://media.test/{track_id}"),
+        content_type: "audio/flac".into(),
+        codec: "flac".into(),
+        duration_millis: 180_000,
+        expires_at_epoch_millis: 60_000,
+    }
 }
 
 struct PanicMiddleware;
@@ -456,22 +1350,10 @@ impl HistoryPort for BlockingHistoryPort {
 }
 
 fn engine_with_blocking_history() -> (Engine, Arc<BlockingHistoryPort>) {
-    let auth = Arc::new(MutableAuth(Mutex::new(AuthState::Authenticated {
-        account: Account {
-            id: "account-1".into(),
-            primary_email: "account-1@example.com".into(),
-            status: "active".into(),
-            created_at_epoch_millis: 1,
-        },
-        session: AuthSession {
-            id: "session-1".into(),
-            device_label: "PandaWave".into(),
-            created_at_epoch_millis: 1,
-            last_used_at_epoch_millis: 1,
-            expires_at_epoch_millis: 10_000,
-            current: true,
-        },
-    })));
+    let auth = Arc::new(MutableAuth(Mutex::new(auth_state(
+        "account-1",
+        "session-1",
+    ))));
     let port = Arc::new(BlockingHistoryPort {
         started: Notify::new(),
         release: Notify::new(),
