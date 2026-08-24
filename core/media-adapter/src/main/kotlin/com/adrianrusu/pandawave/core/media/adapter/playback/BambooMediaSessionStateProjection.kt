@@ -16,6 +16,26 @@ internal data class BambooMediaSessionStateProjection(
     val contentType: String? = null
 )
 
+internal fun BambooMediaSessionStateProjection.hasSameMediaSessionState(
+    other: BambooMediaSessionStateProjection
+): Boolean = playWhenReady == other.playWhenReady &&
+    positionMillis == other.positionMillis &&
+    volume == other.volume &&
+    playbackExpiresAtEpochMillis == other.playbackExpiresAtEpochMillis &&
+    contentType == other.contentType &&
+    mediaItem.hasSameMediaState(other.mediaItem)
+
+internal fun MediaItem?.hasSameMediaState(mediaItem: MediaItem): Boolean = this?.let { current ->
+    current.mediaId == mediaItem.mediaId &&
+        current.localConfiguration?.uri == mediaItem.localConfiguration?.uri &&
+        current.localConfiguration?.mimeType == mediaItem.localConfiguration?.mimeType &&
+        current.mediaMetadata.title == mediaItem.mediaMetadata.title &&
+        current.mediaMetadata.artist == mediaItem.mediaMetadata.artist &&
+        current.mediaMetadata.albumTitle == mediaItem.mediaMetadata.albumTitle &&
+        current.mediaMetadata.durationMs == mediaItem.mediaMetadata.durationMs &&
+        current.mediaMetadata.artworkUri == mediaItem.mediaMetadata.artworkUri
+} == true
+
 internal fun interface BambooUriParser {
     fun parse(value: String): Uri?
 }

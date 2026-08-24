@@ -22,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -153,7 +154,7 @@ fun LibraryRoute(
         state.errorType?.let {
             Surface(
                 modifier = Modifier.fillMaxWidth().testTag("library-error"),
-                color = MaterialTheme.colorScheme.errorContainer,
+                color = Color(tokens.colors.error),
                 shape = MaterialTheme.shapes.small,
             ) {
                 Row(
@@ -377,8 +378,8 @@ private fun PlaylistRow(
             modifier = Modifier.padding(tokens.spacing.md),
             verticalArrangement = Arrangement.spacedBy(tokens.spacing.sm),
         ) {
-            Text(playlist.name, style = MaterialTheme.typography.titleMedium)
-            playlist.description?.takeIf(String::isNotBlank)?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+            Text(playlist.name, style = tokens.typography.sectionTitle)
+            playlist.description?.takeIf(String::isNotBlank)?.let { Text(it, style = tokens.typography.body) }
             Row(horizontalArrangement = Arrangement.spacedBy(tokens.spacing.sm)) {
                 if (selected) {
                     Button(onClick = onSelect, modifier = Modifier.weight(1f).testTag("library-playlist-select-${playlist.id}")) {
@@ -477,7 +478,7 @@ private fun PlaylistTrackRow(
             horizontalArrangement = Arrangement.spacedBy(tokens.spacing.sm),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(track.title, modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+            Text(track.title, modifier = Modifier.weight(1f), style = tokens.typography.sectionTitle)
             OutlinedButton(
                 onClick = { onRemovePlaylistTrack(playlist.id, track.mediaId) },
                 modifier = Modifier.testTag("library-playlist-remove-track-${track.relationshipId}"),
@@ -494,14 +495,14 @@ private fun PlaylistConflictCard(
     val tokens = LocalPandaWaveDesignTokens.current
     Surface(
         modifier = Modifier.fillMaxWidth().testTag("library-playlist-conflict"),
-        color = MaterialTheme.colorScheme.errorContainer,
+        color = Color(tokens.colors.error),
         shape = MaterialTheme.shapes.small,
     ) {
         Column(
             modifier = Modifier.padding(tokens.spacing.md),
             verticalArrangement = Arrangement.spacedBy(tokens.spacing.sm),
         ) {
-            Text(stringResource(R.string.pandawave_library_playlist_conflict), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.pandawave_library_playlist_conflict), style = tokens.typography.sectionTitle)
             Text(stringResource(R.string.pandawave_library_server_order, conflict.serverMembershipIds.joinToString(", ")))
             Text(stringResource(R.string.pandawave_library_your_order, conflict.proposedMembershipIds.joinToString(", ")))
             Button(
@@ -558,16 +559,16 @@ private fun LibraryTrackRow(
             modifier = Modifier.padding(tokens.spacing.md),
             verticalArrangement = Arrangement.spacedBy(tokens.spacing.sm),
         ) {
-            Text(track.title, style = MaterialTheme.typography.titleMedium)
+            Text(track.title, style = tokens.typography.sectionTitle)
             Text(
                 listOfNotNull(track.artist, track.album).joinToString(" · "),
-                style = MaterialTheme.typography.bodyMedium,
+                style = tokens.typography.body,
             )
             if (pending) {
                 Text(
                     stringResource(R.string.pandawave_library_pending),
                     modifier = Modifier.testTag("library-pending-${track.mediaId}"),
-                    color = MaterialTheme.colorScheme.primary,
+                    color = Color(tokens.colors.primary),
                 )
             }
             Row(
@@ -620,10 +621,10 @@ private fun LibraryHistoryRow(
             modifier = Modifier.padding(tokens.spacing.md),
             verticalArrangement = Arrangement.spacedBy(tokens.spacing.sm),
         ) {
-            Text(entry.title, style = MaterialTheme.typography.titleMedium)
+            Text(entry.title, style = tokens.typography.sectionTitle)
             Text(
                 listOfNotNull(entry.artist, entry.album).joinToString(" · "),
-                style = MaterialTheme.typography.bodyMedium,
+                style = tokens.typography.body,
             )
         }
     }

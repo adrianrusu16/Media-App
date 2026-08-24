@@ -781,7 +781,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
                 "1" -> true
                 else -> return null
             }
-            val position = values[10].toUIntOrNull()?.takeIf { it <= Int.MAX_VALUE.toUInt() }?.toInt()
+            val position = values[10].toLongOrNull()?.takeIf { it in 0L..Int.MAX_VALUE.toLong() }?.toInt()
                 ?: return null
             val addedAt = values[11].toNonNegativeLongOrNull() ?: return null
             return EnginePlaylistTrackItem(
@@ -802,7 +802,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         }
 
         private fun String.toNonNegativeLongOrNull(): Long? =
-            toULongOrNull()?.takeIf { it <= Long.MAX_VALUE.toULong() }?.toLong()
+            toLongOrNull()?.takeIf { it >= 0L }
 
         private fun EnginePlatformEvent.toNativePlatformEventType(): Int = when (type) {
             EnginePlatformEvent.TYPE_APP_FOREGROUNDED -> PLATFORM_EVENT_APP_FOREGROUNDED

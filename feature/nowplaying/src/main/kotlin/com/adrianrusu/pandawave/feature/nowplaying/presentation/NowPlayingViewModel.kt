@@ -18,6 +18,7 @@ import com.adrianrusu.pandawave.core.ui.interaction.UserInteractionTracker
 import com.adrianrusu.pandawave.feature.nowplaying.domain.DispatchNowPlayingIntentUseCase
 import com.adrianrusu.pandawave.feature.nowplaying.domain.NowPlayingIntent
 import com.adrianrusu.pandawave.feature.nowplaying.domain.NowPlayingRepository
+import com.adrianrusu.pandawave.feature.nowplaying.domain.NowPlayingState
 import com.adrianrusu.pandawave.feature.nowplaying.domain.ObserveNowPlayingStateUseCase
 import com.adrianrusu.pandawave.feature.nowplaying.domain.ambient.AmbientEligibility
 import com.adrianrusu.pandawave.feature.nowplaying.domain.ambient.AmbientModeEffect
@@ -126,16 +127,10 @@ class NowPlayingViewModel @Inject constructor(
                 routeVisible,
                 lifecycleResumed
             ) { nowPlaying, visualizerAvailability, isRouteVisible, isLifecycleResumed ->
-                AmbientEligibility(
-                    routeVisible = isRouteVisible,
-                    lifecycleResumed = isLifecycleResumed,
-                    isParked = nowPlaying.isParked,
-                    isUxUnrestricted = nowPlaying.isUxUnrestricted,
-                    preferenceEnabled = nowPlaying.ambientModeEnabled,
-                    permissionGranted = nowPlaying.visualizerPermissionState == VisualizerPermissionState.Granted,
-                    isPlaying = nowPlaying.isPlaying,
-                    timeoutMillis = nowPlaying.ambientTimeoutSeconds * MILLIS_PER_SECOND,
-                    realVisualizerReady = visualizerAvailability == AmbientVisualizerAvailability.Ready
+                nowPlaying.toAmbientEligibility(
+                    visualizerAvailability = visualizerAvailability,
+                    isRouteVisible = isRouteVisible,
+                    isLifecycleResumed = isLifecycleResumed
                 )
             }.collect { eligibility ->
                 reduce(
@@ -144,6 +139,37 @@ class NowPlayingViewModel @Inject constructor(
                         nowMillis = clock.nowMillis()
                     )
                 )
+            }
+        }
+
+        viewModelScope.launch {
+            var realVisualizerRunning = false
+            combine(
+                state,
+                visualizer.availability,
+                routeVisible,
+                lifecycleResumed
+            ) { nowPlaying, visualizerAvailability, isRouteVisible, isLifecycleResumed ->
+                val eligibility = nowPlaying.toAmbientEligibility(
+                    visualizerAvailability = visualizerAvailability,
+                    isRouteVisible = isRouteVisible,
+                    isLifecycleResumed = isLifecycleResumed
+                )
+                eligibility.ambientPermitted &&
+                    eligibility.isPlaying &&
+                    eligibility.hasUsableAmplitudeSource
+            }.collect { shouldRun ->
+                when {
+                    shouldRun && !realVisualizerRunning -> {
+                        visualizer.start()
+                        realVisualizerRunning = true
+                    }
+
+                    !shouldRun && realVisualizerRunning -> {
+                        visualizer.stop()
+                        realVisualizerRunning = false
+                    }
+                }
             }
         }
 
@@ -262,19 +288,35 @@ class NowPlayingViewModel @Inject constructor(
                 }
             }
 
-            AmbientModeEffect.StartRealVisualizer -> visualizer.start()
-
-            AmbientModeEffect.StopRealVisualizer -> visualizer.stop()
-
             AmbientModeEffect.StartSleepingAnimation -> sleepingAmplitudeSource.start()
 
             AmbientModeEffect.StopSleepingAnimation -> sleepingAmplitudeSource.stop()
+
+            AmbientModeEffect.StartRealVisualizer,
+            AmbientModeEffect.StopRealVisualizer -> Unit
         }
     }
 
     private companion object {
         const val DEFAULT_AMBIENT_TIMEOUT_SECONDS = 15
-        const val MILLIS_PER_SECOND = 1_000L
         const val STATE_STOP_TIMEOUT_MILLIS = 5_000L
     }
 }
+
+private fun NowPlayingState.toAmbientEligibility(
+    visualizerAvailability: AmbientVisualizerAvailability,
+    isRouteVisible: Boolean,
+    isLifecycleResumed: Boolean
+): AmbientEligibility = AmbientEligibility(
+    routeVisible = isRouteVisible,
+    lifecycleResumed = isLifecycleResumed,
+    isParked = isParked,
+    isUxUnrestricted = isUxUnrestricted,
+    preferenceEnabled = ambientModeEnabled,
+    permissionGranted = visualizerPermissionState == VisualizerPermissionState.Granted,
+    isPlaying = isPlaying,
+    timeoutMillis = ambientTimeoutSeconds * AMBIENT_MILLIS_PER_SECOND,
+    realVisualizerReady = visualizerAvailability == AmbientVisualizerAvailability.Ready
+)
+
+private const val AMBIENT_MILLIS_PER_SECOND = 1_000L

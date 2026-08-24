@@ -3,7 +3,9 @@ package com.adrianrusu.pandawave.buildlogic
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.ConfigurableFileCollection
+import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.tasks.InputFiles
+import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
@@ -27,6 +29,9 @@ abstract class VerifyPandaWaveIdentityTask extends DefaultTask {
     @InputFiles
     @PathSensitive(PathSensitivity.RELATIVE)
     abstract ConfigurableFileCollection getIdentitySources()
+
+    @Internal
+    abstract DirectoryProperty getRootDirectory()
 
     @TaskAction
     void verifyIdentity() {
@@ -57,7 +62,7 @@ abstract class VerifyPandaWaveIdentityTask extends DefaultTask {
     }
 
     protected String relativePath(File file) {
-        return project.rootDir.toPath().relativize(file.toPath()).toString().replace('\\', '/')
+        return rootDirectory.get().asFile.toPath().relativize(file.toPath()).toString().replace('\\', '/')
     }
 
     private static Pattern literal(String value) {

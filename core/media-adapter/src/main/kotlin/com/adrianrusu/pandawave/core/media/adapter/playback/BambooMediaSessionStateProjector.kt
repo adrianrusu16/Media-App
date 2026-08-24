@@ -21,7 +21,7 @@ internal class BambooMediaSessionStateProjector(
         subscription = playbackRepository.observe { playbackState ->
             val projection = playbackState.toMediaSessionStateProjection()
 
-            if (projection == lastProjection) {
+            if (lastProjection?.hasSameMediaSessionState(projection) == true) {
                 return@observe
             }
 

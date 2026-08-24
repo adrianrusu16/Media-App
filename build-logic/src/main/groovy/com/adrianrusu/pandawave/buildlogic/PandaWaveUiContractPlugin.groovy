@@ -9,6 +9,7 @@ class PandaWaveUiContractPlugin implements Plugin<Project> {
         project.tasks.register("verifyPandaWaveUiContract", VerifyPandaWaveUiContractTask) {
             group = "verification"
             description = "Verifies the production BambooUI and RRO resource contract."
+            rootDirectory.set(project.layout.projectDirectory)
             kotlinSources.from(project.fileTree(project.rootDir) {
                 include "core/ui/src/main/**/*.kt"
                 include "core/designsystem/src/main/**/*.kt"
@@ -25,6 +26,7 @@ class PandaWaveUiContractPlugin implements Plugin<Project> {
         project.tasks.register("verifyPandaWaveIdentity", VerifyPandaWaveIdentityTask) {
             group = "verification"
             description = "Rejects live prototype identities after the PandaWave package migration."
+            rootDirectory.set(project.layout.projectDirectory)
 
             List<File> moduleDirectories = [project.file("app")]
             ["core", "feature", "provider", "rro"].each { String group ->

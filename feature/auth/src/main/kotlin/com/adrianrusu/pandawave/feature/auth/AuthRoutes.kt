@@ -9,7 +9,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -23,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -138,7 +138,7 @@ internal fun AuthFormScreen(
                     R.string.pandawave_auth_register_title
                 }
             ),
-            style = MaterialTheme.typography.headlineMedium
+            style = tokens.typography.display
         )
 
         if (state.phase == AuthFormPhase.VERIFICATION_PENDING) {
@@ -275,6 +275,7 @@ internal fun AuthFormScreen(
 @Composable
 private fun NoticeText(notice: AuthNotice?) {
     if (notice == null) return
+    val tokens = LocalPandaWaveDesignTokens.current
     val message = when (notice) {
         AuthNotice.LOGIN_REJECTED -> R.string.pandawave_auth_login_rejected
         AuthNotice.POLICY_MISMATCH -> R.string.pandawave_auth_policy_mismatch
@@ -288,7 +289,7 @@ private fun NoticeText(notice: AuthNotice?) {
         AuthNotice.REQUEST_UNCONFIRMED -> R.string.pandawave_auth_unconfirmed
         AuthNotice.EMAIL_SENT -> R.string.pandawave_auth_email_sent
     }
-    Text(stringResource(message), color = MaterialTheme.colorScheme.error)
+    Text(stringResource(message), color = Color(tokens.colors.error))
 }
 
 private fun AuthFieldError.messageResource(): Int = when (this) {

@@ -35,6 +35,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
@@ -43,10 +44,11 @@ import kotlinx.coroutines.test.setMain
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NowPlayingViewModelTest {
-    private val dispatcher = StandardTestDispatcher()
+    private lateinit var dispatcher: TestDispatcher
 
     @BeforeTest
     fun setUp() {
+        dispatcher = StandardTestDispatcher()
         Dispatchers.setMain(dispatcher)
     }
 
@@ -56,7 +58,7 @@ class NowPlayingViewModelTest {
     }
 
     @Test
-    fun `eligible inactivity starts visualization and manual skip resets the timer`() = runTest(dispatcher) {
+    fun `eligible inactivity enters visualization and manual skip resets the timer`() = runTest(dispatcher) {
         val repository = RecordingNowPlayingRepository(
             NowPlayingState(
                 mediaId = "track-1",
@@ -87,7 +89,7 @@ class NowPlayingViewModelTest {
         runCurrent()
 
         assertIs<AmbientModeState.WaitingForInactivity>(viewModel.ambientModeState.value)
-        assertEquals(0, visualizer.startCount)
+        assertEquals(1, visualizer.startCount)
 
         advanceTimeBy(5_000L)
         runCurrent()
@@ -104,7 +106,7 @@ class NowPlayingViewModelTest {
         runCurrent()
 
         assertIs<AmbientModeState.WaitingForInactivity>(viewModel.ambientModeState.value)
-        assertEquals(1, visualizer.stopCount)
+        assertEquals(0, visualizer.stopCount)
         assertEquals(listOf<NowPlayingIntent>(NowPlayingIntent.SkipNext), repository.intents)
         assertEquals(
             listOf(AmbientTelemetryEvents.ENTERED, AmbientTelemetryEvents.EXITED),
@@ -156,21 +158,22 @@ class NowPlayingViewModelTest {
     }
 
     @Test
-    fun `ambient wake exits without dispatching a playback intent`() = runTest(dispatcher) {
+    fun `ineligible ambient state does not start playback visualizer`() = runTest(dispatcher) {
         val repository = RecordingNowPlayingRepository(
             NowPlayingState(
                 mediaId = "track-1",
                 playbackState = NowPlayingPlaybackState.Playing,
-                isParked = true,
+                isParked = false,
                 isUxUnrestricted = true
             )
         )
+        val visualizer = RecordingAmbientAudioVisualizer()
         val viewModel = NowPlayingViewModel(
             observeState = ObserveNowPlayingStateUseCase(repository),
             repository = repository,
             dispatchIntent = DispatchNowPlayingIntentUseCase(repository),
             audioSessionRepository = RecordingAudioSessionRepository(),
-            visualizer = RecordingAmbientAudioVisualizer(),
+            visualizer = visualizer,
             sleepingAmplitudeSource = RecordingAmbientAmplitudeSource(),
             visualizerPermissionRepository = RecordingVisualizerPermissionRepository(),
             ambientModePreferenceRepository = RecordingAmbientModePreferenceRepository(),
@@ -185,12 +188,56 @@ class NowPlayingViewModelTest {
         advanceTimeBy(5_000L)
         runCurrent()
 
+        assertEquals(AmbientModeState.Interactive, viewModel.ambientModeState.value)
+        assertEquals(0, visualizer.startCount)
+        assertEquals(0, visualizer.stopCount)
+    }
+
+    @Test
+    fun `ambient wake exits without touching playback visualizer or dispatching playback`() = runTest(dispatcher) {
+        val repository = RecordingNowPlayingRepository(
+            NowPlayingState(
+                mediaId = "track-1",
+                playbackState = NowPlayingPlaybackState.Playing,
+                isParked = true,
+                isUxUnrestricted = true
+            )
+        )
+        val visualizer = RecordingAmbientAudioVisualizer()
+        val viewModel = NowPlayingViewModel(
+            observeState = ObserveNowPlayingStateUseCase(repository),
+            repository = repository,
+            dispatchIntent = DispatchNowPlayingIntentUseCase(repository),
+            audioSessionRepository = RecordingAudioSessionRepository(),
+            visualizer = visualizer,
+            sleepingAmplitudeSource = RecordingAmbientAmplitudeSource(),
+            visualizerPermissionRepository = RecordingVisualizerPermissionRepository(),
+            ambientModePreferenceRepository = RecordingAmbientModePreferenceRepository(),
+            interactionTracker = UserInteractionTracker(),
+            clock = MutableMonotonicClock(nowMillis = 1_000L),
+            telemetryLogger = testTelemetryLogger()
+        )
+
+        viewModel.onRouteVisibilityChanged(true)
+        viewModel.onLifecycleResumedChanged(true)
+        runCurrent()
+
+        assertEquals(1, visualizer.startCount)
+        assertEquals(0, visualizer.stopCount)
+
+        advanceTimeBy(5_000L)
+        runCurrent()
+
         assertEquals(AmbientModeState.AmbientVisualizing, viewModel.ambientModeState.value)
+        assertEquals(1, visualizer.startCount)
+        assertEquals(0, visualizer.stopCount)
 
         viewModel.onUserInteraction()
         runCurrent()
 
         assertIs<AmbientModeState.WaitingForInactivity>(viewModel.ambientModeState.value)
+        assertEquals(1, visualizer.startCount)
+        assertEquals(0, visualizer.stopCount)
         assertEquals(emptyList(), repository.intents)
     }
 

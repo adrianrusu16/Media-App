@@ -2,7 +2,9 @@ package com.adrianrusu.pandawave.buildlogic
 
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.ConfigurableFileCollection
+import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.tasks.InputFiles
+import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
@@ -34,6 +36,9 @@ abstract class VerifyPandaWaveUiContractTask extends DefaultTask {
     @InputFiles
     @PathSensitive(PathSensitivity.RELATIVE)
     abstract ConfigurableFileCollection getResourceSources()
+
+    @Internal
+    abstract DirectoryProperty getRootDirectory()
 
     @TaskAction
     void verifyContract() {
@@ -106,12 +111,12 @@ abstract class VerifyPandaWaveUiContractTask extends DefaultTask {
     }
 
     protected boolean hasPathSegments(File file, List<String> expectedSegments) {
-        List<String> segments = project.rootDir.toPath().relativize(file.toPath()).collect { it.toString() }
+        List<String> segments = rootDirectory.get().asFile.toPath().relativize(file.toPath()).collect { it.toString() }
         return segments.size() >= expectedSegments.size() &&
             segments.take(expectedSegments.size()) == expectedSegments
     }
 
     protected String relativePath(File file) {
-        return project.rootDir.toPath().relativize(file.toPath()).toString().replace('\\', '/')
+        return rootDirectory.get().asFile.toPath().relativize(file.toPath()).toString().replace('\\', '/')
     }
 }

@@ -1,3 +1,5 @@
+import com.diffplug.spotless.LineEnding
+
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 plugins {
     alias(libs.plugins.android.application) apply false
@@ -24,17 +26,44 @@ detekt {
 }
 
 spotless {
+    lineEndings = LineEnding.UNIX
+
+    val generatedAndLocalCaches = listOf(
+        "**/build/**",
+        "**/.gradle/**",
+        "**/.gradle-test-home/**",
+        "**/.cargo-home/**",
+        "**/.rustup-home/**",
+        "**/.serena/**",
+        "**/graphify-out/**",
+        "**/target-codex*/**"
+    )
+
     kotlin {
-        target("**/*.kt")
-        targetExclude("**/build/**", "**/.gradle/**")
+        target(
+            "app/src/**/*.kt",
+            "core/*/src/**/*.kt",
+            "feature/*/src/**/*.kt",
+            "provider/*/src/**/*.kt",
+            "rro/*/src/**/*.kt"
+        )
+        targetExclude(generatedAndLocalCaches)
         ktlint(libs.versions.ktlint.get()).editorConfigOverride(
             mapOf("ktlint_function_naming_ignore_when_annotated_with" to "Composable")
         )
     }
 
     kotlinGradle {
-        target("**/*.gradle.kts")
-        targetExclude("**/build/**", "**/.gradle/**")
+        target(
+            "*.gradle.kts",
+            "app/*.gradle.kts",
+            "build-logic/*.gradle.kts",
+            "core/*/*.gradle.kts",
+            "feature/*/*.gradle.kts",
+            "provider/*/*.gradle.kts",
+            "rro/*/*.gradle.kts"
+        )
+        targetExclude(generatedAndLocalCaches)
         ktlint(libs.versions.ktlint.get())
     }
 }
