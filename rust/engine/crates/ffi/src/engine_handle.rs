@@ -18,6 +18,7 @@ pub struct PandaEngine {
     pub(crate) last_event: Arc<Mutex<Option<EngineEvent>>>,
     pub(crate) observer: Option<Arc<FfiObserver>>,
     pub(crate) runtime: tokio::runtime::Runtime,
+    pub(crate) runtime_worker_threads: usize,
     pub(crate) backend_configuration: Mutex<BackendConfigurationState>,
     pub(crate) session_store: Mutex<Arc<dyn SessionStore>>,
     pub(crate) auth_runtime: Mutex<Option<EngineAuthRuntime>>,
@@ -84,7 +85,18 @@ impl EngineObserver for FfiObserver {
     }
 }
 
+const DEFAULT_RUNTIME_WORKER_THREADS: usize = 2;
+const MAX_RUNTIME_WORKER_THREADS: usize = 8;
+const RUNTIME_WORKER_THREADS_ENV: &str = "PANDA_ENGINE_TOKIO_WORKERS";
+
 pub(crate) fn build_engine(now_epoch_millis: u64) -> PandaEngine {
+    build_engine_with_worker_threads(now_epoch_millis, configured_runtime_worker_threads())
+}
+
+pub(crate) fn build_engine_with_worker_threads(
+    now_epoch_millis: u64,
+    worker_threads: usize,
+) -> PandaEngine {
     let mut engine = Engine::new(now_epoch_millis);
 
     let mut pipeline = MiddlewarePipeline::new();
@@ -98,21 +110,45 @@ pub(crate) fn build_engine(now_epoch_millis: u64) -> PandaEngine {
     pipeline.add(Box::new(panda_engine_core::FocusMiddleware));
     engine.set_middleware(pipeline);
 
-    let runtime = tokio::runtime::Builder::new_current_thread()
+    let worker_threads = sanitize_runtime_worker_threads(worker_threads);
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(worker_threads)
+        .thread_name("panda-engine")
         .enable_all()
         .build()
         .expect("failed to build tokio runtime");
 
-    PandaEngine {
+    let panda_engine = PandaEngine {
         engine: ConcurrentEngine::new(engine),
         last_effects: Arc::new(Mutex::new(Vec::new())),
         last_event: Arc::new(Mutex::new(None)),
         observer: None,
         runtime,
+        runtime_worker_threads: worker_threads,
         backend_configuration: Mutex::new(BackendConfigurationState::Unconfigured),
         session_store: Mutex::new(Arc::new(InMemorySessionStore::new())),
         auth_runtime: Mutex::new(None),
-    }
+    };
+    info!(
+        worker_threads = panda_engine.runtime_worker_threads,
+        "PandaEngine Tokio runtime initialized"
+    );
+    panda_engine
+}
+
+fn configured_runtime_worker_threads() -> usize {
+    parse_runtime_worker_threads(std::env::var(RUNTIME_WORKER_THREADS_ENV).ok().as_deref())
+}
+
+fn parse_runtime_worker_threads(value: Option<&str>) -> usize {
+    value
+        .and_then(|value| value.trim().parse::<usize>().ok())
+        .map(sanitize_runtime_worker_threads)
+        .unwrap_or(DEFAULT_RUNTIME_WORKER_THREADS)
+}
+
+fn sanitize_runtime_worker_threads(worker_threads: usize) -> usize {
+    worker_threads.clamp(1, MAX_RUNTIME_WORKER_THREADS)
 }
 
 pub(crate) fn remember_outcome(engine: &PandaEngine, outcome: &EngineOutcome) {
@@ -123,5 +159,35 @@ pub(crate) fn remember_outcome(engine: &PandaEngine, outcome: &EngineOutcome) {
     {
         let mut event = engine.last_event.lock().unwrap();
         *event = Some(outcome.event.clone());
+    }
+}
+
+#[cfg(test)]
+mod runtime_tests {
+    use super::*;
+
+    #[test]
+    fn runtime_worker_count_defaults_and_clamps_for_benchmark_experiments() {
+        assert_eq!(
+            DEFAULT_RUNTIME_WORKER_THREADS,
+            parse_runtime_worker_threads(None)
+        );
+        assert_eq!(
+            DEFAULT_RUNTIME_WORKER_THREADS,
+            parse_runtime_worker_threads(Some("not-a-number"))
+        );
+        assert_eq!(1, parse_runtime_worker_threads(Some("0")));
+        assert_eq!(2, parse_runtime_worker_threads(Some("2")));
+        assert_eq!(4, parse_runtime_worker_threads(Some("4")));
+        assert_eq!(
+            MAX_RUNTIME_WORKER_THREADS,
+            parse_runtime_worker_threads(Some("99"))
+        );
+    }
+
+    #[test]
+    fn build_engine_records_the_selected_worker_count() {
+        let engine = build_engine_with_worker_threads(0, 4);
+        assert_eq!(4, engine.runtime_worker_threads);
     }
 }
