@@ -405,6 +405,10 @@ impl Engine {
         self.history_port = Some(port);
     }
 
+    pub(crate) fn actor_history_port(&self) -> Option<Arc<dyn crate::HistoryPort>> {
+        self.history_port.clone()
+    }
+
     /// Sets the authenticated backend-neutral saved/liked library boundary.
     pub fn set_library_port(&mut self, port: Arc<dyn crate::LibraryPort>) {
         self.library_port = Some(port);
