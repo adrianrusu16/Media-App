@@ -7,6 +7,7 @@ import org.gradle.api.file.RegularFileProperty
 
 plugins {
     id("pandawave.android.application")
+    alias(libs.plugins.androidx.baselineprofile)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
     alias(libs.plugins.kotlin.compose)
@@ -85,6 +86,12 @@ android {
                 "proguard-rules.pro"
             )
         }
+        create("benchmark") {
+            initWith(getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
+            isDebuggable = false
+        }
     }
 
     buildFeatures {
@@ -124,6 +131,7 @@ tasks.matching { it.name == "assembleRelease" }.configureEach {
 }
 
 dependencies {
+    baselineProfile(project(":benchmark"))
     implementation(project(":core:audio-visualizer"))
     implementation(project(":core:automotive"))
     implementation(project(":core:designsystem"))
@@ -152,6 +160,7 @@ dependencies {
     implementation(libs.hilt.android)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.material)
+    implementation(libs.androidx.profileinstaller)
     ksp(libs.hilt.compiler)
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.kotlin.test.junit5)

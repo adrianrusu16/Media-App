@@ -2,6 +2,7 @@ package com.adrianrusu.pandawave.di
 
 import android.content.Context
 import android.content.pm.ApplicationInfo
+import android.content.pm.PackageManager
 import android.os.Handler
 import android.os.Looper
 import androidx.datastore.core.DataStore
@@ -13,7 +14,9 @@ import com.adrianrusu.pandawave.core.audio.visualizer.AudioSessionRepository
 import com.adrianrusu.pandawave.core.audio.visualizer.InMemoryAudioSessionRepository
 import com.adrianrusu.pandawave.core.audio.visualizer.MutableAudioSessionRepository
 import com.adrianrusu.pandawave.core.audio.visualizer.VisualizerPermissionRepository
+import com.adrianrusu.pandawave.core.automotive.driving.AutomotiveDrivingStateObserver
 import com.adrianrusu.pandawave.core.automotive.driving.PlatformAutomotiveDrivingStateObserver
+import com.adrianrusu.pandawave.core.automotive.ux.AutomotiveUxRestrictionObserver
 import com.adrianrusu.pandawave.core.automotive.ux.PlatformAutomotiveUxRestrictionObserver
 import com.adrianrusu.pandawave.core.model.theme.ThemePreferenceRepository
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
@@ -124,12 +127,23 @@ object AppCoreModule {
         engine: EngineGateway,
         @ApplicationContext context: Context,
         telemetryLogger: TelemetryLogger
-    ): BambooPlaybackRepository = DefaultBambooPlaybackRepository(
-        engine = engine,
-        uxRestrictionObserver = PlatformAutomotiveUxRestrictionObserver(context),
-        drivingStateObserver = PlatformAutomotiveDrivingStateObserver(context),
-        telemetryLogger = telemetryLogger
-    )
+    ): BambooPlaybackRepository {
+        val isAutomotive = context.packageManager.hasSystemFeature(PackageManager.FEATURE_AUTOMOTIVE)
+        return DefaultBambooPlaybackRepository(
+            engine = engine,
+            uxRestrictionObserver = if (isAutomotive) {
+                PlatformAutomotiveUxRestrictionObserver(context)
+            } else {
+                AutomotiveUxRestrictionObserver.Unavailable
+            },
+            drivingStateObserver = if (isAutomotive) {
+                PlatformAutomotiveDrivingStateObserver(context)
+            } else {
+                AutomotiveDrivingStateObserver.Unavailable
+            },
+            telemetryLogger = telemetryLogger
+        )
+    }
 
     @Provides
     @Singleton

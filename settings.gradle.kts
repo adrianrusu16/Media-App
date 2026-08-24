@@ -27,6 +27,7 @@ dependencyResolutionManagement {
 
 rootProject.name = "PandaWave"
 include(":app")
+include(":benchmark")
 
 include(
     ":core:common",
