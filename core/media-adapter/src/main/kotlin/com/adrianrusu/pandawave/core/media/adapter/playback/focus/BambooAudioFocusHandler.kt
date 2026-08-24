@@ -8,7 +8,7 @@ import android.media.AudioManager
 /**
  * Handles Android Audio Focus requests and changes for the media app.
  */
-class BambooAudioFocusHandler(context: Context, private val onFocusChange: (Int) -> Unit) :
+class BambooAudioFocusHandler(context: Context, private val onFocusChange: (BambooAudioFocusChange) -> Unit) :
     AudioManager.OnAudioFocusChangeListener,
     BambooAudioFocusController {
 
@@ -24,10 +24,10 @@ class BambooAudioFocusHandler(context: Context, private val onFocusChange: (Int)
     }
 
     override fun onAudioFocusChange(focusChange: Int) {
-        onFocusChange(focusChange)
+        onFocusChange(BambooAudioFocusChange.fromAndroid(focusChange))
     }
 
-    override fun requestAudioFocus() {
+    override fun requestAudioFocus(): BambooAudioFocusRequestResult {
         val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
             .setAudioAttributes(
                 AudioAttributes.Builder()
@@ -39,7 +39,11 @@ class BambooAudioFocusHandler(context: Context, private val onFocusChange: (Int)
             .setOnAudioFocusChangeListener(this)
             .build()
         focusRequest = request
-        audioManager.requestAudioFocus(request)
+        return when (audioManager.requestAudioFocus(request)) {
+            AudioManager.AUDIOFOCUS_REQUEST_GRANTED -> BambooAudioFocusRequestResult.Granted
+            AudioManager.AUDIOFOCUS_REQUEST_DELAYED -> BambooAudioFocusRequestResult.Delayed
+            else -> BambooAudioFocusRequestResult.Failed
+        }
     }
 
     override fun abandonAudioFocus() {
@@ -48,7 +52,31 @@ class BambooAudioFocusHandler(context: Context, private val onFocusChange: (Int)
 }
 
 interface BambooAudioFocusController {
-    fun requestAudioFocus()
+    fun requestAudioFocus(): BambooAudioFocusRequestResult
 
     fun abandonAudioFocus()
+}
+
+enum class BambooAudioFocusRequestResult(val wireValue: String) {
+    Granted("granted"),
+    Delayed("delayed"),
+    Failed("failed"),
+}
+
+enum class BambooAudioFocusChange(val wireValue: String) {
+    Gain("gain"),
+    Loss("loss"),
+    LossTransient("loss_transient"),
+    Duck("duck"),
+    Unknown("unknown");
+
+    companion object {
+        fun fromAndroid(focusChange: Int): BambooAudioFocusChange = when (focusChange) {
+            AudioManager.AUDIOFOCUS_GAIN -> Gain
+            AudioManager.AUDIOFOCUS_LOSS -> Loss
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> LossTransient
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> Duck
+            else -> Unknown
+        }
+    }
 }

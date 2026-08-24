@@ -15,7 +15,7 @@ use crate::model::snapshot::EngineSnapshot;
 use crate::networking::{AudioSourceClient, AuthStateProvider, PlaybackPort, SystemPort};
 use crate::services::player::MediaPlayer;
 use crate::services::voice::{VoiceEngine, VoiceInteractionResult};
-use tracing::{info, instrument, warn};
+use tracing::{debug, info, instrument, warn};
 
 use crate::engine::observability::EventBus;
 use crate::services::service::ServiceManager;

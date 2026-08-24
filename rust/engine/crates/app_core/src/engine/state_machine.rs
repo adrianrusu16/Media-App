@@ -63,15 +63,6 @@ impl StateMachine {
 
             // State: Playing
             (PlaybackState::Playing, EnginePlatformEventType::MediaError) => PlaybackState::Error,
-            (PlaybackState::Playing, EnginePlatformEventType::AudioFocusChanged) => {
-                PlaybackState::Paused
-            }
-
-            // State: Paused
-            (PlaybackState::Paused, EnginePlatformEventType::AudioFocusChanged) => {
-                PlaybackState::Playing
-            }
-
             // State: Error
             (PlaybackState::Error, EnginePlatformEventType::MediaLoaded) => PlaybackState::Playing,
 
@@ -130,9 +121,9 @@ mod tests {
     }
 
     #[test]
-    fn test_paused_to_playing_on_audio_focus_gain() {
+    fn untyped_audio_focus_preserves_paused_state() {
         assert_eq!(
-            PlaybackState::Playing,
+            PlaybackState::Paused,
             StateMachine::next_state_from_platform_event(
                 PlaybackState::Paused,
                 &EnginePlatformEventType::AudioFocusChanged
@@ -255,9 +246,9 @@ mod tests {
     }
 
     #[test]
-    fn test_playing_to_paused_on_audio_focus_change() {
+    fn untyped_audio_focus_preserves_playing_state() {
         assert_eq!(
-            PlaybackState::Paused,
+            PlaybackState::Playing,
             StateMachine::next_state_from_platform_event(
                 PlaybackState::Playing,
                 &EnginePlatformEventType::AudioFocusChanged

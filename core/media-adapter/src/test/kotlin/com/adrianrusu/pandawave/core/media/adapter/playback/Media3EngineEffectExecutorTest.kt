@@ -3,6 +3,7 @@ package com.adrianrusu.pandawave.core.media.adapter.playback
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import com.adrianrusu.pandawave.core.media.adapter.playback.focus.BambooAudioFocusController
+import com.adrianrusu.pandawave.core.media.adapter.playback.focus.BambooAudioFocusRequestResult
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.telemetry.TelemetryEvent
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
@@ -13,6 +14,40 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
 class Media3EngineEffectExecutorTest {
+    @Test
+    fun `delayed audio focus blocks the paired play effect and records the reason`() {
+        val player = RecordingEffectPlayer(playbackState = Player.STATE_READY)
+        val focusController = RecordingAudioFocusController(BambooAudioFocusRequestResult.Delayed)
+        val telemetrySink = RecordingEffectTelemetrySink()
+        val executor = effectExecutor(
+            player = player,
+            focusController = focusController,
+            telemetrySink = telemetrySink,
+        )
+
+        executor.execute(
+            listOf(
+                EngineEffect(type = EngineEffect.TYPE_REQUEST_AUDIO_FOCUS),
+                EngineEffect(type = EngineEffect.TYPE_PLAY),
+            )
+        )
+
+        assertEquals(listOf("request"), focusController.calls)
+        assertEquals(emptyList<String>(), player.calls)
+        assertEquals(
+            BambooAudioFocusRequestResult.Delayed.wireValue,
+            telemetrySink.events
+                .single { it.name == Media3EffectTelemetryEvents.AUDIO_FOCUS_REQUESTED }
+                .attributes[Media3EffectTelemetryAttributes.RESULT],
+        )
+        assertEquals(
+            Media3EffectTelemetryValues.AUDIO_FOCUS_NOT_GRANTED,
+            telemetrySink.events
+                .last { it.name == Media3EffectTelemetryEvents.EFFECT_IGNORED }
+                .attributes[Media3EffectTelemetryAttributes.REASON],
+        )
+    }
+
     @Test
     fun `prepare playback source effect sets projected media item before play`() {
         val player = RecordingEffectPlayer(playbackState = Player.STATE_IDLE)
@@ -257,11 +292,14 @@ private class RecordingEffectPlayer(override var playbackState: Int) : Media3Eff
     }
 }
 
-private class RecordingAudioFocusController : BambooAudioFocusController {
+private class RecordingAudioFocusController(
+    private val requestResult: BambooAudioFocusRequestResult = BambooAudioFocusRequestResult.Granted,
+) : BambooAudioFocusController {
     val calls = mutableListOf<String>()
 
-    override fun requestAudioFocus() {
+    override fun requestAudioFocus(): BambooAudioFocusRequestResult {
         calls += "request"
+        return requestResult
     }
 
     override fun abandonAudioFocus() {

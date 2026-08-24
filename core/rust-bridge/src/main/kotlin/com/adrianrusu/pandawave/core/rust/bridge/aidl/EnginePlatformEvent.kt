@@ -27,6 +27,7 @@ data class EnginePlatformEvent(val type: String, val payload: String?) : Parcela
         const val TYPE_MEDIA_LOADED = "media_loaded"
         const val TYPE_MEDIA_ERROR = "media_error"
         const val TYPE_PLAYBACK_COMPLETED = "playback_completed"
+        const val TYPE_PLAYBACK_POSITION_CHECKPOINT = "playback_position_checkpoint"
 
         const val PAYLOAD_UNKNOWN = "unknown"
         const val PAYLOAD_UNRESTRICTED = "unrestricted"

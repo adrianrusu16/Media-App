@@ -16,6 +16,7 @@ dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:playback"))
     implementation(project(":core:rust-bridge"))
+    implementation(project(":core:telemetry-adapter"))
     implementation(project(":core:ui"))
 
     implementation(platform(libs.androidx.compose.bom))

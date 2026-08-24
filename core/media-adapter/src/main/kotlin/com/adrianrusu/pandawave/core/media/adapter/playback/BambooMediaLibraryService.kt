@@ -56,11 +56,7 @@ class BambooMediaLibraryService : MediaLibraryService() {
         lateinit var playbackEngineBridge: Media3PlaybackEngineBridge
         val focusHandler = BambooAudioFocusHandler(
             context = this,
-            onFocusChange = {
-                playbackEngineBridge.dispatchPlatformEvent(
-                    com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent.TYPE_AUDIO_FOCUS_CHANGED
-                )
-            }
+            onFocusChange = { change -> playbackEngineBridge.dispatchAudioFocusChange(change) }
         )
         val effectExecutor = Media3EngineEffectExecutor(
             player = { PlayerMedia3EffectPlayer(checkNotNull(player)) },
@@ -91,7 +87,12 @@ class BambooMediaLibraryService : MediaLibraryService() {
                         playWhenReady = currentPlayer.playWhenReady
                     )
                 }
-            }
+            },
+            checkpointScheduler = PlaybackCheckpointScheduler { delayMillis, action ->
+                val runnable = Runnable(action)
+                mainThreadHandler.postDelayed(runnable, delayMillis)
+                AutoCloseable { mainThreadHandler.removeCallbacks(runnable) }
+            },
         )
         // The player owns the initial value; keep shared playback state in sync before projection starts.
         playbackEngineBridge.dispatchVolume(exoPlayer.volume)

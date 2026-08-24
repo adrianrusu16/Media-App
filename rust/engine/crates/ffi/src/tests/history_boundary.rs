@@ -3,7 +3,8 @@ use panda_engine_core::{EngineHistoryEntry, EngineHistorySettings, EngineSnapsho
 use crate::mappings::{command_from_ffi, platform_event_from_ffi};
 use crate::{
     FFI_COMMAND_CLEAR_HISTORY, FFI_COMMAND_LOAD_HISTORY_SETTINGS,
-    FFI_COMMAND_UPDATE_HISTORY_SETTINGS, FFI_PLATFORM_EVENT_PLAYBACK_COMPLETED, FfiEngineSnapshot,
+    FFI_COMMAND_UPDATE_HISTORY_SETTINGS, FFI_PLATFORM_EVENT_PLAYBACK_COMPLETED,
+    FFI_PLATFORM_EVENT_PLAYBACK_POSITION_CHECKPOINT, FfiEngineSnapshot,
 };
 
 #[test]
@@ -46,5 +47,9 @@ fn ffi_discriminants_map_history_commands_and_completion_event() {
     assert_eq!(
         platform_event_from_ffi(FFI_PLATFORM_EVENT_PLAYBACK_COMPLETED),
         panda_engine_core::EnginePlatformEventType::PlaybackCompleted
+    );
+    assert_eq!(
+        platform_event_from_ffi(FFI_PLATFORM_EVENT_PLAYBACK_POSITION_CHECKPOINT),
+        panda_engine_core::EnginePlatformEventType::PlaybackPositionCheckpoint
     );
 }

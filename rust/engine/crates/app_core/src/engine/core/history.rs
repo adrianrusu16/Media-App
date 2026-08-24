@@ -198,6 +198,9 @@ impl Engine {
     ) {
         if snapshot.history_settings.is_none() {
             if AuthIdentity::from_state(&snapshot.auth_state).is_none() {
+                debug!(
+                    "Skipping playback history record because no authenticated identity is available"
+                );
                 return;
             }
             let result = match Self::history_context(snapshot, self.history_port.clone()) {
@@ -216,6 +219,10 @@ impl Engine {
                         crate::EngineHistoryAvailability::Available;
                 }
                 Err(error) => {
+                    warn!(
+                        error_type = ?error.error_type,
+                        "Could not load history settings before recording playback completion"
+                    );
                     snapshot.last_error = Some(error);
                     return;
                 }
@@ -225,6 +232,7 @@ impl Engine {
             .history_settings
             .is_some_and(|settings| settings.enabled)
         {
+            info!("Skipping playback history record because history is disabled");
             return;
         }
         let result = (|| {
@@ -252,10 +260,19 @@ impl Engine {
         let record = match result {
             Ok(record) => record,
             Err(error) => {
+                warn!(
+                    error_type = ?error.error_type,
+                    "Rejected malformed playback completion history payload"
+                );
                 snapshot.last_error = Some(error);
                 return;
             }
         };
+        debug!(
+            duration_millis = record.duration_millis,
+            completion_ratio = %record.completion_ratio,
+            "Recording playback completion in history"
+        );
         let result = match Self::history_context(snapshot, self.history_port.clone()) {
             Ok((identity, port)) => {
                 let result = port.record(&identity.history_identity(), record).await;
@@ -264,9 +281,23 @@ impl Engine {
             Err(error) => Err(error),
         };
         match result {
-            Ok(true) => self.invalidate_history_pages(snapshot),
-            Ok(false) => {}
-            Err(error) => snapshot.last_error = Some(error),
+            Ok(true) => {
+                self.invalidate_history_pages(snapshot);
+                info!(
+                    history_generation = snapshot.history_state.generation,
+                    "Playback history recorded and history projection invalidated"
+                );
+            }
+            Ok(false) => {
+                info!("Playback history backend declined the completion record");
+            }
+            Err(error) => {
+                warn!(
+                    error_type = ?error.error_type,
+                    "Playback history record failed"
+                );
+                snapshot.last_error = Some(error);
+            }
         }
     }
 

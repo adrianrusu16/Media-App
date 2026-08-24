@@ -136,6 +136,9 @@ pub(crate) fn platform_event_from_ffi(
             EnginePlatformEventType::VehicleDrivingStateChanged
         }
         FFI_PLATFORM_EVENT_PLAYBACK_COMPLETED => EnginePlatformEventType::PlaybackCompleted,
+        FFI_PLATFORM_EVENT_PLAYBACK_POSITION_CHECKPOINT => {
+            EnginePlatformEventType::PlaybackPositionCheckpoint
+        }
         _ => EnginePlatformEventType::Unknown(event_type.to_string()),
     }
 }

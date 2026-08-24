@@ -5,6 +5,7 @@ import com.adrianrusu.pandawave.core.playback.BambooPlaybackIntent
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackTelemetryAttributes
 import com.adrianrusu.pandawave.core.playback.telemetryName
+import com.adrianrusu.pandawave.core.media.adapter.playback.focus.BambooAudioFocusChange
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommandPayloads
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
@@ -22,6 +23,14 @@ fun interface PlaybackCompletionMetricsProvider {
     fun currentMetrics(): PlaybackCompletionMetrics?
 }
 
+fun interface PlaybackCheckpointScheduler {
+    fun schedule(delayMillis: Long, action: () -> Unit): AutoCloseable
+}
+
+private object NoOpPlaybackCheckpointScheduler : PlaybackCheckpointScheduler {
+    override fun schedule(delayMillis: Long, action: () -> Unit): AutoCloseable = AutoCloseable { }
+}
+
 class Media3PlaybackEngineBridge(
     private val playbackRepository: BambooPlaybackRepository,
     telemetryLogger: TelemetryLogger,
@@ -30,11 +39,15 @@ class Media3PlaybackEngineBridge(
         PlaybackCompletionMetricsProvider { null },
     private val playbackInstanceIdProvider: () -> Long? = { null },
     private val playerSnapshotProvider: () -> Media3PlayerSnapshot? = { null },
+    private val checkpointScheduler: PlaybackCheckpointScheduler = NoOpPlaybackCheckpointScheduler,
+    private val checkpointIntervalMillis: Long = DEFAULT_CHECKPOINT_INTERVAL_MILLIS,
 ) : Player.Listener,
     AutoCloseable {
     private val telemetryLogger = telemetryLogger.forModule(TelemetryModule.Media3)
     private var platformProjectionDepth = 0
     private var effectSubscription: AutoCloseable? = null
+    private var isPlaying = false
+    private var scheduledCheckpoint: AutoCloseable? = null
 
     fun bootstrap() {
         if (effectSubscription == null) {
@@ -57,6 +70,17 @@ class Media3PlaybackEngineBridge(
     fun dispatchPlatformEvent(type: String, payload: String? = null) {
         playbackRepository.dispatch(
             BambooPlaybackIntent.PlatformEvent(type = type, payload = payload)
+        )
+    }
+
+    fun dispatchAudioFocusChange(change: BambooAudioFocusChange) {
+        telemetryLogger.info(
+            name = Media3PlaybackTelemetryEvents.AUDIO_FOCUS_CHANGED,
+            attributes = mapOf(Media3PlaybackTelemetryAttributes.FOCUS_CHANGE to change.wireValue),
+        )
+        dispatchPlatformEvent(
+            EnginePlatformEvent.TYPE_AUDIO_FOCUS_CHANGED,
+            EngineCommandPayloads.audioFocusChanged(change.wireValue),
         )
     }
 
@@ -107,10 +131,58 @@ class Media3PlaybackEngineBridge(
                 // We could dispatch a buffering event if needed, but Rust handles this via commands
             }
 
-            Player.STATE_ENDED -> reportPlaybackCompletion()
+            Player.STATE_ENDED -> {
+                cancelScheduledCheckpoint()
+                reportPlaybackCompletion()
+            }
 
-            Player.STATE_IDLE -> Unit
+            Player.STATE_IDLE -> cancelScheduledCheckpoint()
         }
+    }
+
+    override fun onIsPlayingChanged(isPlaying: Boolean) {
+        if (this.isPlaying == isPlaying) return
+        this.isPlaying = isPlaying
+        cancelScheduledCheckpoint()
+        if (isPlaying) {
+            scheduleNextCheckpoint()
+        } else {
+            reportPlaybackPositionCheckpoint(PlaybackCheckpointTriggers.PAUSED)
+        }
+    }
+
+    private fun scheduleNextCheckpoint() {
+        scheduledCheckpoint = checkpointScheduler.schedule(checkpointIntervalMillis) {
+            scheduledCheckpoint = null
+            if (!isPlaying) return@schedule
+            reportPlaybackPositionCheckpoint(PlaybackCheckpointTriggers.PERIODIC)
+            scheduleNextCheckpoint()
+        }
+    }
+
+    private fun cancelScheduledCheckpoint() {
+        scheduledCheckpoint?.close()
+        scheduledCheckpoint = null
+    }
+
+    private fun reportPlaybackPositionCheckpoint(trigger: String) {
+        val positionMillis = playbackMetricsProvider.currentMetrics()
+            ?.positionMillis
+            ?.takeIf { it >= 0L }
+            ?: return
+        val playbackInstanceId = playbackInstanceIdProvider() ?: return
+        telemetryLogger.debug(
+            name = Media3PlaybackTelemetryEvents.POSITION_CHECKPOINT_DISPATCHED,
+            attributes = mapOf(
+                Media3PlaybackTelemetryAttributes.PLAYBACK_INSTANCE_ID to playbackInstanceId.toString(),
+                Media3PlaybackTelemetryAttributes.POSITION_MILLIS to positionMillis.toString(),
+                Media3PlaybackTelemetryAttributes.TRIGGER to trigger,
+            ),
+        )
+        dispatchPlatformEvent(
+            EnginePlatformEvent.TYPE_PLAYBACK_POSITION_CHECKPOINT,
+            EngineCommandPayloads.playbackPositionCheckpoint(playbackInstanceId, positionMillis),
+        )
     }
 
     private fun reportPlaybackCompletion() {
@@ -125,6 +197,14 @@ class Media3PlaybackEngineBridge(
             positionMillis.toDouble().div(durationMillis.toDouble()).coerceIn(0.0, 1.0)
         }
         val playbackInstanceId = playbackInstanceIdProvider() ?: return
+        telemetryLogger.info(
+            name = Media3PlaybackTelemetryEvents.PLAYBACK_COMPLETION_DISPATCHED,
+            attributes = mapOf(
+                Media3PlaybackTelemetryAttributes.PLAYBACK_INSTANCE_ID to playbackInstanceId.toString(),
+                Media3PlaybackTelemetryAttributes.DURATION_MILLIS to durationMillis.toString(),
+                Media3PlaybackTelemetryAttributes.COMPLETION_RATIO to completionRatio.toString(),
+            ),
+        )
         dispatchPlatformEvent(
             EnginePlatformEvent.TYPE_PLAYBACK_COMPLETED,
             EngineCommandPayloads.playbackCompleted(trackId, durationMillis, completionRatio, playbackInstanceId),
@@ -256,6 +336,8 @@ class Media3PlaybackEngineBridge(
     }
 
     override fun close() {
+        isPlaying = false
+        cancelScheduledCheckpoint()
         effectSubscription?.close()
         effectSubscription = null
         playbackRepository.close()
@@ -288,28 +370,42 @@ private fun androidx.media3.common.PlaybackException.decoderName(): String? = ca
 private val DECODER_NAME_PATTERN = Regex("(?:Decoder failed:|decoder(?:Name)?[=:])\\s*([^\\s,]+)")
 
 internal object Media3PlaybackTelemetryEvents {
+    const val AUDIO_FOCUS_CHANGED = "media3.audio_focus.changed"
     const val PLAY_WHEN_READY_RECEIVED = "media3.play_when_ready.received"
     const val PLAY_WHEN_READY_IGNORED = "media3.play_when_ready.ignored"
     const val PLAYER_COMMAND_DISPATCHED = "media3.player_command.dispatched"
     const val PLAYER_COMMAND_IGNORED = "media3.player_command.ignored"
+    const val PLAYBACK_COMPLETION_DISPATCHED = "media3.playback.completion.dispatched"
     const val CATALOG_COMMAND_DISPATCHED = "media3.catalog.command.dispatched"
+    const val POSITION_CHECKPOINT_DISPATCHED = "media3.playback.position_checkpoint.dispatched"
 }
 
 internal object Media3PlaybackTelemetryAttributes {
     const val CATALOG_PARENT_ID_PRESENT = "catalog_parent_id_present"
     const val CATALOG_QUERY_LENGTH = "catalog_query_length"
+    const val COMPLETION_RATIO = "completion_ratio"
+    const val DURATION_MILLIS = "duration_millis"
+    const val FOCUS_CHANGE = "focus_change"
     const val MEDIA_ID_PRESENT = "media_id_present"
     const val PLAY_WHEN_READY = "play_when_ready"
+    const val PLAYBACK_INSTANCE_ID = "playback_instance_id"
     const val PLAYER_COMMAND = "player_command"
     const val POSITION_MILLIS = "position_millis"
     const val REASON = "reason"
     const val SOURCE = "source"
     const val SPEED = "speed"
+    const val TRIGGER = "trigger"
 }
 
 internal object Media3PlaybackTelemetryValues {
     const val PLATFORM_PROJECTION = "platform_projection"
 }
 
+private object PlaybackCheckpointTriggers {
+    const val PERIODIC = "periodic"
+    const val PAUSED = "paused"
+}
+
 private const val MIN_VOLUME = 0F
 private const val MAX_VOLUME = 1F
+private const val DEFAULT_CHECKPOINT_INTERVAL_MILLIS = 10_000L

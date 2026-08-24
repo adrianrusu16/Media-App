@@ -10,6 +10,8 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistTrackItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineGateway
+import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
+import com.adrianrusu.pandawave.core.telemetry.TelemetryModule
 import com.adrianrusu.pandawave.feature.library.domain.LibraryHistoryEntry
 import com.adrianrusu.pandawave.feature.library.domain.LibraryRepository
 import com.adrianrusu.pandawave.feature.library.domain.LibraryState
@@ -25,7 +27,9 @@ import kotlinx.coroutines.flow.asStateFlow
 
 class PandaEngineLibraryRepository @Inject constructor(
     private val engineGateway: EngineGateway,
+    telemetryLogger: TelemetryLogger,
 ) : LibraryRepository {
+    private val telemetryLogger = telemetryLogger.forModule(TelemetryModule.Library)
     private val mutableState = MutableStateFlow(LibraryState())
     override val state: StateFlow<LibraryState> = mutableState.asStateFlow()
 
@@ -133,7 +137,7 @@ class PandaEngineLibraryRepository @Inject constructor(
             return
         }
         if (hydratedIdentity != identity) clearProjectionCaches()
-        updateHistoryCache(snapshot, command)
+        val historyRefreshRequest = updateHistoryCache(snapshot, command)
 
         val errorType = snapshot.errorType.takeIf { snapshot.hasError }
         val playlistSelection = playlistSelection(snapshot, command)
@@ -183,6 +187,22 @@ class PandaEngineLibraryRepository @Inject constructor(
             isRetryableError = errorType == EngineSnapshot.ERROR_NETWORK,
         )
         hydrateFor(identity)
+        if (historyRefreshRequest != null && hydratedIdentity == identity) {
+            telemetryLogger.info(
+                name = LibraryTelemetryEvents.HISTORY_REFRESH_REQUESTED,
+                attributes = mapOf(
+                    LibraryTelemetryAttributes.PREVIOUS_GENERATION to historyRefreshRequest.previousGeneration.toString(),
+                    LibraryTelemetryAttributes.CURRENT_GENERATION to historyRefreshRequest.currentGeneration.toString(),
+                    LibraryTelemetryAttributes.REASON to LibraryTelemetryValues.ENGINE_INVALIDATION,
+                ),
+            )
+            dispatch(
+                EngineCommand(
+                    EngineCommand.TYPE_LIST_HISTORY,
+                    EngineCommandPayloads.historyPage(HISTORY_PAGE_SIZE),
+                )
+            )
+        }
     }
 
     private fun hydrateFor(identity: LibraryIdentity) {
@@ -199,9 +219,27 @@ class PandaEngineLibraryRepository @Inject constructor(
         dispatch(EngineCommand(EngineCommand.TYPE_LIST_PLAYLISTS, EngineCommandPayloads.playlistPage(PAGE_SIZE)))
     }
 
-    private fun updateHistoryCache(snapshot: EngineSnapshot, command: EngineCommand?) {
+    private fun updateHistoryCache(
+        snapshot: EngineSnapshot,
+        command: EngineCommand?,
+    ): HistoryRefreshRequest? {
         val identity = snapshot.libraryIdentity()
         val nextKey = identity?.let { HistoryCacheKey(it.accountId, it.sessionId, snapshot.historyGeneration) }
+        val previousKey = historyCacheKey
+        val refreshRequest = previousKey
+            ?.takeIf {
+                command == null &&
+                    nextKey != null &&
+                    it.accountId == nextKey.accountId &&
+                    it.sessionId == nextKey.sessionId &&
+                    it.generation != nextKey.generation
+            }
+            ?.let {
+                HistoryRefreshRequest(
+                    previousGeneration = it.generation,
+                    currentGeneration = checkNotNull(nextKey).generation,
+                )
+            }
         if (historyCacheKey != nextKey) {
             historyCacheKey = nextKey
             historyEntries = emptyList()
@@ -209,7 +247,7 @@ class PandaEngineLibraryRepository @Inject constructor(
         if (command?.type != EngineCommand.TYPE_LIST_HISTORY &&
             command?.type != EngineCommand.TYPE_LOAD_NEXT_HISTORY_PAGE
         ) {
-            return
+            return refreshRequest
         }
         val page = List(snapshot.historyEntriesCount.coerceAtLeast(0), engineGateway::historyEntry)
             .filterNotNull()
@@ -219,6 +257,7 @@ class PandaEngineLibraryRepository @Inject constructor(
             EngineCommand.TYPE_LOAD_NEXT_HISTORY_PAGE -> historyEntries + page
             else -> historyEntries
         }
+        return refreshRequest
     }
 
     private fun playlistSelection(snapshot: EngineSnapshot, command: EngineCommand?): PlaylistSelection {
@@ -292,6 +331,7 @@ class PandaEngineLibraryRepository @Inject constructor(
 
     private data class LibraryIdentity(val accountId: String, val sessionId: String)
     private data class HistoryCacheKey(val accountId: String, val sessionId: String, val generation: Long)
+    private data class HistoryRefreshRequest(val previousGeneration: Long, val currentGeneration: Long)
     private data class PlaylistSelectionKey(
         val playlistsCount: Int,
         val playlistTracksCount: Int,
@@ -335,6 +375,20 @@ class PandaEngineLibraryRepository @Inject constructor(
         val playlistSelectionCommands = playlistCommands + playlistTrackCommands
         val libraryMutationCommands = savedTrackCommands + likedTrackCommands + playlistCommands + playlistTrackCommands
     }
+}
+
+private object LibraryTelemetryEvents {
+    const val HISTORY_REFRESH_REQUESTED = "library.history.refresh_requested"
+}
+
+private object LibraryTelemetryAttributes {
+    const val PREVIOUS_GENERATION = "previous_generation"
+    const val CURRENT_GENERATION = "current_generation"
+    const val REASON = "reason"
+}
+
+private object LibraryTelemetryValues {
+    const val ENGINE_INVALIDATION = "engine_invalidation"
 }
 
 private class ProjectionCache<Source, Target> {

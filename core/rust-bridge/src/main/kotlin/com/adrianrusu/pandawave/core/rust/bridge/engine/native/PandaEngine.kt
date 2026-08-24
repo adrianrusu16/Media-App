@@ -632,6 +632,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         private const val PLATFORM_EVENT_MEDIA_ERROR = 7
         private const val PLATFORM_EVENT_VEHICLE_DRIVING_STATE_CHANGED = 8
         private const val PLATFORM_EVENT_PLAYBACK_COMPLETED = 9
+        private const val PLATFORM_EVENT_PLAYBACK_POSITION_CHECKPOINT = 10
         private const val PLATFORM_EVENT_UNKNOWN = -1
 
         private const val EFFECT_PLAY = 0
@@ -792,6 +793,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             EnginePlatformEvent.TYPE_MEDIA_ERROR -> PLATFORM_EVENT_MEDIA_ERROR
             EnginePlatformEvent.TYPE_VEHICLE_DRIVING_STATE_CHANGED -> PLATFORM_EVENT_VEHICLE_DRIVING_STATE_CHANGED
             EnginePlatformEvent.TYPE_PLAYBACK_COMPLETED -> PLATFORM_EVENT_PLAYBACK_COMPLETED
+            EnginePlatformEvent.TYPE_PLAYBACK_POSITION_CHECKPOINT -> PLATFORM_EVENT_PLAYBACK_POSITION_CHECKPOINT
             else -> PLATFORM_EVENT_UNKNOWN
         }
 

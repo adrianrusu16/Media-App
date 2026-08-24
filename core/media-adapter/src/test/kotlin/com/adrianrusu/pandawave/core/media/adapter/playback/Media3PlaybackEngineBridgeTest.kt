@@ -6,17 +6,94 @@ import com.adrianrusu.pandawave.core.playback.BambooPlaybackIntentNames
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackState
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackTelemetryAttributes
+import com.adrianrusu.pandawave.core.media.adapter.playback.focus.BambooAudioFocusChange
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.pandawave.core.telemetry.TelemetryEvent
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
 import com.adrianrusu.pandawave.core.telemetry.TelemetryModule
 import com.adrianrusu.pandawave.core.telemetry.TelemetrySink
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 class Media3PlaybackEngineBridgeTest {
+    @Test
+    fun `audio focus changes dispatch typed engine events and structured telemetry`() {
+        val repository = RecordingPlaybackRepository()
+        val telemetrySink = RecordingTelemetrySink()
+        val bridge = Media3PlaybackEngineBridge(
+            playbackRepository = repository,
+            telemetryLogger = testTelemetryLogger(telemetrySink),
+        )
+
+        bridge.dispatchAudioFocusChange(BambooAudioFocusChange.LossTransient)
+
+        val event = repository.intents.single() as BambooPlaybackIntent.PlatformEvent
+        assertEquals(EnginePlatformEvent.TYPE_AUDIO_FOCUS_CHANGED, event.type)
+        assertEquals(
+            """{"version":1,"focus_change":"loss_transient"}""",
+            event.payload,
+        )
+        assertEquals(
+            "loss_transient",
+            telemetrySink.events.single {
+                it.name == Media3PlaybackTelemetryEvents.AUDIO_FOCUS_CHANGED
+            }.attributes[Media3PlaybackTelemetryAttributes.FOCUS_CHANGE],
+        )
+    }
+
+    @Test
+    fun `playing schedules recurring safe position checkpoints and pausing sends a final checkpoint`() {
+        val repository = RecordingPlaybackRepository()
+        val telemetrySink = RecordingTelemetrySink()
+        val scheduler = RecordingPlaybackCheckpointScheduler()
+        var metrics = PlaybackCompletionMetrics(positionMillis = 18_300L, durationMillis = 120_000L)
+        val bridge = Media3PlaybackEngineBridge(
+            playbackRepository = repository,
+            telemetryLogger = testTelemetryLogger(telemetrySink),
+            playbackMetricsProvider = PlaybackCompletionMetricsProvider { metrics },
+            playbackInstanceIdProvider = { 42L },
+            checkpointScheduler = scheduler,
+            checkpointIntervalMillis = 10_000L,
+        )
+
+        bridge.onIsPlayingChanged(true)
+
+        assertEquals(listOf(10_000L), scheduler.pendingDelays())
+        scheduler.runNext()
+
+        val periodicEvent = repository.intents
+            .filterIsInstance<BambooPlaybackIntent.PlatformEvent>()
+            .single()
+        assertEquals(EnginePlatformEvent.TYPE_PLAYBACK_POSITION_CHECKPOINT, periodicEvent.type)
+        assertEquals(
+            """{"version":1,"playback_instance_id":42,"position_ms":18300}""",
+            periodicEvent.payload,
+        )
+        assertEquals(listOf(10_000L), scheduler.pendingDelays())
+
+        metrics = metrics.copy(positionMillis = 19_100L)
+        bridge.onIsPlayingChanged(false)
+
+        val finalEvent = repository.intents
+            .filterIsInstance<BambooPlaybackIntent.PlatformEvent>()
+            .last()
+        assertEquals(
+            """{"version":1,"playback_instance_id":42,"position_ms":19100}""",
+            finalEvent.payload,
+        )
+        assertTrue(scheduler.pendingDelays().isEmpty())
+        assertEquals(
+            listOf("periodic", "paused"),
+            telemetrySink.events
+                .filter { it.name == Media3PlaybackTelemetryEvents.POSITION_CHECKPOINT_DISPATCHED }
+                .map { it.attributes.getValue(Media3PlaybackTelemetryAttributes.TRIGGER) },
+        )
+    }
+
     @Test
     fun `bootstrap starts playback repository`() {
         val repository = RecordingPlaybackRepository()
@@ -302,6 +379,30 @@ private class RecordingEffectExecutor : BambooPlaybackEffectExecutor {
 
     override fun execute(effects: List<EngineEffect>) {
         this.effects += effects
+    }
+}
+
+private class RecordingPlaybackCheckpointScheduler : PlaybackCheckpointScheduler {
+    private data class Task(
+        val delayMillis: Long,
+        val action: () -> Unit,
+        var cancelled: Boolean = false,
+    )
+
+    private val tasks = mutableListOf<Task>()
+
+    override fun schedule(delayMillis: Long, action: () -> Unit): AutoCloseable {
+        val task = Task(delayMillis, action)
+        tasks += task
+        return AutoCloseable { task.cancelled = true }
+    }
+
+    fun pendingDelays(): List<Long> = tasks.filterNot(Task::cancelled).map(Task::delayMillis)
+
+    fun runNext() {
+        val task = tasks.first { !it.cancelled }
+        task.cancelled = true
+        task.action()
     }
 }
 

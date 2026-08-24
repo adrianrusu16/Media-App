@@ -9,6 +9,7 @@ enum class TelemetryModule(tagSuffix: String) {
     Media3("Media3"),
     Ambient("Ambient"),
     RustBridge("RustBridge"),
+    Library("Library"),
     Preferences("Preferences"),
     Automotive("Automotive");
 

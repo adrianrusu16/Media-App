@@ -13,21 +13,87 @@ impl Engine {
             )
             .ok()
         });
+        let audio_focus_change = (event.event_type == EnginePlatformEventType::AudioFocusChanged)
+            .then(|| {
+                event.payload.as_deref().and_then(|payload| {
+                    serde_json::from_str::<crate::model::platform_event::AudioFocusChangedPayload>(
+                        payload,
+                    )
+                    .ok()
+                    .filter(|value| value.version == 1)
+                    .map(|value| value.focus_change)
+                })
+            })
+            .flatten();
         if matches!(
             event.event_type,
             EnginePlatformEventType::MediaLoaded
                 | EnginePlatformEventType::MediaError
                 | EnginePlatformEventType::PlaybackCompleted
+                | EnginePlatformEventType::PlaybackPositionCheckpoint
         ) && let Some(observation) = observation.as_ref()
             && (observation.version != 1
                 || Some(observation.playback_instance_id) != self.current_playback_instance_id)
         {
             // A superseded item may still finish or fail. Its observation is
             // useful to the platform for logging but never authoritative here.
+            debug!(
+                platform_event = event.event_type.as_wire(),
+                observed_playback_instance_id = observation.playback_instance_id,
+                current_playback_instance_id = ?self.current_playback_instance_id,
+                "Ignoring stale platform playback observation"
+            );
             return EngineOutcome {
                 snapshot: self.snapshot.clone(),
                 event: EngineEvent::platform_event_applied(Some(
                     event.event_type.as_wire().to_owned(),
+                )),
+                effects: Vec::new(),
+            };
+        }
+
+        if event.event_type == EnginePlatformEventType::PlaybackPositionCheckpoint {
+            let Some(observation) = observation.as_ref() else {
+                warn!("Ignoring malformed playback position checkpoint");
+                return EngineOutcome {
+                    snapshot: self.snapshot.clone(),
+                    event: EngineEvent::platform_event_applied(Some(
+                        EnginePlatformEventType::PLAYBACK_POSITION_CHECKPOINT_WIRE.to_owned(),
+                    )),
+                    effects: Vec::new(),
+                };
+            };
+            let Some(position_millis) = observation.position_ms else {
+                warn!(
+                    playback_instance_id = observation.playback_instance_id,
+                    "Ignoring playback position checkpoint without a position"
+                );
+                return EngineOutcome {
+                    snapshot: self.snapshot.clone(),
+                    event: EngineEvent::platform_event_applied(Some(
+                        EnginePlatformEventType::PLAYBACK_POSITION_CHECKPOINT_WIRE.to_owned(),
+                    )),
+                    effects: Vec::new(),
+                };
+            };
+            let safe_position_millis = self
+                .snapshot
+                .duration_millis
+                .map_or(position_millis, |duration| position_millis.min(duration));
+            self.snapshot = self
+                .snapshot
+                .clone()
+                .with_position(safe_position_millis)
+                .with_progress_tick(now_epoch_millis);
+            debug!(
+                playback_instance_id = observation.playback_instance_id,
+                position_millis = safe_position_millis,
+                "Playback position checkpoint accepted"
+            );
+            return EngineOutcome {
+                snapshot: self.snapshot.clone(),
+                event: EngineEvent::platform_event_applied(Some(
+                    EnginePlatformEventType::PLAYBACK_POSITION_CHECKPOINT_WIRE.to_owned(),
                 )),
                 effects: Vec::new(),
             };
@@ -220,7 +286,27 @@ impl Engine {
 
         let prev_playback_state = self.snapshot.playback_state;
 
-        let next_playback_state = if prev_playback_state == PlaybackState::Recovering
+        let next_playback_state = if event.event_type == EnginePlatformEventType::AudioFocusChanged
+        {
+            use crate::model::platform_event::AudioFocusChange;
+            match audio_focus_change {
+                Some(AudioFocusChange::Gain) if self.recovery.desired_play_when_ready => {
+                    PlaybackState::Playing
+                }
+                Some(
+                    AudioFocusChange::Loss
+                    | AudioFocusChange::LossTransient
+                    | AudioFocusChange::Duck,
+                ) if matches!(
+                    prev_playback_state,
+                    PlaybackState::Playing | PlaybackState::Buffering | PlaybackState::Recovering
+                ) =>
+                {
+                    PlaybackState::Paused
+                }
+                _ => prev_playback_state,
+            }
+        } else if prev_playback_state == PlaybackState::Recovering
             && event.event_type == EnginePlatformEventType::MediaLoaded
             && !self.recovery.desired_play_when_ready
         {
@@ -228,6 +314,19 @@ impl Engine {
         } else {
             StateMachine::next_state_from_platform_event(prev_playback_state, &event.event_type)
         };
+
+        if event.event_type == EnginePlatformEventType::AudioFocusChanged {
+            match audio_focus_change {
+                Some(focus_change) => info!(
+                    ?focus_change,
+                    ?prev_playback_state,
+                    ?next_playback_state,
+                    desired_play_when_ready = self.recovery.desired_play_when_ready,
+                    "Audio focus change applied"
+                ),
+                None => warn!("Ignoring malformed audio focus change payload"),
+            }
+        }
 
         let mut next_snapshot = self
             .snapshot
@@ -286,6 +385,16 @@ impl Engine {
                 _ => {}
             },
             _ => {}
+        }
+        if matches!(
+            audio_focus_change,
+            Some(crate::model::platform_event::AudioFocusChange::Gain)
+        ) && self.recovery.desired_play_when_ready
+            && !effects.contains(&EngineEffect::Play)
+        {
+            // A delayed focus grant can arrive after the engine already projected
+            // Playing. Reassert the platform play effect without toggling intent.
+            effects.push(EngineEffect::Play);
         }
 
         self.snapshot = next_snapshot;

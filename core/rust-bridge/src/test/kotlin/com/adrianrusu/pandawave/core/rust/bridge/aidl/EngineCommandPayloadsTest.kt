@@ -9,6 +9,30 @@ import kotlinx.serialization.json.jsonPrimitive
 
 class EngineCommandPayloadsTest {
     @Test
+    fun `playback position checkpoint payload carries safe position and playback identity`() {
+        val payload = Json.parseToJsonElement(
+            EngineCommandPayloads.playbackPositionCheckpoint(
+                playbackInstanceId = 42L,
+                positionMillis = 18_300L,
+            )
+        ).jsonObject
+
+        assertEquals("1", payload.getValue("version").jsonPrimitive.content)
+        assertEquals("42", payload.getValue("playback_instance_id").jsonPrimitive.content)
+        assertEquals("18300", payload.getValue("position_ms").jsonPrimitive.content)
+    }
+
+    @Test
+    fun `audio focus payload carries typed focus change`() {
+        val payload = Json.parseToJsonElement(
+            EngineCommandPayloads.audioFocusChanged("loss_transient")
+        ).jsonObject
+
+        assertEquals("1", payload.getValue("version").jsonPrimitive.content)
+        assertEquals("loss_transient", payload.getValue("focus_change").jsonPrimitive.content)
+    }
+
+    @Test
     fun `decoder failure payload carries typed diagnostics and intent`() {
         val payload = Json.parseToJsonElement(
             EngineCommandPayloads.decoderFailed(

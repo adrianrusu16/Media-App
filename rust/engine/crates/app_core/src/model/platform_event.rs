@@ -25,6 +25,8 @@ pub enum EnginePlatformEventType {
     MediaError,
     /// The platform player reached a terminal playback position.
     PlaybackCompleted,
+    /// The platform player confirmed a safe position for recovery and progress projection.
+    PlaybackPositionCheckpoint,
     /// An event not recognized by this version of the engine.
     Unknown(String),
 }
@@ -51,6 +53,7 @@ impl EnginePlatformEventType {
     /// Wire value for MediaError event.
     pub const MEDIA_ERROR_WIRE: &'static str = "media_error";
     pub const PLAYBACK_COMPLETED_WIRE: &'static str = "playback_completed";
+    pub const PLAYBACK_POSITION_CHECKPOINT_WIRE: &'static str = "playback_position_checkpoint";
 
     /// Maps a wire string value to its corresponding enum variant.
     pub fn from_wire(value: impl Into<String>) -> Self {
@@ -67,6 +70,7 @@ impl EnginePlatformEventType {
             Self::MEDIA_LOADED_WIRE => Self::MediaLoaded,
             Self::MEDIA_ERROR_WIRE => Self::MediaError,
             Self::PLAYBACK_COMPLETED_WIRE => Self::PlaybackCompleted,
+            Self::PLAYBACK_POSITION_CHECKPOINT_WIRE => Self::PlaybackPositionCheckpoint,
             _ => Self::Unknown(value),
         }
     }
@@ -85,6 +89,7 @@ impl EnginePlatformEventType {
             Self::MediaLoaded => Self::MEDIA_LOADED_WIRE,
             Self::MediaError => Self::MEDIA_ERROR_WIRE,
             Self::PlaybackCompleted => Self::PLAYBACK_COMPLETED_WIRE,
+            Self::PlaybackPositionCheckpoint => Self::PLAYBACK_POSITION_CHECKPOINT_WIRE,
             Self::Unknown(value) => value.as_str(),
         }
     }
@@ -123,6 +128,23 @@ pub(crate) struct PlaybackObservationPayload {
     /// Playback intent captured from the failed player before it is released.
     #[serde(default)]
     pub play_when_ready: Option<bool>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum AudioFocusChange {
+    Gain,
+    Loss,
+    LossTransient,
+    Duck,
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Deserialize)]
+pub(crate) struct AudioFocusChangedPayload {
+    pub version: u8,
+    pub focus_change: AudioFocusChange,
 }
 
 impl EnginePlatformEvent {

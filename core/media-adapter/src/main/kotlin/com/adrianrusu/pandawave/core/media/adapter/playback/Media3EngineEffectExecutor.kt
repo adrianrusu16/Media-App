@@ -3,6 +3,7 @@ package com.adrianrusu.pandawave.core.media.adapter.playback
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import com.adrianrusu.pandawave.core.media.adapter.playback.focus.BambooAudioFocusController
+import com.adrianrusu.pandawave.core.media.adapter.playback.focus.BambooAudioFocusRequestResult
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
 import com.adrianrusu.pandawave.core.telemetry.TelemetryModule
@@ -26,17 +27,27 @@ internal class Media3EngineEffectExecutor(
     private val telemetryLogger = telemetryLogger.forModule(TelemetryModule.Media3)
 
     override fun execute(effects: List<EngineEffect>) {
-        effects.forEach(::execute)
+        var focusRequestResult: BambooAudioFocusRequestResult? = null
+        effects.forEach { effect ->
+            when {
+                effect.type == EngineEffect.TYPE_REQUEST_AUDIO_FOCUS -> {
+                    focusRequestResult = requestAudioFocus(effect)
+                }
+                effect.type == EngineEffect.TYPE_PLAY &&
+                    focusRequestResult != null &&
+                    focusRequestResult != BambooAudioFocusRequestResult.Granted -> {
+                    logEffectReceived(effect)
+                    logAudioFocusNotGranted(effect, checkNotNull(focusRequestResult))
+                }
+                else -> execute(effect)
+            }
+        }
     }
 
     private fun execute(effect: EngineEffect) {
-        telemetryLogger.debug(
-            name = Media3EffectTelemetryEvents.EFFECT_RECEIVED,
-            attributes = mapOf(Media3EffectTelemetryAttributes.EFFECT_TYPE to effect.type)
-        )
+        logEffectReceived(effect)
 
         when (effect.type) {
-            EngineEffect.TYPE_REQUEST_AUDIO_FOCUS -> audioFocusController.requestAudioFocus()
             EngineEffect.TYPE_ABANDON_AUDIO_FOCUS -> audioFocusController.abandonAudioFocus()
             EngineEffect.TYPE_PLAY -> play()
             EngineEffect.TYPE_PAUSE -> player().pause()
@@ -49,6 +60,37 @@ internal class Media3EngineEffectExecutor(
             EngineEffect.TYPE_SET_SPEED -> setSpeed(effect)
             else -> logNoOp(effect)
         }
+    }
+
+    private fun requestAudioFocus(effect: EngineEffect): BambooAudioFocusRequestResult {
+        logEffectReceived(effect)
+        val result = audioFocusController.requestAudioFocus()
+        telemetryLogger.info(
+            name = Media3EffectTelemetryEvents.AUDIO_FOCUS_REQUESTED,
+            attributes = mapOf(Media3EffectTelemetryAttributes.RESULT to result.wireValue),
+        )
+        return result
+    }
+
+    private fun logEffectReceived(effect: EngineEffect) {
+        telemetryLogger.debug(
+            name = Media3EffectTelemetryEvents.EFFECT_RECEIVED,
+            attributes = mapOf(Media3EffectTelemetryAttributes.EFFECT_TYPE to effect.type),
+        )
+    }
+
+    private fun logAudioFocusNotGranted(
+        effect: EngineEffect,
+        result: BambooAudioFocusRequestResult,
+    ) {
+        telemetryLogger.warning(
+            name = Media3EffectTelemetryEvents.EFFECT_IGNORED,
+            attributes = mapOf(
+                Media3EffectTelemetryAttributes.EFFECT_TYPE to effect.type,
+                Media3EffectTelemetryAttributes.REASON to Media3EffectTelemetryValues.AUDIO_FOCUS_NOT_GRANTED,
+                Media3EffectTelemetryAttributes.RESULT to result.wireValue,
+            ),
+        )
     }
 
     private fun play() {
@@ -184,18 +226,21 @@ internal object Media3EffectTelemetryEvents {
     const val EFFECT_RECEIVED = "media3.effect.received"
     const val EFFECT_IGNORED = "media3.effect.ignored"
     const val EFFECT_NO_OP = "media3.effect.no_op"
+    const val AUDIO_FOCUS_REQUESTED = "media3.audio_focus.requested"
 }
 
 internal object Media3EffectTelemetryAttributes {
     const val EFFECT_TYPE = "effect_type"
     const val MEDIA_ID_PRESENT = "media_id_present"
     const val REASON = "reason"
+    const val RESULT = "result"
 }
 
 internal object Media3EffectTelemetryValues {
     const val MISSING_PAYLOAD = "missing_payload"
     const val MISSING_PROJECTION = "missing_projection"
     const val STALE_PROJECTION = "stale_projection"
+    const val AUDIO_FOCUS_NOT_GRANTED = "audio_focus_not_granted"
 }
 
 private const val MIN_POSITION_MILLIS = 0L

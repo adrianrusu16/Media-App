@@ -16,6 +16,9 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.pandawave.core.rust.bridge.engine.EngineDispatchResult
 import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineGateway
+import com.adrianrusu.pandawave.core.telemetry.TelemetryEvent
+import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
+import com.adrianrusu.pandawave.core.telemetry.TelemetrySink
 import com.adrianrusu.pandawave.feature.library.domain.LibraryTab
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -34,7 +37,7 @@ class PandaEngineLibraryRepositoryTest {
             saved = listOf(item("saved-1"), item("saved-2")),
             liked = listOf(item("liked-1")),
         )
-        val repository = PandaEngineLibraryRepository(gateway)
+        val repository = testLibraryRepository(gateway)
 
         repository.start()
 
@@ -57,7 +60,7 @@ class PandaEngineLibraryRepositoryTest {
     @Test
     fun `pagination is engine owned and never exposes a continuation token`() {
         val gateway = RecordingLibraryGateway(authenticatedSnapshot())
-        val repository = PandaEngineLibraryRepository(gateway)
+        val repository = testLibraryRepository(gateway)
         repository.start()
         gateway.commands.clear()
 
@@ -77,7 +80,8 @@ class PandaEngineLibraryRepositoryTest {
     }
 
     @Test
-    fun `history projection appends bounded pages and resets on generation changes`() {
+    fun `history projection appends pages and refreshes once when the engine generation changes`() {
+        val telemetrySink = RecordingLibraryTelemetrySink()
         val gateway = RecordingLibraryGateway(
             snapshot = authenticatedSnapshot(historyEntriesCount = 1, hasHistoryNextPage = true),
             history = listOf(
@@ -95,7 +99,10 @@ class PandaEngineLibraryRepositoryTest {
                 ),
             ),
         )
-        val repository = PandaEngineLibraryRepository(gateway)
+        val repository = PandaEngineLibraryRepository(
+            gateway,
+            TelemetryLogger(sink = telemetrySink, clock = { 42L }),
+        )
         repository.start()
 
         assertEquals(listOf("history-1"), repository.state.value.historyEntries.map { it.historyId })
@@ -106,9 +113,28 @@ class PandaEngineLibraryRepositoryTest {
         assertEquals(listOf(EngineCommand.TYPE_LOAD_NEXT_HISTORY_PAGE), gateway.commands.map(EngineCommand::type))
         assertEquals(listOf("history-1", "history-2"), repository.state.value.historyEntries.map { it.historyId })
 
+        gateway.commands.clear()
         gateway.emit(authenticatedSnapshot(historyGeneration = 2))
 
-        assertTrue(repository.state.value.historyEntries.isEmpty())
+        assertEquals(listOf(EngineCommand.TYPE_LIST_HISTORY), gateway.commands.map(EngineCommand::type))
+        assertEquals(listOf("history-1"), repository.state.value.historyEntries.map { it.historyId })
+        assertEquals(
+            listOf(
+                mapOf(
+                    "previous_generation" to "0",
+                    "current_generation" to "2",
+                    "reason" to "engine_invalidation",
+                )
+            ),
+            telemetrySink.events
+                .filter { it.name == "library.history.refresh_requested" }
+                .map(TelemetryEvent::attributes),
+        )
+
+        gateway.emit(authenticatedSnapshot(historyGeneration = 2))
+
+        assertEquals(listOf(EngineCommand.TYPE_LIST_HISTORY), gateway.commands.map(EngineCommand::type))
+        assertEquals(listOf("history-1"), repository.state.value.historyEntries.map { it.historyId })
     }
 
     @Test
@@ -118,7 +144,7 @@ class PandaEngineLibraryRepositoryTest {
             snapshot = snapshot,
             history = listOf(historyItem("history-1", "track-1")),
         )
-        val repository = PandaEngineLibraryRepository(gateway)
+        val repository = testLibraryRepository(gateway)
         repository.start()
         val historyReadsAfterStart = gateway.historyEntryReads
 
@@ -134,7 +160,7 @@ class PandaEngineLibraryRepositoryTest {
             snapshot = authenticatedSnapshot(historyEntriesCount = 1),
             history = listOf(historyItem("history-1", "track-1")),
         )
-        val repository = PandaEngineLibraryRepository(gateway)
+        val repository = testLibraryRepository(gateway)
         repository.start()
         repository.selectTab(LibraryTab.HISTORY)
         gateway.commands.clear()
@@ -176,7 +202,7 @@ class PandaEngineLibraryRepositoryTest {
                 proposedMembershipIds = listOf("membership-local"),
             ),
         )
-        val repository = PandaEngineLibraryRepository(gateway)
+        val repository = testLibraryRepository(gateway)
 
         repository.start()
 
@@ -198,7 +224,7 @@ class PandaEngineLibraryRepositoryTest {
             pending = listOf("track-pending"),
             dispatchEventType = EngineEvent.TYPE_GATEWAY_UNAVAILABLE,
         )
-        val repository = PandaEngineLibraryRepository(gateway)
+        val repository = testLibraryRepository(gateway)
         repository.start()
 
         assertEquals(setOf("track-pending"), repository.state.value.pendingMediaIds)
@@ -213,7 +239,7 @@ class PandaEngineLibraryRepositoryTest {
     @Test
     fun `authenticated snapshot transitions hydrate each identity exactly once`() {
         val gateway = RecordingLibraryGateway(EngineSnapshot.idle(1L))
-        val repository = PandaEngineLibraryRepository(gateway)
+        val repository = testLibraryRepository(gateway)
 
         repository.start()
         assertTrue(gateway.commands.isEmpty())
@@ -247,7 +273,7 @@ class PandaEngineLibraryRepositoryTest {
             snapshot = authenticatedSnapshot(accountId = "account-1", sessionId = "session-1"),
             replaceOnFirstSavedLoad = replacement,
         )
-        val repository = PandaEngineLibraryRepository(gateway)
+        val repository = testLibraryRepository(gateway)
 
         repository.start()
 
@@ -420,3 +446,17 @@ private class RecordingLibraryGateway(
 }
 
 private data class LibraryLoad(val type: String, val accountId: String, val sessionId: String)
+
+private fun testLibraryRepository(gateway: EngineGateway): PandaEngineLibraryRepository =
+    PandaEngineLibraryRepository(
+        engineGateway = gateway,
+        telemetryLogger = TelemetryLogger(sink = TelemetrySink { }, clock = { 42L }),
+    )
+
+private class RecordingLibraryTelemetrySink : TelemetrySink {
+    val events = mutableListOf<TelemetryEvent>()
+
+    override fun record(event: TelemetryEvent) {
+        events += event
+    }
+}

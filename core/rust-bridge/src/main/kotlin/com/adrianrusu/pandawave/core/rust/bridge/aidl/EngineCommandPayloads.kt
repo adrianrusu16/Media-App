@@ -11,6 +11,18 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
 
 object EngineCommandPayloads {
+    fun playbackPositionCheckpoint(playbackInstanceId: Long, positionMillis: Long): String =
+        buildJsonObject {
+            put(KEY_VERSION, PAYLOAD_VERSION)
+            put("playback_instance_id", playbackInstanceId)
+            put("position_ms", positionMillis.coerceAtLeast(MIN_POSITION_MILLIS))
+        }.toString()
+
+    fun audioFocusChanged(focusChange: String): String = buildJsonObject {
+        put(KEY_VERSION, PAYLOAD_VERSION)
+        put("focus_change", focusChange)
+    }.toString()
+
     fun playbackObservation(playbackInstanceId: Long, kind: String? = null): String = buildJsonObject {
         put(KEY_VERSION, PAYLOAD_VERSION)
         put("playback_instance_id", playbackInstanceId)

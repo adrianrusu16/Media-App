@@ -215,7 +215,17 @@ async fn decoder_failure_recreates_the_local_player_once_without_resolving_a_new
             130,
         )
         .await;
-    engine.snapshot = engine.snapshot.clone().with_position(182_900);
+    let checkpoint = engine
+        .dispatch_platform_event(
+            EnginePlatformEvent::new(
+                EnginePlatformEventType::PlaybackPositionCheckpoint,
+                Some(r#"{"version":1,"playback_instance_id":1,"position_ms":182900}"#.into()),
+            ),
+            135,
+        )
+        .await;
+    assert_eq!(182_900, checkpoint.snapshot.position_millis);
+    assert!(checkpoint.effects.is_empty());
 
     let recovered = engine
         .dispatch_platform_event(
@@ -321,21 +331,56 @@ async fn platform_error_moves_to_error_state() {
 }
 
 #[tokio::test]
-async fn audio_focus_loss_pauses_playing_engine() {
+async fn typed_audio_focus_resumes_only_when_playback_intent_is_active() {
     let mut engine = Engine::new(100);
+    engine.dispatch(EngineCommand::play(), 125).await;
     engine.snapshot = engine
         .snapshot
         .clone()
         .with_playback_state(PlaybackState::Playing, 150);
 
-    let outcome = engine
+    let loss = engine
         .dispatch_platform_event(
-            EnginePlatformEvent::new(EnginePlatformEventType::AudioFocusChanged, None),
+            EnginePlatformEvent::new(
+                EnginePlatformEventType::AudioFocusChanged,
+                Some(r#"{"version":1,"focus_change":"loss_transient"}"#.into()),
+            ),
             200,
         )
         .await;
 
-    assert_eq!(PlaybackState::Paused, outcome.snapshot.playback_state);
+    assert_eq!(PlaybackState::Paused, loss.snapshot.playback_state);
+    assert!(loss.effects.contains(&EngineEffect::Pause));
+
+    let gain = engine
+        .dispatch_platform_event(
+            EnginePlatformEvent::new(
+                EnginePlatformEventType::AudioFocusChanged,
+                Some(r#"{"version":1,"focus_change":"gain"}"#.into()),
+            ),
+            225,
+        )
+        .await;
+
+    assert_eq!(PlaybackState::Playing, gain.snapshot.playback_state);
+    assert!(gain.effects.contains(&EngineEffect::Play));
+
+    engine.dispatch(EngineCommand::pause(), 250).await;
+    let gain_after_user_pause = engine
+        .dispatch_platform_event(
+            EnginePlatformEvent::new(
+                EnginePlatformEventType::AudioFocusChanged,
+                Some(r#"{"version":1,"focus_change":"gain"}"#.into()),
+            ),
+            275,
+        )
+        .await;
+
+    assert_eq!(
+        PlaybackState::Paused,
+        gain_after_user_pause.snapshot.playback_state
+    );
+    assert!(!gain_after_user_pause.effects.contains(&EngineEffect::Play));
 }
 
 #[tokio::test]
