@@ -47,7 +47,10 @@ class BambooMediaLibraryService : MediaLibraryService() {
 
     override fun onCreate() {
         super.onCreate()
+    }
 
+    private fun ensureSession(): MediaLibrarySession {
+        session?.let { return it }
         val exoPlayer = newPlayer()
         val exoPlayerAudioSessionObserver = ExoPlayerAudioSessionObserver(
             player = exoPlayer,
@@ -142,6 +145,7 @@ class BambooMediaLibraryService : MediaLibraryService() {
         playbackStateProjector.start()
         mediaCommandAvailabilityProjector.start()
         exoPlayer.addListener(playbackEngineBridge)
+        return mediaLibrarySession
     }
 
     /**
@@ -214,7 +218,7 @@ class BambooMediaLibraryService : MediaLibraryService() {
         }
     }
 
-    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? = session
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? = ensureSession()
 
     override fun onDestroy() {
         audioFocusHandler?.stop()
