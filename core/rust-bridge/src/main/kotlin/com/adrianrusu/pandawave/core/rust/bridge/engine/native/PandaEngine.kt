@@ -197,14 +197,8 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
 
     override fun effectCount(): Int = nativeEffectCount(nativeHandle)
 
-    override fun effect(index: Int): EngineEffect? = effectItem(
-        type = nativeEffectType(nativeHandle, index),
-        mediaId = nativeEffectMediaId(nativeHandle, index),
-        message = nativeEffectNotifyMessage(nativeHandle, index),
-        positionMillis = nativeEffectPositionMillis(nativeHandle, index),
-        speed = nativeEffectSpeed(nativeHandle, index),
-        playbackInstanceId = nativeEffectPlaybackInstanceId(nativeHandle, index)
-    )
+    override fun effect(index: Int): EngineEffect? =
+        effectItem(nativeEffectValues(nativeHandle, index))
 
     override fun dispatch(command: EngineCommand): EngineDispatchResult {
         val nativeValues = nativeDispatch(
@@ -369,6 +363,8 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
 
     private external fun nativeCurrentUserId(handle: Long): String?
 
+    private external fun nativeMetadataValues(handle: Long): Array<String>?
+
     private external fun nativeLastEventMessage(handle: Long): String?
 
     private external fun nativeBackendStatusValues(handle: Long): Array<String>?
@@ -393,6 +389,8 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     private external fun nativePlaylistSelectionValues(handle: Long): Array<String>?
 
     private external fun nativeEffectCount(handle: Long): Int
+
+    private external fun nativeEffectValues(handle: Long, index: Int): Array<String>?
 
     private external fun nativeEffectType(handle: Long, index: Int): Int
 
@@ -477,16 +475,8 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         )
     }
 
-    private fun queryNativeMetadata(): NativeEngineMetadata = NativeEngineMetadata(
-        mediaId = nativeCurrentMediaId(nativeHandle),
-        title = nativeCurrentTitle(nativeHandle),
-        artist = nativeCurrentArtist(nativeHandle),
-        album = nativeCurrentAlbum(nativeHandle),
-        artworkUri = nativeCurrentArtworkUri(nativeHandle),
-        sourceUri = nativeCurrentSourceUri(nativeHandle),
-        mimeType = nativeCurrentMimeType(nativeHandle),
-        userId = nativeCurrentUserId(nativeHandle)
-    )
+    private fun queryNativeMetadata(): NativeEngineMetadata =
+        metadataItem(nativeMetadataValues(nativeHandle))
 
     private fun resultItem(
         id: String?,
@@ -517,6 +507,36 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         init = ::effect
     ).filterNotNull()
 
+    private fun metadataItem(values: Array<String>?): NativeEngineMetadata {
+        if (values == null || values.size != METADATA_VALUE_COUNT) return NativeEngineMetadata.empty()
+        return NativeEngineMetadata(
+            mediaId = values[0].ifBlank { null },
+            title = values[1].ifBlank { null },
+            artist = values[2].ifBlank { null },
+            album = values[3].ifBlank { null },
+            artworkUri = values[4].ifBlank { null },
+            sourceUri = values[5].ifBlank { null },
+            mimeType = values[6].ifBlank { null },
+            userId = values[7].ifBlank { null }
+        )
+    }
+
+    private fun effectItem(values: Array<String>?): EngineEffect? {
+        if (values == null || values.size != EFFECT_VALUE_COUNT) return null
+        val type = values[0].toIntOrNull() ?: return null
+        val positionMillis = values[3].toLongOrNull() ?: -1L
+        val speed = values[4].toFloatOrNull() ?: Float.NaN
+        val playbackInstanceId = values[5].toLongOrNull() ?: -1L
+        return effectItem(
+            type = type,
+            mediaId = values[1],
+            message = values[2],
+            positionMillis = positionMillis,
+            speed = speed,
+            playbackInstanceId = playbackInstanceId
+        )
+    }
+
     private fun effectItem(
         type: Int,
         mediaId: String?,
@@ -540,6 +560,9 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     }
 
     companion object {
+        private const val METADATA_VALUE_COUNT = 8
+        private const val EFFECT_VALUE_COUNT = 6
+
         private const val HEALTHY_PROBE_INTERVAL_MILLIS = 60_000L
         private val BACKOFF_DELAYS_MILLIS =
             longArrayOf(1_000L, 2_000L, 5_000L, 10_000L, 30_000L, 60_000L)

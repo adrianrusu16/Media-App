@@ -13,6 +13,7 @@ use crate::api::auth::{
 use crate::api::backend::configure_backend;
 use crate::jni_audio_source_client::JniAudioSourceClient;
 use crate::jni_session_cryptor::JniSessionCryptor;
+use crate::mappings::effect_to_ffi;
 use crate::{
     FfiEngineSnapshot, PandaEngine, panda_engine_create, panda_engine_destroy,
     panda_engine_dispatch, panda_engine_dispatch_platform_event, panda_engine_free_string,
@@ -310,6 +311,20 @@ pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_eng
 ) -> jstring {
     let value = unsafe { panda_engine_get_current_user_id(handle as *const PandaEngine) };
     owned_c_string_to_jstring(&mut env, value)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeMetadataValues(
+    mut env: JNIEnv,
+    _this: JObject,
+    handle: jlong,
+) -> jobjectArray {
+    let Some(snapshot) =
+        (unsafe { (handle as *const PandaEngine).as_ref() }).map(|engine| engine.engine.snapshot())
+    else {
+        return ptr::null_mut();
+    };
+    strings_to_jobject_array(&mut env, metadata_to_strings(&snapshot))
 }
 
 #[unsafe(no_mangle)]
@@ -808,6 +823,26 @@ pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_eng
 }
 
 #[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeEffectValues(
+    mut env: JNIEnv,
+    _this: JObject,
+    handle: jlong,
+    index: jint,
+) -> jobjectArray {
+    let Some(engine) = (unsafe { (handle as *const PandaEngine).as_ref() }) else {
+        return ptr::null_mut();
+    };
+    let Ok(index) = usize::try_from(index) else {
+        return ptr::null_mut();
+    };
+    let effects = engine.last_effects.lock().unwrap();
+    let Some(effect) = effects.get(index) else {
+        return ptr::null_mut();
+    };
+    strings_to_jobject_array(&mut env, effect_to_strings(effect))
+}
+
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeEffectType(
     _env: JNIEnv,
     _this: JObject,
@@ -1227,6 +1262,67 @@ fn history_entry_to_strings(item: &panda_engine_core::EngineHistoryEntry) -> Vec
         item.duration_millis.to_string(),
         item.completion_ratio.to_string(),
         if track.is_some() { "1" } else { "0" }.into(),
+    ]
+}
+
+fn metadata_to_strings(snapshot: &panda_engine_core::EngineSnapshot) -> Vec<String> {
+    vec![
+        snapshot.media_id.clone().unwrap_or_default(),
+        snapshot.title.clone().unwrap_or_default(),
+        snapshot.artist.clone().unwrap_or_default(),
+        snapshot.album.clone().unwrap_or_default(),
+        snapshot.thumbnail_url.clone().unwrap_or_default(),
+        snapshot.source_uri.clone().unwrap_or_default(),
+        snapshot.mime_type.clone().unwrap_or_default(),
+        snapshot
+            .session
+            .as_ref()
+            .map(|session| session.user_id.clone())
+            .unwrap_or_default(),
+    ]
+}
+
+fn effect_to_strings(effect: &panda_engine_core::EngineEffect) -> Vec<String> {
+    let media_id = match effect {
+        panda_engine_core::EngineEffect::PreparePlaybackSource { media_id, .. }
+        | panda_engine_core::EngineEffect::RecreatePlayerAndLoad { media_id, .. }
+        | panda_engine_core::EngineEffect::UpdateMetadata { media_id, .. } => media_id.as_str(),
+        _ => "",
+    };
+    let message = match effect {
+        panda_engine_core::EngineEffect::NotifyUser { message } => message.as_str(),
+        _ => "",
+    };
+    let position_millis = match effect {
+        panda_engine_core::EngineEffect::Seek(position_millis)
+        | panda_engine_core::EngineEffect::RecreatePlayerAndLoad {
+            position_millis, ..
+        } => position_millis.to_string(),
+        _ => "-1".into(),
+    };
+    let speed = match effect {
+        panda_engine_core::EngineEffect::SetSpeed(speed) => speed.to_string(),
+        _ => "NaN".into(),
+    };
+    let playback_instance_id = match effect {
+        panda_engine_core::EngineEffect::PreparePlaybackSource {
+            playback_instance_id,
+            ..
+        }
+        | panda_engine_core::EngineEffect::RecreatePlayerAndLoad {
+            playback_instance_id,
+            ..
+        } => playback_instance_id.to_string(),
+        _ => "-1".into(),
+    };
+
+    vec![
+        effect_to_ffi(effect).to_string(),
+        media_id.into(),
+        message.into(),
+        position_millis,
+        speed,
+        playback_instance_id,
     ]
 }
 
