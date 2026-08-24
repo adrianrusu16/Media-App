@@ -164,21 +164,12 @@ class AidlEngineGateway(
 
             else -> {
                 try {
-                    service.dispatch(command)
-                    val serviceSnapshot = service.snapshot()
+                    val result = service.dispatch(command)
                     synchronized(stateLock) {
-                        if (!isClosed) latestSnapshot = serviceSnapshot
+                        if (!isClosed) latestSnapshot = result.snapshot
                     }
-                    val effects = service.effects()
                     logCommand(command = command, status = STATUS_APPLIED)
-                    EngineDispatchResult(
-                        snapshot = serviceSnapshot,
-                        event = EngineEvent(
-                            type = EngineEvent.TYPE_COMMAND_APPLIED,
-                            message = command.type
-                        ),
-                        effects = effects
-                    )
+                    result
                 } catch (_: RemoteException) {
                     invalidateFailedService(service)
                     unavailableResult(command)
@@ -199,21 +190,12 @@ class AidlEngineGateway(
 
             else -> {
                 try {
-                    service.dispatchPlatformEvent(event)
-                    val serviceSnapshot = service.snapshot()
+                    val result = service.dispatchPlatformEvent(event)
                     synchronized(stateLock) {
-                        if (!isClosed) latestSnapshot = serviceSnapshot
+                        if (!isClosed) latestSnapshot = result.snapshot
                     }
-                    val effects = service.effects()
                     logPlatformEvent(event = event, status = STATUS_APPLIED)
-                    EngineDispatchResult(
-                        snapshot = serviceSnapshot,
-                        event = EngineEvent(
-                            type = EngineEvent.TYPE_PLATFORM_EVENT_APPLIED,
-                            message = event.type
-                        ),
-                        effects = effects
-                    )
+                    result
                 } catch (_: RemoteException) {
                     invalidateFailedService(service)
                     unavailableResult(event)
@@ -284,23 +266,21 @@ class AidlEngineGateway(
                     }
 
                     is PendingWork.Command -> {
-                        service.dispatch(work.value)
-                        val serviceSnapshot = service.snapshot()
+                        val result = service.dispatch(work.value)
                         synchronized(stateLock) {
-                            if (!isClosed) latestSnapshot = serviceSnapshot
+                            if (!isClosed) latestSnapshot = result.snapshot
                         }
                         logCommand(command = work.value, status = STATUS_REPLAYED)
-                        notifySnapshotChanged(serviceSnapshot)
+                        notifySnapshotChanged(result.snapshot)
                     }
 
                     is PendingWork.PlatformEvent -> {
-                        service.dispatchPlatformEvent(work.value)
-                        val serviceSnapshot = service.snapshot()
+                        val result = service.dispatchPlatformEvent(work.value)
                         synchronized(stateLock) {
-                            if (!isClosed) latestSnapshot = serviceSnapshot
+                            if (!isClosed) latestSnapshot = result.snapshot
                         }
                         logPlatformEvent(event = work.value, status = STATUS_REPLAYED)
-                        notifySnapshotChanged(serviceSnapshot)
+                        notifySnapshotChanged(result.snapshot)
                     }
                 }
             }

@@ -75,6 +75,15 @@ android {
         }
         release {
             buildConfigField("String", "VERIFICATION_DEBUG_SCHEME", "\"\"")
+            optimization {
+                enable = true
+            }
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
 
@@ -82,6 +91,11 @@ android {
         compose = true
         buildConfig = true
     }
+}
+
+composeCompiler {
+    // R8 still minifies; this only skips Compose group-key stack trace mapping.
+    includeComposeMappingFile.set(false)
 }
 
 val verifyReleaseVerificationConfig by tasks.registering(VerifyVerificationAppLinkHostTask::class) {

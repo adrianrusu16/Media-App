@@ -112,6 +112,23 @@ class PandaEngineLibraryRepositoryTest {
     }
 
     @Test
+    fun `unrelated snapshots reuse cached history without gateway reads`() {
+        val snapshot = authenticatedSnapshot(historyEntriesCount = 1)
+        val gateway = RecordingLibraryGateway(
+            snapshot = snapshot,
+            history = listOf(historyItem("history-1", "track-1")),
+        )
+        val repository = PandaEngineLibraryRepository(gateway)
+        repository.start()
+        val historyReadsAfterStart = gateway.historyEntryReads
+
+        gateway.emit(snapshot.copy(updatedAtEpochMillis = snapshot.updatedAtEpochMillis + 1))
+
+        assertEquals(historyReadsAfterStart, gateway.historyEntryReads)
+        assertEquals(listOf("history-1"), repository.state.value.historyEntries.map { it.historyId })
+    }
+
+    @Test
     fun `signed out snapshots clear cached history entries`() {
         val gateway = RecordingLibraryGateway(
             snapshot = authenticatedSnapshot(historyEntriesCount = 1),
@@ -326,13 +343,18 @@ private class RecordingLibraryGateway(
     private val listeners = mutableListOf<(EngineSnapshot) -> Unit>()
     val commands = mutableListOf<EngineCommand>()
     val libraryLoads = mutableListOf<LibraryLoad>()
+    var historyEntryReads = 0
+        private set
 
     override fun snapshot(): EngineSnapshot = current
     override fun browseResult(index: Int): EngineCatalogItem? = null
     override fun searchResult(index: Int): EngineCatalogItem? = null
     override fun savedTrack(index: Int): EngineLibraryItem? = saved.getOrNull(index)
     override fun likedTrack(index: Int): EngineLibraryItem? = liked.getOrNull(index)
-    override fun historyEntry(index: Int): EngineHistoryItem? = history.getOrNull(historyOffset + index)
+    override fun historyEntry(index: Int): EngineHistoryItem? {
+        historyEntryReads += 1
+        return history.getOrNull(historyOffset + index)
+    }
     override fun pendingLibraryTrackId(index: Int): String? = pending.getOrNull(index)
     override fun playlist(index: Int): EnginePlaylistItem? = playlists.getOrNull(index)
     override fun playlistTrack(index: Int): EnginePlaylistTrackItem? = playlistTracks.getOrNull(index)

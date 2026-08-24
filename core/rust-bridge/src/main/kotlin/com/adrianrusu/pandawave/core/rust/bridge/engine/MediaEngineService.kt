@@ -111,20 +111,22 @@ class MediaEngineService : Service() {
 
         override fun getEffect(index: Int): EngineEffect? = engine?.effect(index)
 
-        override fun dispatch(command: EngineCommand) {
+        override fun dispatch(command: EngineCommand): EngineDispatchResult {
             val result = engine?.dispatch(command)
                 ?: backendUnavailableResult(unavailableSnapshot)
 
             notifySnapshotChanged(result.snapshot)
             notifyEngineEvent(result.event)
+            return result
         }
 
-        override fun dispatchPlatformEvent(event: EnginePlatformEvent) {
+        override fun dispatchPlatformEvent(event: EnginePlatformEvent): EngineDispatchResult {
             val result = engine?.dispatchPlatformEvent(event)
                 ?: backendUnavailableResult(unavailableSnapshot)
 
             notifySnapshotChanged(result.snapshot)
             notifyEngineEvent(result.event)
+            return result
         }
 
         override fun registerListener(listener: IEngineListener) {

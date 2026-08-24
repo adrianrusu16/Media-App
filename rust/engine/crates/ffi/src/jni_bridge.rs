@@ -404,35 +404,35 @@ pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_eng
 }
 
 #[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeBrowseResultValues(
+    mut env: JNIEnv,
+    _: JObject,
+    handle: jlong,
+    index: jint,
+) -> jobjectArray {
+    catalog_result_values(&mut env, handle, index, |snapshot| &snapshot.browse_results)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeSearchResultValues(
+    mut env: JNIEnv,
+    _: JObject,
+    handle: jlong,
+    index: jint,
+) -> jobjectArray {
+    catalog_result_values(&mut env, handle, index, |snapshot| &snapshot.search_results)
+}
+
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeDiscoveryResultValues(
     mut env: JNIEnv,
     _: JObject,
     handle: jlong,
     index: jint,
 ) -> jobjectArray {
-    let Some(item) = (unsafe { (handle as *const PandaEngine).as_ref() })
-        .map(|engine| engine.engine.snapshot())
-        .and_then(|snapshot| {
-            usize::try_from(index)
-                .ok()
-                .and_then(|index| snapshot.discovery_results.get(index).cloned())
-        })
-    else {
-        return ptr::null_mut();
-    };
-    strings_to_jobject_array(
-        &mut env,
-        vec![
-            item.id,
-            item.title,
-            item.artist,
-            item.album.unwrap_or_default(),
-            item.thumbnail_url.unwrap_or_default(),
-            item.source_uri.unwrap_or_default(),
-            item.mime_type.unwrap_or_default(),
-            crate::mappings::media_item_type_to_ffi(&item.item_type).to_string(),
-        ],
-    )
+    catalog_result_values(&mut env, handle, index, |snapshot| {
+        &snapshot.discovery_results
+    })
 }
 
 #[unsafe(no_mangle)]
@@ -442,7 +442,7 @@ pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_eng
     handle: jlong,
     index: jint,
 ) -> jobjectArray {
-    home_feed_result_values(&mut env, handle, index, |snapshot| {
+    catalog_result_values(&mut env, handle, index, |snapshot| {
         &snapshot.for_you_results
     })
 }
@@ -454,12 +454,12 @@ pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_eng
     handle: jlong,
     index: jint,
 ) -> jobjectArray {
-    home_feed_result_values(&mut env, handle, index, |snapshot| {
+    catalog_result_values(&mut env, handle, index, |snapshot| {
         &snapshot.recommendations_results
     })
 }
 
-fn home_feed_result_values(
+fn catalog_result_values(
     env: &mut JNIEnv,
     handle: jlong,
     index: jint,

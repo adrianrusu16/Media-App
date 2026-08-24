@@ -13,6 +13,7 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistReconciliati
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistTrackItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
+import com.adrianrusu.pandawave.core.rust.bridge.engine.EngineDispatchResult
 import com.adrianrusu.pandawave.core.telemetry.TelemetryEvent
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
 import com.adrianrusu.pandawave.core.telemetry.TelemetryModule
@@ -253,6 +254,32 @@ class AidlEngineGatewayTest {
             ),
             result.effects
         )
+    }
+
+    @Test
+    fun `dispatch uses service result without snapshot or effect round trips`() {
+        val service = RecordingEngineService(
+            initialSnapshot = EngineSnapshot.idle(nowMillis = 10L)
+        )
+        val gateway = AidlEngineGateway(
+            connection = FakeEngineServiceConnection(service = service),
+            clock = { 1L }
+        )
+        service.resetReadCounters()
+
+        val result = gateway.dispatch(EngineCommand(type = EngineCommand.TYPE_PLAY, payload = null))
+
+        assertEquals(EngineSnapshot.PLAYBACK_PLAYING, result.snapshot.playbackState)
+        assertEquals(
+            listOf(
+                EngineEffect(type = EngineEffect.TYPE_REQUEST_AUDIO_FOCUS),
+                EngineEffect(type = EngineEffect.TYPE_PLAY)
+            ),
+            result.effects
+        )
+        assertEquals(0, service.snapshotReads)
+        assertEquals(0, service.effectCountReads)
+        assertEquals(0, service.effectReads)
     }
 
     @Test
@@ -938,13 +965,28 @@ private class RecordingEngineService(
 
     var lastPassword: String? = null
         private set
+    var snapshotReads = 0
+        private set
+    var effectCountReads = 0
+        private set
+    var effectReads = 0
+        private set
+
+    fun resetReadCounters() {
+        snapshotReads = 0
+        effectCountReads = 0
+        effectReads = 0
+    }
 
     override fun loginPassword(email: String, password: ByteArray, deviceLabel: String): EngineAuthOperationResult {
         lastPassword = password.decodeToString()
         return EngineAuthOperationResult.authenticated()
     }
 
-    override fun snapshot(): EngineSnapshot = currentSnapshot
+    override fun snapshot(): EngineSnapshot {
+        snapshotReads += 1
+        return currentSnapshot
+    }
 
     override fun browseResult(index: Int): EngineCatalogItem? = null
 
@@ -966,11 +1008,17 @@ private class RecordingEngineService(
 
     override fun playlistReconciliation(): EnginePlaylistReconciliation? = reconciliation
 
-    override fun effectCount(): Int = currentEffects.size
+    override fun effectCount(): Int {
+        effectCountReads += 1
+        return currentEffects.size
+    }
 
-    override fun effect(index: Int): EngineEffect? = currentEffects.getOrNull(index)
+    override fun effect(index: Int): EngineEffect? {
+        effectReads += 1
+        return currentEffects.getOrNull(index)
+    }
 
-    override fun dispatch(command: EngineCommand) {
+    override fun dispatch(command: EngineCommand): EngineDispatchResult {
         commands += command
         currentEffects = effectsFor(command)
         currentSnapshot = when (command.type) {
@@ -986,13 +1034,23 @@ private class RecordingEngineService(
 
             else -> currentSnapshot
         }
+        return EngineDispatchResult(
+            snapshot = currentSnapshot,
+            event = EngineEvent(type = EngineEvent.TYPE_COMMAND_APPLIED, message = command.type),
+            effects = currentEffects,
+        )
     }
 
-    override fun dispatchPlatformEvent(event: EnginePlatformEvent) {
+    override fun dispatchPlatformEvent(event: EnginePlatformEvent): EngineDispatchResult {
         platformEvents += event
         currentEffects = emptyList()
         currentSnapshot = currentSnapshot.copy(
             updatedAtEpochMillis = currentSnapshot.updatedAtEpochMillis + 1
+        )
+        return EngineDispatchResult(
+            snapshot = currentSnapshot,
+            event = EngineEvent(type = EngineEvent.TYPE_PLATFORM_EVENT_APPLIED, message = event.type),
+            effects = currentEffects,
         )
     }
 
@@ -1028,11 +1086,14 @@ private class DeadBinderAfterDispatchService(
 
     override fun effect(index: Int): EngineEffect? = null
 
-    override fun dispatch(command: EngineCommand) {
+    override fun dispatch(command: EngineCommand): EngineDispatchResult {
         dispatchedCommands += command
+        throw RemoteException("PandaEngine binder died")
     }
 
-    override fun dispatchPlatformEvent(event: EnginePlatformEvent) = Unit
+    override fun dispatchPlatformEvent(event: EnginePlatformEvent): EngineDispatchResult {
+        throw RemoteException("PandaEngine binder died")
+    }
 }
 
 private class BlockingDispatchEngineService(
@@ -1051,12 +1112,20 @@ private class BlockingDispatchEngineService(
 
     override fun effect(index: Int): EngineEffect? = null
 
-    override fun dispatch(command: EngineCommand) {
+    override fun dispatch(command: EngineCommand): EngineDispatchResult {
         dispatchEntered.countDown()
         assertTrue(releaseDispatch.await(2, TimeUnit.SECONDS))
+        return EngineDispatchResult(
+            snapshot = currentSnapshot,
+            event = EngineEvent(type = EngineEvent.TYPE_COMMAND_APPLIED, message = command.type),
+        )
     }
 
-    override fun dispatchPlatformEvent(event: EnginePlatformEvent) = Unit
+    override fun dispatchPlatformEvent(event: EnginePlatformEvent): EngineDispatchResult =
+        EngineDispatchResult(
+            snapshot = currentSnapshot,
+            event = EngineEvent(type = EngineEvent.TYPE_PLATFORM_EVENT_APPLIED, message = event.type),
+        )
 }
 
 private class RecordingTelemetrySink : TelemetrySink {

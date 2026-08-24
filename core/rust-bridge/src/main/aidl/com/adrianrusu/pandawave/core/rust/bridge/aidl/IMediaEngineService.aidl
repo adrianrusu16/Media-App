@@ -12,6 +12,7 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect;
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent;
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot;
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.IEngineListener;
+import com.adrianrusu.pandawave.core.rust.bridge.engine.EngineDispatchResult;
 
 interface IMediaEngineService {
     EngineAuthOperationResult registerPassword(String email, in byte[] password);
@@ -25,8 +26,8 @@ interface IMediaEngineService {
     EngineHistoryItem getHistoryEntry(int index);
     int getEffectCount();
     EngineEffect getEffect(int index);
-    void dispatch(in EngineCommand command);
-    void dispatchPlatformEvent(in EnginePlatformEvent event);
+    EngineDispatchResult dispatch(in EngineCommand command);
+    EngineDispatchResult dispatchPlatformEvent(in EnginePlatformEvent event);
     void registerListener(IEngineListener listener);
     void unregisterListener(IEngineListener listener);
     EngineLibraryItem getSavedTrack(int index);

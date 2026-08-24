@@ -3,6 +3,7 @@ package com.adrianrusu.pandawave.core.rust.bridge.engine.native
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthState
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineBackendAvailability
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -289,6 +290,21 @@ class PandaEngineNativeSnapshotMapperTest {
         assertFalse(publicSurface.contains("token"))
         assertFalse(publicSurface.contains("cursor"))
         assertFalse(publicSurface.contains("credential"))
+    }
+
+    @Test
+    fun `catalog item payloads map optional fields and item type atomically`() {
+        val item = PandaEngineNativeCatalogItemMapper.toDomain(
+            arrayOf("track-1", "Catalog Track", "Artist", "", "", "canopy://track-1", "", "2")
+        )
+
+        assertEquals("track-1", item?.mediaId)
+        assertEquals("Catalog Track", item?.title)
+        assertEquals("Artist", item?.artist)
+        assertEquals(null, item?.album)
+        assertEquals(null, item?.artworkUri)
+        assertEquals("canopy://track-1", item?.sourceUri)
+        assertEquals(EngineCatalogItem.TYPE_ALBUM, item?.itemType)
     }
 
     @Test

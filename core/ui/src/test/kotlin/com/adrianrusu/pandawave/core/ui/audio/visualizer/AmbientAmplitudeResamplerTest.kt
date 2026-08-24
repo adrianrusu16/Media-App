@@ -21,4 +21,14 @@ class AmbientAmplitudeResamplerTest {
             resampleAmplitudes(floatArrayOf(0f, 1f), targetCount = 3)
         )
     }
+
+    @Test
+    fun `samples amplitude for one bar without materializing the full bar frame`() {
+        assertContentEquals(
+            floatArrayOf(0f, 0.5f, 1f),
+            FloatArray(3) { index ->
+                sampleAmplitude(amplitudes = floatArrayOf(0f, 1f), targetCount = 3, index = index)
+            }
+        )
+    }
 }

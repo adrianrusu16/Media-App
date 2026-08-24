@@ -18,6 +18,7 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistTrackItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.IEngineListener
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.IMediaEngineService
+import com.adrianrusu.pandawave.core.rust.bridge.engine.EngineDispatchResult
 import com.adrianrusu.pandawave.core.rust.bridge.engine.MediaEngineServiceContract
 
 /**
@@ -208,12 +209,9 @@ class AndroidEngineServiceConnection(
 
         override fun effect(index: Int): EngineEffect? = remote.getEffect(index)
 
-        override fun dispatch(command: EngineCommand) {
-            remote.dispatch(command)
-        }
+        override fun dispatch(command: EngineCommand): EngineDispatchResult = remote.dispatch(command)
 
-        override fun dispatchPlatformEvent(event: EnginePlatformEvent) {
+        override fun dispatchPlatformEvent(event: EnginePlatformEvent): EngineDispatchResult =
             remote.dispatchPlatformEvent(event)
-        }
     }
 }

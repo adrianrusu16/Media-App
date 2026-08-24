@@ -41,14 +41,14 @@ fun BambooAmbientVisualizer(
         val barCount = ((size.width + gap) / (barWidth + gap)).toInt().coerceAtLeast(0)
         if (barCount == 0) return@Canvas
 
-        val resampledAmplitudes = resampleAmplitudes(amplitudes, barCount)
         val totalWidth = barCount * barWidth + (barCount - 1) * gap
         val startX = (size.width - totalWidth) / 2f
         val radius = radiusToken.toPx()
         val minHeight = minHeightToken.toPx().coerceAtMost(size.height)
         val maxHeight = maxHeightToken.toPx().coerceIn(minHeight, size.height)
 
-        resampledAmplitudes.forEachIndexed { index, amplitude ->
+        repeat(barCount) { index ->
+            val amplitude = sampleAmplitude(amplitudes, targetCount = barCount, index = index)
             val shapedAmplitude = amplitude * amplitude * 0.35f + amplitude * 0.65f
             val barHeight = lerpFloat(
                 start = minHeight,
@@ -80,19 +80,22 @@ fun BambooAmbientVisualizer(
 
 internal fun resampleAmplitudes(amplitudes: FloatArray, targetCount: Int): FloatArray {
     if (targetCount <= 0) return FloatArray(0)
-    if (amplitudes.isEmpty()) return FloatArray(targetCount)
-    if (targetCount == 1) return floatArrayOf(amplitudes.first().coerceIn(0f, 1f))
-    if (amplitudes.size == targetCount) return FloatArray(targetCount) { amplitudes[it].coerceIn(0f, 1f) }
+    return FloatArray(targetCount) { index -> sampleAmplitude(amplitudes, targetCount, index) }
+}
 
-    return FloatArray(targetCount) { index ->
-        val sourcePosition = index * (amplitudes.lastIndex.toFloat() / (targetCount - 1))
-        val leftIndex = sourcePosition.toInt().coerceIn(0, amplitudes.lastIndex)
-        val rightIndex = (leftIndex + 1).coerceIn(0, amplitudes.lastIndex)
-        val fraction = sourcePosition - leftIndex
-        lerpFloat(
-            start = amplitudes[leftIndex],
-            end = amplitudes[rightIndex],
-            fraction = fraction
-        ).coerceIn(0f, 1f)
-    }
+internal fun sampleAmplitude(amplitudes: FloatArray, targetCount: Int, index: Int): Float {
+    if (targetCount <= 0 || amplitudes.isEmpty()) return 0f
+    val targetIndex = index.coerceIn(0, targetCount - 1)
+    if (targetCount == 1) return amplitudes.first().coerceIn(0f, 1f)
+    if (amplitudes.size == targetCount) return amplitudes[targetIndex].coerceIn(0f, 1f)
+
+    val sourcePosition = targetIndex * (amplitudes.lastIndex.toFloat() / (targetCount - 1))
+    val leftIndex = sourcePosition.toInt().coerceIn(0, amplitudes.lastIndex)
+    val rightIndex = (leftIndex + 1).coerceIn(0, amplitudes.lastIndex)
+    val fraction = sourcePosition - leftIndex
+    return lerpFloat(
+        start = amplitudes[leftIndex],
+        end = amplitudes[rightIndex],
+        fraction = fraction
+    ).coerceIn(0f, 1f)
 }

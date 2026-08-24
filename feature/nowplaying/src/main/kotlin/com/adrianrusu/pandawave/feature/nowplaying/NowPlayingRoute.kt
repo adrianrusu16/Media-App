@@ -230,10 +230,6 @@ private fun NowPlayingInteractiveScreen(
     onLibraryClick: () -> Unit
 ) {
     val tokens = LocalPandaWaveDesignTokens.current
-    var nowMillis by remember(state.progressAnchor) {
-        mutableLongStateOf(System.currentTimeMillis())
-    }
-    val progress = state.progressAt(nowMillis)
     val fallbackTitle = when (state.playbackState) {
         NowPlayingPlaybackState.Playing -> stringResource(R.string.pandawave_now_playing_playing_title)
         NowPlayingPlaybackState.Paused -> stringResource(R.string.pandawave_now_playing_paused_title)
@@ -253,14 +249,6 @@ private fun NowPlayingInteractiveScreen(
         fallbackTitle = fallbackTitle,
         fallbackDetail = fallbackDetail
     )
-    LaunchedEffect(state.progressAnchor) {
-        nowMillis = System.currentTimeMillis()
-
-        while (state.isPlaying) {
-            delay(NOW_PLAYING_PROGRESS_TICK_MILLIS.milliseconds)
-            nowMillis = System.currentTimeMillis()
-        }
-    }
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val layoutMode = resolveNowPlayingLayout(
@@ -295,7 +283,7 @@ private fun NowPlayingInteractiveScreen(
                 },
                 isCompact = isCompact
             )
-            NowPlayingProgressRow(progress = progress)
+            NowPlayingProgressTicker(state = state)
             NowPlayingControls(
                 uiModel = uiModel,
                 playPauseFocusRequester = playPauseFocusRequester,
@@ -410,6 +398,25 @@ private fun NowPlayingArtworkPanel(
             }
         }
     }
+}
+
+@Composable
+private fun NowPlayingProgressTicker(state: NowPlayingState) {
+    var nowMillis by remember(state.progressAnchor) {
+        mutableLongStateOf(System.currentTimeMillis())
+    }
+    val progress = state.progressAt(nowMillis)
+
+    LaunchedEffect(state.progressAnchor) {
+        nowMillis = System.currentTimeMillis()
+
+        while (state.isPlaying) {
+            delay(NOW_PLAYING_PROGRESS_TICK_MILLIS.milliseconds)
+            nowMillis = System.currentTimeMillis()
+        }
+    }
+
+    NowPlayingProgressRow(progress = progress)
 }
 
 @Composable

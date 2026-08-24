@@ -66,19 +66,6 @@ fun BambooMiniPlayer(
     controlsEnabled: Boolean = false
 ) {
     val tokens = LocalPandaWaveDesignTokens.current
-    var nowMillis by remember(state.progressAnchor) {
-        mutableLongStateOf(System.currentTimeMillis())
-    }
-    val progress = state.progressAt(nowMillis)
-
-    LaunchedEffect(state.progressAnchor) {
-        nowMillis = System.currentTimeMillis()
-
-        while (state.progressAnchor.isPlaying) {
-            delay(MINI_PLAYER_PROGRESS_TICK_MILLIS.milliseconds)
-            nowMillis = System.currentTimeMillis()
-        }
-    }
 
     Surface(
         modifier = modifier
@@ -175,7 +162,7 @@ fun BambooMiniPlayer(
                 }
             }
 
-            MiniPlayerProgressBar(progress = progress)
+            MiniPlayerProgressTicker(state = state)
         }
     }
 }
@@ -198,6 +185,25 @@ private fun MiniPlayerArtwork() {
             )
         }
     }
+}
+
+@Composable
+private fun MiniPlayerProgressTicker(state: MiniPlayerState) {
+    var nowMillis by remember(state.progressAnchor) {
+        mutableLongStateOf(System.currentTimeMillis())
+    }
+    val progress = state.progressAt(nowMillis)
+
+    LaunchedEffect(state.progressAnchor) {
+        nowMillis = System.currentTimeMillis()
+
+        while (state.progressAnchor.isPlaying) {
+            delay(MINI_PLAYER_PROGRESS_TICK_MILLIS.milliseconds)
+            nowMillis = System.currentTimeMillis()
+        }
+    }
+
+    MiniPlayerProgressBar(progress = progress)
 }
 
 @Composable

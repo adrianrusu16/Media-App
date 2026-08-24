@@ -12,6 +12,7 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistReconciliati
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistTrackItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
+import com.adrianrusu.pandawave.core.rust.bridge.engine.EngineDispatchResult
 
 /**
  * Connection boundary between an app-facing gateway and a bound engine service.
@@ -82,9 +83,9 @@ interface EngineService {
 
     fun effect(index: Int): EngineEffect?
 
-    fun dispatch(command: EngineCommand)
+    fun dispatch(command: EngineCommand): EngineDispatchResult
 
-    fun dispatchPlatformEvent(event: EnginePlatformEvent)
+    fun dispatchPlatformEvent(event: EnginePlatformEvent): EngineDispatchResult
 }
 
 /**

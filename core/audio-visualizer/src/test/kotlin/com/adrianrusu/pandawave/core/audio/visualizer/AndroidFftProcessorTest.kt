@@ -3,6 +3,7 @@ package com.adrianrusu.pandawave.core.audio.visualizer
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotSame
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class AndroidFftProcessorTest {
@@ -50,5 +51,15 @@ class AndroidFftProcessorTest {
         val second = processor.process(byteArrayOf(8, 4, 3, 4))
 
         assertNotSame(first, second)
+    }
+
+    @Test
+    fun `returns shared empty frame for rejected fft samples`() {
+        val processor = AndroidFftProcessor(targetBands = 2)
+
+        val first = processor.process(byteArrayOf(1))
+        val second = processor.process(byteArrayOf(1))
+
+        assertSame(first, second)
     }
 }

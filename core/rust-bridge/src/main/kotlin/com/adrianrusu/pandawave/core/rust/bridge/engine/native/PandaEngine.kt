@@ -164,34 +164,17 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     private fun Array<String>?.toAuthOperationResult(): EngineAuthOperationResult =
         PandaEngineNativeAuthOperationMapper.toDomain(this)
 
-    override fun browseResult(index: Int): EngineCatalogItem? = resultItem(
-        id = nativeBrowseResultId(nativeHandle, index),
-        title = nativeBrowseResultTitle(nativeHandle, index),
-        artist = nativeBrowseResultArtist(nativeHandle, index),
-        album = nativeBrowseResultAlbum(nativeHandle, index),
-        artworkUri = nativeBrowseResultArtworkUri(nativeHandle, index),
-        sourceUri = nativeBrowseResultSourceUri(nativeHandle, index),
-        mimeType = nativeBrowseResultMimeType(nativeHandle, index),
-        itemType = nativeBrowseResultItemType(nativeHandle, index)
-    )
+    override fun browseResult(index: Int): EngineCatalogItem? =
+        PandaEngineNativeCatalogItemMapper.toDomain(nativeBrowseResultValues(nativeHandle, index))
 
     override fun discoveryResult(index: Int): EngineCatalogItem? = nativeDiscoveryResultValues(nativeHandle, index)
-        ?.takeIf { it.size == 8 }
-        ?.let { values ->
-            resultItem(
-                values[0], values[1], values[2], values[3].ifEmpty { null },
-                values[4].ifEmpty { null }, values[5].ifEmpty { null }, values[6].ifEmpty { null },
-                values[7].toIntOrNull() ?: return@let null,
-            )
-        }
+        .let(PandaEngineNativeCatalogItemMapper::toDomain)
 
     override fun forYouResult(index: Int): EngineCatalogItem? = nativeForYouResultValues(nativeHandle, index)
-        ?.takeIf { it.size == 8 }
-        ?.let { values -> resultItem(values[0], values[1], values[2], values[3].ifEmpty { null }, values[4].ifEmpty { null }, values[5].ifEmpty { null }, values[6].ifEmpty { null }, values[7].toIntOrNull() ?: return@let null) }
+        .let(PandaEngineNativeCatalogItemMapper::toDomain)
 
     override fun recommendationResult(index: Int): EngineCatalogItem? = nativeRecommendationResultValues(nativeHandle, index)
-        ?.takeIf { it.size == 8 }
-        ?.let { values -> resultItem(values[0], values[1], values[2], values[3].ifEmpty { null }, values[4].ifEmpty { null }, values[5].ifEmpty { null }, values[6].ifEmpty { null }, values[7].toIntOrNull() ?: return@let null) }
+        .let(PandaEngineNativeCatalogItemMapper::toDomain)
 
     override fun profilePreferenceValue(key: String): String? =
         nativeProfilePreferenceValue(nativeHandle, key.trim())
@@ -206,16 +189,8 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     override fun selectedPlaylistId(): String? = nativePlaylistSelectionValues(nativeHandle)?.getOrNull(0)?.ifEmpty { null }
     override fun playlistReconciliation(): EnginePlaylistReconciliation? = playlistReconciliationItem(nativePlaylistSelectionValues(nativeHandle))
 
-    override fun searchResult(index: Int): EngineCatalogItem? = resultItem(
-        id = nativeSearchResultId(nativeHandle, index),
-        title = nativeSearchResultTitle(nativeHandle, index),
-        artist = nativeSearchResultArtist(nativeHandle, index),
-        album = nativeSearchResultAlbum(nativeHandle, index),
-        artworkUri = nativeSearchResultArtworkUri(nativeHandle, index),
-        sourceUri = nativeSearchResultSourceUri(nativeHandle, index),
-        mimeType = nativeSearchResultMimeType(nativeHandle, index),
-        itemType = nativeSearchResultItemType(nativeHandle, index)
-    )
+    override fun searchResult(index: Int): EngineCatalogItem? =
+        PandaEngineNativeCatalogItemMapper.toDomain(nativeSearchResultValues(nativeHandle, index))
 
     override fun historyEntry(index: Int): EngineHistoryItem? =
         PandaEngineNativeHistoryItemMapper.toDomain(nativeHistoryEntryValues(nativeHandle, index))
@@ -404,6 +379,8 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     private external fun nativeProtectedAccountValues(handle: Long): Array<String>?
     private external fun nativeDeviceSessionValues(handle: Long, index: Int): Array<String>?
     private external fun nativeSavedTrackValues(handle: Long, index: Int): Array<String>?
+    private external fun nativeBrowseResultValues(handle: Long, index: Int): Array<String>?
+    private external fun nativeSearchResultValues(handle: Long, index: Int): Array<String>?
     private external fun nativeDiscoveryResultValues(handle: Long, index: Int): Array<String>?
     private external fun nativeForYouResultValues(handle: Long, index: Int): Array<String>?
     private external fun nativeRecommendationResultValues(handle: Long, index: Int): Array<String>?
@@ -839,6 +816,39 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             else -> EngineEffect.TYPE_UNKNOWN
         }
     }
+}
+
+internal object PandaEngineNativeCatalogItemMapper {
+    fun toDomain(values: Array<String>?): EngineCatalogItem? {
+        if (values == null || values.size != VALUE_COUNT) return null
+        val itemType = values[ITEM_TYPE_INDEX].toIntOrNull() ?: return null
+        return when {
+            values[ID_INDEX].isBlank() || values[TITLE_INDEX].isBlank() -> null
+
+            else -> runCatching {
+                EngineCatalogItem(
+                    mediaId = values[ID_INDEX],
+                    title = values[TITLE_INDEX],
+                    artist = values[ARTIST_INDEX].ifBlank { null },
+                    album = values[ALBUM_INDEX].ifBlank { null },
+                    artworkUri = values[ARTWORK_INDEX].ifBlank { null },
+                    sourceUri = values[SOURCE_INDEX].ifBlank { null },
+                    mimeType = values[MIME_INDEX].ifBlank { null },
+                    itemType = itemType,
+                )
+            }.getOrNull()
+        }
+    }
+
+    private const val VALUE_COUNT = 8
+    private const val ID_INDEX = 0
+    private const val TITLE_INDEX = 1
+    private const val ARTIST_INDEX = 2
+    private const val ALBUM_INDEX = 3
+    private const val ARTWORK_INDEX = 4
+    private const val SOURCE_INDEX = 5
+    private const val MIME_INDEX = 6
+    private const val ITEM_TYPE_INDEX = 7
 }
 
 internal object PandaEngineNativeAuthOperationMapper {
