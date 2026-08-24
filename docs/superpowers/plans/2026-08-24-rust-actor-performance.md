@@ -4,7 +4,7 @@
 
 **Goal:** Replace the lock-based Rust engine with an observable actor, prepare release-like benchmarking, and implement the complete seven-item performance batch with reproducible before/actor/final evidence.
 
-**Architecture:** One Rust actor owns mutable engine state and publishes immutable revisioned projections. A bounded asynchronous AIDL/JNI bridge submits commands without blocking Android main, effect workers perform remote/blocking work outside the actor, and Macrobenchmark plus Perfetto measure fixed user journeys.
+**Architecture:** One Rust actor owns the complete mutable `Engine` and publishes immutable revisioned projections. Reliable bounded lanes carry commands, operation completions, player edge events, and lifecycle control; conflatable player facts use latest-value delivery. A bounded asynchronous AIDL/JNI bridge submits commands without blocking Android main, operation workers perform remote/blocking work outside the actor, and Macrobenchmark plus Perfetto measure fixed user journeys.
 
 **Tech Stack:** Rust, Tokio, JNI, AIDL, Kotlin coroutines, AndroidX Media3, Jetpack Compose, Macrobenchmark, Baseline Profiles, Perfetto, JUnit.
 
@@ -60,9 +60,10 @@
 - Test: `rust/engine/crates/app_core/src/engine/actor.rs`
 - Test: `rust/engine/crates/app_core/tests/`
 
-- [ ] Add failing tests for FIFO command handling, bounded-mailbox overload, monotonic snapshot revisions, and explicit shutdown cancellation.
+- [ ] Add failing tests for FIFO command handling, bounded-mailbox overload, monotonic snapshot revisions, distinct message/snapshot/domain identifiers, and explicit shutdown cancellation.
 - [ ] Add a slow-effect test proving snapshots remain readable and unrelated commands progress while remote work is pending.
 - [ ] Add stale-completion tests for identity/session replacement, search pagination, playlists, and playback resolution.
+- [ ] Add tests proving player facts conflate while ended/source-rejected/decoder-failed/player-failed edge events remain reliable and ordered.
 - [ ] Add outcome-order and actor-panic/channel-closure tests.
 
 ### Task 4: Implement the Rust actor and effect supervisor
@@ -75,11 +76,13 @@
 - Remove after migration: `rust/engine/crates/app_core/src/engine/concurrent.rs`
 - Modify: relevant networking and command modules under `rust/engine/crates/app_core/src/`
 
-- [ ] Implement bounded actor messages for commands, platform events, ticks, completions, and shutdown.
-- [ ] Give the actor exclusive `Engine` ownership and publish immutable `Arc<EngineSnapshot>` projections.
-- [ ] Split remote commands into prepare/effect/commit phases with request IDs and operation generations.
+- [ ] Implement bounded reliable lanes for commands, operation completions, player edge events, and lifecycle control; implement latest-value player facts and an actor-owned tick interval.
+- [ ] Give the actor exclusive ownership of the complete mutable `Engine` and publish immutable `Arc<EngineSnapshot>` projections.
+- [ ] Add separate `MessageSequence`, `SnapshotRevision`, and typed domain generation newtypes with deliberately distinct semantics.
+- [ ] Split remote commands into prepare/operation/commit phases with command IDs, operation IDs, and typed generations.
+- [ ] Preserve `EngineEffect` for outward platform actions and model internal asynchronous work as `EngineOperation`.
 - [ ] Route blocking work through bounded blocking execution and keep async networking on Tokio.
-- [ ] Remove lock-across-`.await` engine access and pass all actor contract tests.
+- [ ] Remove all shared `Mutex<Engine>` access and pass all actor contract tests.
 
 ### Task 5: Move FFI to the actor runtime and add native Perfetto tracing
 
@@ -108,6 +111,7 @@
 - Test: `core/rust-bridge/src/test/kotlin/com/adrianrusu/pandawave/core/rust/bridge/engine/native/`
 
 - [ ] Add tests counting native calls for a full snapshot and multi-effect outcome.
+- [ ] Add a boundary projector that consumes latest snapshots outside the actor and skips unchanged `SnapshotRevision` values.
 - [ ] Expose one revisioned detail batch and one ordered effect/outcome batch per request.
 - [ ] Cache Kotlin detail projection by revision and remove per-field/per-effect native getter loops.
 - [ ] Trace projection size and duration without logging media content.
@@ -128,6 +132,7 @@
 - [ ] Convert engine command/platform-event/auth submission to asynchronous request IDs and listener outcomes.
 - [ ] Publish gateway state through flows and keep Android main limited to state application.
 - [ ] Add mailbox-full, disconnected, timeout, and shutdown behavior with trace points.
+- [ ] Replace generic reconnect replay with desired-state reconciliation, explicitly idempotent initialization, fail-fast user mutations, and durable outboxes only where required.
 
 ### Task 8: Measure and tune the actor checkpoint
 
@@ -216,4 +221,3 @@
 - [ ] Run emulator QA for startup, Home, Library, Profile, Now Playing, playback controls, reconnect, and shutdown.
 - [ ] Run `graphify update .` and verify refreshed graph output.
 - [ ] Review the final diff without staging or reverting unrelated user changes.
-

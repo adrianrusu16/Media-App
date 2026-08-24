@@ -8,7 +8,7 @@ Nothing is in production, so compatibility with the synchronous engine protocol 
 
 ## Approved Direction
 
-Replace `ConcurrentEngine` with a Rust actor that exclusively owns mutable engine state. Kotlin and Binder submit commands asynchronously to a bounded mailbox. The actor performs deterministic state transitions, publishes immutable revisioned snapshots, launches remote or blocking effects outside the state owner, and applies effect completions only when their operation generation is still current.
+Replace `ConcurrentEngine` with a Rust actor that exclusively owns the complete mutable `Engine`, not merely its domain state. Kotlin and Binder submit commands asynchronously to a bounded mailbox. The actor performs deterministic state transitions, publishes immutable revisioned snapshots, launches remote or blocking operations outside the state owner, and applies operation completions only when their typed domain generation is still current. No `Arc<Mutex<Engine>>` remains after migration.
 
 The actor migration is one part of a complete performance batch. PandaWave will also receive release-like Macrobenchmark infrastructure, generated Baseline Profiles, asynchronous and batched Media3 catalog IPC, lazy rotary lists, bounded caches, deferred media startup, throttled volume updates, inactive-animation suppression, and custom Perfetto trace points.
 
@@ -16,18 +16,22 @@ The actor migration is one part of a complete performance batch. PandaWave will 
 
 The engine runtime has four responsibilities:
 
-1. A bounded multi-producer/single-consumer mailbox accepts commands, platform events, ticks, effect completions, and shutdown.
+1. Reliable bounded channels accept external commands, operation completions, player terminal/edge events, and lifecycle control. A latest-value lane carries conflatable player facts, and the actor owns its tick interval.
 2. One actor task owns `Engine` and is the only code allowed to mutate it.
-3. Effect workers perform asynchronous network work or explicitly isolated blocking/CPU work without retaining mutable engine state.
+3. Operation workers perform asynchronous network work or explicitly isolated blocking/CPU work without retaining mutable engine state.
 4. Revisioned publication channels expose the latest immutable snapshot and ordered outcomes/effects without reading actor-owned state through a lock.
 
-The actor uses request IDs for caller correlation and operation generations for stale-result rejection. Queue capacity is finite so overload is visible and backpressure is defined. High-frequency replaceable commands, such as intermediate volume changes, may be conflated before entering the mailbox; state-changing commands such as play, pause, authentication, and playlist mutation preserve FIFO ordering.
+The actor uses command and operation IDs for correlation. `MessageSequence` increments for every processed actor message and exists for tracing and causal reconstruction. `SnapshotRevision` increments only when published state actually changes and keys boundary projection caches. Typed domain generations such as `PlaybackInstanceId`, `AccountGeneration`, `SearchGeneration`, `PlaylistGeneration`, and `HistoryGeneration` decide whether an asynchronous completion remains applicable. Snapshot revision equality is never the stale-result correctness test.
+
+Queue capacity is finite so overload is visible and backpressure is defined. High-frequency player facts such as position, buffered position, `playWhenReady`, and `isPlaying` use latest-value semantics. Terminal or semantic events such as playback ended, source rejection, decoder failure, and player failure use a reliable bounded lane and are never conflated. State-changing commands such as play, pause, authentication, and playlist mutation preserve FIFO ordering.
+
+Internal asynchronous Rust work is named `EngineOperation`; the existing `EngineEffect` name remains reserved for outward PandaWave/Media3 actions. A transition may emit both operations and effects. Operation workers receive immutable request data, cloned service handles, cancellation tokens, typed generations, and operation IDs; they never receive `Engine`.
 
 ## Threading
 
 The FFI runtime moves from Tokio's current-thread runtime to a multi-thread runtime. The first benchmark comparison will test two and four Tokio worker threads. The selected default must be based on trace evidence and remain configurable for benchmark experiments.
 
-The actor itself remains logically single-threaded. Network futures run concurrently on Tokio workers. Filesystem, crypto, or CPU work that actually blocks is routed through `spawn_blocking` or a bounded dedicated worker. Android main remains responsible only for UI state application. Binder threads enqueue work and return; they do not wait for network completion.
+The actor itself remains logically single-threaded. Network futures run concurrently on Tokio workers under global and optional per-domain limits. Filesystem, crypto, or CPU work that actually blocks is routed through `spawn_blocking` or a bounded dedicated worker. Android main remains responsible only for UI state application. Binder threads enqueue work and return; they do not wait for network completion.
 
 Adding multiple mailbox consumers is explicitly out of scope because it would sacrifice deterministic state ordering. Audio real-time work also remains outside the general Tokio pool.
 
@@ -39,7 +43,7 @@ Queued commands across service connection preserve order. Disconnect, shutdown, 
 
 ## Snapshot And Effect Projection
 
-The actor publishes an immutable `Arc` projection whenever the state revision changes. Synchronous FFI snapshot access reads that published projection rather than locking the engine. JNI retrieves one batched detail projection per revision and one batched outcome/effect projection per completed request. Kotlin caches detail projections by revision and does not repeat native calls for unchanged data.
+The actor publishes an immutable `Arc` projection through latest-value publication whenever `SnapshotRevision` changes. A separate boundary projector consumes it and maps only revisions it has not projected; a slow JNI mapper or one-way Binder listener cannot delay the actor. Synchronous FFI snapshot access reads the published projection rather than locking the engine. JNI retrieves one batched detail projection per revision and one batched outcome/effect projection per completed request. Kotlin caches detail projections by revision and does not repeat native calls for unchanged data.
 
 The AIDL service gains ranged/batched catalog and library result methods. Media3 catalog callbacks run on a dedicated executor and return genuinely asynchronous futures. Search notification counts come from snapshot metadata rather than loading every result solely to calculate a count.
 
@@ -80,6 +84,8 @@ Stable trace names use the `PW.` prefix. Required counters include actor queue d
 - Effects retain order per accepted command.
 - Mailbox overload never blocks Android main; replaceable updates may conflate and nonreplaceable commands fail fast with telemetry.
 - Benchmark and tracing code must not expose credentials, tokens, source capabilities, or private media metadata.
+- Cancellation reduces wasted work; typed domain-generation validation provides correctness even when cancellation races with completion.
+- The actor mailbox is temporary scheduling, never an offline replay queue. Durable deferred synchronization uses explicit outboxes.
 
 ## Non-Goals
 
@@ -92,10 +98,9 @@ Stable trace names use the `PW.` prefix. Required counters include actor queue d
 ## Success Criteria
 
 - No Android main-thread path performs synchronous Binder or JNI engine dispatch.
-- No engine mutex is held across an `.await`; the actor is the sole mutable-state owner.
+- No shared engine mutex remains; the actor is the sole owner of the complete mutable `Engine`.
 - Snapshot reads remain available while remote effects are in flight.
 - Per-item JNI/AIDL projection loops are replaced by bounded batches.
 - Cold startup and journey frame metrics improve without behavioral regressions.
 - Actor queue, effects, Binder, JNI, and startup phases are identifiable in Perfetto.
 - All focused Rust/Kotlin tests, release-like builds, benchmark journeys, and emulator QA pass.
-
