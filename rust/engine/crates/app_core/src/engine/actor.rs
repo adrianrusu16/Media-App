@@ -412,6 +412,10 @@ impl EngineActorEventReceiver {
     pub async fn recv(&mut self) -> Option<ActorEvent> {
         None
     }
+
+    pub fn try_recv(&mut self) -> Option<ActorEvent> {
+        None
+    }
 }
 
 #[derive(Debug)]

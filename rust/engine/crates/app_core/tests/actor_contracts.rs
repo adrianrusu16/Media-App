@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -16,7 +17,7 @@ use panda_engine_core::{
     MiddlewarePipeline, ThemePreference,
 };
 use tokio::sync::Notify;
-use tokio::time::timeout;
+use tokio::time::{advance, timeout};
 
 const CONTRACT_TIMEOUT: Duration = Duration::from_millis(500);
 
@@ -72,6 +73,84 @@ async fn next_event(events: &mut EngineActorEventReceiver) -> ActorEvent {
         .await
         .expect("actor event timed out")
         .expect("actor event channel closed")
+}
+
+struct EventCursor {
+    events: EngineActorEventReceiver,
+    buffered: VecDeque<ActorEvent>,
+}
+
+impl EventCursor {
+    fn new(events: EngineActorEventReceiver) -> Self {
+        Self {
+            events,
+            buffered: VecDeque::new(),
+        }
+    }
+
+    async fn next_outcome(&mut self) -> ActorOutcome {
+        loop {
+            if let Some(ActorEvent::CommandOutcome(outcome)) =
+                self.take_buffered(|event| matches!(event, ActorEvent::CommandOutcome(_)))
+            {
+                return outcome;
+            }
+
+            match self.recv_raw().await {
+                ActorEvent::CommandOutcome(outcome) => return outcome,
+                event => self.buffered.push_back(event),
+            }
+        }
+    }
+
+    async fn next_tick(&mut self) -> (u64, MessageSequence) {
+        loop {
+            if let Some(ActorEvent::TickProcessed {
+                now_epoch_millis,
+                message_sequence,
+                ..
+            }) = self.take_buffered(|event| matches!(event, ActorEvent::TickProcessed { .. }))
+            {
+                return (now_epoch_millis, message_sequence);
+            }
+
+            match self.recv_raw().await {
+                ActorEvent::TickProcessed {
+                    now_epoch_millis,
+                    message_sequence,
+                    ..
+                } => return (now_epoch_millis, message_sequence),
+                event => self.buffered.push_back(event),
+            }
+        }
+    }
+
+    async fn recv_raw(&mut self) -> ActorEvent {
+        timeout(CONTRACT_TIMEOUT, self.events.recv())
+            .await
+            .expect("actor event timed out")
+            .expect("actor event channel closed")
+    }
+
+    fn take_buffered(&mut self, predicate: impl FnMut(&ActorEvent) -> bool) -> Option<ActorEvent> {
+        let index = self.buffered.iter().position(predicate)?;
+        self.buffered.remove(index)
+    }
+}
+
+fn record_terminal_outcome(event: ActorEvent, outcomes: &mut Vec<ActorOutcome>) {
+    if let ActorEvent::CommandOutcome(outcome) = event {
+        outcomes.push(outcome);
+    }
+}
+
+fn drain_available_terminal_outcomes(
+    events: &mut EngineActorEventReceiver,
+    outcomes: &mut Vec<ActorOutcome>,
+) {
+    while let Some(event) = events.try_recv() {
+        record_terminal_outcome(event, outcomes);
+    }
 }
 
 fn complete(
@@ -184,9 +263,12 @@ async fn snapshots_are_immutable_and_revisions_advance_only_for_state_changes() 
 #[tokio::test(flavor = "current_thread")]
 async fn shutdown_accounts_for_blocked_and_queued_accepted_commands_before_wait_returns() {
     let (engine, port) = engine_with_blocking_history();
-    let mut actor = spawn_actor(engine, ActorConfig::default());
-    let blocked = actor
-        .handle
+    let RunningActor {
+        handle,
+        mut events,
+        task,
+    } = spawn_actor(engine, ActorConfig::default());
+    let blocked = handle
         .try_submit(EngineCommand::load_history_settings(), 10)
         .unwrap();
     timeout(CONTRACT_TIMEOUT, port.started.notified())
@@ -194,23 +276,63 @@ async fn shutdown_accounts_for_blocked_and_queued_accepted_commands_before_wait_
         .expect("history operation never started");
 
     let queued = [
-        actor
-            .handle
+        handle
             .try_submit(
                 EngineCommand::set_theme_preference(ThemePreference::ForestTechDark),
                 20,
             )
             .unwrap(),
-        actor.handle.try_submit(EngineCommand::play(), 30).unwrap(),
-        actor.handle.try_submit(EngineCommand::pause(), 40).unwrap(),
+        handle.try_submit(EngineCommand::play(), 30).unwrap(),
+        handle.try_submit(EngineCommand::pause(), 40).unwrap(),
     ];
     let accepted = [blocked, queued[0], queued[1], queued[2]];
 
-    actor.handle.request_shutdown().unwrap();
-    let mut outcomes = Vec::new();
-    for _ in accepted {
-        outcomes.push(next_outcome(&mut actor.events).await);
+    handle.request_shutdown().unwrap();
+    assert_eq!(
+        handle.try_submit(EngineCommand::play(), 20),
+        Err(SubmissionError::ShuttingDown)
+    );
+
+    enum ShutdownRace {
+        Exit(Result<panda_engine_core::engine::actor::ActorExit, ActorFailure>),
+        Event(Option<ActorEvent>),
     }
+
+    let mut wait = Box::pin(task.wait());
+    let mut outcomes = Vec::new();
+    let exit = loop {
+        if outcomes.len() == accepted.len() {
+            break timeout(CONTRACT_TIMEOUT, &mut wait)
+                .await
+                .expect("actor wait timed out")
+                .expect("shutdown must be clean");
+        }
+
+        let race = timeout(CONTRACT_TIMEOUT, async {
+            tokio::select! {
+                exit = &mut wait => ShutdownRace::Exit(exit),
+                event = events.recv() => ShutdownRace::Event(event),
+            }
+        })
+        .await
+        .expect("actor shutdown race timed out");
+
+        match race {
+            ShutdownRace::Exit(exit) => {
+                drain_available_terminal_outcomes(&mut events, &mut outcomes);
+                assert_eq!(
+                    outcomes.len(),
+                    accepted.len(),
+                    "actor wait returned before every accepted command had an observable terminal outcome"
+                );
+                break exit.expect("shutdown must be clean");
+            }
+            ShutdownRace::Event(Some(event)) => {
+                record_terminal_outcome(event, &mut outcomes);
+            }
+            ShutdownRace::Event(None) => panic!("actor event channel closed before shutdown"),
+        }
+    };
 
     assert_eq!(outcomes[0].command_id, blocked);
     assert_eq!(
@@ -232,11 +354,6 @@ async fn shutdown_accounts_for_blocked_and_queued_accepted_commands_before_wait_
     let mut expected_ids = accepted.to_vec();
     expected_ids.sort();
     assert_eq!(terminal_ids, expected_ids);
-    assert_eq!(
-        actor.handle.try_submit(EngineCommand::play(), 20),
-        Err(SubmissionError::ShuttingDown)
-    );
-    let exit = actor.task.wait().await.expect("shutdown must be clean");
     assert_eq!(exit.terminal_commands, accepted);
 }
 
@@ -656,9 +773,9 @@ async fn history_replacement_applies_current_and_rejects_stale_completion() {
     );
 }
 
-#[tokio::test(flavor = "current_thread")]
+#[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn actor_owned_ticks_continue_while_commands_are_processed() {
-    let mut actor = spawn_actor(
+    let RunningActor { handle, events, .. } = spawn_actor(
         Engine::new(1_000),
         ActorConfig {
             clock: ActorClockConfig {
@@ -668,49 +785,32 @@ async fn actor_owned_ticks_continue_while_commands_are_processed() {
             ..ActorConfig::default()
         },
     );
+    let mut events = EventCursor::new(events);
 
-    let first = actor
-        .handle
+    let first = handle
         .try_submit(
             EngineCommand::set_theme_preference(ThemePreference::ForestTechDark),
             1_005,
         )
         .unwrap();
-    assert_eq!(next_outcome(&mut actor.events).await.command_id, first);
+    assert_eq!(events.next_outcome().await.command_id, first);
 
-    let first_tick = loop {
-        if let ActorEvent::TickProcessed {
-            now_epoch_millis,
-            message_sequence,
-            ..
-        } = next_event(&mut actor.events).await
-        {
-            break (now_epoch_millis, message_sequence);
-        }
-    };
+    advance(Duration::from_millis(20)).await;
+    let first_tick = events.next_tick().await;
     assert_eq!(first_tick.0, 1_020);
 
-    let second = actor
-        .handle
+    let second = handle
         .try_submit(
             EngineCommand::set_theme_preference(ThemePreference::BambooGroveLight),
             1_025,
         )
         .unwrap();
-    let second_outcome = next_outcome(&mut actor.events).await;
+    let second_outcome = events.next_outcome().await;
     assert_eq!(second_outcome.command_id, second);
     assert!(second_outcome.message_sequence > first_tick.1);
 
-    let second_tick = loop {
-        if let ActorEvent::TickProcessed {
-            now_epoch_millis,
-            message_sequence,
-            ..
-        } = next_event(&mut actor.events).await
-        {
-            break (now_epoch_millis, message_sequence);
-        }
-    };
+    advance(Duration::from_millis(20)).await;
+    let second_tick = events.next_tick().await;
     assert_eq!(second_tick.0, 1_040);
     assert!(second_tick.1 > second_outcome.message_sequence);
 }
