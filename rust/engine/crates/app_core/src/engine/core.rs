@@ -245,7 +245,7 @@ pub struct Engine {
     snapshot: EngineSnapshot,
     config: crate::model::config::EngineConfig,
     middleware: Arc<MiddlewarePipeline>,
-    repository: Box<dyn MediaRepository>,
+    repository: Arc<dyn MediaRepository>,
     queue: QueueManager,
     persistence: Box<dyn Persistence>,
     event_bus: Arc<EventBus>,
@@ -282,6 +282,24 @@ pub struct Engine {
     discovery_operation: Option<DiscoveryOperation>,
     player: Option<Box<dyn MediaPlayer>>,
     voice_engine: Option<Box<dyn VoiceEngine>>,
+    prefetched_operation: Option<PrefetchedOperation>,
+}
+
+/// Remote result fetched off the actor thread and injected back into the normal
+/// dispatch path, so split and inline execution share one code path.
+pub(crate) enum PrefetchedOperation {
+    Account(Result<crate::Account, crate::model::error::EngineError>),
+    Search(
+        Result<
+            crate::EnginePagedResult<crate::data::repository::MediaItem>,
+            crate::model::error::EngineError,
+        >,
+    ),
+    Playlists(
+        Result<crate::EnginePagedResult<crate::EnginePlaylist>, crate::model::error::EngineError>,
+    ),
+    HistorySettings(Result<crate::EngineHistorySettings, crate::model::error::EngineError>),
+    Playback(Result<crate::EnginePlaybackSource, crate::model::error::EngineError>),
 }
 
 impl Default for Engine {
@@ -291,7 +309,7 @@ impl Default for Engine {
             snapshot: EngineSnapshot::default(),
             config: crate::model::config::EngineConfig::default(),
             middleware: Arc::new(MiddlewarePipeline::default()),
-            repository: Box::new(InMemoryRepository::new(vec![])),
+            repository: Arc::new(InMemoryRepository::new(vec![])),
             queue: QueueManager::default(),
             persistence: Box::new(NoopPersistence),
             event_bus: bus,
@@ -329,6 +347,7 @@ impl Default for Engine {
 
             player: None,
             voice_engine: None,
+            prefetched_operation: None,
         }
     }
 }
@@ -360,7 +379,7 @@ impl Engine {
             snapshot,
             config,
             middleware: Arc::new(MiddlewarePipeline::new()),
-            repository: Box::new(InMemoryRepository::new(vec![])),
+            repository: Arc::new(InMemoryRepository::new(vec![])),
             queue,
             persistence: Box::new(NoopPersistence),
             event_bus: bus,
@@ -398,6 +417,7 @@ impl Engine {
 
             player: None,
             voice_engine: None,
+            prefetched_operation: None,
         };
 
         let mut final_snapshot = engine.snapshot.clone();
@@ -436,7 +456,7 @@ impl Engine {
 
     /// Sets the media repository for the engine.
     pub fn set_repository(&mut self, repository: Box<dyn MediaRepository>) {
-        self.repository = repository;
+        self.repository = Arc::from(repository);
     }
 
     /// Sets the middleware pipeline for the engine.
@@ -471,6 +491,114 @@ impl Engine {
 
     pub(crate) fn actor_history_port(&self) -> Option<Arc<dyn crate::HistoryPort>> {
         self.history_port.clone()
+    }
+
+    pub(crate) fn actor_account_port(&self) -> Option<Arc<dyn crate::AccountPort>> {
+        self.account_port.clone()
+    }
+
+    pub(crate) fn actor_playlist_port(&self) -> Option<Arc<dyn crate::PlaylistPort>> {
+        self.playlist_port.clone()
+    }
+
+    pub(crate) fn actor_playback_port(&self) -> Option<Arc<dyn PlaybackPort>> {
+        self.playback_port.clone()
+    }
+
+    pub(crate) fn actor_repository(&self) -> Arc<dyn MediaRepository> {
+        self.repository.clone()
+    }
+
+    /// Continuation parameters the inline path would use for a catalog page,
+    /// so a worker fetches the same page the engine would have fetched.
+    pub(crate) fn actor_catalog_continuation(
+        &self,
+        operation_id: &str,
+    ) -> Option<(String, u32, crate::EnginePageToken)> {
+        match self.catalog_operations.get(operation_id) {
+            Some(CatalogOperation::Search {
+                query,
+                page_size,
+                next_page_token: Some(token),
+                ..
+            }) => Some((query.clone(), *page_size, token.clone())),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn set_prefetched_operation(&mut self, prefetched: PrefetchedOperation) {
+        self.prefetched_operation = Some(prefetched);
+    }
+
+    pub(crate) fn clear_prefetched_operation(&mut self) {
+        self.prefetched_operation = None;
+    }
+
+    pub(super) fn take_prefetched_account(
+        &mut self,
+    ) -> Option<Result<crate::Account, crate::model::error::EngineError>> {
+        match self.prefetched_operation.take() {
+            Some(PrefetchedOperation::Account(result)) => Some(result),
+            other => {
+                self.prefetched_operation = other;
+                None
+            }
+        }
+    }
+
+    pub(super) fn take_prefetched_search(
+        &mut self,
+    ) -> Option<
+        Result<
+            crate::EnginePagedResult<crate::data::repository::MediaItem>,
+            crate::model::error::EngineError,
+        >,
+    > {
+        match self.prefetched_operation.take() {
+            Some(PrefetchedOperation::Search(result)) => Some(result),
+            other => {
+                self.prefetched_operation = other;
+                None
+            }
+        }
+    }
+
+    pub(super) fn take_prefetched_playlists(
+        &mut self,
+    ) -> Option<
+        Result<crate::EnginePagedResult<crate::EnginePlaylist>, crate::model::error::EngineError>,
+    > {
+        match self.prefetched_operation.take() {
+            Some(PrefetchedOperation::Playlists(result)) => Some(result),
+            other => {
+                self.prefetched_operation = other;
+                None
+            }
+        }
+    }
+
+    pub(super) fn take_prefetched_history_settings(
+        &mut self,
+    ) -> Option<Result<crate::EngineHistorySettings, crate::model::error::EngineError>> {
+        match self.prefetched_operation.take() {
+            Some(PrefetchedOperation::HistorySettings(result)) => Some(result),
+            other => {
+                self.prefetched_operation = other;
+                None
+            }
+        }
+    }
+
+    pub(super) fn take_prefetched_playback(
+        &mut self,
+    ) -> Option<Result<crate::EnginePlaybackSource, crate::model::error::EngineError>> {
+        match self.prefetched_operation.take() {
+            Some(PrefetchedOperation::Playback(result)) => Some(result),
+            other => {
+                self.prefetched_operation = other;
+                None
+            }
+        }
     }
 
     /// Sets the authenticated backend-neutral saved/liked library boundary.

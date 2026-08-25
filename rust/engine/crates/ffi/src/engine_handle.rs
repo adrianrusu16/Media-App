@@ -246,7 +246,7 @@ pub(crate) fn build_engine_with_worker_threads(
                     start_epoch_millis: now_epoch_millis,
                     ..ActorClockConfig::default()
                 },
-                split_remote_operations: false,
+                split_remote_operations: true,
                 ..ActorConfig::default()
             },
         )

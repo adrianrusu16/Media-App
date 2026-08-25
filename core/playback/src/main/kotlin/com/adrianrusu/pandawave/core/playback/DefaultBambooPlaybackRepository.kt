@@ -28,6 +28,7 @@ class DefaultBambooPlaybackRepository(
     private val mutableState = MutableStateFlow(BambooPlaybackState())
     private val listeners = mutableSetOf<(BambooPlaybackState) -> Unit>()
     private val effectListeners = mutableSetOf<(List<EngineEffect>) -> Unit>()
+    private var pendingEffectsForLateObserver: List<EngineEffect> = emptyList()
     private var engineSnapshotSubscription: AutoCloseable? = null
     private var engineEventSubscription: AutoCloseable? = null
     private var lastDrivingState = AutomotiveDrivingState.Unknown
@@ -184,6 +185,11 @@ class DefaultBambooPlaybackRepository(
 
     override fun observeEffects(listener: (List<EngineEffect>) -> Unit): AutoCloseable {
         effectListeners += listener
+        val pendingEffects = pendingEffectsForLateObserver
+        if (pendingEffects.isNotEmpty()) {
+            pendingEffectsForLateObserver = emptyList()
+            listener(pendingEffects)
+        }
 
         return AutoCloseable {
             effectListeners -= listener
@@ -363,9 +369,14 @@ class DefaultBambooPlaybackRepository(
             return
         }
 
-        effectListeners.toList().forEach { listener ->
-            listener(effects)
+        val listeners = effectListeners.toList()
+        if (listeners.isEmpty()) {
+            pendingEffectsForLateObserver = effects
+            return
         }
+
+        pendingEffectsForLateObserver = emptyList()
+        listeners.forEach { listener -> listener(effects) }
     }
 
     private fun logBlockedIntent(intent: BambooPlaybackIntent) {

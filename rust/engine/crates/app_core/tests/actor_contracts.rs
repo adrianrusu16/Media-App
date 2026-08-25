@@ -10,11 +10,13 @@ use panda_engine_core::engine::actor::{
     MessageSequence, PlaybackInstanceId, PlayerEdgeEvent, PlayerFacts, SubmissionError,
 };
 use panda_engine_core::{
-    Account, AuthSession, AuthState, AuthStateProvider, Engine, EngineCommand, EngineCommandType,
-    EngineEffect, EngineError, EngineHistoryEntry, EngineHistoryIdentity, EngineHistorySettings,
-    EngineHistorySettingsUpdate, EnginePageRequest, EnginePageToken, EnginePagedResult,
-    EnginePlaybackRecord, EnginePlaybackSource, EnginePlaylist, HistoryPort, MediaItem, Middleware,
-    MiddlewarePipeline, ThemePreference,
+    Account, AccountPort, AuthSession, AuthState, AuthStateProvider, Engine, EngineAccountIdentity,
+    EngineCommand, EngineCommandType, EngineCreatePlaylist, EngineEffect, EngineError,
+    EngineHistoryEntry, EngineHistoryIdentity, EngineHistorySettings, EngineHistorySettingsUpdate,
+    EnginePageRequest, EnginePageToken, EnginePagedResult, EnginePlaybackRecord,
+    EnginePlaybackSource, EnginePlaylist, EnginePlaylistIdentity, EnginePlaylistTrack,
+    EngineUpdatePlaylist, HistoryPort, MediaItem, MediaRepository, Middleware, MiddlewarePipeline,
+    PlaybackPort, PlaylistPort, ThemePreference,
 };
 use tokio::sync::Notify;
 use tokio::time::{advance, timeout};
@@ -401,7 +403,7 @@ async fn slow_remote_work_does_not_block_snapshot_reads_or_unrelated_commands() 
 
 #[tokio::test(flavor = "current_thread")]
 async fn account_identity_replacement_applies_current_and_rejects_stale_completion() {
-    let mut actor = spawn_actor(Engine::new(0), ActorConfig::default());
+    let mut actor = spawn_actor(split_engine(&[]), ActorConfig::default());
     apply_auth_state(&mut actor, auth_state("account-1", "session-1")).await;
     let old_command = actor.handle.try_submit(get_account_command(), 10).unwrap();
     let (old_operation, _) = next_operation(&mut actor.events).await;
@@ -467,7 +469,7 @@ async fn account_identity_replacement_applies_current_and_rejects_stale_completi
 
 #[tokio::test(flavor = "current_thread")]
 async fn account_session_replacement_applies_current_and_rejects_stale_completion() {
-    let mut actor = spawn_actor(Engine::new(0), ActorConfig::default());
+    let mut actor = spawn_actor(split_engine(&[]), ActorConfig::default());
     apply_auth_state(&mut actor, auth_state("account-1", "session-1")).await;
     let old_command = actor.handle.try_submit(get_account_command(), 10).unwrap();
     let (old_operation, _) = next_operation(&mut actor.events).await;
@@ -530,7 +532,7 @@ async fn account_session_replacement_applies_current_and_rejects_stale_completio
 
 #[tokio::test(flavor = "current_thread")]
 async fn search_pagination_applies_current_pages_and_rejects_a_stale_continuation() {
-    let mut actor = spawn_actor(Engine::new(0), ActorConfig::default());
+    let mut actor = spawn_actor(split_engine(&[]), ActorConfig::default());
     let first_command = actor
         .handle
         .try_submit(EngineCommand::search("first".into()), 10)
@@ -550,10 +552,19 @@ async fn search_pagination_applies_current_pages_and_rejects_a_stale_continuatio
         actor.handle.latest_snapshot().snapshot.search_results,
         vec![media_item("first-1")]
     );
+    // The engine owns catalog operation ids on both the inline and split paths.
+    let catalog_operation_id = first
+        .event
+        .as_ref()
+        .and_then(|event| event.message.clone())
+        .expect("a completed search carries its catalog operation id");
 
     let continuation_command = actor
         .handle
-        .try_submit(EngineCommand::load_next_catalog_page("search-1".into()), 20)
+        .try_submit(
+            EngineCommand::load_next_catalog_page(catalog_operation_id),
+            20,
+        )
         .unwrap();
     let (continuation_operation, _) = next_operation(&mut actor.events).await;
     let replacement_command = actor
@@ -603,7 +614,7 @@ async fn search_pagination_applies_current_pages_and_rejects_a_stale_continuatio
 
 #[tokio::test(flavor = "current_thread")]
 async fn playlist_replacement_applies_current_and_rejects_stale_completion() {
-    let mut actor = spawn_actor(Engine::new(0), ActorConfig::default());
+    let mut actor = spawn_actor(split_engine(&[]), ActorConfig::default());
     apply_auth_state(&mut actor, auth_state("account-1", "session-1")).await;
     let old_command = actor
         .handle
@@ -663,7 +674,10 @@ async fn playlist_replacement_applies_current_and_rejects_stale_completion() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn playback_replacement_applies_current_and_rejects_stale_resolution() {
-    let mut actor = spawn_actor(Engine::new(0), ActorConfig::default());
+    let mut actor = spawn_actor(
+        split_engine(&["track-old", "track-current"]),
+        ActorConfig::default(),
+    );
     let old_command = actor
         .handle
         .try_submit(EngineCommand::play_media_by_id("track-old".into()), 10)
@@ -721,7 +735,7 @@ async fn playback_replacement_applies_current_and_rejects_stale_resolution() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn history_replacement_applies_current_and_rejects_stale_completion() {
-    let mut actor = spawn_actor(Engine::new(0), ActorConfig::default());
+    let mut actor = spawn_actor(split_engine(&[]), ActorConfig::default());
     apply_auth_state(&mut actor, auth_state("account-1", "session-1")).await;
     let old_command = actor
         .handle
@@ -818,7 +832,7 @@ async fn actor_owned_ticks_continue_while_commands_are_processed() {
 #[tokio::test(flavor = "current_thread")]
 async fn message_sequence_is_one_global_counter_across_actor_lanes() {
     let mut actor = spawn_actor(
-        Engine::new(0),
+        split_engine(&[]),
         ActorConfig {
             clock: ActorClockConfig {
                 start_epoch_millis: 0,
@@ -924,7 +938,7 @@ async fn message_sequence_is_one_global_counter_across_actor_lanes() {
 #[tokio::test(flavor = "current_thread")]
 async fn operation_completion_lane_is_bounded_reliable_and_drains() {
     let mut actor = spawn_actor(
-        Engine::new(0),
+        split_engine(&[]),
         ActorConfig {
             operation_completion_capacity: 1,
             ..ActorConfig::default()
@@ -1052,7 +1066,7 @@ async fn lifecycle_control_lane_is_bounded_reliable_and_drains_before_shutdown()
 
 #[tokio::test(flavor = "current_thread")]
 async fn async_outcomes_follow_terminal_readiness_not_command_acceptance_order() {
-    let mut actor = spawn_actor(Engine::new(0), ActorConfig::default());
+    let mut actor = spawn_actor(split_engine(&[]), ActorConfig::default());
     apply_auth_state(&mut actor, auth_state("account-1", "session-1")).await;
     let first = actor
         .handle
@@ -1447,6 +1461,201 @@ impl HistoryPort for BlockingHistoryPort {
     async fn clear(&self, _: &EngineHistoryIdentity) -> Result<u64, EngineError> {
         unreachable!()
     }
+}
+
+/// Ports whose remote calls never resolve.
+///
+/// Splitting a command now launches a real worker, so these tests would race
+/// their own injected completion against the worker's. Ports that never resolve
+/// keep the injected completion the only one that lands, which is what these
+/// contracts are actually about.
+struct PendingAccountPort;
+
+#[async_trait]
+impl AccountPort for PendingAccountPort {
+    async fn get_account(&self, _: &EngineAccountIdentity) -> Result<Account, EngineError> {
+        std::future::pending().await
+    }
+    async fn list_sessions(
+        &self,
+        _: &EngineAccountIdentity,
+        _: EnginePageRequest,
+    ) -> Result<EnginePagedResult<AuthSession>, EngineError> {
+        unreachable!()
+    }
+    async fn revoke_session(
+        &self,
+        _: &EngineAccountIdentity,
+        _: &str,
+    ) -> Result<(), EngineError> {
+        unreachable!()
+    }
+    async fn delete_account(&self, _: &EngineAccountIdentity) -> Result<(), EngineError> {
+        unreachable!()
+    }
+}
+
+struct PendingPlaylistPort;
+
+#[async_trait]
+impl PlaylistPort for PendingPlaylistPort {
+    async fn list(
+        &self,
+        _: &EnginePlaylistIdentity,
+        _: EnginePageRequest,
+    ) -> Result<EnginePagedResult<EnginePlaylist>, EngineError> {
+        std::future::pending().await
+    }
+    async fn create(
+        &self,
+        _: &EnginePlaylistIdentity,
+        _: EngineCreatePlaylist,
+    ) -> Result<EnginePlaylist, EngineError> {
+        unreachable!()
+    }
+    async fn get(
+        &self,
+        _: &EnginePlaylistIdentity,
+        _: &str,
+    ) -> Result<EnginePlaylist, EngineError> {
+        unreachable!()
+    }
+    async fn update(
+        &self,
+        _: &EnginePlaylistIdentity,
+        _: EngineUpdatePlaylist,
+    ) -> Result<EnginePlaylist, EngineError> {
+        unreachable!()
+    }
+    async fn delete(&self, _: &EnginePlaylistIdentity, _: &str) -> Result<(), EngineError> {
+        unreachable!()
+    }
+    async fn add_track(
+        &self,
+        _: &EnginePlaylistIdentity,
+        _: &str,
+        _: &str,
+    ) -> Result<EnginePlaylistTrack, EngineError> {
+        unreachable!()
+    }
+    async fn remove_track(
+        &self,
+        _: &EnginePlaylistIdentity,
+        _: &str,
+        _: &str,
+    ) -> Result<(), EngineError> {
+        unreachable!()
+    }
+    async fn reorder(
+        &self,
+        _: &EnginePlaylistIdentity,
+        _: &str,
+        _: &[String],
+        _: u64,
+    ) -> Result<EnginePlaylist, EngineError> {
+        unreachable!()
+    }
+    async fn list_tracks(
+        &self,
+        _: &EnginePlaylistIdentity,
+        _: &str,
+        _: EnginePageRequest,
+    ) -> Result<EnginePagedResult<EnginePlaylistTrack>, EngineError> {
+        unreachable!()
+    }
+}
+
+struct PendingPlaybackPort;
+
+#[async_trait]
+impl PlaybackPort for PendingPlaybackPort {
+    async fn resolve_playback(&self, _: &str) -> Result<EnginePlaybackSource, EngineError> {
+        std::future::pending().await
+    }
+}
+
+struct PendingHistoryPort;
+
+#[async_trait]
+impl HistoryPort for PendingHistoryPort {
+    async fn get_settings(
+        &self,
+        _: &EngineHistoryIdentity,
+    ) -> Result<EngineHistorySettings, EngineError> {
+        std::future::pending().await
+    }
+    async fn update_settings(
+        &self,
+        _: &EngineHistoryIdentity,
+        _: bool,
+    ) -> Result<EngineHistorySettingsUpdate, EngineError> {
+        unreachable!()
+    }
+    async fn record(
+        &self,
+        _: &EngineHistoryIdentity,
+        _: EnginePlaybackRecord,
+    ) -> Result<bool, EngineError> {
+        unreachable!()
+    }
+    async fn list(
+        &self,
+        _: &EngineHistoryIdentity,
+        _: EnginePageRequest,
+    ) -> Result<EnginePagedResult<EngineHistoryEntry>, EngineError> {
+        unreachable!()
+    }
+    async fn delete_entry(&self, _: &EngineHistoryIdentity, _: &str) -> Result<(), EngineError> {
+        unreachable!()
+    }
+    async fn clear(&self, _: &EngineHistoryIdentity) -> Result<u64, EngineError> {
+        unreachable!()
+    }
+}
+
+/// Serves `get_by_id` locally so playback can resolve its media item, while
+/// catalog searches never resolve.
+struct PendingSearchRepository {
+    items: Vec<MediaItem>,
+}
+
+#[async_trait]
+impl MediaRepository for PendingSearchRepository {
+    fn get_by_id(&self, id: &str) -> Option<MediaItem> {
+        self.items.iter().find(|item| item.id == id).cloned()
+    }
+    fn get_next(&self, _: &str) -> Option<MediaItem> {
+        None
+    }
+    fn get_previous(&self, _: &str) -> Option<MediaItem> {
+        None
+    }
+    async fn browse(&self, _: &str) -> anyhow::Result<Vec<MediaItem>> {
+        Ok(Vec::new())
+    }
+    async fn search(&self, _: &str) -> anyhow::Result<Vec<MediaItem>> {
+        Ok(Vec::new())
+    }
+    async fn search_catalog(
+        &self,
+        _: &str,
+        _: EnginePageRequest,
+    ) -> Result<EnginePagedResult<MediaItem>, EngineError> {
+        std::future::pending().await
+    }
+}
+
+/// Engine wired so every splittable command actually splits.
+fn split_engine(media_ids: &[&str]) -> Engine {
+    let mut engine = Engine::new(0);
+    engine.set_repository(Box::new(PendingSearchRepository {
+        items: media_ids.iter().map(|id| media_item(id)).collect(),
+    }));
+    engine.set_account_port(Arc::new(PendingAccountPort));
+    engine.set_playlist_port(Arc::new(PendingPlaylistPort));
+    engine.set_playback_port(Arc::new(PendingPlaybackPort));
+    engine.set_history_port(Arc::new(PendingHistoryPort));
+    engine
 }
 
 fn engine_with_blocking_history() -> (Engine, Arc<BlockingHistoryPort>) {

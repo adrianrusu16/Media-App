@@ -283,6 +283,41 @@ class DefaultBambooPlaybackRepositoryTest {
     }
 
     @Test
+    fun `applied command effects are replayed to the first late effect observer`() {
+        val engine = RecordingEngineGateway(initialSnapshot = EngineSnapshot.idle(nowMillis = 1L))
+        val repository = DefaultBambooPlaybackRepository(
+            engine = engine,
+            uxRestrictionObserver = FakeUxRestrictionObserver(
+                restrictions = AutomotiveUxRestrictions.unrestricted(
+                    AutomotiveUxRestrictions.Source.NotAutomotive
+                )
+            ),
+            telemetryLogger = testTelemetryLogger()
+        )
+
+        repository.start()
+        repository.dispatch(BambooPlaybackIntent.Play)
+
+        val firstLateObserverEffects = mutableListOf<List<EngineEffect>>()
+        repository.observeEffects { emittedEffects -> firstLateObserverEffects += emittedEffects }
+
+        assertEquals(
+            listOf(
+                listOf(
+                    EngineEffect(type = EngineEffect.TYPE_REQUEST_AUDIO_FOCUS),
+                    EngineEffect(type = EngineEffect.TYPE_PLAY)
+                )
+            ),
+            firstLateObserverEffects
+        )
+
+        val secondLateObserverEffects = mutableListOf<List<EngineEffect>>()
+        repository.observeEffects { emittedEffects -> secondLateObserverEffects += emittedEffects }
+
+        assertEquals(emptyList(), secondLateObserverEffects)
+    }
+
+    @Test
     fun `ready engine allows seek and speed commands with typed payloads`() {
         val engine = RecordingEngineGateway(initialSnapshot = EngineSnapshot.idle(nowMillis = 1L))
         val repository = DefaultBambooPlaybackRepository(

@@ -23,6 +23,14 @@ local.properties
 # Local Codex/Superpowers working docs
 docs/superpowers/
 
+# Local Rust toolchain and scratch target directories
+/.cargo-home/
+/.rustup-home/
+target-codex*/
+
+# JVM crash dumps
+hs_err_pid*.log
+
 # OS
 .DS_Store
 Thumbs.db

@@ -56,7 +56,10 @@ impl Engine {
         };
         let result = match self.history_port.clone() {
             Some(port) => {
-                let result = port.get_settings(&identity.history_identity()).await;
+                let result = match self.take_prefetched_history_settings() {
+                    Some(prefetched) => prefetched,
+                    None => port.get_settings(&identity.history_identity()).await,
+                };
                 self.history_result_for_current_identity(snapshot, &identity, result)
                     .map(|settings| (identity, port, settings))
             }

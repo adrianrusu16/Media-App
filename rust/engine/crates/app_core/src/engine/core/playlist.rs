@@ -15,24 +15,30 @@ impl Engine {
                 snapshot.playlists_next_page_token = None;
                 self.playlists_operation = None;
                 match self.playlist_context(snapshot) {
-                    Ok((identity, port)) => match self.playlist_result_for_current_identity(
-                        snapshot,
-                        &identity,
-                        port.list(&identity.playlist_identity(), page.clone()).await,
-                    ) {
-                        Ok(result) => {
-                            snapshot.playlists = result.items;
-                            snapshot.playlists_next_page_token = result.next_page_token;
-                            self.playlist_projection_identity = Some(identity.clone());
-                            self.playlists_operation = Some(PlaylistPageOperation {
-                                auth_identity: identity,
-                                playlist_id: None,
-                                page_size: page.page_size,
-                            });
+                    Ok((identity, port)) => {
+                        let listed = match self.take_prefetched_playlists() {
+                            Some(prefetched) => prefetched,
+                            None => port.list(&identity.playlist_identity(), page.clone()).await,
+                        };
+                        match self.playlist_result_for_current_identity(
+                            snapshot,
+                            &identity,
+                            listed,
+                        ) {
+                            Ok(result) => {
+                                snapshot.playlists = result.items;
+                                snapshot.playlists_next_page_token = result.next_page_token;
+                                self.playlist_projection_identity = Some(identity.clone());
+                                self.playlists_operation = Some(PlaylistPageOperation {
+                                    auth_identity: identity,
+                                    playlist_id: None,
+                                    page_size: page.page_size,
+                                });
+                            }
+                            Err(error) if error.error_type == EngineErrorType::NotFound => {}
+                            Err(error) => snapshot.last_error = Some(error),
                         }
-                        Err(error) if error.error_type == EngineErrorType::NotFound => {}
-                        Err(error) => snapshot.last_error = Some(error),
-                    },
+                    }
                     Err(error) => snapshot.last_error = Some(error),
                 }
             }

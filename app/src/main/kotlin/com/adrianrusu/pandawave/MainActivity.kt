@@ -22,6 +22,7 @@ import com.adrianrusu.pandawave.core.audio.visualizer.VisualizerPermissionReposi
 import com.adrianrusu.pandawave.core.common.trace.PandaTrace
 import com.adrianrusu.pandawave.core.designsystem.R as DesignSystemR
 import com.adrianrusu.pandawave.core.designsystem.theme.PandaWaveTheme
+import com.adrianrusu.pandawave.core.media.adapter.playback.BambooMediaSessionWarmup
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
 import com.adrianrusu.pandawave.core.playback.BambooRestrictionState
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
@@ -48,6 +49,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var playbackRepository: BambooPlaybackRepository
+
+    @Inject
+    lateinit var mediaSessionWarmup: BambooMediaSessionWarmup
 
     @Inject
     lateinit var telemetryLogger: TelemetryLogger
@@ -90,6 +94,9 @@ class MainActivity : ComponentActivity() {
             }
             PandaTrace.section("PW.Startup.PlaybackRepository.start") {
                 playbackRepository.start()
+            }
+            PandaTrace.section("PW.Startup.MediaSession.warmup") {
+                mediaSessionWarmup.start()
             }
             lifecycleScope.launch {
                 repeatOnLifecycle(Lifecycle.State.RESUMED) {
@@ -164,6 +171,9 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        PandaTrace.section("PW.Startup.MediaSession.close") {
+            mediaSessionWarmup.close()
+        }
         PandaTrace.section("PW.Startup.PlaybackRepository.close") {
             playbackRepository.close()
         }

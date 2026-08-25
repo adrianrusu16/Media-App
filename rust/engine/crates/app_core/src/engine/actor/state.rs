@@ -52,9 +52,15 @@ struct EngineActorState {
     accepted_set: HashSet<CommandId>,
     terminal_commands: HashSet<CommandId>,
     command_responses: HashMap<CommandId, oneshot::Sender<ActorOutcome>>,
-    pending_operations: HashMap<OperationId, EngineOperation>,
-    current_catalog_operation_id: Option<String>,
-    current_catalog_next_page_token: Option<crate::EnginePageToken>,
+    pending_operations: HashMap<OperationId, PendingOperation>,
+}
+
+/// A launched operation together with everything needed to re-enter the
+/// originating command once its remote half completes.
+pub(super) struct PendingOperation {
+    pub(super) operation: EngineOperation,
+    pub(super) command: crate::EngineCommand,
+    pub(super) now_epoch_millis: u64,
 }
 
 impl EngineActorState {
@@ -226,10 +232,16 @@ impl EngineActorState {
 
         if self.config.split_remote_operations
             && let Some(operation) = self.prepare_operation(command_id, &command, now_epoch_millis)
+            && self.spawn_operation_worker(&operation)
         {
-            self.pending_operations
-                .insert(operation.operation_id, operation.clone());
-            self.spawn_operation_worker(&operation);
+            self.pending_operations.insert(
+                operation.operation_id,
+                PendingOperation {
+                    operation: operation.clone(),
+                    command,
+                    now_epoch_millis,
+                },
+            );
             let sequence = self.next_sequence();
             self.send_event(ActorEvent::OperationLaunched {
                 operation,
@@ -568,8 +580,6 @@ impl EngineActor {
             terminal_commands: HashSet::new(),
             command_responses: HashMap::new(),
             pending_operations: HashMap::new(),
-            current_catalog_operation_id: None,
-            current_catalog_next_page_token: None,
         };
         let join = runtime.spawn(state.run());
 

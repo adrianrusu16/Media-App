@@ -54,9 +54,22 @@ impl Engine {
 
     /// Resolves a selected media item into a playable source before projection.
     pub(super) async fn resolve_playback_source(
-        &self,
+        &mut self,
         media: &crate::data::repository::MediaItem,
     ) -> Result<ResolvedPlaybackMedia, crate::model::error::EngineError> {
+        let prefetched = self.take_prefetched_playback();
+        if let Some(source) = prefetched {
+            let source = source?;
+            let mut resolved_media = media.clone();
+            resolved_media.source_uri = Some(source.url);
+            resolved_media.mime_type = Some(source.content_type);
+            resolved_media.duration_millis = Some(source.duration_millis);
+            return Ok(ResolvedPlaybackMedia {
+                media: resolved_media,
+                expires_at_epoch_millis: Some(source.expires_at_epoch_millis),
+            });
+        }
+
         if let Some(playback_port) = &self.playback_port {
             let source = playback_port.resolve_playback(&media.id).await?;
             let mut resolved_media = media.clone();

@@ -56,7 +56,10 @@ impl Engine {
 
     async fn get_account(&mut self, snapshot: &mut EngineSnapshot) -> Result<(), EngineError> {
         let (identity, port) = self.account_context(snapshot)?;
-        let account = port.get_account(&identity.account_identity()).await;
+        let account = match self.take_prefetched_account() {
+            Some(prefetched) => prefetched,
+            None => port.get_account(&identity.account_identity()).await,
+        };
         let account = self.account_result_for_current_identity(snapshot, &identity, account)?;
         if account.id != identity.account_id {
             return Err(EngineError::new(

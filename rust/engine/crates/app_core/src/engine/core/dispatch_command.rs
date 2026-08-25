@@ -197,7 +197,10 @@ impl Engine {
             }
             EngineCommandType::SearchCatalog { query, page } => {
                 next_snapshot = next_snapshot.with_busy(true);
-                let results = self.repository.search_catalog(query, page.clone()).await;
+                let results = match self.take_prefetched_search() {
+                    Some(prefetched) => prefetched,
+                    None => self.repository.search_catalog(query, page.clone()).await,
+                };
                 match results {
                     Ok(result) => {
                         let operation_id = self.allocate_catalog_operation_id(now_epoch_millis);
@@ -257,17 +260,21 @@ impl Engine {
                         next_page_token: Some(page_token),
                         items: mut accumulated_items,
                     }) => {
-                        match self
-                            .repository
-                            .search_catalog(
-                                &query,
-                                crate::EnginePageRequest {
-                                    page_size,
-                                    page_token: Some(page_token),
-                                },
-                            )
-                            .await
-                        {
+                        let continuation = match self.take_prefetched_search() {
+                            Some(prefetched) => prefetched,
+                            None => {
+                                self.repository
+                                    .search_catalog(
+                                        &query,
+                                        crate::EnginePageRequest {
+                                            page_size,
+                                            page_token: Some(page_token),
+                                        },
+                                    )
+                                    .await
+                            }
+                        };
+                        match continuation {
                             Ok(result) => {
                                 accumulated_items.extend(result.items);
                                 next_snapshot =
