@@ -66,19 +66,19 @@ class PandaEngineHomeRepository @Inject constructor(
             forYou = forYouCache.project(
                 count = snapshot.forYouResultsCount.coerceAtLeast(0),
                 force = command?.type == EngineCommand.TYPE_LOAD_FOR_YOU_FEED,
-                itemAt = engineGateway::forYouResult,
+                pageAt = engineGateway::forYouResultsPage,
                 mapper = { it.toHomeTrack() },
             ),
             recommendations = recommendationsCache.project(
                 count = snapshot.recommendationsResultsCount.coerceAtLeast(0),
                 force = command?.type == EngineCommand.TYPE_LOAD_RECOMMENDATIONS,
-                itemAt = engineGateway::recommendationResult,
+                pageAt = engineGateway::recommendationResultsPage,
                 mapper = { it.toHomeTrack() },
             ),
             discovery = discoveryCache.project(
                 count = snapshot.discoveryResultsCount.coerceAtLeast(0),
                 force = command?.type == EngineCommand.TYPE_LOAD_DISCOVERY_FEED,
-                itemAt = engineGateway::discoveryResult,
+                pageAt = engineGateway::discoveryResultsPage,
                 mapper = { it.toHomeTrack() },
             ),
             isLoading = snapshot.isBusy,
@@ -107,12 +107,19 @@ private class ProjectionCache<T> {
     fun project(
         count: Int,
         force: Boolean,
-        itemAt: (Int) -> EngineCatalogItem?,
+        pageAt: (Int, Int) -> List<EngineCatalogItem>,
         mapper: (EngineCatalogItem) -> T,
     ): List<T> {
         if (!force && this.count == count) return items
         this.count = count
-        items = List(count, itemAt).filterNotNull().map(mapper)
+        items = buildList {
+            var offset = 0
+            while (offset < count) {
+                val limit = minOf(MAX_PROJECTION_PAGE_SIZE, count - offset)
+                addAll(pageAt(offset, limit))
+                offset += limit
+            }
+        }.map(mapper)
         return items
     }
 
@@ -121,3 +128,5 @@ private class ProjectionCache<T> {
         items = emptyList()
     }
 }
+
+private const val MAX_PROJECTION_PAGE_SIZE = 50

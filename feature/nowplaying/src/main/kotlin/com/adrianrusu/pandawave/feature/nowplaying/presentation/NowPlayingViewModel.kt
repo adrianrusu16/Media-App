@@ -29,6 +29,7 @@ import com.adrianrusu.pandawave.feature.nowplaying.domain.ambient.AmbientModeTra
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,10 +37,15 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class NowPlayingViewModel @Inject constructor(
     observeState: ObserveNowPlayingStateUseCase,
@@ -82,21 +88,39 @@ class NowPlayingViewModel @Inject constructor(
     )
     val ambientModeState: StateFlow<AmbientModeState> = mutableAmbientModeState.asStateFlow()
     val ambientTransition: StateFlow<AmbientModeTransition> = mutableAmbientTransition.asStateFlow()
-    val amplitudes: StateFlow<FloatArray> = combine(
-        ambientModeState,
-        sleepingAmplitudeSource.amplitudes,
-        visualizer.amplitudes
-    ) { ambientState, sleepingAmplitudes, visualizerAmplitudes ->
-        when (ambientState) {
-            AmbientModeState.AmbientSleeping -> sleepingAmplitudes
-            AmbientModeState.AmbientVisualizing -> visualizerAmplitudes
-            else -> FloatArray(0)
-        }
-    }
+    private val ambientEligibility: StateFlow<AmbientEligibility> = combine(
+        state,
+        visualizer.availability,
+        routeVisible,
+        lifecycleResumed
+    ) { nowPlaying, visualizerAvailability, isRouteVisible, isLifecycleResumed ->
+        nowPlaying.toAmbientEligibility(
+            visualizerAvailability = visualizerAvailability,
+            isRouteVisible = isRouteVisible,
+            isLifecycleResumed = isLifecycleResumed
+        )
+    }.distinctUntilChanged()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(STATE_STOP_TIMEOUT_MILLIS),
-            initialValue = FloatArray(0)
+            initialValue = state.value.toAmbientEligibility(
+                visualizerAvailability = visualizer.availability.value,
+                isRouteVisible = routeVisible.value,
+                isLifecycleResumed = lifecycleResumed.value
+            )
+        )
+    val amplitudes: StateFlow<FloatArray> = ambientModeState
+        .flatMapLatest { ambientState ->
+            when (ambientState) {
+                AmbientModeState.AmbientSleeping -> sleepingAmplitudeSource.amplitudes
+                AmbientModeState.AmbientVisualizing -> visualizer.amplitudes
+                else -> flowOf(EMPTY_AMPLITUDE_FRAME)
+            }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(STATE_STOP_TIMEOUT_MILLIS),
+            initialValue = EMPTY_AMPLITUDE_FRAME
         )
 
     init {
@@ -121,18 +145,7 @@ class NowPlayingViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            combine(
-                state,
-                visualizer.availability,
-                routeVisible,
-                lifecycleResumed
-            ) { nowPlaying, visualizerAvailability, isRouteVisible, isLifecycleResumed ->
-                nowPlaying.toAmbientEligibility(
-                    visualizerAvailability = visualizerAvailability,
-                    isRouteVisible = isRouteVisible,
-                    isLifecycleResumed = isLifecycleResumed
-                )
-            }.collect { eligibility ->
+            ambientEligibility.collect { eligibility ->
                 reduce(
                     AmbientModeInput.EligibilityChanged(
                         eligibility = eligibility,
@@ -144,21 +157,14 @@ class NowPlayingViewModel @Inject constructor(
 
         viewModelScope.launch {
             var realVisualizerRunning = false
-            combine(
-                state,
-                visualizer.availability,
-                routeVisible,
-                lifecycleResumed
-            ) { nowPlaying, visualizerAvailability, isRouteVisible, isLifecycleResumed ->
-                val eligibility = nowPlaying.toAmbientEligibility(
-                    visualizerAvailability = visualizerAvailability,
-                    isRouteVisible = isRouteVisible,
-                    isLifecycleResumed = isLifecycleResumed
-                )
+            ambientEligibility
+                .map { eligibility ->
                 eligibility.ambientPermitted &&
                     eligibility.isPlaying &&
                     eligibility.hasUsableAmplitudeSource
-            }.collect { shouldRun ->
+                }
+                .distinctUntilChanged()
+                .collect { shouldRun ->
                 when {
                     shouldRun && !realVisualizerRunning -> {
                         visualizer.start()
@@ -300,6 +306,7 @@ class NowPlayingViewModel @Inject constructor(
     private companion object {
         const val DEFAULT_AMBIENT_TIMEOUT_SECONDS = 15
         const val STATE_STOP_TIMEOUT_MILLIS = 5_000L
+        val EMPTY_AMPLITUDE_FRAME = FloatArray(0)
     }
 }
 

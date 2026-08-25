@@ -726,6 +726,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "fastrand",
+ "futures-util",
  "mockall",
  "pandawave_canopy-api_community_neoeinstein-prost",
  "pandawave_canopy-api_community_neoeinstein-tonic",
@@ -743,6 +744,7 @@ dependencies = [
 name = "panda_engine_ffi"
 version = "0.1.0"
 dependencies = [
+ "android_log-sys",
  "android_logger",
  "anyhow",
  "async-trait",

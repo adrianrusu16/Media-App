@@ -36,6 +36,7 @@ class PandaEngineLibraryRepository @Inject constructor(
     private val started = AtomicBoolean(false)
     private var subscription: AutoCloseable? = null
     private var hydratedIdentity: LibraryIdentity? = null
+    private var hydratedHistoryOwner: HistoryOwner? = null
     private var historyCacheKey: HistoryCacheKey? = null
     private var historyEntries: List<LibraryHistoryEntry> = emptyList()
     private val savedTracksCache = ProjectionCache<EngineLibraryItem, LibraryTrack>()
@@ -57,13 +58,16 @@ class PandaEngineLibraryRepository @Inject constructor(
     }
 
     override fun refresh() {
-        dispatch(EngineCommand(EngineCommand.TYPE_LIST_SAVED_TRACKS, EngineCommandPayloads.libraryPage(PAGE_SIZE)))
-        dispatch(EngineCommand(EngineCommand.TYPE_LIST_LIKED_TRACKS, EngineCommandPayloads.libraryPage(PAGE_SIZE)))
+        if (engineGateway.snapshot().libraryIdentity() != null) {
+            dispatch(EngineCommand(EngineCommand.TYPE_LIST_SAVED_TRACKS, EngineCommandPayloads.libraryPage(PAGE_SIZE)))
+            dispatch(EngineCommand(EngineCommand.TYPE_LIST_LIKED_TRACKS, EngineCommandPayloads.libraryPage(PAGE_SIZE)))
+            dispatch(EngineCommand(EngineCommand.TYPE_LIST_PLAYLISTS, EngineCommandPayloads.playlistPage(PAGE_SIZE)))
+        }
         dispatch(EngineCommand(EngineCommand.TYPE_LIST_HISTORY, EngineCommandPayloads.historyPage(HISTORY_PAGE_SIZE)))
-        dispatch(EngineCommand(EngineCommand.TYPE_LIST_PLAYLISTS, EngineCommandPayloads.playlistPage(PAGE_SIZE)))
     }
 
     override fun loadNext(tab: LibraryTab) {
+        if (mutableState.value.isSignedOut && tab != LibraryTab.HISTORY) return
         val type = when (tab) {
             LibraryTab.SAVED -> EngineCommand.TYPE_LOAD_NEXT_SAVED_TRACKS_PAGE
             LibraryTab.LIKED -> EngineCommand.TYPE_LOAD_NEXT_LIKED_TRACKS_PAGE
@@ -104,6 +108,7 @@ class PandaEngineLibraryRepository @Inject constructor(
         subscription?.close()
         subscription = null
         hydratedIdentity = null
+        hydratedHistoryOwner = null
         started.set(false)
     }
 
@@ -128,49 +133,43 @@ class PandaEngineLibraryRepository @Inject constructor(
     private fun project(snapshot: EngineSnapshot, command: EngineCommand? = null) {
         val selectedTab = mutableState.value.selectedTab
         val identity = snapshot.libraryIdentity()
-        if (identity == null) {
-            hydratedIdentity = null
-            historyCacheKey = null
-            historyEntries = emptyList()
-            clearProjectionCaches()
-            mutableState.value = LibraryState(selectedTab = selectedTab, isLoading = false, isSignedOut = true)
-            return
-        }
+        val historyOwner = snapshot.historyOwner()
         if (hydratedIdentity != identity) clearProjectionCaches()
+        if (identity == null) hydratedIdentity = null
         val historyRefreshRequest = updateHistoryCache(snapshot, command)
 
         val errorType = snapshot.errorType.takeIf { snapshot.hasError }
         val playlistSelection = playlistSelection(snapshot, command)
         mutableState.value = LibraryState(
             selectedTab = selectedTab,
-            savedTracks = savedTracksCache.project(
+            savedTracks = if (identity == null) emptyList() else savedTracksCache.project(
                 count = snapshot.savedTracksCount.coerceAtLeast(0),
                 force = command?.type in savedTrackCommands,
-                itemAt = engineGateway::savedTrack,
+                pageAt = engineGateway::savedTracksPage,
                 mapper = { it.toLibraryTrack() },
             ),
-            likedTracks = likedTracksCache.project(
+            likedTracks = if (identity == null) emptyList() else likedTracksCache.project(
                 count = snapshot.likedTracksCount.coerceAtLeast(0),
                 force = command?.type in likedTrackCommands,
-                itemAt = engineGateway::likedTrack,
+                pageAt = engineGateway::likedTracksPage,
                 mapper = { it.toLibraryTrack() },
             ),
             historyEntries = historyEntries,
-            playlists = playlistsCache.project(
+            playlists = if (identity == null) emptyList() else playlistsCache.project(
                 count = snapshot.playlistsCount.coerceAtLeast(0),
                 force = command?.type in playlistCommands,
-                itemAt = engineGateway::playlist,
+                pageAt = engineGateway::playlistsPage,
                 mapper = { LibraryPlaylist(it.id, it.name, it.description, it.revision) },
             ),
             selectedPlaylistId = playlistSelection.selectedPlaylistId,
-            playlistTracks = playlistTracksCache.project(
+            playlistTracks = if (identity == null) emptyList() else playlistTracksCache.project(
                 count = snapshot.playlistTracksCount.coerceAtLeast(0),
                 force = command?.type in playlistTrackCommands,
-                itemAt = engineGateway::playlistTrack,
+                pageAt = engineGateway::playlistTracksPage,
                 mapper = { item -> LibraryTrack(item.membershipId, item.mediaId, item.title, item.artist, item.album, item.durationMillis, item.explicit, item.artworkId, item.addedAtEpochMillis) },
             ),
-            playlistConflict = playlistSelection.conflict,
-            pendingMediaIds = pendingIdsCache.project(
+            playlistConflict = if (identity == null) null else playlistSelection.conflict,
+            pendingMediaIds = if (identity == null) emptySet() else pendingIdsCache.project(
                 count = snapshot.libraryPendingCount.coerceAtLeast(0),
                 force = command?.type in libraryMutationCommands,
                 itemAt = engineGateway::pendingLibraryTrackId,
@@ -182,11 +181,11 @@ class PandaEngineLibraryRepository @Inject constructor(
             hasPlaylistsNextPage = snapshot.hasPlaylistsNextPage,
             hasPlaylistTracksNextPage = snapshot.hasPlaylistTracksNextPage,
             isLoading = snapshot.isBusy,
-            isSignedOut = false,
+            isSignedOut = identity == null,
             errorType = errorType,
             isRetryableError = errorType == EngineSnapshot.ERROR_NETWORK,
         )
-        hydrateFor(identity)
+        hydrateFor(historyOwner, identity)
         if (historyRefreshRequest != null && hydratedIdentity == identity) {
             telemetryLogger.info(
                 name = LibraryTelemetryEvents.HISTORY_REFRESH_REQUESTED,
@@ -205,9 +204,18 @@ class PandaEngineLibraryRepository @Inject constructor(
         }
     }
 
-    private fun hydrateFor(identity: LibraryIdentity) {
+    private fun hydrateFor(historyOwner: HistoryOwner, identity: LibraryIdentity?) {
+        if (identity == null) {
+            if (hydratedHistoryOwner == historyOwner) return
+            hydratedIdentity = null
+            hydratedHistoryOwner = historyOwner
+            dispatch(EngineCommand(EngineCommand.TYPE_LOAD_HISTORY_SETTINGS, null))
+            dispatch(EngineCommand(EngineCommand.TYPE_LIST_HISTORY, EngineCommandPayloads.historyPage(HISTORY_PAGE_SIZE)))
+            return
+        }
         if (hydratedIdentity == identity) return
         hydratedIdentity = identity
+        hydratedHistoryOwner = historyOwner
         dispatch(EngineCommand(EngineCommand.TYPE_LIST_SAVED_TRACKS, EngineCommandPayloads.libraryPage(PAGE_SIZE)))
         if (hydratedIdentity != identity) return
         dispatch(EngineCommand(EngineCommand.TYPE_LIST_LIKED_TRACKS, EngineCommandPayloads.libraryPage(PAGE_SIZE)))
@@ -224,20 +232,19 @@ class PandaEngineLibraryRepository @Inject constructor(
         command: EngineCommand?,
     ): HistoryRefreshRequest? {
         val identity = snapshot.libraryIdentity()
-        val nextKey = identity?.let { HistoryCacheKey(it.accountId, it.sessionId, snapshot.historyGeneration) }
+        val owner = snapshot.historyOwner()
+        val nextKey = HistoryCacheKey(owner, snapshot.historyGeneration)
         val previousKey = historyCacheKey
         val refreshRequest = previousKey
             ?.takeIf {
                 command == null &&
-                    nextKey != null &&
-                    it.accountId == nextKey.accountId &&
-                    it.sessionId == nextKey.sessionId &&
+                    it.owner == nextKey.owner &&
                     it.generation != nextKey.generation
             }
             ?.let {
                 HistoryRefreshRequest(
                     previousGeneration = it.generation,
-                    currentGeneration = checkNotNull(nextKey).generation,
+                    currentGeneration = nextKey.generation,
                 )
             }
         if (historyCacheKey != nextKey) {
@@ -249,8 +256,13 @@ class PandaEngineLibraryRepository @Inject constructor(
         ) {
             return refreshRequest
         }
-        val page = List(snapshot.historyEntriesCount.coerceAtLeast(0), engineGateway::historyEntry)
-            .filterNotNull()
+        val historyPage = engineGateway.historyPage(
+            offset = 0,
+            limit = snapshot.historyEntriesCount.coerceAtLeast(0),
+            generation = snapshot.historyGeneration,
+        )
+        if (historyPage.generation != snapshot.historyGeneration) return refreshRequest
+        val page = historyPage.items
             .map { item -> item.toLibraryHistoryEntry() }
         historyEntries = when (command?.type) {
             EngineCommand.TYPE_LIST_HISTORY -> page
@@ -304,6 +316,10 @@ class PandaEngineLibraryRepository @Inject constructor(
         }
     }
 
+    private fun EngineSnapshot.historyOwner(): HistoryOwner = libraryIdentity()?.let {
+        HistoryOwner.Authenticated(it.accountId, it.sessionId)
+    } ?: HistoryOwner.Anonymous
+
     private fun EngineLibraryItem.toLibraryTrack() = LibraryTrack(
         relationshipId = relationshipId,
         mediaId = mediaId,
@@ -330,7 +346,11 @@ class PandaEngineLibraryRepository @Inject constructor(
     )
 
     private data class LibraryIdentity(val accountId: String, val sessionId: String)
-    private data class HistoryCacheKey(val accountId: String, val sessionId: String, val generation: Long)
+    private sealed interface HistoryOwner {
+        data object Anonymous : HistoryOwner
+        data class Authenticated(val accountId: String, val sessionId: String) : HistoryOwner
+    }
+    private data class HistoryCacheKey(val owner: HistoryOwner, val generation: Long)
     private data class HistoryRefreshRequest(val previousGeneration: Long, val currentGeneration: Long)
     private data class PlaylistSelectionKey(
         val playlistsCount: Int,
@@ -407,8 +427,29 @@ private class ProjectionCache<Source, Target> {
         return items
     }
 
+    fun project(
+        count: Int,
+        force: Boolean,
+        pageAt: (Int, Int) -> List<Source>,
+        mapper: (Source) -> Target,
+    ): List<Target> {
+        if (!force && this.count == count) return items
+        this.count = count
+        items = buildList {
+            var offset = 0
+            while (offset < count) {
+                val limit = minOf(MAX_PROJECTION_PAGE_SIZE, count - offset)
+                addAll(pageAt(offset, limit))
+                offset += limit
+            }
+        }.map(mapper)
+        return items
+    }
+
     fun clear() {
         count = -1
         items = emptyList()
     }
 }
+
+private const val MAX_PROJECTION_PAGE_SIZE = 50

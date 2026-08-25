@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.core.net.toUri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import com.adrianrusu.pandawave.core.common.trace.PandaTrace
 import com.adrianrusu.pandawave.core.model.catalog.BambooCatalogNode
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
@@ -24,25 +25,28 @@ internal class EngineBambooCatalogSource(
     private val historyCache = mutableListOf<BambooCatalogNode>()
     private var hasHistoryNextPage = false
 
-    override fun children(parentId: String, page: Int, pageSize: Int): List<BambooCatalogNode> {
-        if (parentId == LibraryItems.HISTORY_MEDIA_ID) {
-            return historyChildren(page = page, pageSize = pageSize)
-        }
-        playbackBridge.dispatchCatalogBrowse(parentId.toEngineParentId())
-        val engineResults = engineGateway.browseResults()
-        return when {
-            parentId == LibraryItems.ROOT_MEDIA_ID && engineResults.isEmpty() ->
-                rootChildren.paged(page = page, pageSize = pageSize)
+    override fun children(parentId: String, page: Int, pageSize: Int): List<BambooCatalogNode> =
+        PandaTrace.section("PW.Media3.Catalog.sourceChildren") {
+            if (parentId == LibraryItems.HISTORY_MEDIA_ID) {
+                historyChildren(page = page, pageSize = pageSize)
+            } else {
+                playbackBridge.dispatchCatalogBrowse(parentId.toEngineParentId())
+                val engineResults = engineGateway.browseResults()
+                when {
+                    parentId == LibraryItems.ROOT_MEDIA_ID && engineResults.isEmpty() ->
+                        rootChildren.paged(page = page, pageSize = pageSize)
 
-            engineResults.isEmpty() -> emptyList()
-            else -> engineResults.paged(page = page, pageSize = pageSize)
+                    engineResults.isEmpty() -> emptyList()
+                    else -> engineResults.paged(page = page, pageSize = pageSize)
+                }
+            }
         }
-    }
 
-    override fun search(query: String): List<BambooCatalogNode> {
-        playbackBridge.dispatchCatalogSearch(query)
-        return engineGateway.searchResults()
-    }
+    override fun search(query: String): List<BambooCatalogNode> =
+        PandaTrace.section("PW.Media3.Catalog.sourceSearch") {
+            playbackBridge.dispatchCatalogSearch(query)
+            engineGateway.searchResults()
+        }
 
     private val rootChildren = listOf(
         BambooCatalogNode(
@@ -68,28 +72,33 @@ internal class EngineBambooCatalogSource(
         )
     )
 
-    private fun historyChildren(page: Int, pageSize: Int): List<BambooCatalogNode> {
-        if (page < 0 || pageSize < 1) return emptyList()
-        val requestSize = pageSize.coerceIn(1, MAX_HISTORY_PAGE_SIZE)
-        val requiredCount = (page + 1) * pageSize
-        val currentKey = engineGateway.snapshot().historyCacheKey()
-        if (historyCacheKey != currentKey || page == 0) {
-            historyCacheKey = currentKey
-            historyCache.clear()
-            hasHistoryNextPage = false
-            if (currentKey == null) return emptyList()
-            appendHistoryPage(
-                EngineCommand(
-                    EngineCommand.TYPE_LIST_HISTORY,
-                    EngineCommandPayloads.historyPage(requestSize),
-                ),
-            )
+    private fun historyChildren(page: Int, pageSize: Int): List<BambooCatalogNode> =
+        PandaTrace.section("PW.Media3.Catalog.historyChildren") {
+            if (page < 0 || pageSize < 1) {
+                emptyList()
+            } else {
+                val requestSize = pageSize.coerceIn(1, MAX_HISTORY_PAGE_SIZE)
+                val requiredCount = (page + 1) * pageSize
+                val currentKey = engineGateway.snapshot().historyCacheKey()
+                if (historyCacheKey != currentKey || page == 0) {
+                    historyCacheKey = currentKey
+                    historyCache.clear()
+                    hasHistoryNextPage = false
+                    if (currentKey != null) {
+                        appendHistoryPage(
+                            EngineCommand(
+                                EngineCommand.TYPE_LIST_HISTORY,
+                                EngineCommandPayloads.historyPage(requestSize),
+                            ),
+                        )
+                    }
+                }
+                while (historyCache.size < requiredCount && hasHistoryNextPage) {
+                    appendHistoryPage(EngineCommand(EngineCommand.TYPE_LOAD_NEXT_HISTORY_PAGE, null))
+                }
+                historyCache.paged(page = page, pageSize = pageSize)
+            }
         }
-        while (historyCache.size < requiredCount && hasHistoryNextPage) {
-            appendHistoryPage(EngineCommand(EngineCommand.TYPE_LOAD_NEXT_HISTORY_PAGE, null))
-        }
-        return historyCache.paged(page = page, pageSize = pageSize)
-    }
 
     private fun appendHistoryPage(command: EngineCommand) {
         val outcome = engineGateway.dispatch(command)
@@ -157,16 +166,22 @@ private fun Int.isPlayableCatalogType(): Boolean = this in setOf(
 internal class BambooMediaLibraryCatalog(private val source: BambooCatalogSource) {
     fun root(): MediaItem = LibraryItems.Root
 
-    fun children(parentId: String, page: Int, pageSize: Int): List<MediaItem> = source.children(
-        parentId = parentId,
-        page = page,
-        pageSize = pageSize,
-    )
-        .map { node -> node.toMediaItem() }
+    fun children(parentId: String, page: Int, pageSize: Int): List<MediaItem> =
+        PandaTrace.section("PW.Media3.Catalog.children") {
+            source.children(
+                parentId = parentId,
+                page = page,
+                pageSize = pageSize,
+            )
+                .map { node -> node.toMediaItem() }
+        }
 
-    fun search(query: String, page: Int, pageSize: Int): List<MediaItem> = source.search(query)
-        .paged(page = page, pageSize = pageSize)
-        .map { node -> node.toMediaItem() }
+    fun search(query: String, page: Int, pageSize: Int): List<MediaItem> =
+        PandaTrace.section("PW.Media3.Catalog.search") {
+            source.search(query)
+                .paged(page = page, pageSize = pageSize)
+                .map { node -> node.toMediaItem() }
+        }
 }
 
 internal object LibraryItems {

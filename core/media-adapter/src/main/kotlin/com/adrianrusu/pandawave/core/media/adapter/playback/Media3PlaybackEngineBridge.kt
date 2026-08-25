@@ -6,6 +6,7 @@ import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackTelemetryAttributes
 import com.adrianrusu.pandawave.core.playback.telemetryName
 import com.adrianrusu.pandawave.core.media.adapter.playback.focus.BambooAudioFocusChange
+import com.adrianrusu.pandawave.core.media.adapter.playback.focus.BambooAudioFocusRequestResult
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommandPayloads
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
@@ -81,6 +82,20 @@ class Media3PlaybackEngineBridge(
         dispatchPlatformEvent(
             EnginePlatformEvent.TYPE_AUDIO_FOCUS_CHANGED,
             EngineCommandPayloads.audioFocusChanged(change.wireValue),
+        )
+    }
+
+    fun dispatchAudioFocusRequestResult(
+        result: BambooAudioFocusRequestResult,
+        playbackInstanceId: Long? = playbackInstanceIdProvider()
+    ) {
+        telemetryLogger.info(
+            name = Media3PlaybackTelemetryEvents.AUDIO_FOCUS_REQUEST_RESULT,
+            attributes = mapOf(Media3PlaybackTelemetryAttributes.RESULT to result.wireValue),
+        )
+        dispatchPlatformEvent(
+            EnginePlatformEvent.TYPE_AUDIO_FOCUS_REQUEST_RESULT,
+            EngineCommandPayloads.audioFocusRequestResult(result.wireValue, playbackInstanceId),
         )
     }
 
@@ -371,6 +386,7 @@ private val DECODER_NAME_PATTERN = Regex("(?:Decoder failed:|decoder(?:Name)?[=:
 
 internal object Media3PlaybackTelemetryEvents {
     const val AUDIO_FOCUS_CHANGED = "media3.audio_focus.changed"
+    const val AUDIO_FOCUS_REQUEST_RESULT = "media3.audio_focus.request_result"
     const val PLAY_WHEN_READY_RECEIVED = "media3.play_when_ready.received"
     const val PLAY_WHEN_READY_IGNORED = "media3.play_when_ready.ignored"
     const val PLAYER_COMMAND_DISPATCHED = "media3.player_command.dispatched"
@@ -392,6 +408,7 @@ internal object Media3PlaybackTelemetryAttributes {
     const val PLAYER_COMMAND = "player_command"
     const val POSITION_MILLIS = "position_millis"
     const val REASON = "reason"
+    const val RESULT = "result"
     const val SOURCE = "source"
     const val SPEED = "speed"
     const val TRIGGER = "trigger"

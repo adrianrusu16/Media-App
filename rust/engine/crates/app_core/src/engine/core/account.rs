@@ -198,7 +198,7 @@ impl Engine {
         self.clear_account_operation(snapshot);
         self.profile_projection_identity = None;
         Self::clear_profile_projection(snapshot);
-        self.history_projection_identity = None;
+        self.history_projection_owner = None;
         self.history_operation = None;
         Self::clear_history_projection(snapshot);
         self.library_projection_identity = None;

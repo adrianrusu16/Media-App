@@ -134,6 +134,7 @@ dependencies {
     baselineProfile(project(":benchmark"))
     implementation(project(":core:audio-visualizer"))
     implementation(project(":core:automotive"))
+    implementation(project(":core:common"))
     implementation(project(":core:designsystem"))
     implementation(project(":core:media-adapter"))
     implementation(project(":core:model"))

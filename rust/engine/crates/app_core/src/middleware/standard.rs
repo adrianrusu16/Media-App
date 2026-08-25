@@ -16,7 +16,10 @@ impl Middleware for LoggerMiddleware {
         _engine: &Engine,
         command: &EngineCommand,
     ) -> Result<(), EngineError> {
-        info!("Dispatching command: {:?}", command.command_type);
+        info!(
+            command_type = command.command_type.as_wire(),
+            "engine.command.middleware_started"
+        );
         Ok(())
     }
 }
@@ -38,7 +41,10 @@ impl Middleware for TelemetryMiddleware {
         _engine: &Engine,
         command: &EngineCommand,
     ) -> Result<(), EngineError> {
-        info!("[Telemetry] Starting command: {:?}", command.command_type);
+        info!(
+            command_type = command.command_type.as_wire(),
+            "engine.command.telemetry_started"
+        );
         Ok(())
     }
 

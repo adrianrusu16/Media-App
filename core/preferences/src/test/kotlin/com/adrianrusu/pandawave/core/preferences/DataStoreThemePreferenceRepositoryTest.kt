@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.mutablePreferencesOf
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.adrianrusu.pandawave.core.model.theme.PandaWaveThemePreference
 import com.adrianrusu.pandawave.core.model.theme.ThemePreferenceState
@@ -21,6 +22,7 @@ import kotlin.test.assertNull
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
@@ -79,12 +81,10 @@ class DataStoreThemePreferenceRepositoryTest {
 
     @Test
     fun `write migrates legacy authority value into cache projection key`() = runTest {
-        val file = tempDirectory.resolve("projection.preferences_pb").toFile()
         val scope = repositoryScope(testScheduler)
-        val dataStore = createDataStore(file, scope)
-        dataStore.edit { preferences ->
-            preferences[stringPreferencesKey("theme_preference")] = "bamboo_grove_light"
-        }
+        val dataStore = InMemoryPreferencesDataStore(
+            mutablePreferencesOf(stringPreferencesKey("theme_preference") to "bamboo_grove_light")
+        )
         val repository = DataStoreThemePreferenceRepository(
             dataStore = dataStore,
             scope = scope,
@@ -143,6 +143,18 @@ private class FailingPreferencesDataStore : DataStore<Preferences> {
 
     override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences =
         transform(emptyPreferences())
+}
+
+private class InMemoryPreferencesDataStore(initial: Preferences) : DataStore<Preferences> {
+    private val mutableData = MutableStateFlow(initial)
+
+    override val data = mutableData
+
+    override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences {
+        val updated = transform(mutableData.value)
+        mutableData.value = updated
+        return updated
+    }
 }
 
 private class RecordingTelemetrySink : TelemetrySink {

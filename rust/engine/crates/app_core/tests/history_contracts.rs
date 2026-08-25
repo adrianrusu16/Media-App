@@ -12,12 +12,20 @@ use panda_engine_core::{
 struct MutableAuth(Arc<Mutex<AuthState>>);
 
 impl MutableAuth {
+    fn anonymous() -> Self {
+        Self(Arc::new(Mutex::new(AuthState::Anonymous)))
+    }
+
     fn authenticated(account_id: &str, session_id: &str) -> Self {
         Self(Arc::new(Mutex::new(auth_state(account_id, session_id))))
     }
 
     fn replace(&self, account_id: &str, session_id: &str) {
         *self.0.lock().unwrap() = auth_state(account_id, session_id);
+    }
+
+    fn authenticate(&self, account_id: &str, session_id: &str) {
+        self.replace(account_id, session_id);
     }
 }
 
@@ -228,6 +236,97 @@ async fn enabled_history_records_clamped_completion_through_panda_engine() {
             duration_millis: 1_000,
             completion_ratio: 1.0,
         }]
+    );
+}
+
+#[tokio::test]
+async fn anonymous_history_records_in_memory_and_lists_without_history_port() {
+    let auth = Arc::new(MutableAuth::anonymous());
+    let mut engine = Engine::new(0);
+    engine.set_auth_state_provider(auth);
+
+    engine
+        .dispatch_platform_event(
+            EnginePlatformEvent::playback_completed("track-1", 1_000, 0.8),
+            1,
+        )
+        .await;
+
+    let listed = engine.dispatch(EngineCommand::list_history(40), 2).await;
+
+    assert_eq!(
+        listed.snapshot.history_settings,
+        Some(EngineHistorySettings { enabled: true })
+    );
+    assert_eq!(listed.snapshot.history_entries.len(), 1);
+    assert_eq!(
+        listed.snapshot.history_entries[0]
+            .track
+            .as_ref()
+            .map(|track| track.id.as_str()),
+        Some("track-1")
+    );
+    assert!(listed.snapshot.history_next_page_token.is_none());
+}
+
+#[tokio::test]
+async fn authenticated_history_load_promotes_anonymous_records_individually() {
+    let port = Arc::new(RecordingHistoryPort::new(true));
+    let auth = Arc::new(MutableAuth::anonymous());
+    let mut engine = engine(port.clone(), auth.clone());
+
+    engine
+        .dispatch_platform_event(
+            EnginePlatformEvent::playback_completed("track-1", 1_000, 0.8),
+            1,
+        )
+        .await;
+    auth.authenticate("account-1", "session-1");
+
+    engine
+        .dispatch(EngineCommand::load_history_settings(), 2)
+        .await;
+
+    assert_eq!(
+        port.records.lock().unwrap().as_slice(),
+        [EnginePlaybackRecord {
+            track_id: "track-1".into(),
+            duration_millis: 1_000,
+            completion_ratio: 0.8,
+        }]
+    );
+}
+
+#[tokio::test]
+async fn disabled_authenticated_history_clears_pending_anonymous_records_without_upload() {
+    let port = Arc::new(RecordingHistoryPort::new(false));
+    let auth = Arc::new(MutableAuth::anonymous());
+    let mut engine = engine(port.clone(), auth.clone());
+
+    engine
+        .dispatch_platform_event(
+            EnginePlatformEvent::playback_completed("track-1", 1_000, 0.8),
+            1,
+        )
+        .await;
+    auth.authenticate("account-1", "session-1");
+
+    let settings = engine
+        .dispatch(EngineCommand::load_history_settings(), 2)
+        .await;
+
+    assert_eq!(
+        settings.snapshot.history_settings,
+        Some(EngineHistorySettings { enabled: false })
+    );
+    assert!(port.records.lock().unwrap().is_empty());
+    assert!(
+        engine
+            .dispatch(EngineCommand::list_history(40), 3)
+            .await
+            .snapshot
+            .last_error
+            .is_none()
     );
 }
 

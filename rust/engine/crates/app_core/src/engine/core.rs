@@ -19,7 +19,7 @@ use tracing::{debug, info, instrument, warn};
 
 use crate::engine::observability::EventBus;
 use crate::services::service::ServiceManager;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -123,9 +123,67 @@ struct PlaylistPageOperation {
 
 #[derive(Clone)]
 struct HistoryOperation {
-    auth_identity: AuthIdentity,
+    owner: HistoryProjectionOwner,
     page_size: u32,
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum HistoryProjectionOwner {
+    Anonymous,
+    Authenticated(AuthIdentity),
+}
+
+impl HistoryProjectionOwner {
+    fn current(auth_state: &crate::AuthState) -> Self {
+        AuthIdentity::from_state(auth_state)
+            .map(Self::Authenticated)
+            .unwrap_or(Self::Anonymous)
+    }
+
+    fn matches_auth_state(&self, auth_state: &crate::AuthState) -> bool {
+        match (self, AuthIdentity::from_state(auth_state)) {
+            (Self::Anonymous, None) => true,
+            (Self::Authenticated(expected), Some(current)) => expected == &current,
+            _ => false,
+        }
+    }
+}
+
+struct AnonymousHistoryBuffer {
+    entries: VecDeque<crate::EngineHistoryEntry>,
+    max_entries: usize,
+    enabled: bool,
+    next_sequence: u64,
+}
+
+impl Default for AnonymousHistoryBuffer {
+    fn default() -> Self {
+        Self::new(ANONYMOUS_HISTORY_MAX_ENTRIES)
+    }
+}
+
+impl AnonymousHistoryBuffer {
+    fn new(max_entries: usize) -> Self {
+        Self {
+            entries: VecDeque::new(),
+            max_entries,
+            enabled: true,
+            next_sequence: 0,
+        }
+    }
+
+    fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+
+    fn clear(&mut self) -> u64 {
+        let deleted = self.entries.len() as u64;
+        self.entries.clear();
+        deleted
+    }
+}
+
+const ANONYMOUS_HISTORY_MAX_ENTRIES: usize = 50;
 
 #[derive(Clone)]
 struct DeviceSessionsOperation {
@@ -205,8 +263,10 @@ pub struct Engine {
     account_projection_identity: Option<AuthIdentity>,
     device_sessions_operation: Option<DeviceSessionsOperation>,
     profile_projection_identity: Option<AuthIdentity>,
-    history_projection_identity: Option<AuthIdentity>,
+    history_projection_owner: Option<HistoryProjectionOwner>,
     history_operation: Option<HistoryOperation>,
+    anonymous_history: AnonymousHistoryBuffer,
+    anonymous_history_reconciliation_in_flight: bool,
     library_projection_identity: Option<AuthIdentity>,
     saved_library_operation: Option<LibraryPageOperation>,
     liked_library_operation: Option<LibraryPageOperation>,
@@ -247,8 +307,10 @@ impl Default for Engine {
             device_sessions_operation: None,
             profile_projection_identity: None,
             history_port: None,
-            history_projection_identity: None,
+            history_projection_owner: None,
             history_operation: None,
+            anonymous_history: AnonymousHistoryBuffer::default(),
+            anonymous_history_reconciliation_in_flight: false,
             library_port: None,
             playlist_port: None,
             library_projection_identity: None,
@@ -314,8 +376,10 @@ impl Engine {
             device_sessions_operation: None,
             profile_projection_identity: None,
             history_port: None,
-            history_projection_identity: None,
+            history_projection_owner: None,
             history_operation: None,
+            anonymous_history: AnonymousHistoryBuffer::default(),
+            anonymous_history_reconciliation_in_flight: false,
             library_port: None,
             playlist_port: None,
             library_projection_identity: None,
@@ -471,9 +535,9 @@ impl Engine {
             Self::clear_profile_projection(&mut snapshot);
         }
         if self
-            .history_projection_identity
+            .history_projection_owner
             .as_ref()
-            .is_some_and(|identity| Some(identity) != current_identity.as_ref())
+            .is_some_and(|owner| !owner.matches_auth_state(&snapshot.auth_state))
         {
             Self::clear_history_projection(&mut snapshot);
         }
@@ -531,11 +595,11 @@ impl Engine {
             Self::clear_profile_projection(&mut self.snapshot);
         }
         if self
-            .history_projection_identity
+            .history_projection_owner
             .as_ref()
-            .is_some_and(|identity| Some(identity) != current_identity.as_ref())
+            .is_some_and(|owner| !owner.matches_auth_state(&self.snapshot.auth_state))
         {
-            self.history_projection_identity = None;
+            self.history_projection_owner = None;
             self.history_operation = None;
             Self::clear_history_projection(&mut self.snapshot);
         }
@@ -636,7 +700,7 @@ impl Engine {
     /// Dispatches a command to the engine, returning the outcome.
     ///
     /// This is the primary way to interact with the engine.
-    #[instrument(skip(self), fields(command_type = ?command.command_type))]
+    #[instrument(skip(self, command), fields(command_type = %command.command_type.as_wire()))]
     pub async fn dispatch(
         &mut self,
         command: EngineCommand,

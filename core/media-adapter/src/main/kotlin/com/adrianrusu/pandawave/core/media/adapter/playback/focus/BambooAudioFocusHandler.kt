@@ -36,6 +36,7 @@ class BambooAudioFocusHandler(context: Context, private val onFocusChange: (Bamb
                     .build()
             )
             .setAcceptsDelayedFocusGain(true)
+            .setWillPauseWhenDucked(false)
             .setOnAudioFocusChangeListener(this)
             .build()
         focusRequest = request

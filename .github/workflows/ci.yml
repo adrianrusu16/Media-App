@@ -95,10 +95,9 @@ jobs:
           --no-configuration-cache
           spotlessCheck
           detekt
-          :core:telemetry-adapter:testDebugUnitTest
-          :core:playback:testDebugUnitTest
-          :core:media-adapter:testDebugUnitTest
+          test
           :app:assembleDebug
+          :app:assembleBenchmark
           --console=plain
 
   rust:

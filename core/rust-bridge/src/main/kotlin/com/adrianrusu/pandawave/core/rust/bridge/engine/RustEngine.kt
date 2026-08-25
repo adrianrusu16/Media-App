@@ -6,7 +6,11 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthOperationResult
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryItem
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryPage
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistItem
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistReconciliation
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistTrackItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
 
 interface RustEngine {
@@ -53,20 +57,45 @@ interface RustEngine {
     fun discoveryResult(index: Int): EngineCatalogItem? = null
     fun forYouResult(index: Int): EngineCatalogItem? = null
     fun recommendationResult(index: Int): EngineCatalogItem? = null
+    fun discoveryResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
+        boundedPage(offset, limit, ::discoveryResult)
+    fun forYouResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
+        boundedPage(offset, limit, ::forYouResult)
+    fun recommendationResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
+        boundedPage(offset, limit, ::recommendationResult)
 
     fun profilePreferenceValue(key: String): String? = null
 
     fun searchResult(index: Int): EngineCatalogItem?
 
     fun historyEntry(index: Int): EngineHistoryItem? = null
+    fun historyPage(offset: Int, limit: Int, generation: Long): EngineHistoryPage {
+        val snapshot = snapshot()
+        return EngineHistoryPage(
+            generation = snapshot.historyGeneration,
+            items = if (snapshot.historyGeneration == generation) {
+                boundedPage(offset, limit, ::historyEntry)
+            } else {
+                emptyList()
+            },
+        )
+    }
 
     fun savedTrack(index: Int): EngineLibraryItem? = null
-    fun playlist(index: Int): com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistItem? = null
-    fun playlistTrack(index: Int): com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistTrackItem? = null
+    fun savedTracksPage(offset: Int, limit: Int): List<EngineLibraryItem> =
+        boundedPage(offset, limit, ::savedTrack)
+    fun playlist(index: Int): EnginePlaylistItem? = null
+    fun playlistsPage(offset: Int, limit: Int): List<EnginePlaylistItem> =
+        boundedPage(offset, limit, ::playlist)
+    fun playlistTrack(index: Int): EnginePlaylistTrackItem? = null
+    fun playlistTracksPage(offset: Int, limit: Int): List<EnginePlaylistTrackItem> =
+        boundedPage(offset, limit, ::playlistTrack)
     fun selectedPlaylistId(): String? = null
-    fun playlistReconciliation(): com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistReconciliation? = null
+    fun playlistReconciliation(): EnginePlaylistReconciliation? = null
 
     fun likedTrack(index: Int): EngineLibraryItem? = null
+    fun likedTracksPage(offset: Int, limit: Int): List<EngineLibraryItem> =
+        boundedPage(offset, limit, ::likedTrack)
 
     fun pendingLibraryTrackId(index: Int): String? = null
 
@@ -77,4 +106,12 @@ interface RustEngine {
     fun dispatch(command: EngineCommand): EngineDispatchResult
 
     fun dispatchPlatformEvent(event: EnginePlatformEvent): EngineDispatchResult
+}
+
+private const val MAX_ENGINE_PAGE_QUERY_SIZE = 50
+
+private fun <T> boundedPage(offset: Int, limit: Int, itemAt: (Int) -> T?): List<T> {
+    val start = offset.coerceAtLeast(0)
+    val count = limit.coerceIn(0, MAX_ENGINE_PAGE_QUERY_SIZE)
+    return List(count) { index -> itemAt(start + index) }.filterNotNull()
 }

@@ -25,6 +25,18 @@ impl Engine {
                 })
             })
             .flatten();
+        let audio_focus_request_result = (event.event_type
+            == EnginePlatformEventType::AudioFocusRequestResult)
+            .then(|| {
+                event.payload.as_deref().and_then(|payload| {
+                    serde_json::from_str::<
+                        crate::model::platform_event::AudioFocusRequestResultPayload,
+                    >(payload)
+                    .ok()
+                    .filter(|value| value.version == 1)
+                })
+            })
+            .flatten();
         if matches!(
             event.event_type,
             EnginePlatformEventType::MediaLoaded
@@ -284,6 +296,99 @@ impl Engine {
             return outcome;
         }
 
+        if event.event_type == EnginePlatformEventType::AudioFocusRequestResult {
+            let Some(request_result) = audio_focus_request_result else {
+                warn!("Ignoring malformed audio focus request-result payload");
+                return EngineOutcome {
+                    snapshot: self.snapshot.clone(),
+                    event: EngineEvent::platform_event_applied(Some(
+                        EnginePlatformEventType::AUDIO_FOCUS_REQUEST_RESULT_WIRE.to_owned(),
+                    )),
+                    effects: Vec::new(),
+                };
+            };
+            if request_result
+                .playback_instance_id
+                .is_some_and(|id| Some(id) != self.current_playback_instance_id)
+            {
+                debug!(
+                    observed_playback_instance_id = ?request_result.playback_instance_id,
+                    current_playback_instance_id = ?self.current_playback_instance_id,
+                    "Ignoring stale audio focus request result"
+                );
+                return EngineOutcome {
+                    snapshot: self.snapshot.clone(),
+                    event: EngineEvent::platform_event_applied(Some(
+                        EnginePlatformEventType::AUDIO_FOCUS_REQUEST_RESULT_WIRE.to_owned(),
+                    )),
+                    effects: Vec::new(),
+                };
+            }
+            let prev_playback_state = self.snapshot.playback_state;
+            use crate::model::platform_event::AudioFocusRequestResult;
+            let next_playback_state = match request_result.result {
+                AudioFocusRequestResult::Failed => {
+                    self.recovery.desired_play_when_ready = false;
+                    if matches!(
+                        prev_playback_state,
+                        PlaybackState::Playing
+                            | PlaybackState::Buffering
+                            | PlaybackState::Recovering
+                    ) {
+                        PlaybackState::Paused
+                    } else {
+                        prev_playback_state
+                    }
+                }
+                AudioFocusRequestResult::Delayed => {
+                    if matches!(
+                        prev_playback_state,
+                        PlaybackState::Playing
+                            | PlaybackState::Buffering
+                            | PlaybackState::Recovering
+                    ) {
+                        PlaybackState::Paused
+                    } else {
+                        prev_playback_state
+                    }
+                }
+                AudioFocusRequestResult::Granted | AudioFocusRequestResult::Unknown => {
+                    prev_playback_state
+                }
+            };
+            info!(
+                ?request_result.result,
+                ?prev_playback_state,
+                ?next_playback_state,
+                desired_play_when_ready = self.recovery.desired_play_when_ready,
+                "Audio focus request result applied"
+            );
+            let mut next_snapshot = self
+                .snapshot
+                .clone()
+                .with_playback_state(next_playback_state, now_epoch_millis)
+                .with_error(None);
+            let effects = if prev_playback_state != PlaybackState::Paused
+                && next_playback_state == PlaybackState::Paused
+            {
+                vec![EngineEffect::Pause]
+            } else {
+                Vec::new()
+            };
+            next_snapshot.controls = self.derive_controls(&next_snapshot);
+            self.snapshot = next_snapshot;
+            self.sync_auth_state_projection();
+            let outcome = EngineOutcome {
+                snapshot: self.snapshot.clone(),
+                event: EngineEvent::platform_event_applied(Some(
+                    EnginePlatformEventType::AUDIO_FOCUS_REQUEST_RESULT_WIRE.to_owned(),
+                )),
+                effects,
+            };
+            self.execute_effects(&outcome.effects);
+            return outcome;
+        }
+
         let prev_playback_state = self.snapshot.playback_state;
 
         let next_playback_state = if event.event_type == EnginePlatformEventType::AudioFocusChanged
@@ -293,14 +398,13 @@ impl Engine {
                 Some(AudioFocusChange::Gain) if self.recovery.desired_play_when_ready => {
                     PlaybackState::Playing
                 }
-                Some(
-                    AudioFocusChange::Loss
-                    | AudioFocusChange::LossTransient
-                    | AudioFocusChange::Duck,
-                ) if matches!(
-                    prev_playback_state,
-                    PlaybackState::Playing | PlaybackState::Buffering | PlaybackState::Recovering
-                ) =>
+                Some(AudioFocusChange::Loss | AudioFocusChange::LossTransient)
+                    if matches!(
+                        prev_playback_state,
+                        PlaybackState::Playing
+                            | PlaybackState::Buffering
+                            | PlaybackState::Recovering
+                    ) =>
                 {
                     PlaybackState::Paused
                 }
@@ -317,6 +421,14 @@ impl Engine {
 
         if event.event_type == EnginePlatformEventType::AudioFocusChanged {
             match audio_focus_change {
+                Some(crate::model::platform_event::AudioFocusChange::Loss) => {
+                    self.recovery.desired_play_when_ready = false;
+                    info!(
+                        ?prev_playback_state,
+                        ?next_playback_state,
+                        "Permanent audio focus loss cleared playback intent"
+                    );
+                }
                 Some(focus_change) => info!(
                     ?focus_change,
                     ?prev_playback_state,

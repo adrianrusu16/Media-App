@@ -8,6 +8,7 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryItem
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryPage
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineLibraryItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistReconciliation
@@ -146,16 +147,16 @@ class PandaEngineLibraryRepositoryTest {
         )
         val repository = testLibraryRepository(gateway)
         repository.start()
-        val historyReadsAfterStart = gateway.historyEntryReads
+        val historyReadsAfterStart = gateway.historyPageReads
 
         gateway.emit(snapshot.copy(updatedAtEpochMillis = snapshot.updatedAtEpochMillis + 1))
 
-        assertEquals(historyReadsAfterStart, gateway.historyEntryReads)
+        assertEquals(historyReadsAfterStart, gateway.historyPageReads)
         assertEquals(listOf("history-1"), repository.state.value.historyEntries.map { it.historyId })
     }
 
     @Test
-    fun `signed out snapshots clear cached history entries`() {
+    fun `signed out snapshots switch to anonymous history and hydrate once`() {
         val gateway = RecordingLibraryGateway(
             snapshot = authenticatedSnapshot(historyEntriesCount = 1),
             history = listOf(historyItem("history-1", "track-1")),
@@ -171,9 +172,15 @@ class PandaEngineLibraryRepositoryTest {
 
         assertTrue(repository.state.value.isSignedOut)
         assertEquals(LibraryTab.HISTORY, repository.state.value.selectedTab)
-        assertTrue(repository.state.value.historyEntries.isEmpty())
+        assertEquals(listOf("history-1"), repository.state.value.historyEntries.map { it.historyId })
         assertFalse(repository.state.value.hasHistoryNextPage)
-        assertEquals(emptyList(), gateway.commands.map(EngineCommand::type))
+        assertEquals(
+            listOf(
+                EngineCommand.TYPE_LOAD_HISTORY_SETTINGS,
+                EngineCommand.TYPE_LIST_HISTORY,
+            ),
+            gateway.commands.map(EngineCommand::type),
+        )
     }
 
     @Test
@@ -242,7 +249,14 @@ class PandaEngineLibraryRepositoryTest {
         val repository = testLibraryRepository(gateway)
 
         repository.start()
-        assertTrue(gateway.commands.isEmpty())
+        assertEquals(
+            listOf(
+                EngineCommand.TYPE_LOAD_HISTORY_SETTINGS,
+                EngineCommand.TYPE_LIST_HISTORY,
+            ),
+            gateway.commands.map(EngineCommand::type),
+        )
+        gateway.commands.clear()
 
         gateway.emit(authenticatedSnapshot(accountId = "account-1", sessionId = "session-1"))
         assertEquals(
@@ -371,6 +385,8 @@ private class RecordingLibraryGateway(
     val libraryLoads = mutableListOf<LibraryLoad>()
     var historyEntryReads = 0
         private set
+    var historyPageReads = 0
+        private set
 
     override fun snapshot(): EngineSnapshot = current
     override fun browseResult(index: Int): EngineCatalogItem? = null
@@ -381,6 +397,23 @@ private class RecordingLibraryGateway(
         historyEntryReads += 1
         return history.getOrNull(historyOffset + index)
     }
+    override fun savedTracksPage(offset: Int, limit: Int): List<EngineLibraryItem> =
+        saved.drop(offset.coerceAtLeast(0)).take(limit.coerceAtLeast(0))
+    override fun likedTracksPage(offset: Int, limit: Int): List<EngineLibraryItem> =
+        liked.drop(offset.coerceAtLeast(0)).take(limit.coerceAtLeast(0))
+    override fun historyPage(offset: Int, limit: Int, generation: Long): EngineHistoryPage {
+        historyPageReads += 1
+        return EngineHistoryPage(
+            generation = generation,
+            items = history
+                .drop(historyOffset + offset.coerceAtLeast(0))
+                .take(limit.coerceAtLeast(0)),
+        )
+    }
+    override fun playlistsPage(offset: Int, limit: Int): List<EnginePlaylistItem> =
+        playlists.drop(offset.coerceAtLeast(0)).take(limit.coerceAtLeast(0))
+    override fun playlistTracksPage(offset: Int, limit: Int): List<EnginePlaylistTrackItem> =
+        playlistTracks.drop(offset.coerceAtLeast(0)).take(limit.coerceAtLeast(0))
     override fun pendingLibraryTrackId(index: Int): String? = pending.getOrNull(index)
     override fun playlist(index: Int): EnginePlaylistItem? = playlists.getOrNull(index)
     override fun playlistTrack(index: Int): EnginePlaylistTrackItem? = playlistTracks.getOrNull(index)

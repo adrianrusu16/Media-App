@@ -139,6 +139,9 @@ pub(crate) fn platform_event_from_ffi(
         FFI_PLATFORM_EVENT_PLAYBACK_POSITION_CHECKPOINT => {
             EnginePlatformEventType::PlaybackPositionCheckpoint
         }
+        FFI_PLATFORM_EVENT_AUDIO_FOCUS_REQUEST_RESULT => {
+            EnginePlatformEventType::AudioFocusRequestResult
+        }
         _ => EnginePlatformEventType::Unknown(event_type.to_string()),
     }
 }

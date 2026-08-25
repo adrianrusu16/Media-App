@@ -17,6 +17,8 @@ pub enum EnginePlatformEventType {
     VehicleDrivingStateChanged,
     /// Audio focus has changed (e.g., gained, lost).
     AudioFocusChanged,
+    /// The platform completed an explicit audio-focus request.
+    AudioFocusRequestResult,
     /// A media button was pressed (e.g., play, pause, next, prev from steering wheel).
     MediaButtonPressed,
     /// Media has successfully loaded and is ready to play.
@@ -46,6 +48,7 @@ impl EnginePlatformEventType {
     pub const VEHICLE_DRIVING_STATE_CHANGED_WIRE: &'static str = "vehicle_driving_state_changed";
     /// Wire value for AudioFocusChanged event.
     pub const AUDIO_FOCUS_CHANGED_WIRE: &'static str = "audio_focus_changed";
+    pub const AUDIO_FOCUS_REQUEST_RESULT_WIRE: &'static str = "audio_focus_request_result";
     /// Wire value for MediaButtonPressed event.
     pub const MEDIA_BUTTON_PRESSED_WIRE: &'static str = "media_button_pressed";
     /// Wire value for MediaLoaded event.
@@ -66,6 +69,7 @@ impl EnginePlatformEventType {
             Self::UX_RESTRICTIONS_CHANGED_WIRE => Self::UxRestrictionsChanged,
             Self::VEHICLE_DRIVING_STATE_CHANGED_WIRE => Self::VehicleDrivingStateChanged,
             Self::AUDIO_FOCUS_CHANGED_WIRE => Self::AudioFocusChanged,
+            Self::AUDIO_FOCUS_REQUEST_RESULT_WIRE => Self::AudioFocusRequestResult,
             Self::MEDIA_BUTTON_PRESSED_WIRE => Self::MediaButtonPressed,
             Self::MEDIA_LOADED_WIRE => Self::MediaLoaded,
             Self::MEDIA_ERROR_WIRE => Self::MediaError,
@@ -85,6 +89,7 @@ impl EnginePlatformEventType {
             Self::UxRestrictionsChanged => Self::UX_RESTRICTIONS_CHANGED_WIRE,
             Self::VehicleDrivingStateChanged => Self::VEHICLE_DRIVING_STATE_CHANGED_WIRE,
             Self::AudioFocusChanged => Self::AUDIO_FOCUS_CHANGED_WIRE,
+            Self::AudioFocusRequestResult => Self::AUDIO_FOCUS_REQUEST_RESULT_WIRE,
             Self::MediaButtonPressed => Self::MEDIA_BUTTON_PRESSED_WIRE,
             Self::MediaLoaded => Self::MEDIA_LOADED_WIRE,
             Self::MediaError => Self::MEDIA_ERROR_WIRE,
@@ -145,6 +150,24 @@ pub(crate) enum AudioFocusChange {
 pub(crate) struct AudioFocusChangedPayload {
     pub version: u8,
     pub focus_change: AudioFocusChange,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum AudioFocusRequestResult {
+    Granted,
+    Delayed,
+    Failed,
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Deserialize)]
+pub(crate) struct AudioFocusRequestResultPayload {
+    pub version: u8,
+    pub result: AudioFocusRequestResult,
+    #[serde(default)]
+    pub playback_instance_id: Option<u64>,
 }
 
 impl EnginePlatformEvent {

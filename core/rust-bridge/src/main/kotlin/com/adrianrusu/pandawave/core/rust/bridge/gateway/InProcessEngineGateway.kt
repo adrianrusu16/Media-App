@@ -4,6 +4,7 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthOperationResult
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryPage
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.pandawave.core.rust.bridge.engine.EngineDispatchResult
@@ -31,15 +32,27 @@ class InProcessEngineGateway(private val engine: RustEngine) :
     override fun discoveryResult(index: Int): EngineCatalogItem? = engine.discoveryResult(index)
     override fun forYouResult(index: Int): EngineCatalogItem? = engine.forYouResult(index)
     override fun recommendationResult(index: Int): EngineCatalogItem? = engine.recommendationResult(index)
+    override fun discoveryResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
+        engine.discoveryResultsPage(offset, limit)
+    override fun forYouResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
+        engine.forYouResultsPage(offset, limit)
+    override fun recommendationResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
+        engine.recommendationResultsPage(offset, limit)
     override fun profilePreferenceValue(key: String): String? = engine.profilePreferenceValue(key)
 
     override fun searchResult(index: Int): EngineCatalogItem? = engine.searchResult(index)
     override fun historyEntry(index: Int) = engine.historyEntry(index)
+    override fun historyPage(offset: Int, limit: Int, generation: Long): EngineHistoryPage =
+        engine.historyPage(offset, limit, generation)
     override fun savedTrack(index: Int) = engine.savedTrack(index)
+    override fun savedTracksPage(offset: Int, limit: Int) = engine.savedTracksPage(offset, limit)
     override fun likedTrack(index: Int) = engine.likedTrack(index)
+    override fun likedTracksPage(offset: Int, limit: Int) = engine.likedTracksPage(offset, limit)
     override fun pendingLibraryTrackId(index: Int) = engine.pendingLibraryTrackId(index)
     override fun playlist(index: Int) = engine.playlist(index)
+    override fun playlistsPage(offset: Int, limit: Int) = engine.playlistsPage(offset, limit)
     override fun playlistTrack(index: Int) = engine.playlistTrack(index)
+    override fun playlistTracksPage(offset: Int, limit: Int) = engine.playlistTracksPage(offset, limit)
     override fun selectedPlaylistId(): String? = engine.selectedPlaylistId()
     override fun playlistReconciliation() = engine.playlistReconciliation()
 

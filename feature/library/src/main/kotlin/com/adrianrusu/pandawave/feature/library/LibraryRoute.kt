@@ -134,7 +134,7 @@ fun LibraryRoute(
             )
         }
 
-        if (state.isSignedOut) {
+        if (state.isSignedOut && state.selectedTab != LibraryTab.HISTORY) {
             Text(
                 text = stringResource(R.string.pandawave_library_signed_out),
                 modifier = Modifier.testTag("library-signed-out"),

@@ -6,6 +6,7 @@ plugins {
 
 dependencies {
     implementation(project(":core:audio-visualizer"))
+    implementation(project(":core:common"))
     implementation(project(":core:model"))
     implementation(project(":core:playback"))
     implementation(project(":core:rust-bridge"))

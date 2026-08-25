@@ -5,6 +5,7 @@ use std::sync::Arc;
 use futures_util::FutureExt;
 use panda_engine_core::VoskVoiceEngine;
 use tracing::info;
+use tracing_subscriber::filter::LevelFilter as TracingLevelFilter;
 use tracing_subscriber::prelude::*;
 
 use crate::engine_handle::{FfiObserver, build_engine, remember_outcome};
@@ -45,11 +46,135 @@ pub extern "C" fn panda_engine_init_logging(max_level: i32) {
             .with_tag("PandaEngine"),
     );
 
+    let tracing_level = tracing_level(max_level);
+    #[cfg(target_os = "android")]
     let _ = tracing_subscriber::registry()
-        .with(tracing_subscriber::fmt::layer().with_writer(std::io::stdout))
+        .with(
+            tracing_subscriber::fmt::layer()
+                .with_ansi(false)
+                .without_time()
+                .with_target(false)
+                .with_writer(android_tracing::AndroidLogMakeWriter)
+                .with_filter(tracing_level),
+        )
+        .try_init();
+    #[cfg(not(target_os = "android"))]
+    let _ = tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::fmt::layer()
+                .with_ansi(false)
+                .with_writer(std::io::stdout)
+                .with_filter(tracing_level),
+        )
         .try_init();
 
     info!("PandaEngine logging initialized with level {:?}", level);
+}
+
+fn tracing_level(max_level: i32) -> TracingLevelFilter {
+    match max_level {
+        0 => TracingLevelFilter::OFF,
+        1 => TracingLevelFilter::ERROR,
+        2 => TracingLevelFilter::WARN,
+        3 => TracingLevelFilter::INFO,
+        4 => TracingLevelFilter::DEBUG,
+        5 => TracingLevelFilter::TRACE,
+        _ => TracingLevelFilter::INFO,
+    }
+}
+
+#[cfg(target_os = "android")]
+mod android_tracing {
+    use std::ffi::CString;
+    use std::io::{self, Write};
+
+    use android_log_sys::{__android_log_write, LogPriority};
+    use tracing::{Level, Metadata};
+    use tracing_subscriber::fmt::MakeWriter;
+
+    pub(super) struct AndroidLogMakeWriter;
+
+    pub(super) struct AndroidLogWriter {
+        priority: i32,
+        buffer: Vec<u8>,
+    }
+
+    impl AndroidLogWriter {
+        fn new(priority: LogPriority) -> Self {
+            Self {
+                priority: priority as i32,
+                buffer: Vec::new(),
+            }
+        }
+
+        fn emit(&mut self) {
+            if self.buffer.is_empty() {
+                return;
+            }
+            let text = String::from_utf8_lossy(&self.buffer)
+                .trim_end_matches(|character| character == '\r' || character == '\n')
+                .replace('\0', "�");
+            if let (Ok(tag), Ok(message)) = (CString::new("PandaEngine"), CString::new(text)) {
+                unsafe {
+                    __android_log_write(self.priority, tag.as_ptr(), message.as_ptr());
+                }
+            }
+            self.buffer.clear();
+        }
+    }
+
+    impl Write for AndroidLogWriter {
+        fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+            self.buffer.extend_from_slice(bytes);
+            Ok(bytes.len())
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            self.emit();
+            Ok(())
+        }
+    }
+
+    impl Drop for AndroidLogWriter {
+        fn drop(&mut self) {
+            self.emit();
+        }
+    }
+
+    impl<'writer> MakeWriter<'writer> for AndroidLogMakeWriter {
+        type Writer = AndroidLogWriter;
+
+        fn make_writer(&'writer self) -> Self::Writer {
+            AndroidLogWriter::new(LogPriority::INFO)
+        }
+
+        fn make_writer_for(&'writer self, metadata: &Metadata<'_>) -> Self::Writer {
+            let priority = match *metadata.level() {
+                Level::ERROR => LogPriority::ERROR,
+                Level::WARN => LogPriority::WARN,
+                Level::INFO => LogPriority::INFO,
+                Level::DEBUG => LogPriority::DEBUG,
+                Level::TRACE => LogPriority::VERBOSE,
+            };
+            AndroidLogWriter::new(priority)
+        }
+    }
+}
+
+#[cfg(test)]
+mod logging_tests {
+    use super::*;
+
+    #[test]
+    fn native_logging_levels_map_to_tracing_filters() {
+        assert_eq!(TracingLevelFilter::OFF, tracing_level(0));
+        assert_eq!(TracingLevelFilter::ERROR, tracing_level(1));
+        assert_eq!(TracingLevelFilter::WARN, tracing_level(2));
+        assert_eq!(TracingLevelFilter::INFO, tracing_level(3));
+        assert_eq!(TracingLevelFilter::DEBUG, tracing_level(4));
+        assert_eq!(TracingLevelFilter::TRACE, tracing_level(5));
+        assert_eq!(TracingLevelFilter::INFO, tracing_level(99));
+    }
 }
 
 #[unsafe(no_mangle)]

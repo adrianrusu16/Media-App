@@ -477,6 +477,56 @@ async fn play_media_by_id_resolves_playback_source() {
 }
 
 #[tokio::test]
+async fn play_media_by_id_reasserts_play_when_replacing_item_while_buffering() {
+    let mut engine = Engine::new(100);
+    engine.set_repository(Box::new(InMemoryRepository::new(vec![
+        MediaItem {
+            id: "track-1".to_string(),
+            title: "First Track".to_string(),
+            artist: "PandaWave".to_string(),
+            source_uri: Some("https://media.test/track-1.mp3".to_string()),
+            ..Default::default()
+        },
+        MediaItem {
+            id: "track-2".to_string(),
+            title: "Second Track".to_string(),
+            artist: "PandaWave".to_string(),
+            source_uri: Some("https://media.test/track-2.mp3".to_string()),
+            ..Default::default()
+        },
+    ])));
+
+    let first = engine
+        .dispatch(EngineCommand::play_media_by_id("track-1".to_string()), 200)
+        .await;
+    assert_eq!(first.snapshot.playback_state, PlaybackState::Buffering);
+    assert!(first.effects.contains(&EngineEffect::RequestAudioFocus));
+    assert!(first.effects.contains(&EngineEffect::Play));
+
+    let second = engine
+        .dispatch(EngineCommand::play_media_by_id("track-2".to_string()), 300)
+        .await;
+
+    assert_eq!(second.snapshot.media_id.as_deref(), Some("track-2"));
+    assert_eq!(second.snapshot.playback_state, PlaybackState::Buffering);
+    assert!(
+        second
+            .effects
+            .contains(&EngineEffect::PreparePlaybackSource {
+                media_id: "track-2".to_string(),
+                playback_instance_id: 2,
+            })
+    );
+    assert!(second.effects.contains(&EngineEffect::UpdateMetadata {
+        media_id: "track-2".to_string(),
+        title: "Second Track".to_string(),
+        artist: "PandaWave".to_string(),
+    }));
+    assert!(second.effects.contains(&EngineEffect::RequestAudioFocus));
+    assert!(second.effects.contains(&EngineEffect::Play));
+}
+
+#[tokio::test]
 async fn play_media_by_id_projects_canonical_playback_capability_verbatim() {
     let mut engine = Engine::new(100);
     engine.set_repository(Box::new(InMemoryRepository::new(vec![MediaItem {

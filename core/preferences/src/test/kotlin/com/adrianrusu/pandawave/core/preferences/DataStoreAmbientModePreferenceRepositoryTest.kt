@@ -45,21 +45,25 @@ class DataStoreAmbientModePreferenceRepositoryTest {
 
     @Test
     fun `timeout is normalized to five second steps within range`() = runTest {
-        val scope = repositoryScope(testScheduler)
-        val repository = createRepository(
-            file = tempDirectory.resolve("normalized.preferences_pb").toFile(),
-            scope = scope
-        )
+        suspend fun assertNormalized(name: String, input: Int, expected: Int) {
+            val scope = repositoryScope(testScheduler)
+            try {
+                val repository = createRepository(
+                    file = tempDirectory.resolve("$name.preferences_pb").toFile(),
+                    scope = scope
+                )
 
-        repository.setTimeoutSeconds(58)
-        assertEquals(60, repository.readyPreferences().timeoutSeconds)
+                repository.setTimeoutSeconds(input)
 
-        repository.setTimeoutSeconds(2)
-        assertEquals(5, repository.readyPreferences().timeoutSeconds)
+                assertEquals(expected, repository.readyPreferences().timeoutSeconds)
+            } finally {
+                scope.cancel()
+            }
+        }
 
-        repository.setTimeoutSeconds(62)
-        assertEquals(60, repository.readyPreferences().timeoutSeconds)
-        scope.cancel()
+        assertNormalized("normalized-round-up", 58, 60)
+        assertNormalized("normalized-minimum", 2, 5)
+        assertNormalized("normalized-maximum", 62, 60)
     }
 
     @Test

@@ -6,6 +6,7 @@ import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.media3.session.MediaSession
+import com.adrianrusu.pandawave.core.common.trace.PandaTrace
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
@@ -41,12 +42,14 @@ internal class BambooMediaLibrarySessionCallback(
         session: MediaLibrarySession,
         browser: MediaSession.ControllerInfo,
         params: MediaLibraryService.LibraryParams?
-    ): ListenableFuture<LibraryResult<MediaItem>> = Futures.immediateFuture(
-        LibraryResult.ofItem(
-            catalog.root(),
-            params
+    ): ListenableFuture<LibraryResult<MediaItem>> = PandaTrace.section("PW.Media3.Callback.getRoot") {
+        Futures.immediateFuture(
+            LibraryResult.ofItem(
+                catalog.root(),
+                params
+            )
         )
-    )
+    }
 
     override fun onGetChildren(
         session: MediaLibrarySession,
@@ -55,16 +58,19 @@ internal class BambooMediaLibrarySessionCallback(
         page: Int,
         pageSize: Int,
         params: MediaLibraryService.LibraryParams?
-    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = Futures.immediateFuture(
-        LibraryResult.ofItemList(
-            catalog.children(
-                parentId = parentId,
-                page = page,
-                pageSize = pageSize
-            ),
-            params
-        )
-    )
+    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> =
+        PandaTrace.section("PW.Media3.Callback.getChildren") {
+            Futures.immediateFuture(
+                LibraryResult.ofItemList(
+                    catalog.children(
+                        parentId = parentId,
+                        page = page,
+                        pageSize = pageSize
+                    ),
+                    params
+                )
+            )
+        }
 
     override fun onSearch(
         session: MediaLibrarySession,
@@ -72,9 +78,11 @@ internal class BambooMediaLibrarySessionCallback(
         query: String,
         params: MediaLibraryService.LibraryParams?
     ): ListenableFuture<LibraryResult<Void>> {
-        val resultCount = catalog.search(query, page = 0, pageSize = Int.MAX_VALUE).size
-        session.notifySearchResultChanged(browser, query, resultCount, params)
-        return Futures.immediateFuture(LibraryResult.ofVoid())
+        return PandaTrace.section("PW.Media3.Callback.search") {
+            val resultCount = catalog.search(query, page = 0, pageSize = Int.MAX_VALUE).size
+            session.notifySearchResultChanged(browser, query, resultCount, params)
+            Futures.immediateFuture(LibraryResult.ofVoid())
+        }
     }
 
     override fun onAddMediaItems(
@@ -82,8 +90,10 @@ internal class BambooMediaLibrarySessionCallback(
         controller: MediaSession.ControllerInfo,
         mediaItems: MutableList<MediaItem>
     ): ListenableFuture<MutableList<MediaItem>> {
-        mediaItems.firstOrNull()?.mediaId?.let(playbackBridge::dispatchCatalogPlay)
-        return Futures.immediateFuture(mediaItems)
+        return PandaTrace.section("PW.Media3.Callback.addMediaItems") {
+            mediaItems.firstOrNull()?.mediaId?.let(playbackBridge::dispatchCatalogPlay)
+            Futures.immediateFuture(mediaItems)
+        }
     }
 }
 

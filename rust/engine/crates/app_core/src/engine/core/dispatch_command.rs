@@ -8,8 +8,8 @@ impl Engine {
         now_epoch_millis: u64,
     ) -> EngineOutcome {
         info!(
-            "Dispatching command: {:?} at {}",
-            command.command_type, now_epoch_millis
+            command_type = command.command_type.as_wire(),
+            now_epoch_millis, "engine.command.dispatching"
         );
         let middleware = Arc::clone(&self.middleware);
         if let Err(error) = middleware.before_dispatch(self, &command) {
@@ -33,12 +33,14 @@ impl Engine {
 
         self.sync_auth_state_projection();
 
+        let desired_play_when_ready_before_command = self.recovery.desired_play_when_ready;
+
         match &command.command_type {
             EngineCommandType::Play => self.recovery.desired_play_when_ready = true,
             EngineCommandType::Pause => self.recovery.desired_play_when_ready = false,
-            EngineCommandType::PlayMediaById { .. } | EngineCommandType::PlayQueue { .. } => {
-                self.recovery.desired_play_when_ready = true;
-            }
+            EngineCommandType::PlayMediaById { .. }
+            | EngineCommandType::PlayQueue { .. }
+            | EngineCommandType::VoicePlay { .. } => self.recovery.desired_play_when_ready = true,
             _ => {}
         }
 
@@ -62,6 +64,7 @@ impl Engine {
 
         let mut effects = Vec::new();
         let mut event_message = None;
+        let mut should_reassert_playback = false;
 
         match &command.command_type {
             EngineCommandType::StartSession { user_id } => {
@@ -105,6 +108,7 @@ impl Engine {
                 if let Some(next_media) = self.queue.next_item().cloned() {
                     match self.resolve_playback_source(&next_media).await {
                         Ok(media) => {
+                            should_reassert_playback = desired_play_when_ready_before_command;
                             next_snapshot =
                                 self.update_media_state(&media, next_snapshot, &mut effects);
                             next_snapshot.playback_state = PlaybackState::Buffering;
@@ -130,6 +134,7 @@ impl Engine {
                     if let Some(prev_media) = self.queue.previous_item().cloned() {
                         match self.resolve_playback_source(&prev_media).await {
                             Ok(media) => {
+                                should_reassert_playback = desired_play_when_ready_before_command;
                                 next_snapshot =
                                     self.update_media_state(&media, next_snapshot, &mut effects);
                                 next_snapshot.playback_state = PlaybackState::Buffering;
@@ -152,6 +157,10 @@ impl Engine {
             }
             EngineCommandType::Play => {
                 if next_snapshot.session.is_some() {
+                    should_reassert_playback = matches!(
+                        prev_playback_state,
+                        PlaybackState::Buffering | PlaybackState::Recovering
+                    );
                     if prev_playback_state == PlaybackState::Ended {
                         // A completed item is still the current queue item.
                         // Restart it locally rather than resolving another
@@ -167,6 +176,7 @@ impl Engine {
                         if let Some(media) = selected_media {
                             match self.resolve_playback_source(&media).await {
                                 Ok(media) => {
+                                    should_reassert_playback = true;
                                     next_snapshot = self.update_media_state(
                                         &media,
                                         next_snapshot,
@@ -971,6 +981,7 @@ impl Engine {
                     let media = first.clone();
                     match self.resolve_playback_source(&media).await {
                         Ok(media) => {
+                            should_reassert_playback = true;
                             next_snapshot =
                                 self.update_media_state(&media, next_snapshot, &mut effects);
                             next_snapshot.playback_state = PlaybackState::Buffering;
@@ -1001,6 +1012,7 @@ impl Engine {
                     self.queue.set_items(vec![media.clone()]);
                     match self.resolve_playback_source(&media).await {
                         Ok(media) => {
+                            should_reassert_playback = true;
                             next_snapshot =
                                 self.update_media_state(&media, next_snapshot, &mut effects);
                             next_snapshot.playback_state = PlaybackState::Buffering;
@@ -1050,6 +1062,7 @@ impl Engine {
                 if let Some(media) = self.queue.current_item().cloned() {
                     match self.resolve_playback_source(&media).await {
                         Ok(media) => {
+                            should_reassert_playback = true;
                             next_snapshot =
                                 self.update_media_state(&media, next_snapshot, &mut effects);
                             next_snapshot.playback_state = PlaybackState::Buffering;
@@ -1110,6 +1123,21 @@ impl Engine {
                 _ => {}
             },
             _ => {}
+        }
+
+        if should_reassert_playback
+            && self.recovery.desired_play_when_ready
+            && matches!(
+                next_snapshot.playback_state,
+                PlaybackState::Buffering | PlaybackState::Recovering
+            )
+        {
+            if !effects.contains(&EngineEffect::RequestAudioFocus) {
+                effects.push(EngineEffect::RequestAudioFocus);
+            }
+            if !effects.contains(&EngineEffect::Play) {
+                effects.push(EngineEffect::Play);
+            }
         }
 
         let backend_unavailable = next_snapshot.last_error.as_ref().and_then(|error| {

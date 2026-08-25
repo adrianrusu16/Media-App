@@ -1,6 +1,7 @@
 package com.adrianrusu.pandawave.core.rust.bridge.gateway
 
 import android.os.RemoteException
+import com.adrianrusu.pandawave.core.common.trace.PandaTrace
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthOperationResult
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
@@ -65,13 +66,15 @@ class AidlEngineGateway(
     }
 
     init {
-        connection.connect(listener)
+        PandaTrace.section("PW.Engine.Gateway.connect") {
+            connection.connect(listener)
+        }
     }
 
-    override fun snapshot(): EngineSnapshot {
+    override fun snapshot(): EngineSnapshot = PandaTrace.section("PW.Engine.Gateway.snapshot") {
         val serviceSnapshot = withRemoteService(null) { service -> service.snapshot() }
 
-        return when (serviceSnapshot) {
+        when (serviceSnapshot) {
             null -> synchronized(stateLock) {
                 latestSnapshot ?: EngineSnapshot.idle(nowMillis = clock())
             }
@@ -89,15 +92,31 @@ class AidlEngineGateway(
     override fun discoveryResult(index: Int): EngineCatalogItem? = withRemoteService(null) { it.discoveryResult(index) }
     override fun forYouResult(index: Int): EngineCatalogItem? = withRemoteService(null) { it.forYouResult(index) }
     override fun recommendationResult(index: Int): EngineCatalogItem? = withRemoteService(null) { it.recommendationResult(index) }
+    override fun discoveryResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
+        withRemoteService(emptyList()) { it.discoveryResultsPage(offset, limit) }
+    override fun forYouResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
+        withRemoteService(emptyList()) { it.forYouResultsPage(offset, limit) }
+    override fun recommendationResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
+        withRemoteService(emptyList()) { it.recommendationResultsPage(offset, limit) }
     override fun profilePreferenceValue(key: String): String? = withRemoteService(null) { it.profilePreferenceValue(key) }
 
     override fun searchResult(index: Int): EngineCatalogItem? = withRemoteService(null) { it.searchResult(index) }
     override fun historyEntry(index: Int) = withRemoteService(null) { it.historyEntry(index) }
+    override fun historyPage(offset: Int, limit: Int, generation: Long) =
+        withRemoteService(super<EngineGateway>.historyPage(offset, limit, generation)) { it.historyPage(offset, limit, generation) }
     override fun savedTrack(index: Int) = withRemoteService(null) { it.savedTrack(index) }
+    override fun savedTracksPage(offset: Int, limit: Int) =
+        withRemoteService(emptyList()) { it.savedTracksPage(offset, limit) }
     override fun likedTrack(index: Int) = withRemoteService(null) { it.likedTrack(index) }
+    override fun likedTracksPage(offset: Int, limit: Int) =
+        withRemoteService(emptyList()) { it.likedTracksPage(offset, limit) }
     override fun pendingLibraryTrackId(index: Int) = withRemoteService(null) { it.pendingLibraryTrackId(index) }
     override fun playlist(index: Int): EnginePlaylistItem? = withRemoteService(null) { it.playlist(index) }
+    override fun playlistsPage(offset: Int, limit: Int) =
+        withRemoteService(emptyList()) { it.playlistsPage(offset, limit) }
     override fun playlistTrack(index: Int): EnginePlaylistTrackItem? = withRemoteService(null) { it.playlistTrack(index) }
+    override fun playlistTracksPage(offset: Int, limit: Int) =
+        withRemoteService(emptyList()) { it.playlistTracksPage(offset, limit) }
     override fun selectedPlaylistId(): String? = withRemoteService(null) { it.selectedPlaylistId() }
     override fun playlistReconciliation(): EnginePlaylistReconciliation? = withRemoteService(null) { it.playlistReconciliation() }
 
@@ -152,10 +171,11 @@ class AidlEngineGateway(
         secret.fill(0)
     }
 
-    override fun dispatch(command: EngineCommand): EngineDispatchResult {
+    override fun dispatch(command: EngineCommand): EngineDispatchResult =
+        PandaTrace.section("PW.Engine.Gateway.dispatch") {
         val service = connection.service
 
-        return when {
+        when {
             closed() -> unavailableResult(command)
 
             service == null && !command.isReplayableAfterReconnect() -> unavailableResult(command)
@@ -178,10 +198,11 @@ class AidlEngineGateway(
         }
     }
 
-    override fun dispatchPlatformEvent(event: EnginePlatformEvent): EngineDispatchResult {
+    override fun dispatchPlatformEvent(event: EnginePlatformEvent): EngineDispatchResult =
+        PandaTrace.section("PW.Engine.Gateway.platformEvent") {
         val service = connection.service
 
-        return when {
+        when {
             closed() -> unavailableResult(event)
 
             service == null && !event.isReplayableAfterReconnect() -> unavailableResult(event)
@@ -311,14 +332,18 @@ class AidlEngineGateway(
     private fun notifySnapshotChanged(snapshot: EngineSnapshot) {
         val callbacks = synchronized(stateLock) { listeners.toList() }
         if (callbacks.isNotEmpty()) callbackExecutor.execute {
-            if (!closed()) callbacks.forEach { listener -> listener(snapshot) }
+            PandaTrace.section("PW.Engine.Gateway.snapshotCallback") {
+                if (!closed()) callbacks.forEach { listener -> listener(snapshot) }
+            }
         }
     }
 
     private fun notifyEngineEvent(event: EngineEvent) {
         val callbacks = synchronized(stateLock) { eventListeners.toList() }
         if (callbacks.isNotEmpty()) callbackExecutor.execute {
-            if (!closed()) callbacks.forEach { listener -> listener(event) }
+            PandaTrace.section("PW.Engine.Gateway.eventCallback") {
+                if (!closed()) callbacks.forEach { listener -> listener(event) }
+            }
         }
     }
 
@@ -330,7 +355,9 @@ class AidlEngineGateway(
             authAvailabilityListeners.toList()
         }
         if (callbacks.isNotEmpty()) callbackExecutor.execute {
-            callbacks.forEach { listener -> listener(available) }
+            PandaTrace.section("PW.Engine.Gateway.authAvailabilityCallback") {
+                callbacks.forEach { listener -> listener(available) }
+            }
         }
     }
 

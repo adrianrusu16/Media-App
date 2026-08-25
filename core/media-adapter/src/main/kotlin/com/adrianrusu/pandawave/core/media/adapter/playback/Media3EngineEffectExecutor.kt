@@ -22,7 +22,8 @@ internal class Media3EngineEffectExecutor(
     telemetryLogger: TelemetryLogger,
     private val currentProjection: () -> BambooMediaSessionStateProjection? = { null },
     private val recreatePlayer: () -> Unit = {},
-    private val notifyUser: (String) -> Unit = {}
+    private val notifyUser: (String) -> Unit = {},
+    private val onAudioFocusRequestResult: (BambooAudioFocusRequestResult) -> Unit = {},
 ) : BambooPlaybackEffectExecutor {
     private val telemetryLogger = telemetryLogger.forModule(TelemetryModule.Media3)
 
@@ -65,6 +66,7 @@ internal class Media3EngineEffectExecutor(
     private fun requestAudioFocus(effect: EngineEffect): BambooAudioFocusRequestResult {
         logEffectReceived(effect)
         val result = audioFocusController.requestAudioFocus()
+        onAudioFocusRequestResult(result)
         telemetryLogger.info(
             name = Media3EffectTelemetryEvents.AUDIO_FOCUS_REQUESTED,
             attributes = mapOf(Media3EffectTelemetryAttributes.RESULT to result.wireValue),

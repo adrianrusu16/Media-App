@@ -5,12 +5,14 @@ import android.content.Context
 import android.content.ServiceConnection
 import android.os.IBinder
 import android.os.RemoteException
+import com.adrianrusu.pandawave.core.common.trace.PandaTrace
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthOperationResult
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryItem
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryPage
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistReconciliation
@@ -50,22 +52,24 @@ class AndroidEngineServiceConnection(
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName, binder: IBinder) {
-            clearService()
-            val remote = IMediaEngineService.Stub.asInterface(binder)
-            val connectedService = AidlEngineService(remote)
-            remoteService = remote
-            remoteBinder = binder
-            service = connectedService
-            val recipient = IBinder.DeathRecipient { invalidate(connectedService) }
-            deathRecipient = recipient
+            PandaTrace.section("PW.Engine.Connection.onServiceConnected") {
+                clearService()
+                val remote = IMediaEngineService.Stub.asInterface(binder)
+                val connectedService = AidlEngineService(remote)
+                remoteService = remote
+                remoteBinder = binder
+                service = connectedService
+                val recipient = IBinder.DeathRecipient { invalidate(connectedService) }
+                deathRecipient = recipient
 
-            try {
-                binder.linkToDeath(recipient, 0)
-                remote.registerListener(remoteListener)
-                listener?.onSnapshotChanged(remote.snapshot)
-                notifyEngineEvent(EngineEvent.TYPE_SERVICE_CONNECTED)
-            } catch (_: RemoteException) {
-                invalidate(connectedService)
+                try {
+                    binder.linkToDeath(recipient, 0)
+                    remote.registerListener(remoteListener)
+                    listener?.onSnapshotChanged(remote.snapshot)
+                    notifyEngineEvent(EngineEvent.TYPE_SERVICE_CONNECTED)
+                } catch (_: RemoteException) {
+                    invalidate(connectedService)
+                }
             }
         }
 
@@ -117,11 +121,13 @@ class AndroidEngineServiceConnection(
     }
 
     private fun bind() {
-        bound = context.bindService(
-            MediaEngineServiceContract.bindIntent(context),
-            serviceConnection,
-            bindFlags
-        )
+        bound = PandaTrace.section("PW.Engine.Connection.bind") {
+            context.bindService(
+                MediaEngineServiceContract.bindIntent(context),
+                serviceConnection,
+                bindFlags
+            )
+        }
     }
 
     private fun rebind() {
@@ -187,21 +193,39 @@ class AndroidEngineServiceConnection(
 
         override fun logout(): EngineAuthOperationResult = remote.logout()
 
-        override fun snapshot(): EngineSnapshot = remote.snapshot
+        override fun snapshot(): EngineSnapshot = PandaTrace.section("PW.Engine.Binder.snapshot") {
+            remote.snapshot
+        }
 
         override fun browseResult(index: Int): EngineCatalogItem? = remote.getBrowseResult(index)
         override fun discoveryResult(index: Int): EngineCatalogItem? = remote.getDiscoveryResult(index)
         override fun forYouResult(index: Int): EngineCatalogItem? = remote.getForYouResult(index)
         override fun recommendationResult(index: Int): EngineCatalogItem? = remote.getRecommendationResult(index)
+        override fun discoveryResultsPage(offset: Int, limit: Int) =
+            remote.getDiscoveryResultsPage(offset, limit).orEmpty()
+        override fun forYouResultsPage(offset: Int, limit: Int) =
+            remote.getForYouResultsPage(offset, limit).orEmpty()
+        override fun recommendationResultsPage(offset: Int, limit: Int) =
+            remote.getRecommendationResultsPage(offset, limit).orEmpty()
         override fun profilePreferenceValue(key: String): String? = remote.getProfilePreferenceValue(key)
 
         override fun searchResult(index: Int): EngineCatalogItem? = remote.getSearchResult(index)
         override fun historyEntry(index: Int): EngineHistoryItem? = remote.getHistoryEntry(index)
+        override fun historyPage(offset: Int, limit: Int, generation: Long): EngineHistoryPage =
+            remote.getHistoryPage(offset, limit, generation)
         override fun savedTrack(index: Int) = remote.getSavedTrack(index)
+        override fun savedTracksPage(offset: Int, limit: Int) =
+            remote.getSavedTracksPage(offset, limit).orEmpty()
         override fun likedTrack(index: Int) = remote.getLikedTrack(index)
+        override fun likedTracksPage(offset: Int, limit: Int) =
+            remote.getLikedTracksPage(offset, limit).orEmpty()
         override fun pendingLibraryTrackId(index: Int) = remote.getPendingLibraryTrackId(index)
         override fun playlist(index: Int): EnginePlaylistItem? = remote.getPlaylist(index)
+        override fun playlistsPage(offset: Int, limit: Int) =
+            remote.getPlaylistsPage(offset, limit).orEmpty()
         override fun playlistTrack(index: Int): EnginePlaylistTrackItem? = remote.getPlaylistTrack(index)
+        override fun playlistTracksPage(offset: Int, limit: Int) =
+            remote.getPlaylistTracksPage(offset, limit).orEmpty()
         override fun selectedPlaylistId(): String? = remote.selectedPlaylistId
         override fun playlistReconciliation(): EnginePlaylistReconciliation? = remote.playlistReconciliation
 
@@ -209,9 +233,14 @@ class AndroidEngineServiceConnection(
 
         override fun effect(index: Int): EngineEffect? = remote.getEffect(index)
 
-        override fun dispatch(command: EngineCommand): EngineDispatchResult = remote.dispatch(command)
+        override fun dispatch(command: EngineCommand): EngineDispatchResult =
+            PandaTrace.section("PW.Engine.Binder.dispatch") {
+                remote.dispatch(command)
+            }
 
         override fun dispatchPlatformEvent(event: EnginePlatformEvent): EngineDispatchResult =
-            remote.dispatchPlatformEvent(event)
+            PandaTrace.section("PW.Engine.Binder.platformEvent") {
+                remote.dispatchPlatformEvent(event)
+            }
     }
 }
