@@ -3,21 +3,30 @@ package com.adrianrusu.pandawave.feature.search
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.adrianrusu.pandawave.core.designsystem.tokens.LocalPandaWaveDesignTokens
 import com.adrianrusu.pandawave.core.designsystem.tokens.mediaCarouselSpacing
 import com.adrianrusu.pandawave.core.designsystem.tokens.mediaSectionSpacing
-import com.adrianrusu.pandawave.core.common.log.PandaLog
+import com.adrianrusu.pandawave.core.designsystem.tokens.md
+import com.adrianrusu.pandawave.core.designsystem.tokens.sm
 import com.adrianrusu.pandawave.core.ui.discovery.BambooCategoryCard
 import com.adrianrusu.pandawave.core.ui.discovery.BambooCategoryItem
 import com.adrianrusu.pandawave.core.ui.discovery.BambooMediaAction
@@ -29,13 +38,40 @@ import com.adrianrusu.pandawave.core.ui.discovery.BambooWaveform
 import com.adrianrusu.pandawave.core.ui.focus.BambooFocusableLazyRow
 import com.adrianrusu.pandawave.core.ui.focus.BambooRotaryColumn
 import com.adrianrusu.pandawave.core.ui.icons.PandaWaveIcons
+import com.adrianrusu.pandawave.feature.search.domain.SearchState
+import com.adrianrusu.pandawave.feature.search.domain.SearchTrack
+import com.adrianrusu.pandawave.feature.search.presentation.SearchViewModel
 
 @Composable
-fun SearchRoute(modifier: Modifier = Modifier) {
+fun SearchRoute(
+    modifier: Modifier = Modifier,
+    onOpenNowPlaying: () -> Unit = {},
+    viewModel: SearchViewModel = hiltViewModel(),
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    SearchRoute(
+        state = state,
+        modifier = modifier,
+        onQueryChange = viewModel::onQueryChange,
+        onLoadNext = viewModel::loadNext,
+        onRetry = viewModel::retry,
+        onPlay = viewModel::play,
+        onOpenNowPlaying = onOpenNowPlaying,
+    )
+}
+
+@Composable
+fun SearchRoute(
+    state: SearchState,
+    onQueryChange: (String) -> Unit,
+    onLoadNext: () -> Unit,
+    onRetry: () -> Unit,
+    onPlay: (mediaId: String, title: String) -> Unit,
+    onOpenNowPlaying: () -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
     val tokens = LocalPandaWaveDesignTokens.current
     val categories = searchCategories()
-    val recent = searchRecentItems()
-    var query by remember { mutableStateOf("") }
 
     BambooRotaryColumn(
         modifier = modifier
@@ -51,12 +87,12 @@ fun SearchRoute(modifier: Modifier = Modifier) {
         Column(verticalArrangement = Arrangement.spacedBy(tokens.components.mediaCarouselSpacing)) {
             BambooSearchBar(
                 modifier = Modifier.testTag("search-input"),
-                query = query,
-                onQueryChange = { query = it },
+                query = state.query,
+                onQueryChange = onQueryChange,
                 placeholder = stringResource(R.string.pandawave_search_placeholder),
                 onVoiceClick = {}
             )
-            BambooWaveform(active = query.isBlank())
+            BambooWaveform(active = state.query.isBlank())
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(tokens.components.mediaCarouselSpacing)) {
@@ -79,30 +115,85 @@ fun SearchRoute(modifier: Modifier = Modifier) {
                             "energy" -> Color(tokens.colors.secondary)
                             else -> Color(tokens.colors.primary)
                         },
-                        onClick = {
-                            PandaLog.v(PandaLog.Tag.SEARCH) {
-                                "click action=select_category section=mood categoryId=${category.id} title=${PandaLog.field(category.title)}"
-                            }
-                        }
+                        onClick = { onQueryChange(category.title) }
                     )
                 }
             }
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(tokens.components.mediaCarouselSpacing)) {
-            BambooSectionHeader(title = stringResource(R.string.pandawave_search_recent))
-            recent.forEach { item ->
+        state.errorType?.let {
+            Surface(
+                modifier = Modifier.fillMaxWidth().testTag("search-error"),
+                color = Color(tokens.colors.error),
+                shape = MaterialTheme.shapes.small,
+            ) {
+                Row(
+                    modifier = Modifier.padding(tokens.spacing.md),
+                    horizontalArrangement = Arrangement.spacedBy(tokens.spacing.sm),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(
+                            if (state.isRetryableError) R.string.pandawave_search_network_error
+                            else R.string.pandawave_search_error
+                        ),
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (state.isRetryableError) {
+                        OutlinedButton(
+                            onClick = onRetry,
+                            modifier = Modifier.testTag("search-retry"),
+                        ) {
+                            Text(stringResource(R.string.pandawave_search_retry))
+                        }
+                    }
+                }
+            }
+        }
+
+        if (state.isLoading && state.results.isEmpty()) {
+            Row(
+                modifier = Modifier.fillMaxWidth().testTag("search-loading"),
+                horizontalArrangement = Arrangement.Center,
+            ) {
+                CircularProgressIndicator()
+            }
+        }
+
+        if (!state.isLoading &&
+            state.results.isEmpty() &&
+            state.query.trim().length >= SearchViewModel.MIN_QUERY_LENGTH &&
+            state.errorType == null
+        ) {
+            Text(
+                text = stringResource(R.string.pandawave_search_empty),
+                modifier = Modifier.testTag("search-empty"),
+            )
+        }
+
+        if (state.results.isNotEmpty()) {
+            BambooSectionHeader(title = stringResource(R.string.pandawave_search_results))
+            state.results.forEach { track ->
                 BambooMediaListRow(
-                    modifier = Modifier.testTag("search-recent-${item.id}"),
-                    item = item,
+                    modifier = Modifier.testTag("search-result-${track.mediaId}"),
+                    item = track.toMediaItem(),
                     icon = PandaWaveIcons.MusicLibrary,
                     accentColor = Color(tokens.colors.secondary),
                     onClick = {
-                        PandaLog.v(PandaLog.Tag.SEARCH) {
-                            "click action=play section=recent trackId=${item.id} title=${PandaLog.field(item.title)}"
-                        }
+                        onPlay(track.mediaId, track.title)
+                        onOpenNowPlaying()
                     }
                 )
+            }
+        }
+
+        if (state.hasNextPage) {
+            Button(
+                onClick = onLoadNext,
+                enabled = !state.isLoading,
+                modifier = Modifier.fillMaxWidth().testTag("search-next-page"),
+            ) {
+                Text(stringResource(R.string.pandawave_search_load_more))
             }
         }
     }
@@ -132,27 +223,10 @@ private fun searchCategories(): List<BambooCategoryItem> = listOf(
     )
 )
 
-@Composable
-private fun searchRecentItems(): List<BambooMediaItem> = listOf(
-    BambooMediaItem(
-        id = "green-tea",
-        title = stringResource(R.string.pandawave_search_green_tea_title),
-        subtitle = stringResource(R.string.pandawave_search_result_type),
-        description = stringResource(R.string.pandawave_search_green_tea_description),
-        action = BambooMediaAction.Unavailable
-    ),
-    BambooMediaItem(
-        id = "quiet-highway",
-        title = stringResource(R.string.pandawave_search_quiet_highway_title),
-        subtitle = stringResource(R.string.pandawave_search_result_type),
-        description = stringResource(R.string.pandawave_search_quiet_highway_description),
-        action = BambooMediaAction.Unavailable
-    ),
-    BambooMediaItem(
-        id = "forest-rain",
-        title = stringResource(R.string.pandawave_search_forest_rain_title),
-        subtitle = stringResource(R.string.pandawave_search_result_type),
-        description = stringResource(R.string.pandawave_search_forest_rain_description),
-        action = BambooMediaAction.Unavailable
-    )
+private fun SearchTrack.toMediaItem() = BambooMediaItem(
+    id = mediaId,
+    title = title,
+    subtitle = artist.ifBlank { "" },
+    description = album.orEmpty(),
+    action = BambooMediaAction.Play,
 )

@@ -9,10 +9,10 @@ import com.adrianrusu.pandawave.core.playback.BambooPlaybackTelemetryAttributes
 import com.adrianrusu.pandawave.core.media.adapter.playback.focus.BambooAudioFocusChange
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
-import com.adrianrusu.pandawave.core.telemetry.TelemetryEvent
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
 import com.adrianrusu.pandawave.core.telemetry.TelemetryModule
 import com.adrianrusu.pandawave.core.telemetry.TelemetrySink
+import com.adrianrusu.pandawave.core.testing.RecordingTelemetrySink
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -485,11 +485,3 @@ private fun testTelemetryLogger(sink: TelemetrySink = TelemetrySink { }): Teleme
     sink = sink,
     clock = { 42L }
 )
-
-private class RecordingTelemetrySink : TelemetrySink {
-    val events = mutableListOf<TelemetryEvent>()
-
-    override fun record(event: TelemetryEvent) {
-        events += event
-    }
-}

@@ -53,6 +53,8 @@ include(
     ":feature:settings",
     ":feature:profile",
     ":feature:auth",
-    ":provider:jamendo",
     ":rro:bamboo-grove-overlay"
 )
+
+// Module layering (feature → core, never the reverse) is documented in
+// docs/module-structure.md. There is no convention plugin enforcing it.

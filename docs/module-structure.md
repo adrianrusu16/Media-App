@@ -59,8 +59,7 @@ media_app/
       Sign-in, session recovery, account bootstrap
 
   provider/
-    jamendo/
-      Legacy empty scaffold retained in Gradle; not part of production data flow
+    (legacy `:provider:jamendo` scaffold is not included in the Gradle graph)
 
   rust/
     engine/
@@ -89,8 +88,8 @@ Media3 player -> Canopy-issued opaque URL -> Nginx streaming
 
 Feature modules do not call Canopy clients, JNI/native code, or platform
 cryptographic APIs directly. They dispatch user/system events to the engine
-boundary and render snapshots returned by Rust. The empty `:provider:jamendo`
-module is a legacy scaffold only; no production module depends on it.
+boundary and render snapshots returned by Rust. The former `:provider:jamendo`
+scaffold is not part of the Gradle graph.
 
 ## Backend And Client Data Ownership
 

@@ -29,6 +29,8 @@ import java.io.File
 
 class MediaEngineService : Service() {
     private val listeners = RemoteCallbackList<IEngineListener>()
+    private val snapshotFanout = QueuedCallbackFanout<EngineSnapshot>()
+    private val eventFanout = QueuedCallbackFanout<EngineEvent>()
     @Volatile
     private var engine: RustEngine? = null
     private var unavailableSnapshot: EngineSnapshot = unavailableSnapshot()
@@ -204,27 +206,31 @@ class MediaEngineService : Service() {
     }
 
     private fun notifySnapshotChanged(snapshot: EngineSnapshot) {
-        PandaTrace.section("PW.Engine.Service.notifySnapshot") {
-            val count = listeners.beginBroadcast()
-            try {
-                for (index in 0 until count) {
-                    listeners.getBroadcastItem(index).onSnapshotChanged(snapshot)
+        snapshotFanout.emit(snapshot) { current ->
+            PandaTrace.section("PW.Engine.Service.notifySnapshot") {
+                val count = listeners.beginBroadcast()
+                try {
+                    for (index in 0 until count) {
+                        listeners.getBroadcastItem(index).onSnapshotChanged(current)
+                    }
+                } finally {
+                    listeners.finishBroadcast()
                 }
-            } finally {
-                listeners.finishBroadcast()
             }
         }
     }
 
     private fun notifyEngineEvent(event: EngineEvent) {
-        PandaTrace.section("PW.Engine.Service.notifyEvent") {
-            val count = listeners.beginBroadcast()
-            try {
-                for (index in 0 until count) {
-                    listeners.getBroadcastItem(index).onEngineEvent(event)
+        eventFanout.emit(event) { current ->
+            PandaTrace.section("PW.Engine.Service.notifyEvent") {
+                val count = listeners.beginBroadcast()
+                try {
+                    for (index in 0 until count) {
+                        listeners.getBroadcastItem(index).onEngineEvent(current)
+                    }
+                } finally {
+                    listeners.finishBroadcast()
                 }
-            } finally {
-                listeners.finishBroadcast()
             }
         }
     }

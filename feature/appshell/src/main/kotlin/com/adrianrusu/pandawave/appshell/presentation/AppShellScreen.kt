@@ -221,7 +221,10 @@ private fun AppShellContent(
                     )
                 }
                 entry<SearchDestination> {
-                    SearchRoute(modifier = Modifier.fillMaxSize())
+                    SearchRoute(
+                        modifier = Modifier.fillMaxSize(),
+                        onOpenNowPlaying = navigator::openNowPlaying,
+                    )
                 }
                 entry<ProfileDestination> {
                     val profileViewModel: ProfileAuthViewModel = hiltViewModel()

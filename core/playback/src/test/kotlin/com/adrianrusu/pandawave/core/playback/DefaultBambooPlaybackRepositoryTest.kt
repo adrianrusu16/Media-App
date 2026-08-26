@@ -13,11 +13,11 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.pandawave.core.rust.bridge.engine.EngineDispatchResult
 import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineGateway
-import com.adrianrusu.pandawave.core.telemetry.TelemetryEvent
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
 import com.adrianrusu.pandawave.core.telemetry.TelemetryModule
 import com.adrianrusu.pandawave.core.telemetry.TelemetrySeverity
 import com.adrianrusu.pandawave.core.telemetry.TelemetrySink
+import com.adrianrusu.pandawave.core.testing.RecordingTelemetrySink
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -772,10 +772,3 @@ private val STARTUP_COMMAND_TYPES = listOf(
     EngineCommand.TYPE_START_SESSION
 )
 
-private class RecordingTelemetrySink : TelemetrySink {
-    val events = mutableListOf<TelemetryEvent>()
-
-    override fun record(event: TelemetryEvent) {
-        events += event
-    }
-}

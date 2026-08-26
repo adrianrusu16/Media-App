@@ -5,10 +5,9 @@ import com.adrianrusu.pandawave.appshell.domain.AppShellRepository
 import com.adrianrusu.pandawave.appshell.domain.AppShellState
 import com.adrianrusu.pandawave.appshell.domain.DispatchAppShellIntentUseCase
 import com.adrianrusu.pandawave.appshell.domain.ObserveAppShellStateUseCase
-import com.adrianrusu.pandawave.core.telemetry.TelemetryEvent
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
 import com.adrianrusu.pandawave.core.telemetry.TelemetryModule
-import com.adrianrusu.pandawave.core.telemetry.TelemetrySink
+import com.adrianrusu.pandawave.core.testing.RecordingTelemetrySink
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -48,10 +47,3 @@ private class RecordingAppShellRepository : AppShellRepository {
     override fun close() = Unit
 }
 
-private class RecordingTelemetrySink : TelemetrySink {
-    val events = mutableListOf<TelemetryEvent>()
-
-    override fun record(event: TelemetryEvent) {
-        events += event
-    }
-}

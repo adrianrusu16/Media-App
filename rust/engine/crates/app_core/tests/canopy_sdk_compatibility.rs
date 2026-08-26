@@ -124,9 +124,9 @@ fn verifier_rejects_mixed_or_generated_sdk_contracts() {
         "\"release\": \"v0.1.0\"",
     );
     assert_rejected(
-        "stale documented release",
+        "stale documented contract label",
         stale_release.verify(),
-        "documented release is",
+        "documented contract label is",
     );
 
     let wrong_package = Fixture::new("wrong-package");
@@ -180,7 +180,7 @@ fn verifier_rejects_mixed_or_generated_sdk_contracts() {
     assert_rejected(
         "lockfile resolution mismatch",
         stale_lock.verify(),
-        "cargo metadata could not parse the locked workspace",
+        "resolved Tonic version is",
     );
 
     let local_proto = Fixture::new("local-proto");
@@ -282,7 +282,7 @@ fn verifier_discovers_and_rejects_a_third_shipped_artifact() {
     assert_rejected(
         "stale third shipped connection artifact",
         fixture.verify(),
-        "feature/canopy/src/debug/assets/client-connection.json documented release is",
+        "feature/canopy/src/debug/assets/client-connection.json documented contract label is",
     );
 }
 

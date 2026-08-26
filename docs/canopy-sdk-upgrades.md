@@ -6,10 +6,12 @@ the resolved lockfile entries, and every shipped `client-connection.json`
 contract are one compatibility unit. They must move together in a single
 change.
 
-The currently supported unit is Canopy API `v0.2.0`, BSR commit
-`af019e2d7fa245a2a7d9fc21a4dd9afa`, Prost
+The currently supported compatibility unit is the **locked BSR crate identity**
+from `rust/engine/Cargo.lock`: commit `af019e2d7fa245a2a7d9fc21a4dd9afa`, Prost
 `=0.5.0-00000000000000-af019e2d7fa2.2`, and Tonic
-`=0.5.0-00000000000000-af019e2d7fa2.4`.
+`=0.5.0-00000000000000-af019e2d7fa2.4`. The connection-contract label
+`v0.2.0` in `client-connection.json` is that JSON field's stored label, not a
+GitHub tag and not a separately published Buf BSR release.
 
 ## Upgrade procedure
 

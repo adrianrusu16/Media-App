@@ -80,7 +80,9 @@ class EmailVerificationCoordinator(
                 authGateway.verifyEmail(token, deviceLabel)
             } catch (error: CancellationException) {
                 throw error
-            } catch (_: Throwable) {
+            } catch (error: Error) {
+                throw error
+            } catch (_: Exception) {
                 EngineAuthOperationResult.error(EngineAuthOperationResult.ERROR_TRANSPORT)
             }
             log(

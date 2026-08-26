@@ -27,50 +27,12 @@ impl JniAudioSourceClient {
 #[async_trait]
 impl AudioSourceClient for JniAudioSourceClient {
     async fn resolve_track(&self, track_id: &str) -> anyhow::Result<PlaybackSource> {
-        let mut env = self
-            .java_vm
-            .attach_current_thread()
-            .context("failed to attach source resolver thread to JVM")?;
-        let track_id = env
-            .new_string(track_id)
-            .context("failed to allocate source resolver track id")?;
-        let track_id = JObject::from(track_id);
-        let resolved = call_method_checked(
-            &mut env,
-            self.resolver.as_obj(),
-            JniAudioSourceResolverMethod::RESOLVE,
-            JniAudioSourceResolverMethod::RESOLVE_SIGNATURE,
-            &[JValue::Object(&track_id)],
-        )?
-        .l()
-        .context("audio source resolver returned a non-object value")?;
-
-        if resolved.is_null() {
-            bail!("audio source resolver returned null for track_id={track_id:?}");
-        }
-
-        Ok(PlaybackSource {
-            source_id: required_string_getter(
-                &mut env,
-                &resolved,
-                JniAudioSourceResolverMethod::GET_SOURCE_ID,
-            )?,
-            uri: required_string_getter(
-                &mut env,
-                &resolved,
-                JniAudioSourceResolverMethod::GET_URI,
-            )?,
-            mime_type: optional_string_getter(
-                &mut env,
-                &resolved,
-                JniAudioSourceResolverMethod::GET_MIME_TYPE,
-            )?,
-            expected_duration_ms: optional_u64_getter(
-                &mut env,
-                &resolved,
-                JniAudioSourceResolverMethod::GET_EXPECTED_DURATION_MILLIS,
-            )?,
-        })
+        let track_id = track_id.to_owned();
+        let java_vm = share_java_vm(&self.java_vm)?;
+        let resolver = self.resolver.clone();
+        tokio::task::spawn_blocking(move || resolve_track_blocking(&java_vm, &resolver, &track_id))
+            .await
+            .context("jni resolve_track worker failed")?
     }
 
     async fn prefetch_full(&self, _source_id: &str) -> anyhow::Result<String> {
@@ -84,6 +46,59 @@ impl AudioSourceClient for JniAudioSourceClient {
     ) -> anyhow::Result<AudioChunk> {
         bail!("jni audio source chunk fetching is not implemented")
     }
+}
+
+fn share_java_vm(java_vm: &JavaVM) -> anyhow::Result<JavaVM> {
+    // JavaVM is a process-wide handle. jni 0.21 does not implement Clone; from_raw
+    // copies the pointer so blocking workers can attach without cloning the struct.
+    unsafe { JavaVM::from_raw(java_vm.get_java_vm_pointer()) }
+        .context("failed to share JavaVM with blocking worker")
+}
+
+fn resolve_track_blocking(
+    java_vm: &JavaVM,
+    resolver: &GlobalRef,
+    track_id: &str,
+) -> anyhow::Result<PlaybackSource> {
+    let mut env = java_vm
+        .attach_current_thread()
+        .context("failed to attach source resolver thread to JVM")?;
+    let track_id = env
+        .new_string(track_id)
+        .context("failed to allocate source resolver track id")?;
+    let track_id = JObject::from(track_id);
+    let resolved = call_method_checked(
+        &mut env,
+        resolver.as_obj(),
+        JniAudioSourceResolverMethod::RESOLVE,
+        JniAudioSourceResolverMethod::RESOLVE_SIGNATURE,
+        &[JValue::Object(&track_id)],
+    )?
+    .l()
+    .context("audio source resolver returned a non-object value")?;
+
+    if resolved.is_null() {
+        bail!("audio source resolver returned null for track_id={track_id:?}");
+    }
+
+    Ok(PlaybackSource {
+        source_id: required_string_getter(
+            &mut env,
+            &resolved,
+            JniAudioSourceResolverMethod::GET_SOURCE_ID,
+        )?,
+        uri: required_string_getter(&mut env, &resolved, JniAudioSourceResolverMethod::GET_URI)?,
+        mime_type: optional_string_getter(
+            &mut env,
+            &resolved,
+            JniAudioSourceResolverMethod::GET_MIME_TYPE,
+        )?,
+        expected_duration_ms: optional_u64_getter(
+            &mut env,
+            &resolved,
+            JniAudioSourceResolverMethod::GET_EXPECTED_DURATION_MILLIS,
+        )?,
+    })
 }
 
 fn required_string_getter<'local>(

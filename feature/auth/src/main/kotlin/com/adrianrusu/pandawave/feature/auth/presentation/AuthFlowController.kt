@@ -77,7 +77,9 @@ class AuthFlowController(
                 }
             } catch (error: CancellationException) {
                 throw error
-            } catch (_: Throwable) {
+            } catch (error: Error) {
+                throw error
+            } catch (_: Exception) {
                 EngineAuthOperationResult.error(EngineAuthOperationResult.ERROR_TRANSPORT)
             }
             currentCoroutineContext().ensureActive()
@@ -103,7 +105,9 @@ class AuthFlowController(
                 authGateway.resendVerification(email)
             } catch (error: CancellationException) {
                 throw error
-            } catch (_: Throwable) {
+            } catch (error: Error) {
+                throw error
+            } catch (_: Exception) {
                 EngineAuthOperationResult.error(EngineAuthOperationResult.ERROR_TRANSPORT)
             }
             currentCoroutineContext().ensureActive()

@@ -49,6 +49,19 @@ with:
 .\gradlew.bat :core:rust-bridge:connectedDebugAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=com.adrianrusu.pandawave.core.rust.bridge.gateway.AndroidEngineProcessRecoveryTest'
 ```
 
+`BambooMediaBrowserSmokeTest` is the MediaBrowser connection smoke. It connects
+the framework `MediaBrowser` to `BambooMediaLibraryService` and asserts that the
+library root is published. Run it on a connected emulator or device with:
+
+```powershell
+.\gradlew.bat :app:connectedDebugAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=com.adrianrusu.pandawave.BambooMediaBrowserSmokeTest' '-PpandaEngine.buildNative=false'
+```
+
+GitHub CI runs that MediaBrowser smoke on `workflow_dispatch` via
+`reactivecircus/android-emulator-runner` (API 33 x86_64, animations disabled).
+It is not part of the default push/PR Android job because this repo's AAOS
+host image is not available on GitHub-hosted runners.
+
 
 ## Canopy static and compatibility gates
 
@@ -59,9 +72,9 @@ Canopy SDK pins, shipped connection assets, CI, or local integration docs move:
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify-canopy-sdk.ps1
 ```
 
-The verifier checks the pinned BSR release/commit/package versions, every
-shipped `client-connection.json`, and the absence of local protobuf/OpenAPI
-client generation in production paths.
+The verifier checks the locked BSR digest (from Cargo.lock), connection-contract
+label, package versions, every shipped `client-connection.json`, and the absence
+of local protobuf/OpenAPI client generation in production paths.
 
 Stage 4 also keeps reusable redaction scans in `config/canopy-secret-patterns.txt`.
 Treat a no-match `rg` exit code as clean and an exit code greater than 1 as a

@@ -9,10 +9,10 @@ import androidx.datastore.preferences.core.mutablePreferencesOf
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.adrianrusu.pandawave.core.model.theme.PandaWaveThemePreference
 import com.adrianrusu.pandawave.core.model.theme.ThemePreferenceState
-import com.adrianrusu.pandawave.core.telemetry.TelemetryEvent
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
 import com.adrianrusu.pandawave.core.telemetry.TelemetryModule
 import com.adrianrusu.pandawave.core.telemetry.TelemetrySink
+import com.adrianrusu.pandawave.core.testing.RecordingTelemetrySink
 import java.io.File
 import java.io.IOException
 import java.nio.file.Path
@@ -157,10 +157,3 @@ private class InMemoryPreferencesDataStore(initial: Preferences) : DataStore<Pre
     }
 }
 
-private class RecordingTelemetrySink : TelemetrySink {
-    val events = mutableListOf<TelemetryEvent>()
-
-    override fun record(event: TelemetryEvent) {
-        events += event
-    }
-}

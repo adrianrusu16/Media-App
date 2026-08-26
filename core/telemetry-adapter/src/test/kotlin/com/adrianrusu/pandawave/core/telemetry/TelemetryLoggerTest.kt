@@ -1,5 +1,6 @@
 package com.adrianrusu.pandawave.core.telemetry
 
+import com.adrianrusu.pandawave.core.testing.RecordingTelemetrySink
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -79,13 +80,5 @@ class TelemetryLoggerTest {
         val event = sink.events.single()
         assertNull(event.throwable)
         assertEquals("IllegalStateException", event.attributes[TelemetryAttributeNames.EXCEPTION_TYPE])
-    }
-}
-
-private class RecordingTelemetrySink : TelemetrySink {
-    val events = mutableListOf<TelemetryEvent>()
-
-    override fun record(event: TelemetryEvent) {
-        events += event
     }
 }

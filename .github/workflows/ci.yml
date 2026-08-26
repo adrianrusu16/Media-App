@@ -9,7 +9,9 @@ permissions:
   contents: read
 
 env:
-  CARGO_REGISTRIES_BUF_TOKEN: ${{ secrets.BUF_TOKEN }}
+  # Cargo's buf credential-provider requires an auth scheme. Store the raw BSR
+  # token in BUF_TOKEN; this prefix is a no-op when the secret is unset.
+  CARGO_REGISTRIES_BUF_TOKEN: "${{ secrets.BUF_TOKEN && format('Bearer {0}', secrets.BUF_TOKEN) || '' }}"
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -19,7 +21,7 @@ jobs:
   android:
     name: Android validation
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
       PANDA_ENGINE_ANDROID_NDK_VERSION: 30.0.14904198
 
@@ -54,10 +56,16 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
 
+      - name: Install ripgrep
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
+
       - name: Scan for Canopy secrets and private infrastructure
         run: |
           set +e
-          rg --file config/canopy-secret-patterns.txt app core feature rust --glob '!**/testdata/**'
+          rg --file config/canopy-secret-patterns.txt \
+            app core feature rust scripts .github config \
+            --glob '!**/testdata/**' \
+            --glob '!config/canopy-secret-patterns.txt'
           scan_status=$?
           set -e
           if [ "$scan_status" -eq 0 ]; then
@@ -95,11 +103,13 @@ jobs:
         run: >
           ./gradlew
           --no-configuration-cache
-          spotlessCheck
-          detekt
+          qualityCheck
+          :app:lintRelease
           test
           :app:assembleDebug
+          :app:assembleRelease
           :app:assembleBenchmark
+          -Ppandawave.verificationAppLinkHost=ci.pandawave.dev
           --console=plain
 
   rust:
@@ -135,3 +145,48 @@ jobs:
 
       - name: Test
         run: cargo test
+
+  connected:
+    name: MediaBrowser smoke (emulator)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      PANDA_ENGINE_ANDROID_NDK_VERSION: 30.0.14904198
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
+
+      - name: MediaBrowser connected smoke
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 33
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          script: >
+            ./gradlew
+            --no-configuration-cache
+            :app:connectedDebugAndroidTest
+            -Pandroid.testInstrumentationRunnerArguments.class=com.adrianrusu.pandawave.BambooMediaBrowserSmokeTest
+            -PpandaEngine.buildNative=false
+            --console=plain

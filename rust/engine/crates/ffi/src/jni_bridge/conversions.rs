@@ -156,11 +156,7 @@ pub(super) fn page_range(offset: i32, limit: i32, len: usize) -> std::ops::Range
     let start = offset.max(0) as usize;
     let count = (limit.max(0) as usize).min(MAX_ENGINE_PAGE_QUERY_SIZE);
     let end = start.saturating_add(count).min(len);
-    if start >= end {
-        0..0
-    } else {
-        start..end
-    }
+    if start >= end { 0..0 } else { start..end }
 }
 
 pub(super) fn pack_page<T>(
@@ -200,12 +196,7 @@ pub(super) fn playlist_to_strings(item: &panda_engine_core::EnginePlaylist) -> V
         item.revision.to_string(),
         item.created_at_epoch_millis.to_string(),
         item.updated_at_epoch_millis.to_string(),
-        if item.description.is_some() {
-            "1"
-        } else {
-            "0"
-        }
-        .into(),
+        if item.description.is_some() { "1" } else { "0" }.into(),
     ]
 }
 
@@ -294,12 +285,9 @@ pub(super) fn snapshot_page_to_strings(
             limit,
             |track_id| vec![track_id.clone()],
         ),
-        PAGE_KIND_DEVICE_SESSIONS => pack_page(
-            &snapshot.device_sessions,
-            offset,
-            limit,
-            session_to_strings,
-        ),
+        PAGE_KIND_DEVICE_SESSIONS => {
+            pack_page(&snapshot.device_sessions, offset, limit, session_to_strings)
+        }
         _ => return None,
     })
 }
@@ -855,8 +843,14 @@ mod tests {
         let packed = history_page_to_strings(&snapshot, 1, 2, 4);
         assert_eq!(packed[0], "4");
         assert_eq!(packed.len(), 1 + 2 * HISTORY_ENTRY_VALUE_COUNT);
-        assert_eq!(&packed[1..11], history_entry_to_strings(&snapshot.history_entries[1]));
-        assert_eq!(&packed[11..], history_entry_to_strings(&snapshot.history_entries[2]));
+        assert_eq!(
+            &packed[1..11],
+            history_entry_to_strings(&snapshot.history_entries[1])
+        );
+        assert_eq!(
+            &packed[11..],
+            history_entry_to_strings(&snapshot.history_entries[2])
+        );
     }
 
     #[test]
@@ -865,7 +859,10 @@ mod tests {
         snapshot.history_state.generation = 9;
         snapshot.history_entries = vec![history_entry("history-1", Some("track-1"))];
 
-        assert_eq!(history_page_to_strings(&snapshot, 0, 50, 8), vec!["9".to_string()]);
+        assert_eq!(
+            history_page_to_strings(&snapshot, 0, 50, 8),
+            vec!["9".to_string()]
+        );
     }
 
     #[test]
@@ -874,8 +871,14 @@ mod tests {
         snapshot.history_state.generation = 2;
         snapshot.history_entries = vec![history_entry("history-1", Some("track-1"))];
 
-        assert_eq!(history_page_to_strings(&snapshot, 0, 0, 2), vec!["2".to_string()]);
-        assert_eq!(history_page_to_strings(&snapshot, 5, 10, 2), vec!["2".to_string()]);
+        assert_eq!(
+            history_page_to_strings(&snapshot, 0, 0, 2),
+            vec!["2".to_string()]
+        );
+        assert_eq!(
+            history_page_to_strings(&snapshot, 5, 10, 2),
+            vec!["2".to_string()]
+        );
     }
 
     #[test]
@@ -896,33 +899,47 @@ mod tests {
     #[test]
     fn snapshot_page_packs_catalog_and_caps_query_size() {
         let mut snapshot = panda_engine_core::EngineSnapshot::idle(1);
-        snapshot.browse_results = (0..60).map(|index| catalog_item(&format!("track-{index}"))).collect();
+        snapshot.browse_results = (0..60)
+            .map(|index| catalog_item(&format!("track-{index}")))
+            .collect();
         snapshot.search_results = vec![catalog_item("search-1"), catalog_item("search-2")];
 
         let browse = snapshot_page_to_strings(&snapshot, PAGE_KIND_BROWSE, 0, 100).expect("browse");
-        assert_eq!(browse.len() / CATALOG_ITEM_VALUE_COUNT, MAX_ENGINE_PAGE_QUERY_SIZE);
-        assert_eq!(&browse[..CATALOG_ITEM_VALUE_COUNT], catalog_item_to_strings(&snapshot.browse_results[0]));
+        assert_eq!(
+            browse.len() / CATALOG_ITEM_VALUE_COUNT,
+            MAX_ENGINE_PAGE_QUERY_SIZE
+        );
+        assert_eq!(
+            &browse[..CATALOG_ITEM_VALUE_COUNT],
+            catalog_item_to_strings(&snapshot.browse_results[0])
+        );
 
         let search = snapshot_page_to_strings(&snapshot, PAGE_KIND_SEARCH, 1, 1).expect("search");
         assert_eq!(search, catalog_item_to_strings(&snapshot.search_results[1]));
         assert!(snapshot_page_to_strings(&snapshot, 99, 0, 10).is_none());
-        assert!(snapshot_page_to_strings(&snapshot, PAGE_KIND_BROWSE, 80, 10)
-            .expect("empty")
-            .is_empty());
+        assert!(
+            snapshot_page_to_strings(&snapshot, PAGE_KIND_BROWSE, 80, 10)
+                .expect("empty")
+                .is_empty()
+        );
     }
 
     #[test]
     fn snapshot_page_packs_library_pending_and_sessions() {
         let mut snapshot = panda_engine_core::EngineSnapshot::idle(1);
-        snapshot.library_pending_track_ids = vec!["pending-1".into(), "pending-2".into(), "pending-3".into()];
+        snapshot.library_pending_track_ids =
+            vec!["pending-1".into(), "pending-2".into(), "pending-3".into()];
         snapshot.device_sessions = vec![device_session("session-1"), device_session("session-2")];
 
         let pending =
             snapshot_page_to_strings(&snapshot, PAGE_KIND_PENDING_IDS, 1, 2).expect("pending");
-        assert_eq!(pending, vec!["pending-2".to_string(), "pending-3".to_string()]);
+        assert_eq!(
+            pending,
+            vec!["pending-2".to_string(), "pending-3".to_string()]
+        );
 
-        let sessions =
-            snapshot_page_to_strings(&snapshot, PAGE_KIND_DEVICE_SESSIONS, 0, 50).expect("sessions");
+        let sessions = snapshot_page_to_strings(&snapshot, PAGE_KIND_DEVICE_SESSIONS, 0, 50)
+            .expect("sessions");
         assert_eq!(sessions.len() / DEVICE_SESSION_VALUE_COUNT, 2);
         assert_eq!(
             &sessions[..DEVICE_SESSION_VALUE_COUNT],

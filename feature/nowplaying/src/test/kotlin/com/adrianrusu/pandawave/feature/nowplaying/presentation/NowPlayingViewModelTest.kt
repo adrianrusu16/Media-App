@@ -15,6 +15,7 @@ import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
 import com.adrianrusu.pandawave.core.telemetry.TelemetryModule
 import com.adrianrusu.pandawave.core.telemetry.TelemetrySeverity
 import com.adrianrusu.pandawave.core.telemetry.TelemetrySink
+import com.adrianrusu.pandawave.core.testing.RecordingTelemetrySink
 import com.adrianrusu.pandawave.core.ui.interaction.MonotonicClock
 import com.adrianrusu.pandawave.core.ui.interaction.UserInteractionTracker
 import com.adrianrusu.pandawave.feature.nowplaying.domain.DispatchNowPlayingIntentUseCase
@@ -522,10 +523,3 @@ private class MutableMonotonicClock(var nowMillis: Long) : MonotonicClock {
 
 private fun testTelemetryLogger(): TelemetryLogger = TelemetryLogger(TelemetrySink { })
 
-private class RecordingTelemetrySink : TelemetrySink {
-    val events = mutableListOf<TelemetryEvent>()
-
-    override fun record(event: TelemetryEvent) {
-        events += event
-    }
-}

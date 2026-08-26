@@ -490,8 +490,8 @@ fn catalog_result_values(
     index: jint,
     select: impl FnOnce(&panda_engine_core::EngineSnapshot) -> &Vec<panda_engine_core::MediaItem>,
 ) -> jobjectArray {
-    let Some(snapshot) = (unsafe { (handle as *const PandaEngine).as_ref() })
-        .map(|engine| engine.engine.snapshot())
+    let Some(snapshot) =
+        (unsafe { (handle as *const PandaEngine).as_ref() }).map(|engine| engine.engine.snapshot())
     else {
         return ptr::null_mut();
     };

@@ -6,6 +6,8 @@ use crate::{EngineError, EngineErrorType};
 
 const PROTOBUF_PACKAGE: &str = "canopy.v1";
 const BSR_MODULE: &str = "buf.build/pandawave/canopy-api";
+// Connection-contract label in client-connection.json, not a GitHub tag.
+// Locked BSR identity is COMMIT / the Cargo.lock crate digest.
 const RELEASE: &str = "v0.2.0";
 const COMMIT: &str = "af019e2d7fa245a2a7d9fc21a4dd9afa";
 const PROST_PACKAGE: &str = "pandawave_canopy-api_community_neoeinstein-prost";
