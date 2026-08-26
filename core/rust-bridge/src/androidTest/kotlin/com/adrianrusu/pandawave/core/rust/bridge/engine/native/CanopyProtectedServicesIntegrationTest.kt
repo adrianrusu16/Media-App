@@ -124,7 +124,10 @@ class CanopyProtectedServicesIntegrationTest {
                         EngineCommandPayloads.historyPage(1)
                     )
                     assertEquals(1, historyEntries.historyEntriesCount)
-                    assertTrue("Two seeded history events must expose a continuation", historyEntries.hasHistoryNextPage)
+                    assertTrue(
+                        "Two seeded history events must expose a continuation",
+                        historyEntries.hasHistoryNextPage
+                    )
                     val firstHistoryPageCount = historyEntries.historyEntriesCount
                     historyEntries = dispatchSuccess(
                         primary,
@@ -335,11 +338,7 @@ class CanopyProtectedServicesIntegrationTest {
         assertEquals(EngineAuthOperationResult.STATUS_AUTHENTICATED, result.status)
     }
 
-    private fun dispatchSuccess(
-        engine: PandaEngine,
-        type: String,
-        payload: String? = null
-    ): EngineSnapshot {
+    private fun dispatchSuccess(engine: PandaEngine, type: String, payload: String? = null): EngineSnapshot {
         val snapshot = engine.dispatch(EngineCommand(type, payload)).snapshot
         assertFalse("$type failed with ${snapshot.errorType}", snapshot.hasError)
         return snapshot
@@ -378,7 +377,10 @@ class CanopyProtectedServicesIntegrationTest {
         }
         assertTrue("Acceptance must execute at least one session continuation", continuationRequests >= 1)
         assertTrue(snapshot.deviceSessionsCount > firstPageCount)
-        assertFalse("Session pagination must complete within 20 continuation requests", snapshot.hasDeviceSessionsNextPage)
+        assertFalse(
+            "Session pagination must complete within 20 continuation requests",
+            snapshot.hasDeviceSessionsNextPage
+        )
         return snapshot
     }
 

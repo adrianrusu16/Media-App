@@ -1,5 +1,6 @@
 package com.adrianrusu.pandawave.feature.library.data
 
+import com.adrianrusu.pandawave.core.common.log.PandaLog
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthState
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommandPayloads
@@ -10,15 +11,14 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistTrackItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineGateway
-import com.adrianrusu.pandawave.core.common.log.PandaLog
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
 import com.adrianrusu.pandawave.core.telemetry.TelemetryModule
 import com.adrianrusu.pandawave.feature.library.domain.LibraryHistoryEntry
+import com.adrianrusu.pandawave.feature.library.domain.LibraryPlaylist
 import com.adrianrusu.pandawave.feature.library.domain.LibraryRepository
 import com.adrianrusu.pandawave.feature.library.domain.LibraryState
 import com.adrianrusu.pandawave.feature.library.domain.LibraryTab
 import com.adrianrusu.pandawave.feature.library.domain.LibraryTrack
-import com.adrianrusu.pandawave.feature.library.domain.LibraryPlaylist
 import com.adrianrusu.pandawave.feature.library.domain.PlaylistConflict
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
@@ -28,7 +28,7 @@ import kotlinx.coroutines.flow.asStateFlow
 
 class PandaEngineLibraryRepository @Inject constructor(
     private val engineGateway: EngineGateway,
-    telemetryLogger: TelemetryLogger,
+    telemetryLogger: TelemetryLogger
 ) : LibraryRepository {
     private val telemetryLogger = telemetryLogger.forModule(TelemetryModule.Library)
     private val mutableState = MutableStateFlow(LibraryState())
@@ -71,8 +71,11 @@ class PandaEngineLibraryRepository @Inject constructor(
         if (mutableState.value.isSignedOut && tab != LibraryTab.HISTORY) return
         val type = when (tab) {
             LibraryTab.SAVED -> EngineCommand.TYPE_LOAD_NEXT_SAVED_TRACKS_PAGE
+
             LibraryTab.LIKED -> EngineCommand.TYPE_LOAD_NEXT_LIKED_TRACKS_PAGE
+
             LibraryTab.HISTORY -> EngineCommand.TYPE_LOAD_NEXT_HISTORY_PAGE
+
             LibraryTab.PLAYLISTS -> if (mutableState.value.selectedPlaylistId == null) {
                 EngineCommand.TYPE_LOAD_NEXT_PLAYLISTS_PAGE
             } else {
@@ -88,22 +91,53 @@ class PandaEngineLibraryRepository @Inject constructor(
     override fun unlike(mediaId: String) = mutate(EngineCommand.TYPE_UNLIKE_TRACK, mediaId)
     override fun createPlaylist(name: String, description: String?) {
         require(name.isNotBlank())
-        dispatch(EngineCommand(EngineCommand.TYPE_CREATE_PLAYLIST, EngineCommandPayloads.playlistDetails(null, name, description)))
+        dispatch(
+            EngineCommand(
+                EngineCommand.TYPE_CREATE_PLAYLIST,
+                EngineCommandPayloads.playlistDetails(null, name, description)
+            )
+        )
     }
     override fun updatePlaylist(playlistId: String, name: String, description: String?, expectedRevision: Long) {
         require(playlistId.isNotBlank())
         require(name.isNotBlank())
-        dispatch(EngineCommand(EngineCommand.TYPE_UPDATE_PLAYLIST, EngineCommandPayloads.playlistDetails(playlistId, name, description, expectedRevision)))
+        dispatch(
+            EngineCommand(
+                EngineCommand.TYPE_UPDATE_PLAYLIST,
+                EngineCommandPayloads.playlistDetails(playlistId, name, description, expectedRevision)
+            )
+        )
     }
-    override fun deletePlaylist(playlistId: String) = dispatch(EngineCommand(EngineCommand.TYPE_DELETE_PLAYLIST, EngineCommandPayloads.playlistId(playlistId)))
+    override fun deletePlaylist(playlistId: String) =
+        dispatch(EngineCommand(EngineCommand.TYPE_DELETE_PLAYLIST, EngineCommandPayloads.playlistId(playlistId)))
     override fun selectPlaylist(playlistId: String) {
         require(playlistId.isNotBlank())
         mutableState.value = mutableState.value.copy(selectedPlaylistId = playlistId)
-        dispatch(EngineCommand(EngineCommand.TYPE_LIST_PLAYLIST_TRACKS, EngineCommandPayloads.playlistPage(PAGE_SIZE, playlistId)))
+        dispatch(
+            EngineCommand(
+                EngineCommand.TYPE_LIST_PLAYLIST_TRACKS,
+                EngineCommandPayloads.playlistPage(PAGE_SIZE, playlistId)
+            )
+        )
     }
-    override fun addPlaylistTrack(playlistId: String, mediaId: String) = dispatch(EngineCommand(EngineCommand.TYPE_ADD_PLAYLIST_TRACK, EngineCommandPayloads.playlistTrack(playlistId, mediaId)))
-    override fun removePlaylistTrack(playlistId: String, mediaId: String) = dispatch(EngineCommand(EngineCommand.TYPE_REMOVE_PLAYLIST_TRACK, EngineCommandPayloads.playlistTrack(playlistId, mediaId)))
-    override fun reorderPlaylist(playlistId: String, membershipIds: List<String>, expectedRevision: Long) = dispatch(EngineCommand(EngineCommand.TYPE_REORDER_PLAYLIST_TRACKS, EngineCommandPayloads.playlistReorder(playlistId, membershipIds, expectedRevision)) )
+    override fun addPlaylistTrack(playlistId: String, mediaId: String) = dispatch(
+        EngineCommand(
+            EngineCommand.TYPE_ADD_PLAYLIST_TRACK,
+            EngineCommandPayloads.playlistTrack(playlistId, mediaId)
+        )
+    )
+    override fun removePlaylistTrack(playlistId: String, mediaId: String) = dispatch(
+        EngineCommand(
+            EngineCommand.TYPE_REMOVE_PLAYLIST_TRACK,
+            EngineCommandPayloads.playlistTrack(playlistId, mediaId)
+        )
+    )
+    override fun reorderPlaylist(playlistId: String, membershipIds: List<String>, expectedRevision: Long) = dispatch(
+        EngineCommand(
+            EngineCommand.TYPE_REORDER_PLAYLIST_TRACKS,
+            EngineCommandPayloads.playlistReorder(playlistId, membershipIds, expectedRevision)
+        )
+    )
 
     override fun close() {
         subscription?.close()
@@ -124,7 +158,7 @@ class PandaEngineLibraryRepository @Inject constructor(
             mutableState.value = mutableState.value.copy(
                 isLoading = false,
                 errorType = EngineSnapshot.ERROR_NETWORK,
-                isRetryableError = true,
+                isRetryableError = true
             )
         } else {
             project(outcome.snapshot, command)
@@ -143,39 +177,71 @@ class PandaEngineLibraryRepository @Inject constructor(
         val playlistSelection = playlistSelection(snapshot, command)
         mutableState.value = LibraryState(
             selectedTab = selectedTab,
-            savedTracks = if (identity == null) emptyList() else savedTracksCache.project(
-                count = snapshot.savedTracksCount.coerceAtLeast(0),
-                force = command?.type in savedTrackCommands,
-                pageAt = engineGateway::savedTracksPage,
-                mapper = { it.toLibraryTrack() },
-            ),
-            likedTracks = if (identity == null) emptyList() else likedTracksCache.project(
-                count = snapshot.likedTracksCount.coerceAtLeast(0),
-                force = command?.type in likedTrackCommands,
-                pageAt = engineGateway::likedTracksPage,
-                mapper = { it.toLibraryTrack() },
-            ),
+            savedTracks = if (identity == null) {
+                emptyList()
+            } else {
+                savedTracksCache.project(
+                    count = snapshot.savedTracksCount.coerceAtLeast(0),
+                    force = command?.type in savedTrackCommands,
+                    pageAt = engineGateway::savedTracksPage,
+                    mapper = { it.toLibraryTrack() }
+                )
+            },
+            likedTracks = if (identity == null) {
+                emptyList()
+            } else {
+                likedTracksCache.project(
+                    count = snapshot.likedTracksCount.coerceAtLeast(0),
+                    force = command?.type in likedTrackCommands,
+                    pageAt = engineGateway::likedTracksPage,
+                    mapper = { it.toLibraryTrack() }
+                )
+            },
             historyEntries = historyEntries,
-            playlists = if (identity == null) emptyList() else playlistsCache.project(
-                count = snapshot.playlistsCount.coerceAtLeast(0),
-                force = command?.type in playlistCommands,
-                pageAt = engineGateway::playlistsPage,
-                mapper = { LibraryPlaylist(it.id, it.name, it.description, it.revision) },
-            ),
+            playlists = if (identity == null) {
+                emptyList()
+            } else {
+                playlistsCache.project(
+                    count = snapshot.playlistsCount.coerceAtLeast(0),
+                    force = command?.type in playlistCommands,
+                    pageAt = engineGateway::playlistsPage,
+                    mapper = { LibraryPlaylist(it.id, it.name, it.description, it.revision) }
+                )
+            },
             selectedPlaylistId = playlistSelection.selectedPlaylistId,
-            playlistTracks = if (identity == null) emptyList() else playlistTracksCache.project(
-                count = snapshot.playlistTracksCount.coerceAtLeast(0),
-                force = command?.type in playlistTrackCommands,
-                pageAt = engineGateway::playlistTracksPage,
-                mapper = { item -> LibraryTrack(item.membershipId, item.mediaId, item.title, item.artist, item.album, item.durationMillis, item.explicit, item.artworkId, item.addedAtEpochMillis) },
-            ),
+            playlistTracks = if (identity == null) {
+                emptyList()
+            } else {
+                playlistTracksCache.project(
+                    count = snapshot.playlistTracksCount.coerceAtLeast(0),
+                    force = command?.type in playlistTrackCommands,
+                    pageAt = engineGateway::playlistTracksPage,
+                    mapper = { item ->
+                        LibraryTrack(
+                            item.membershipId,
+                            item.mediaId,
+                            item.title,
+                            item.artist,
+                            item.album,
+                            item.durationMillis,
+                            item.explicit,
+                            item.artworkId,
+                            item.addedAtEpochMillis
+                        )
+                    }
+                )
+            },
             playlistConflict = if (identity == null) null else playlistSelection.conflict,
-            pendingMediaIds = if (identity == null) emptySet() else pendingIdsCache.project(
-                count = snapshot.libraryPendingCount.coerceAtLeast(0),
-                force = command?.type in libraryMutationCommands,
-                pageAt = engineGateway::pendingLibraryTrackIdsPage,
-                mapper = { it },
-            ).filter(String::isNotBlank).toSet(),
+            pendingMediaIds = if (identity == null) {
+                emptySet()
+            } else {
+                pendingIdsCache.project(
+                    count = snapshot.libraryPendingCount.coerceAtLeast(0),
+                    force = command?.type in libraryMutationCommands,
+                    pageAt = engineGateway::pendingLibraryTrackIdsPage,
+                    mapper = { it }
+                ).filter(String::isNotBlank).toSet()
+            },
             hasSavedNextPage = snapshot.hasSavedTracksNextPage,
             hasLikedNextPage = snapshot.hasLikedTracksNextPage,
             hasHistoryNextPage = snapshot.hasHistoryNextPage,
@@ -184,22 +250,23 @@ class PandaEngineLibraryRepository @Inject constructor(
             isLoading = snapshot.isBusy,
             isSignedOut = identity == null,
             errorType = errorType,
-            isRetryableError = errorType == EngineSnapshot.ERROR_NETWORK,
+            isRetryableError = errorType == EngineSnapshot.ERROR_NETWORK
         )
         hydrateFor(historyOwner, identity)
         if (historyRefreshRequest != null && hydratedIdentity == identity) {
             telemetryLogger.info(
                 name = LibraryTelemetryEvents.HISTORY_REFRESH_REQUESTED,
                 attributes = mapOf(
-                    LibraryTelemetryAttributes.PREVIOUS_GENERATION to historyRefreshRequest.previousGeneration.toString(),
+                    LibraryTelemetryAttributes.PREVIOUS_GENERATION to
+                        historyRefreshRequest.previousGeneration.toString(),
                     LibraryTelemetryAttributes.CURRENT_GENERATION to historyRefreshRequest.currentGeneration.toString(),
-                    LibraryTelemetryAttributes.REASON to LibraryTelemetryValues.ENGINE_INVALIDATION,
-                ),
+                    LibraryTelemetryAttributes.REASON to LibraryTelemetryValues.ENGINE_INVALIDATION
+                )
             )
             dispatch(
                 EngineCommand(
                     EngineCommand.TYPE_LIST_HISTORY,
-                    EngineCommandPayloads.historyPage(HISTORY_PAGE_SIZE),
+                    EngineCommandPayloads.historyPage(HISTORY_PAGE_SIZE)
                 )
             )
         }
@@ -211,7 +278,9 @@ class PandaEngineLibraryRepository @Inject constructor(
             hydratedIdentity = null
             hydratedHistoryOwner = historyOwner
             dispatch(EngineCommand(EngineCommand.TYPE_LOAD_HISTORY_SETTINGS, null))
-            dispatch(EngineCommand(EngineCommand.TYPE_LIST_HISTORY, EngineCommandPayloads.historyPage(HISTORY_PAGE_SIZE)))
+            dispatch(
+                EngineCommand(EngineCommand.TYPE_LIST_HISTORY, EngineCommandPayloads.historyPage(HISTORY_PAGE_SIZE))
+            )
             return
         }
         if (hydratedIdentity == identity) return
@@ -233,10 +302,7 @@ class PandaEngineLibraryRepository @Inject constructor(
         }
     }
 
-    private fun updateHistoryCache(
-        snapshot: EngineSnapshot,
-        command: EngineCommand?,
-    ): HistoryRefreshRequest? {
+    private fun updateHistoryCache(snapshot: EngineSnapshot, command: EngineCommand?): HistoryRefreshRequest? {
         val owner = snapshot.historyOwner()
         val nextKey = HistoryCacheKey(owner, snapshot.historyGeneration)
         val previousKey = historyCacheKey
@@ -293,7 +359,7 @@ class PandaEngineLibraryRepository @Inject constructor(
             ?.let {
                 HistoryRefreshRequest(
                     previousGeneration = it.generation,
-                    currentGeneration = nextKey.generation,
+                    currentGeneration = nextKey.generation
                 )
             }
     }
@@ -302,7 +368,7 @@ class PandaEngineLibraryRepository @Inject constructor(
         val historyPage = engineGateway.historyPage(
             offset = 0,
             limit = snapshot.historyEntriesCount.coerceAtLeast(0),
-            generation = snapshot.historyGeneration,
+            generation = snapshot.historyGeneration
         )
         if (historyPage.generation != snapshot.historyGeneration) {
             PandaLog.w(PandaLog.Tag.HISTORY) {
@@ -318,7 +384,7 @@ class PandaEngineLibraryRepository @Inject constructor(
         val key = PlaylistSelectionKey(
             playlistsCount = snapshot.playlistsCount,
             playlistTracksCount = snapshot.playlistTracksCount,
-            hasReconciliation = snapshot.hasPlaylistReconciliation,
+            hasReconciliation = snapshot.hasPlaylistReconciliation
         )
         if (playlistSelectionKey == key && command?.type !in playlistSelectionCommands) {
             return playlistSelection
@@ -332,9 +398,9 @@ class PandaEngineLibraryRepository @Inject constructor(
                     expectedRevision = it.expectedRevision,
                     serverRevision = it.serverRevision,
                     serverMembershipIds = it.serverMembershipIds,
-                    proposedMembershipIds = it.proposedMembershipIds,
+                    proposedMembershipIds = it.proposedMembershipIds
                 )
-            },
+            }
         )
         return playlistSelection
     }
@@ -371,7 +437,7 @@ class PandaEngineLibraryRepository @Inject constructor(
         durationMillis = durationMillis,
         explicit = explicit,
         artworkId = artworkId,
-        relationshipAtEpochMillis = relationshipAtEpochMillis,
+        relationshipAtEpochMillis = relationshipAtEpochMillis
     )
 
     private fun EngineHistoryItem.toLibraryHistoryEntry() = LibraryHistoryEntry(
@@ -384,7 +450,7 @@ class PandaEngineLibraryRepository @Inject constructor(
         playedAtEpochMillis = playedAtEpochMillis,
         listenedDurationMillis = listenedDurationMillis,
         completionRatio = completionRatio,
-        playable = playable,
+        playable = playable
     )
 
     private data class LibraryIdentity(val accountId: String, val sessionId: String)
@@ -397,12 +463,9 @@ class PandaEngineLibraryRepository @Inject constructor(
     private data class PlaylistSelectionKey(
         val playlistsCount: Int,
         val playlistTracksCount: Int,
-        val hasReconciliation: Boolean,
+        val hasReconciliation: Boolean
     )
-    private data class PlaylistSelection(
-        val selectedPlaylistId: String? = null,
-        val conflict: PlaylistConflict? = null,
-    )
+    private data class PlaylistSelection(val selectedPlaylistId: String? = null, val conflict: PlaylistConflict? = null)
 
     private companion object {
         const val PAGE_SIZE = 25
@@ -412,27 +475,27 @@ class PandaEngineLibraryRepository @Inject constructor(
             EngineCommand.TYPE_LIST_SAVED_TRACKS,
             EngineCommand.TYPE_LOAD_NEXT_SAVED_TRACKS_PAGE,
             EngineCommand.TYPE_SAVE_TRACK,
-            EngineCommand.TYPE_REMOVE_SAVED_TRACK,
+            EngineCommand.TYPE_REMOVE_SAVED_TRACK
         )
         val likedTrackCommands = setOf(
             EngineCommand.TYPE_LIST_LIKED_TRACKS,
             EngineCommand.TYPE_LOAD_NEXT_LIKED_TRACKS_PAGE,
             EngineCommand.TYPE_LIKE_TRACK,
-            EngineCommand.TYPE_UNLIKE_TRACK,
+            EngineCommand.TYPE_UNLIKE_TRACK
         )
         val playlistCommands = setOf(
             EngineCommand.TYPE_LIST_PLAYLISTS,
             EngineCommand.TYPE_LOAD_NEXT_PLAYLISTS_PAGE,
             EngineCommand.TYPE_CREATE_PLAYLIST,
             EngineCommand.TYPE_UPDATE_PLAYLIST,
-            EngineCommand.TYPE_DELETE_PLAYLIST,
+            EngineCommand.TYPE_DELETE_PLAYLIST
         )
         val playlistTrackCommands = setOf(
             EngineCommand.TYPE_LIST_PLAYLIST_TRACKS,
             EngineCommand.TYPE_LOAD_NEXT_PLAYLIST_TRACKS_PAGE,
             EngineCommand.TYPE_ADD_PLAYLIST_TRACK,
             EngineCommand.TYPE_REMOVE_PLAYLIST_TRACK,
-            EngineCommand.TYPE_REORDER_PLAYLIST_TRACKS,
+            EngineCommand.TYPE_REORDER_PLAYLIST_TRACKS
         )
         val playlistSelectionCommands = playlistCommands + playlistTrackCommands
         val libraryMutationCommands = savedTrackCommands + likedTrackCommands + playlistCommands + playlistTrackCommands
@@ -457,12 +520,7 @@ private class ProjectionCache<Source, Target> {
     private var count: Int = -1
     private var items: List<Target> = emptyList()
 
-    fun project(
-        count: Int,
-        force: Boolean,
-        itemAt: (Int) -> Source?,
-        mapper: (Source) -> Target,
-    ): List<Target> {
+    fun project(count: Int, force: Boolean, itemAt: (Int) -> Source?, mapper: (Source) -> Target): List<Target> {
         if (!force && this.count == count) return items
         this.count = count
         items = List(count, itemAt).filterNotNull().map(mapper)
@@ -473,7 +531,7 @@ private class ProjectionCache<Source, Target> {
         count: Int,
         force: Boolean,
         pageAt: (Int, Int) -> List<Source>,
-        mapper: (Source) -> Target,
+        mapper: (Source) -> Target
     ): List<Target> {
         if (!force && this.count == count) return items
         this.count = count

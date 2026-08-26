@@ -1,8 +1,8 @@
 package com.adrianrusu.pandawave.core.rust.bridge.aidl
 
 import kotlin.test.Test
-import kotlin.test.assertFalse
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 
 class AuthBoundaryContractTest {
     @Test

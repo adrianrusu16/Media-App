@@ -18,16 +18,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-class PandaEngineHomeRepository(
-    private val engineGateway: EngineGateway,
-    private val hydrateExecutor: Executor,
-) : HomeRepository {
+class PandaEngineHomeRepository(private val engineGateway: EngineGateway, private val hydrateExecutor: Executor) :
+    HomeRepository {
     @Inject
     constructor(engineGateway: EngineGateway) : this(
         engineGateway,
         Executors.newSingleThreadExecutor { runnable ->
             Thread(runnable, "pw-home-hydrate").apply { isDaemon = true }
-        },
+        }
     )
 
     private val mutableState = MutableStateFlow(HomeState())
@@ -48,19 +46,19 @@ class PandaEngineHomeRepository(
 
     override fun refresh() {
         dispatch(
-            EngineCommand(EngineCommand.TYPE_LOAD_FOR_YOU_FEED, EngineCommandPayloads.forYouFeed(pageSize = PAGE_SIZE)),
+            EngineCommand(EngineCommand.TYPE_LOAD_FOR_YOU_FEED, EngineCommandPayloads.forYouFeed(pageSize = PAGE_SIZE))
         )
         dispatch(
             EngineCommand(
                 EngineCommand.TYPE_LOAD_RECOMMENDATIONS,
-                EngineCommandPayloads.recommendations(pageSize = PAGE_SIZE),
-            ),
+                EngineCommandPayloads.recommendations(pageSize = PAGE_SIZE)
+            )
         )
         dispatch(
             EngineCommand(
                 EngineCommand.TYPE_LOAD_DISCOVERY_FEED,
-                EngineCommandPayloads.discoveryFeed(pageSize = PAGE_SIZE),
-            ),
+                EngineCommandPayloads.discoveryFeed(pageSize = PAGE_SIZE)
+            )
         )
     }
 
@@ -111,21 +109,21 @@ class PandaEngineHomeRepository(
                 count = snapshot.forYouResultsCount.coerceAtLeast(0),
                 force = command?.type == EngineCommand.TYPE_LOAD_FOR_YOU_FEED,
                 pageAt = engineGateway::forYouResultsPage,
-                mapper = { it.toHomeTrack() },
+                mapper = { it.toHomeTrack() }
             ),
             recommendations = recommendationsCache.project(
                 count = snapshot.recommendationsResultsCount.coerceAtLeast(0),
                 force = command?.type == EngineCommand.TYPE_LOAD_RECOMMENDATIONS,
                 pageAt = engineGateway::recommendationResultsPage,
-                mapper = { it.toHomeTrack() },
+                mapper = { it.toHomeTrack() }
             ),
             discovery = discoveryCache.project(
                 count = snapshot.discoveryResultsCount.coerceAtLeast(0),
                 force = command?.type == EngineCommand.TYPE_LOAD_DISCOVERY_FEED,
                 pageAt = engineGateway::discoveryResultsPage,
-                mapper = { it.toHomeTrack() },
+                mapper = { it.toHomeTrack() }
             ),
-            isLoading = snapshot.isBusy,
+            isLoading = snapshot.isBusy
         )
         mutableState.value = next
         logShown(next, snapshot, command)
@@ -152,7 +150,7 @@ class PandaEngineHomeRepository(
             snapshot.recommendationsResultsCount,
             snapshot.discoveryResultsCount,
             snapshot.isBusy,
-            command?.type.orEmpty(),
+            command?.type.orEmpty()
         ).joinToString("|")
         if (signature == lastShownSignature) return
         lastShownSignature = signature
@@ -201,7 +199,7 @@ private class ProjectionCache<T>(private val section: String) {
         count: Int,
         force: Boolean,
         pageAt: (Int, Int) -> List<EngineCatalogItem>,
-        mapper: (EngineCatalogItem) -> T,
+        mapper: (EngineCatalogItem) -> T
     ): List<T> {
         if (!force && this.count == count) return items
         if (!force && count == 0 && items.isNotEmpty()) {

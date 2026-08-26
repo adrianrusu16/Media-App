@@ -142,7 +142,11 @@ pub(super) fn library_track_to_strings(
             .unwrap_or_default(),
         item.track.duration_millis.to_string(),
         if item.track.explicit { "1" } else { "0" }.into(),
-        item.track.artwork_id.clone().unwrap_or_default(),
+        item.track
+            .artwork
+            .as_ref()
+            .and_then(|artwork| artwork.uri.clone())
+            .unwrap_or_default(),
         item.relationship_at_epoch_millis.to_string(),
     ]
 }
@@ -217,7 +221,11 @@ pub(super) fn playlist_track_to_strings(
             .unwrap_or_default(),
         item.track.duration_millis.to_string(),
         (item.track.explicit as u8).to_string(),
-        item.track.artwork_id.clone().unwrap_or_default(),
+        item.track
+            .artwork
+            .as_ref()
+            .and_then(|artwork| artwork.uri.clone())
+            .unwrap_or_default(),
         item.position.to_string(),
         item.added_at_epoch_millis.to_string(),
     ]
@@ -318,7 +326,12 @@ pub(super) fn history_entry_to_strings(
             .map(|album| album.title.clone())
             .unwrap_or_default(),
         track
-            .and_then(|track| track.artwork_id.clone())
+            .and_then(|track| {
+                track
+                    .artwork
+                    .as_ref()
+                    .and_then(|artwork| artwork.uri.clone())
+            })
             .unwrap_or_default(),
         item.played_at_epoch_millis
             .map(|value| value.to_string())
@@ -986,7 +999,11 @@ mod tests {
                 }),
                 duration_millis: 180_000,
                 explicit: false,
-                artwork_id: Some("art-1".into()),
+                artwork: Some(panda_engine_core::EngineArtwork {
+                    id: "art-1".into(),
+                    content_hash: "hash-1".into(),
+                    uri: Some("https://example.com/artwork/art-1/hash-1".into()),
+                }),
                 genres: Vec::new(),
             }),
         }

@@ -23,7 +23,7 @@ class ExoPlayerAudioSessionObserver(
             eventTime: AnalyticsListener.EventTime,
             bufferSize: Int,
             bufferSizeMs: Long,
-            elapsedSinceLastFeedMs: Long,
+            elapsedSinceLastFeedMs: Long
         ) {
             PandaLog.w(PandaLog.Tag.PLAYER) {
                 "underrun bufferSize=$bufferSize bufferSizeMs=$bufferSizeMs elapsedSinceLastFeedMs=$elapsedSinceLastFeedMs"

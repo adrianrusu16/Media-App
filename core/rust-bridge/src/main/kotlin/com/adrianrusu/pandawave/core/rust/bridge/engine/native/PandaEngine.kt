@@ -2,9 +2,9 @@ package com.adrianrusu.pandawave.core.rust.bridge.engine.native
 
 import com.adrianrusu.pandawave.core.common.log.PandaLog
 import com.adrianrusu.pandawave.core.common.trace.PandaTrace
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineBackendAvailability
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthState
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthOperationResult
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthState
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineBackendAvailability
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
@@ -12,10 +12,10 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryPage
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineLibraryItem
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistItem
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistTrackItem
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistReconciliation
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistItem
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistReconciliation
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistTrackItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.pandawave.core.rust.bridge.engine.AudioSourceResolver
 import com.adrianrusu.pandawave.core.rust.bridge.engine.EngineDispatchResult
@@ -122,33 +122,25 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         nativeSnapshot(nativeHandle).toEngineSnapshot()
     }
 
-    override fun registerPassword(
-        email: String,
-        password: ByteArray
-    ): EngineAuthOperationResult = withSecret(password) {
-        nativeRegisterPassword(nativeHandle, email, password).toAuthOperationResult()
-    }
+    override fun registerPassword(email: String, password: ByteArray): EngineAuthOperationResult =
+        withSecret(password) {
+            nativeRegisterPassword(nativeHandle, email, password).toAuthOperationResult()
+        }
 
     override fun resendVerification(email: String): EngineAuthOperationResult =
         nativeResendVerification(nativeHandle, email).toAuthOperationResult()
 
-    override fun verifyEmail(
-        verificationToken: ByteArray,
-        deviceLabel: String
-    ): EngineAuthOperationResult = withSecret(verificationToken) {
-        nativeVerifyEmail(nativeHandle, verificationToken, deviceLabel).toAuthOperationResult()
-    }
+    override fun verifyEmail(verificationToken: ByteArray, deviceLabel: String): EngineAuthOperationResult =
+        withSecret(verificationToken) {
+            nativeVerifyEmail(nativeHandle, verificationToken, deviceLabel).toAuthOperationResult()
+        }
 
-    override fun loginPassword(
-        email: String,
-        password: ByteArray,
-        deviceLabel: String
-    ): EngineAuthOperationResult = withSecret(password) {
-        nativeLoginPassword(nativeHandle, email, password, deviceLabel).toAuthOperationResult()
-    }
+    override fun loginPassword(email: String, password: ByteArray, deviceLabel: String): EngineAuthOperationResult =
+        withSecret(password) {
+            nativeLoginPassword(nativeHandle, email, password, deviceLabel).toAuthOperationResult()
+        }
 
-    override fun logout(): EngineAuthOperationResult =
-        nativeLogout(nativeHandle).toAuthOperationResult()
+    override fun logout(): EngineAuthOperationResult = nativeLogout(nativeHandle).toAuthOperationResult()
 
     private inline fun withSecret(
         secret: ByteArray,
@@ -167,7 +159,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
 
     override fun browseResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
         PandaEngineNativeCatalogItemMapper.toPage(
-            nativeSnapshotPageValues(nativeHandle, PAGE_BROWSE, offset, limit),
+            nativeSnapshotPageValues(nativeHandle, PAGE_BROWSE, offset, limit)
         )
 
     override fun discoveryResult(index: Int): EngineCatalogItem? = nativeDiscoveryResultValues(nativeHandle, index)
@@ -176,39 +168,41 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     override fun forYouResult(index: Int): EngineCatalogItem? = nativeForYouResultValues(nativeHandle, index)
         .let(PandaEngineNativeCatalogItemMapper::toDomain)
 
-    override fun recommendationResult(index: Int): EngineCatalogItem? = nativeRecommendationResultValues(nativeHandle, index)
-        .let(PandaEngineNativeCatalogItemMapper::toDomain)
+    override fun recommendationResult(index: Int): EngineCatalogItem? =
+        nativeRecommendationResultValues(nativeHandle, index)
+            .let(PandaEngineNativeCatalogItemMapper::toDomain)
 
     override fun discoveryResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
         PandaEngineNativeCatalogItemMapper.toPage(
-            nativeSnapshotPageValues(nativeHandle, PAGE_DISCOVERY, offset, limit),
+            nativeSnapshotPageValues(nativeHandle, PAGE_DISCOVERY, offset, limit)
         )
 
     override fun forYouResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
         PandaEngineNativeCatalogItemMapper.toPage(
-            nativeSnapshotPageValues(nativeHandle, PAGE_FOR_YOU, offset, limit),
+            nativeSnapshotPageValues(nativeHandle, PAGE_FOR_YOU, offset, limit)
         )
 
     override fun recommendationResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
         PandaEngineNativeCatalogItemMapper.toPage(
-            nativeSnapshotPageValues(nativeHandle, PAGE_RECOMMENDATIONS, offset, limit),
+            nativeSnapshotPageValues(nativeHandle, PAGE_RECOMMENDATIONS, offset, limit)
         )
 
-    override fun profilePreferenceValue(key: String): String? =
-        nativeProfilePreferenceValue(nativeHandle, key.trim())
+    override fun profilePreferenceValue(key: String): String? = nativeProfilePreferenceValue(nativeHandle, key.trim())
 
-    override fun savedTrack(index: Int): EngineLibraryItem? = PandaEngineNativeLibraryItemMapper.toDomain(nativeSavedTrackValues(nativeHandle, index))
+    override fun savedTrack(index: Int): EngineLibraryItem? =
+        PandaEngineNativeLibraryItemMapper.toDomain(nativeSavedTrackValues(nativeHandle, index))
 
-    override fun likedTrack(index: Int): EngineLibraryItem? = PandaEngineNativeLibraryItemMapper.toDomain(nativeLikedTrackValues(nativeHandle, index))
+    override fun likedTrack(index: Int): EngineLibraryItem? =
+        PandaEngineNativeLibraryItemMapper.toDomain(nativeLikedTrackValues(nativeHandle, index))
 
     override fun savedTracksPage(offset: Int, limit: Int): List<EngineLibraryItem> =
         PandaEngineNativeLibraryItemMapper.toPage(
-            nativeSnapshotPageValues(nativeHandle, PAGE_SAVED, offset, limit),
+            nativeSnapshotPageValues(nativeHandle, PAGE_SAVED, offset, limit)
         )
 
     override fun likedTracksPage(offset: Int, limit: Int): List<EngineLibraryItem> =
         PandaEngineNativeLibraryItemMapper.toPage(
-            nativeSnapshotPageValues(nativeHandle, PAGE_LIKED, offset, limit),
+            nativeSnapshotPageValues(nativeHandle, PAGE_LIKED, offset, limit)
         )
 
     override fun pendingLibraryTrackId(index: Int): String? = nativePendingLibraryTrackId(nativeHandle, index)
@@ -217,20 +211,24 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         nativeSnapshotPageValues(nativeHandle, PAGE_PENDING_IDS, offset, limit).orEmpty().toList()
 
     override fun playlist(index: Int): EnginePlaylistItem? = playlistItem(nativePlaylistValues(nativeHandle, index))
-    override fun playlistTrack(index: Int): EnginePlaylistTrackItem? = playlistTrackItem(nativePlaylistTrackValues(nativeHandle, index))
+    override fun playlistTrack(index: Int): EnginePlaylistTrackItem? =
+        playlistTrackItem(nativePlaylistTrackValues(nativeHandle, index))
     override fun playlistsPage(offset: Int, limit: Int): List<EnginePlaylistItem> =
         playlistItems(nativeSnapshotPageValues(nativeHandle, PAGE_PLAYLISTS, offset, limit))
     override fun playlistTracksPage(offset: Int, limit: Int): List<EnginePlaylistTrackItem> =
         playlistTrackItems(nativeSnapshotPageValues(nativeHandle, PAGE_PLAYLIST_TRACKS, offset, limit))
-    override fun selectedPlaylistId(): String? = nativePlaylistSelectionValues(nativeHandle)?.getOrNull(0)?.ifEmpty { null }
-    override fun playlistReconciliation(): EnginePlaylistReconciliation? = playlistReconciliationItem(nativePlaylistSelectionValues(nativeHandle))
+    override fun selectedPlaylistId(): String? = nativePlaylistSelectionValues(nativeHandle)?.getOrNull(0)?.ifEmpty {
+        null
+    }
+    override fun playlistReconciliation(): EnginePlaylistReconciliation? =
+        playlistReconciliationItem(nativePlaylistSelectionValues(nativeHandle))
 
     override fun searchResult(index: Int): EngineCatalogItem? =
         PandaEngineNativeCatalogItemMapper.toDomain(nativeSearchResultValues(nativeHandle, index))
 
     override fun searchResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
         PandaEngineNativeCatalogItemMapper.toPage(
-            nativeSnapshotPageValues(nativeHandle, PAGE_SEARCH, offset, limit),
+            nativeSnapshotPageValues(nativeHandle, PAGE_SEARCH, offset, limit)
         )
 
     override fun historyEntry(index: Int): EngineHistoryItem? =
@@ -240,7 +238,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         PandaTrace.section("PW.Engine.Native.historyPage") {
             val page = PandaEngineNativeHistoryItemMapper.toPage(
                 nativeHistoryPageValues(nativeHandle, offset, limit, generation),
-                generation,
+                generation
             )
             PandaLog.i(PandaLog.Tag.HISTORY) {
                 "page_read offset=$offset limit=$limit requestedGeneration=$generation " +
@@ -252,48 +250,47 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
 
     override fun effectCount(): Int = nativeEffectCount(nativeHandle)
 
-    override fun effect(index: Int): EngineEffect? =
-        PandaTrace.section("PW.Engine.Native.effectBatch") {
-            effectItem(nativeEffectValues(nativeHandle, index))
-        }
+    override fun effect(index: Int): EngineEffect? = PandaTrace.section("PW.Engine.Native.effectBatch") {
+        effectItem(nativeEffectValues(nativeHandle, index))
+    }
 
     override fun dispatch(command: EngineCommand): EngineDispatchResult =
         PandaTrace.section("PW.Engine.Native.dispatch") {
-        val nativeValues = nativeDispatch(
-            handle = nativeHandle,
-            commandType = nativeCommandType(command),
-            payload = command.payload,
-            nowEpochMillis = clock()
-        )
+            val nativeValues = nativeDispatch(
+                handle = nativeHandle,
+                commandType = nativeCommandType(command),
+                payload = command.payload,
+                nowEpochMillis = clock()
+            )
 
-        EngineDispatchResult(
-            snapshot = nativeValues.toEngineSnapshot(),
-            event = EngineEvent(
-                type = EngineEvent.TYPE_COMMAND_APPLIED,
-                message = nativeLastEventMessage(nativeHandle) ?: command.type
-            ),
-            effects = effects()
-        )
-    }
+            EngineDispatchResult(
+                snapshot = nativeValues.toEngineSnapshot(),
+                event = EngineEvent(
+                    type = EngineEvent.TYPE_COMMAND_APPLIED,
+                    message = nativeLastEventMessage(nativeHandle) ?: command.type
+                ),
+                effects = effects()
+            )
+        }
 
     override fun dispatchPlatformEvent(event: EnginePlatformEvent): EngineDispatchResult =
         PandaTrace.section("PW.Engine.Native.platformEvent") {
-        val nativeValues = nativeDispatchPlatformEvent(
-            handle = nativeHandle,
-            eventType = event.toNativePlatformEventType(),
-            payload = event.payload,
-            nowEpochMillis = clock()
-        )
+            val nativeValues = nativeDispatchPlatformEvent(
+                handle = nativeHandle,
+                eventType = event.toNativePlatformEventType(),
+                payload = event.payload,
+                nowEpochMillis = clock()
+            )
 
-        EngineDispatchResult(
-            snapshot = nativeValues.toEngineSnapshot(),
-            event = EngineEvent(
-                type = EngineEvent.TYPE_PLATFORM_EVENT_APPLIED,
-                message = nativeLastEventMessage(nativeHandle) ?: event.type
-            ),
-            effects = effects()
-        )
-    }
+            EngineDispatchResult(
+                snapshot = nativeValues.toEngineSnapshot(),
+                event = EngineEvent(
+                    type = EngineEvent.TYPE_PLATFORM_EVENT_APPLIED,
+                    message = nativeLastEventMessage(nativeHandle) ?: event.type
+                ),
+                effects = effects()
+            )
+        }
 
     override fun close() {
         stopBackendHealthMonitoring()
@@ -369,11 +366,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
 
     private external fun nativeSnapshot(handle: Long): LongArray
 
-    private external fun nativeRegisterPassword(
-        handle: Long,
-        email: String,
-        password: ByteArray
-    ): Array<String>?
+    private external fun nativeRegisterPassword(handle: Long, email: String, password: ByteArray): Array<String>?
 
     private external fun nativeResendVerification(handle: Long, email: String): Array<String>?
 
@@ -392,11 +385,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
 
     private external fun nativeLogout(handle: Long): Array<String>?
 
-    private external fun nativeConfigureBackend(
-        handle: Long,
-        configJson: String,
-        isDevelopment: Boolean
-    ): Boolean
+    private external fun nativeConfigureBackend(handle: Long, configJson: String, isDevelopment: Boolean): Boolean
 
     private external fun nativeSetBackendAvailability(handle: Long, availability: Int, reason: Int): Boolean
 
@@ -446,14 +435,9 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         handle: Long,
         offset: Int,
         limit: Int,
-        generation: Long,
+        generation: Long
     ): Array<String>?
-    private external fun nativeSnapshotPageValues(
-        handle: Long,
-        kind: Int,
-        offset: Int,
-        limit: Int,
-    ): Array<String>?
+    private external fun nativeSnapshotPageValues(handle: Long, kind: Int, offset: Int, limit: Int): Array<String>?
     private external fun nativePendingLibraryTrackId(handle: Long, index: Int): String?
     private external fun nativePlaylistValues(handle: Long, index: Int): Array<String>?
     private external fun nativePlaylistTrackValues(handle: Long, index: Int): Array<String>?
@@ -543,8 +527,8 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
                 nativeHandle,
                 PAGE_DEVICE_SESSIONS,
                 0,
-                projection.snapshot.deviceSessionsCount.coerceIn(0, MAX_ENGINE_PAGE_QUERY_SIZE),
-            ),
+                projection.snapshot.deviceSessionsCount.coerceIn(0, MAX_ENGINE_PAGE_QUERY_SIZE)
+            )
         )
         snapshot.copy(
             backendStatus = backendStatus,
@@ -555,10 +539,9 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         )
     }
 
-    private fun queryNativeMetadata(): NativeEngineMetadata =
-        PandaTrace.section("PW.Engine.Native.metadataBatch") {
-            metadataItem(nativeMetadataValues(nativeHandle))
-        }
+    private fun queryNativeMetadata(): NativeEngineMetadata = PandaTrace.section("PW.Engine.Native.metadataBatch") {
+        metadataItem(nativeMetadataValues(nativeHandle))
+    }
 
     private fun resultItem(
         id: String?,
@@ -587,7 +570,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     private fun effects(): List<EngineEffect> = PandaTrace.section("PW.Engine.Native.effects") {
         PandaEngineNativePackedPage.toItems(
             nativeEffectPageValues(nativeHandle, 0, MAX_ENGINE_PAGE_QUERY_SIZE),
-            EFFECT_VALUE_COUNT,
+            EFFECT_VALUE_COUNT
         ) { values, offset ->
             if (values.size < offset + EFFECT_VALUE_COUNT) {
                 null
@@ -634,19 +617,17 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         positionMillis: Long,
         speed: Float,
         playbackInstanceId: Long
-    ): EngineEffect? {
-        return when (val effectType = type.toEngineEffectType()) {
-            EngineEffect.TYPE_UNKNOWN -> null
+    ): EngineEffect? = when (val effectType = type.toEngineEffectType()) {
+        EngineEffect.TYPE_UNKNOWN -> null
 
-            else -> EngineEffect(
-                type = effectType,
-                mediaId = mediaId.takeUnless { value -> value.isNullOrBlank() },
-                message = message.takeUnless { value -> value.isNullOrBlank() },
-                positionMillis = positionMillis.takeUnless { value -> value < 0L },
-                speed = speed.takeUnless { value -> value.isNaN() },
-                playbackInstanceId = playbackInstanceId.takeUnless { value -> value < 0L }
-            )
-        }
+        else -> EngineEffect(
+            type = effectType,
+            mediaId = mediaId.takeUnless { value -> value.isNullOrBlank() },
+            message = message.takeUnless { value -> value.isNullOrBlank() },
+            positionMillis = positionMillis.takeUnless { value -> value < 0L },
+            speed = speed.takeUnless { value -> value.isNaN() },
+            playbackInstanceId = playbackInstanceId.takeUnless { value -> value < 0L }
+        )
     }
 
     companion object {
@@ -895,7 +876,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             val addedAt = values[11].toNonNegativeLongOrNull() ?: return null
             return EnginePlaylistTrackItem(
                 values[0], values[1], values[2], values[3], values[4], values[5],
-                values[6].ifEmpty { null }, duration, explicit, values[9].ifEmpty { null }, position, addedAt,
+                values[6].ifEmpty { null }, duration, explicit, values[9].ifEmpty { null }, position, addedAt
             )
         }
 
@@ -909,14 +890,15 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             val expectedRevision = values[2].toNonNegativeLongOrNull() ?: return null
             val serverRevision = values[3].toNonNegativeLongOrNull() ?: return null
             return EnginePlaylistReconciliation(
-                values[1], expectedRevision, serverRevision,
+                values[1],
+                expectedRevision,
+                serverRevision,
                 values[4].split('\u001f').filter(String::isNotEmpty),
-                values[5].split('\u001f').filter(String::isNotEmpty),
+                values[5].split('\u001f').filter(String::isNotEmpty)
             )
         }
 
-        private fun String.toNonNegativeLongOrNull(): Long? =
-            toLongOrNull()?.takeIf { it >= 0L }
+        private fun String.toNonNegativeLongOrNull(): Long? = toLongOrNull()?.takeIf { it >= 0L }
 
         private fun EnginePlatformEvent.toNativePlatformEventType(): Int = when (type) {
             EnginePlatformEvent.TYPE_APP_FOREGROUNDED -> PLATFORM_EVENT_APP_FOREGROUNDED

@@ -22,13 +22,13 @@ class Media3EngineEffectExecutorTest {
         val executor = effectExecutor(
             player = player,
             focusController = focusController,
-            telemetrySink = telemetrySink,
+            telemetrySink = telemetrySink
         )
 
         executor.execute(
             listOf(
                 EngineEffect(type = EngineEffect.TYPE_REQUEST_AUDIO_FOCUS),
-                EngineEffect(type = EngineEffect.TYPE_PLAY),
+                EngineEffect(type = EngineEffect.TYPE_PLAY)
             )
         )
 
@@ -38,13 +38,13 @@ class Media3EngineEffectExecutorTest {
             BambooAudioFocusRequestResult.Delayed.wireValue,
             telemetrySink.events
                 .single { it.name == Media3EffectTelemetryEvents.AUDIO_FOCUS_REQUESTED }
-                .attributes[Media3EffectTelemetryAttributes.RESULT],
+                .attributes[Media3EffectTelemetryAttributes.RESULT]
         )
         assertEquals(
             Media3EffectTelemetryValues.AUDIO_FOCUS_NOT_GRANTED,
             telemetrySink.events
                 .last { it.name == Media3EffectTelemetryEvents.EFFECT_IGNORED }
-                .attributes[Media3EffectTelemetryAttributes.REASON],
+                .attributes[Media3EffectTelemetryAttributes.REASON]
         )
     }
 
@@ -329,7 +329,7 @@ private class RecordingEffectPlayer(override var playbackState: Int) : Media3Eff
 }
 
 private class RecordingAudioFocusController(
-    private val requestResult: BambooAudioFocusRequestResult = BambooAudioFocusRequestResult.Granted,
+    private val requestResult: BambooAudioFocusRequestResult = BambooAudioFocusRequestResult.Granted
 ) : BambooAudioFocusController {
     val calls = mutableListOf<String>()
 

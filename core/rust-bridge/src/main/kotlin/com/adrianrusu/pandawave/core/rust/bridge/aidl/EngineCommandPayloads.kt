@@ -15,15 +15,14 @@ object EngineCommandPayloads {
         playbackInstanceId: Long,
         positionMillis: Long,
         durationMillis: Long? = null
-    ): String =
-        buildJsonObject {
-            put(KEY_VERSION, PAYLOAD_VERSION)
-            put("playback_instance_id", playbackInstanceId)
-            put("position_ms", positionMillis.coerceAtLeast(MIN_POSITION_MILLIS))
-            durationMillis?.takeIf { duration -> duration > 0L }?.let { duration ->
-                put(KEY_DURATION_MILLIS, duration)
-            }
-        }.toString()
+    ): String = buildJsonObject {
+        put(KEY_VERSION, PAYLOAD_VERSION)
+        put("playback_instance_id", playbackInstanceId)
+        put("position_ms", positionMillis.coerceAtLeast(MIN_POSITION_MILLIS))
+        durationMillis?.takeIf { duration -> duration > 0L }?.let { duration ->
+            put(KEY_DURATION_MILLIS, duration)
+        }
+    }.toString()
 
     fun audioFocusChanged(focusChange: String): String = buildJsonObject {
         put(KEY_VERSION, PAYLOAD_VERSION)
@@ -36,18 +35,15 @@ object EngineCommandPayloads {
         playbackInstanceId?.let { put("playback_instance_id", it) }
     }.toString()
 
-    fun playbackObservation(
-        playbackInstanceId: Long,
-        kind: String? = null,
-        durationMillis: Long? = null
-    ): String = buildJsonObject {
-        put(KEY_VERSION, PAYLOAD_VERSION)
-        put("playback_instance_id", playbackInstanceId)
-        kind?.let { put("kind", it) }
-        durationMillis?.takeIf { duration -> duration > 0L }?.let { duration ->
-            put(KEY_DURATION_MILLIS, duration)
-        }
-    }.toString()
+    fun playbackObservation(playbackInstanceId: Long, kind: String? = null, durationMillis: Long? = null): String =
+        buildJsonObject {
+            put(KEY_VERSION, PAYLOAD_VERSION)
+            put("playback_instance_id", playbackInstanceId)
+            kind?.let { put("kind", it) }
+            durationMillis?.takeIf { duration -> duration > 0L }?.let { duration ->
+                put(KEY_DURATION_MILLIS, duration)
+            }
+        }.toString()
 
     fun decoderFailed(
         playbackInstanceId: Long,
@@ -189,10 +185,16 @@ object EngineCommandPayloads {
     }.toString()
 
     fun playlistId(playlistId: String): String = buildJsonObject {
-        put(KEY_VERSION, PAYLOAD_VERSION); put("playlist_id", playlistId.trim())
+        put(KEY_VERSION, PAYLOAD_VERSION)
+        put("playlist_id", playlistId.trim())
     }.toString()
 
-    fun playlistDetails(playlistId: String?, name: String, description: String?, expectedRevision: Long? = null): String = buildJsonObject {
+    fun playlistDetails(
+        playlistId: String?,
+        name: String,
+        description: String?,
+        expectedRevision: Long? = null
+    ): String = buildJsonObject {
         put(KEY_VERSION, PAYLOAD_VERSION)
         put("playlist_id", playlistId?.trim()?.takeIf(String::isNotBlank))
         put("name", name.trim())
@@ -201,22 +203,31 @@ object EngineCommandPayloads {
     }.toString()
 
     fun playlistTrack(playlistId: String, trackId: String): String = buildJsonObject {
-        put(KEY_VERSION, PAYLOAD_VERSION); put("playlist_id", playlistId.trim()); put(KEY_TRACK_ID, trackId.trim())
+        put(KEY_VERSION, PAYLOAD_VERSION)
+        put("playlist_id", playlistId.trim())
+        put(KEY_TRACK_ID, trackId.trim())
     }.toString()
 
-    fun playlistReorder(playlistId: String, orderedMembershipIds: List<String>, expectedRevision: Long): String = buildJsonObject {
-        put(KEY_VERSION, PAYLOAD_VERSION); put("playlist_id", playlistId.trim()); put("expected_revision", expectedRevision)
-        put("ordered_membership_ids", buildJsonArray { orderedMembershipIds.forEach { add(it.trim()) } })
-    }.toString()
-
-    fun playbackCompleted(trackId: String, durationMillis: Long, completionRatio: Double, playbackInstanceId: Long? = null): String =
+    fun playlistReorder(playlistId: String, orderedMembershipIds: List<String>, expectedRevision: Long): String =
         buildJsonObject {
             put(KEY_VERSION, PAYLOAD_VERSION)
-            put(KEY_TRACK_ID, trackId.trim())
-            put(KEY_DURATION_MILLIS, durationMillis.coerceAtLeast(0L))
-            playbackInstanceId?.let { put("playback_instance_id", it) }
-            put(KEY_COMPLETION_RATIO, completionRatio.takeIf(Double::isFinite)?.coerceIn(0.0, 1.0) ?: 0.0)
+            put("playlist_id", playlistId.trim())
+            put("expected_revision", expectedRevision)
+            put("ordered_membership_ids", buildJsonArray { orderedMembershipIds.forEach { add(it.trim()) } })
         }.toString()
+
+    fun playbackCompleted(
+        trackId: String,
+        durationMillis: Long,
+        completionRatio: Double,
+        playbackInstanceId: Long? = null
+    ): String = buildJsonObject {
+        put(KEY_VERSION, PAYLOAD_VERSION)
+        put(KEY_TRACK_ID, trackId.trim())
+        put(KEY_DURATION_MILLIS, durationMillis.coerceAtLeast(0L))
+        playbackInstanceId?.let { put("playback_instance_id", it) }
+        put(KEY_COMPLETION_RATIO, completionRatio.takeIf(Double::isFinite)?.coerceIn(0.0, 1.0) ?: 0.0)
+    }.toString()
 
     fun updateProfileTheme(themeId: String): String = buildJsonObject {
         put(KEY_VERSION, PAYLOAD_VERSION)

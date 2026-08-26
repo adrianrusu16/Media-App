@@ -19,15 +19,15 @@ import com.adrianrusu.pandawave.feature.auth.domain.LogoutPhase
 import com.adrianrusu.pandawave.feature.auth.domain.ProfileAccountUi
 import com.adrianrusu.pandawave.feature.auth.domain.ProfileAuthEffect
 import com.adrianrusu.pandawave.feature.auth.domain.ProfileAuthNotice
+import kotlin.test.Test
+import kotlin.test.assertContentEquals
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
-import kotlin.test.Test
-import kotlin.test.assertContentEquals
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AuthFlowControllerTest {
@@ -244,7 +244,8 @@ private class RecordingAuthEngineGateway(
     private val loginResult: EngineAuthOperationResult = EngineAuthOperationResult.authenticated(),
     private val registerResult: EngineAuthOperationResult = EngineAuthOperationResult.accepted(),
     private val resendResult: EngineAuthOperationResult = EngineAuthOperationResult.accepted()
-) : EngineAuthGateway, EngineGateway {
+) : EngineAuthGateway,
+    EngineGateway {
     private val authAvailabilityListeners = mutableSetOf<(Boolean) -> Unit>()
     private val snapshotListeners = mutableSetOf<(EngineSnapshot) -> Unit>()
     private var snapshot = EngineSnapshot.idle(nowMillis = 1L).copy(authState = initialAuth)

@@ -10,11 +10,11 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.pandawave.core.secure.storage.keystore.AndroidKeystoreSecureSecretProtector
 import java.io.File
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertArrayEquals
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -143,8 +143,7 @@ class PandaEngineNativeSmokeTest {
         }
     }
 
-    private fun cleartextConfig(): String =
-        androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
-            .context.assets.open("client-connection.json")
-            .bufferedReader().use { it.readText() }
+    private fun cleartextConfig(): String = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+        .context.assets.open("client-connection.json")
+        .bufferedReader().use { it.readText() }
 }

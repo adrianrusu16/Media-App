@@ -1,5 +1,9 @@
 package com.adrianrusu.pandawave.feature.library.presentation
 
+import com.adrianrusu.pandawave.core.playback.BambooPlaybackIntent
+import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
+import com.adrianrusu.pandawave.core.playback.BambooPlaybackState
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.feature.library.domain.LibraryRepository
 import com.adrianrusu.pandawave.feature.library.domain.LibraryState
 import com.adrianrusu.pandawave.feature.library.domain.LibraryTab
@@ -7,10 +11,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import com.adrianrusu.pandawave.core.playback.BambooPlaybackIntent
-import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
-import com.adrianrusu.pandawave.core.playback.BambooPlaybackState
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 
 class LibraryViewModelTest {
     @Test
@@ -49,9 +49,9 @@ class LibraryViewModelTest {
                 "playlist:playlist-1",
                 "add:playlist-1:media-1",
                 "remove:playlist-1:media-1",
-                "reorder:playlist-1:member-3,member-1,member-2:9",
+                "reorder:playlist-1:member-3,member-1,member-2:9"
             ),
-            repository.actions,
+            repository.actions
         )
         assertEquals(listOf<BambooPlaybackIntent>(BambooPlaybackIntent.PlayMedia("saved-1")), playback.intents)
     }
@@ -63,25 +63,50 @@ private class RecordingLibraryRepository : LibraryRepository {
     var startCount = 0
     val actions = mutableListOf<String>()
 
-    override fun start() { startCount += 1 }
+    override fun start() {
+        startCount += 1
+    }
     override fun selectTab(tab: LibraryTab) {
         mutableState.value = mutableState.value.copy(selectedTab = tab)
         actions += "select:$tab"
     }
-    override fun refresh() { actions += "refresh" }
-    override fun loadNext(tab: LibraryTab) { actions += "next:$tab" }
-    override fun save(mediaId: String) { actions += "save:$mediaId" }
-    override fun removeSaved(mediaId: String) { actions += "remove:$mediaId" }
-    override fun like(mediaId: String) { actions += "like:$mediaId" }
-    override fun unlike(mediaId: String) { actions += "unlike:$mediaId" }
-    override fun createPlaylist(name: String, description: String?) { actions += "create:$name:${description ?: "<null>"}" }
+    override fun refresh() {
+        actions += "refresh"
+    }
+    override fun loadNext(tab: LibraryTab) {
+        actions += "next:$tab"
+    }
+    override fun save(mediaId: String) {
+        actions += "save:$mediaId"
+    }
+    override fun removeSaved(mediaId: String) {
+        actions += "remove:$mediaId"
+    }
+    override fun like(mediaId: String) {
+        actions += "like:$mediaId"
+    }
+    override fun unlike(mediaId: String) {
+        actions += "unlike:$mediaId"
+    }
+    override fun createPlaylist(name: String, description: String?) {
+        actions +=
+            "create:$name:${description ?: "<null>"}"
+    }
     override fun updatePlaylist(playlistId: String, name: String, description: String?, expectedRevision: Long) {
         actions += "update:$playlistId:$name:${description ?: "<null>"}:$expectedRevision"
     }
-    override fun deletePlaylist(playlistId: String) { actions += "delete:$playlistId" }
-    override fun selectPlaylist(playlistId: String) { actions += "playlist:$playlistId" }
-    override fun addPlaylistTrack(playlistId: String, mediaId: String) { actions += "add:$playlistId:$mediaId" }
-    override fun removePlaylistTrack(playlistId: String, mediaId: String) { actions += "remove:$playlistId:$mediaId" }
+    override fun deletePlaylist(playlistId: String) {
+        actions += "delete:$playlistId"
+    }
+    override fun selectPlaylist(playlistId: String) {
+        actions += "playlist:$playlistId"
+    }
+    override fun addPlaylistTrack(playlistId: String, mediaId: String) {
+        actions += "add:$playlistId:$mediaId"
+    }
+    override fun removePlaylistTrack(playlistId: String, mediaId: String) {
+        actions += "remove:$playlistId:$mediaId"
+    }
     override fun reorderPlaylist(playlistId: String, membershipIds: List<String>, expectedRevision: Long) {
         actions += "reorder:$playlistId:${membershipIds.joinToString(",")}:$expectedRevision"
     }
@@ -93,7 +118,9 @@ private class RecordingPlaybackRepository : BambooPlaybackRepository {
     val intents = mutableListOf<BambooPlaybackIntent>()
 
     override fun start() = Unit
-    override fun dispatch(intent: BambooPlaybackIntent) { intents += intent }
+    override fun dispatch(intent: BambooPlaybackIntent) {
+        intents += intent
+    }
     override fun observe(listener: (BambooPlaybackState) -> Unit) = AutoCloseable { }
     override fun observeEffects(listener: (List<EngineEffect>) -> Unit) = AutoCloseable { }
     override fun close() = Unit

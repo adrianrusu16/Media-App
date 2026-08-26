@@ -2,15 +2,15 @@ package com.adrianrusu.pandawave.core.rust.bridge.engine
 
 import android.app.Service
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.net.ConnectivityManager
 import android.net.Network
-import android.content.pm.ApplicationInfo
 import android.os.IBinder
 import android.os.RemoteCallbackList
 import com.adrianrusu.pandawave.core.common.log.PandaLog
 import com.adrianrusu.pandawave.core.common.trace.PandaTrace
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthOperationResult
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
@@ -31,6 +31,7 @@ class MediaEngineService : Service() {
     private val listeners = RemoteCallbackList<IEngineListener>()
     private val snapshotFanout = QueuedCallbackFanout<EngineSnapshot>()
     private val eventFanout = QueuedCallbackFanout<EngineEvent>()
+
     @Volatile
     private var engine: RustEngine? = null
     private var unavailableSnapshot: EngineSnapshot = unavailableSnapshot()
@@ -69,36 +70,28 @@ class MediaEngineService : Service() {
     }
 
     private val binder = object : IMediaEngineService.Stub() {
-        override fun registerPassword(
-            email: String,
-            password: ByteArray
-        ): EngineAuthOperationResult = withSecret(password) {
-            engine?.registerPassword(email, password) ?: EngineAuthOperationResult.unavailable()
-        }
+        override fun registerPassword(email: String, password: ByteArray): EngineAuthOperationResult =
+            withSecret(password) {
+                engine?.registerPassword(email, password) ?: EngineAuthOperationResult.unavailable()
+            }
 
         override fun resendVerification(email: String): EngineAuthOperationResult =
             engine?.resendVerification(email) ?: EngineAuthOperationResult.unavailable()
 
-        override fun verifyEmail(
-            verificationToken: ByteArray,
-            deviceLabel: String
-        ): EngineAuthOperationResult = withSecret(verificationToken) {
-            engine?.verifyEmail(verificationToken, deviceLabel)
-                ?: EngineAuthOperationResult.unavailable()
-        }.also { result -> notifyAuthSnapshot("verifyEmail", result) }
+        override fun verifyEmail(verificationToken: ByteArray, deviceLabel: String): EngineAuthOperationResult =
+            withSecret(verificationToken) {
+                engine?.verifyEmail(verificationToken, deviceLabel)
+                    ?: EngineAuthOperationResult.unavailable()
+            }.also { result -> notifyAuthSnapshot("verifyEmail", result) }
 
-        override fun loginPassword(
-            email: String,
-            password: ByteArray,
-            deviceLabel: String
-        ): EngineAuthOperationResult = withSecret(password) {
-            engine?.loginPassword(email, password, deviceLabel)
-                ?: EngineAuthOperationResult.unavailable()
-        }.also { result -> notifyAuthSnapshot("loginPassword", result) }
+        override fun loginPassword(email: String, password: ByteArray, deviceLabel: String): EngineAuthOperationResult =
+            withSecret(password) {
+                engine?.loginPassword(email, password, deviceLabel)
+                    ?: EngineAuthOperationResult.unavailable()
+            }.also { result -> notifyAuthSnapshot("loginPassword", result) }
 
-        override fun logout(): EngineAuthOperationResult =
-            (engine?.logout() ?: EngineAuthOperationResult.unavailable())
-                .also { result -> notifyAuthSnapshot("logout", result) }
+        override fun logout(): EngineAuthOperationResult = (engine?.logout() ?: EngineAuthOperationResult.unavailable())
+            .also { result -> notifyAuthSnapshot("logout", result) }
 
         override fun getSnapshot(): EngineSnapshot = PandaTrace.section("PW.Engine.Service.snapshot") {
             engine?.snapshot() ?: unavailableSnapshot
@@ -128,17 +121,14 @@ class MediaEngineService : Service() {
                     ?: EngineHistoryPage(generation, emptyList())
             }
         override fun getSavedTrack(index: Int) = engine?.savedTrack(index)
-        override fun getSavedTracksPage(offset: Int, limit: Int) =
-            engine?.savedTracksPage(offset, limit).orEmpty()
+        override fun getSavedTracksPage(offset: Int, limit: Int) = engine?.savedTracksPage(offset, limit).orEmpty()
         override fun getLikedTrack(index: Int) = engine?.likedTrack(index)
-        override fun getLikedTracksPage(offset: Int, limit: Int) =
-            engine?.likedTracksPage(offset, limit).orEmpty()
+        override fun getLikedTracksPage(offset: Int, limit: Int) = engine?.likedTracksPage(offset, limit).orEmpty()
         override fun getPendingLibraryTrackId(index: Int) = engine?.pendingLibraryTrackId(index)
         override fun getPendingLibraryTrackIdsPage(offset: Int, limit: Int): List<String> =
             engine?.pendingLibraryTrackIdsPage(offset, limit).orEmpty()
         override fun getPlaylist(index: Int): EnginePlaylistItem? = engine?.playlist(index)
-        override fun getPlaylistsPage(offset: Int, limit: Int) =
-            engine?.playlistsPage(offset, limit).orEmpty()
+        override fun getPlaylistsPage(offset: Int, limit: Int) = engine?.playlistsPage(offset, limit).orEmpty()
         override fun getPlaylistTrack(index: Int): EnginePlaylistTrackItem? = engine?.playlistTrack(index)
         override fun getPlaylistTracksPage(offset: Int, limit: Int) =
             engine?.playlistTracksPage(offset, limit).orEmpty()
@@ -151,23 +141,23 @@ class MediaEngineService : Service() {
 
         override fun dispatch(command: EngineCommand): EngineDispatchResult =
             PandaTrace.section("PW.Engine.Service.dispatch") {
-            val result = engine?.dispatch(command)
-                ?: backendUnavailableResult(unavailableSnapshot)
+                val result = engine?.dispatch(command)
+                    ?: backendUnavailableResult(unavailableSnapshot)
 
-            notifySnapshotChanged(result.snapshot)
-            notifyEngineEvent(result.event)
-            result
-        }
+                notifySnapshotChanged(result.snapshot)
+                notifyEngineEvent(result.event)
+                result
+            }
 
         override fun dispatchPlatformEvent(event: EnginePlatformEvent): EngineDispatchResult =
             PandaTrace.section("PW.Engine.Service.platformEvent") {
-            val result = engine?.dispatchPlatformEvent(event)
-                ?: backendUnavailableResult(unavailableSnapshot)
+                val result = engine?.dispatchPlatformEvent(event)
+                    ?: backendUnavailableResult(unavailableSnapshot)
 
-            notifySnapshotChanged(result.snapshot)
-            notifyEngineEvent(result.event)
-            result
-        }
+                notifySnapshotChanged(result.snapshot)
+                notifyEngineEvent(result.event)
+                result
+            }
 
         override fun registerListener(listener: IEngineListener) {
             PandaTrace.section("PW.Engine.Service.registerListener") {
@@ -282,7 +272,6 @@ class MediaEngineService : Service() {
     private companion object {
         const val SESSION_FILE_RELATIVE_PATH = "panda-engine/session.bin"
     }
-
 }
 
 internal fun backendUnavailableResult(snapshot: EngineSnapshot): EngineDispatchResult = EngineDispatchResult(

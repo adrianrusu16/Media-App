@@ -95,7 +95,7 @@ fn project_track(track: EngineTrack) -> MediaItem {
         artist: track.artist.name,
         album: track.album.map(|album| album.title),
         duration_millis: Some(track.duration_millis),
-        thumbnail_url: track.artwork_id,
+        thumbnail_url: track.artwork.and_then(|artwork| artwork.uri),
         ..Default::default()
     }
 }
@@ -142,7 +142,11 @@ mod tests {
             album: None,
             duration_millis: 42,
             explicit: false,
-            artwork_id: Some("art-1".into()),
+            artwork: Some(crate::EngineArtwork {
+                id: "art-1".into(),
+                content_hash: "hash-1".into(),
+                uri: Some("https://example.com/artwork/art-1/hash-1".into()),
+            }),
             genres: vec![],
         }
     }

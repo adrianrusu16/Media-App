@@ -19,7 +19,7 @@ internal data class CatalogPage(
     val generation: Long,
     val totalCount: Int,
     val items: List<BambooCatalogNode>,
-    val hasNextPage: Boolean,
+    val hasNextPage: Boolean
 ) {
     companion object {
         fun empty(generation: Long = 0L): CatalogPage = CatalogPage(
@@ -27,7 +27,7 @@ internal data class CatalogPage(
             generation = generation,
             totalCount = 0,
             items = emptyList(),
-            hasNextPage = false,
+            hasNextPage = false
         )
     }
 }
@@ -37,17 +37,14 @@ internal interface BambooCatalogSource {
     fun search(query: String, offset: Int, limit: Int): CatalogPage
     fun item(mediaId: String): BambooCatalogNode?
 
-    fun children(parentId: String, page: Int, pageSize: Int): List<BambooCatalogNode> =
-        browse(
-            parentId = parentId,
-            offset = pageOffset(page, pageSize),
-            limit = pageSize,
-        ).items
+    fun children(parentId: String, page: Int, pageSize: Int): List<BambooCatalogNode> = browse(
+        parentId = parentId,
+        offset = pageOffset(page, pageSize),
+        limit = pageSize
+    ).items
 }
 
-internal class EngineBambooCatalogSource(
-    private val engineGateway: EngineGateway,
-) : BambooCatalogSource {
+internal class EngineBambooCatalogSource(private val engineGateway: EngineGateway) : BambooCatalogSource {
     private val catalogLock = Any()
     private val itemCache = LinkedHashMap<String, BambooCatalogNode>()
     private val browseState = CatalogQueryState()
@@ -84,11 +81,11 @@ internal class EngineBambooCatalogSource(
                             EngineCommand.TYPE_SEARCH,
                             EngineCommandPayloads.searchCatalog(
                                 query = query,
-                                pageSize = catalogRequestSize(limit),
-                            ),
+                                pageSize = catalogRequestSize(limit)
+                            )
                         ),
                         countOf = EngineSnapshot::searchResultsCount,
-                        pageAt = engineGateway::searchResultsPage,
+                        pageAt = engineGateway::searchResultsPage
                     )
                 }
             }
@@ -106,7 +103,7 @@ internal class EngineBambooCatalogSource(
             browse(
                 parentId = parentId,
                 offset = pageOffset(page, pageSize),
-                limit = pageSize,
+                limit = pageSize
             ).items
         }
 
@@ -115,7 +112,7 @@ internal class EngineBambooCatalogSource(
         title = "PandaWave",
         isBrowsable = true,
         isPlayable = false,
-        catalogItemType = EngineCatalogItem.TYPE_FOLDER,
+        catalogItemType = EngineCatalogItem.TYPE_FOLDER
     )
 
     private val rootChildren = listOf(
@@ -125,7 +122,7 @@ internal class EngineBambooCatalogSource(
             subtitle = "Albums, artists, and playlists",
             isBrowsable = true,
             isPlayable = false,
-            catalogItemType = EngineCatalogItem.TYPE_FOLDER,
+            catalogItemType = EngineCatalogItem.TYPE_FOLDER
         ),
         BambooCatalogNode(
             mediaId = "pandawave.library.downloads",
@@ -133,7 +130,7 @@ internal class EngineBambooCatalogSource(
             subtitle = "Offline-ready music",
             isBrowsable = true,
             isPlayable = false,
-            catalogItemType = EngineCatalogItem.TYPE_FOLDER,
+            catalogItemType = EngineCatalogItem.TYPE_FOLDER
         ),
         BambooCatalogNode(
             mediaId = LibraryItems.HISTORY_MEDIA_ID,
@@ -141,7 +138,7 @@ internal class EngineBambooCatalogSource(
             subtitle = "Listening history from PandaEngine",
             isBrowsable = true,
             isPlayable = false,
-            catalogItemType = EngineCatalogItem.TYPE_FOLDER,
+            catalogItemType = EngineCatalogItem.TYPE_FOLDER
         )
     )
 
@@ -155,11 +152,11 @@ internal class EngineBambooCatalogSource(
                 EngineCommand.TYPE_BROWSE,
                 EngineCommandPayloads.browseCatalog(
                     parentId = parentId.toEngineParentId(),
-                    pageSize = catalogRequestSize(limit),
-                ),
+                    pageSize = catalogRequestSize(limit)
+                )
             ),
             countOf = EngineSnapshot::browseResultsCount,
-            pageAt = engineGateway::browseResultsPage,
+            pageAt = engineGateway::browseResultsPage
         )
         return if (parentId == LibraryItems.ROOT_MEDIA_ID && page.items.isEmpty()) {
             rememberItems(rootChildren)
@@ -168,7 +165,7 @@ internal class EngineBambooCatalogSource(
                 generation = page.generation,
                 totalCount = rootChildren.size,
                 items = rootChildren.paged(offset = offset, limit = limit),
-                hasNextPage = offset + limit < rootChildren.size,
+                hasNextPage = offset + limit < rootChildren.size
             )
         } else {
             page
@@ -182,7 +179,7 @@ internal class EngineBambooCatalogSource(
         limit: Int,
         initialCommand: EngineCommand,
         countOf: (EngineSnapshot) -> Int,
-        pageAt: (Int, Int) -> List<EngineCatalogItem>,
+        pageAt: (Int, Int) -> List<EngineCatalogItem>
     ): CatalogPage {
         val requestSize = catalogRequestSize(limit)
         val requiredCount = offset + limit
@@ -196,8 +193,8 @@ internal class EngineBambooCatalogSource(
             val outcome = engineGateway.dispatch(
                 EngineCommand(
                     EngineCommand.TYPE_LOAD_NEXT_CATALOG_PAGE,
-                    EngineCommandPayloads.loadNextCatalogPage(operationId),
-                ),
+                    EngineCommandPayloads.loadNextCatalogPage(operationId)
+                )
             )
             val previousCount = state.items.size
             replaceAccumulated(state, outcome, requestSize, countOf, pageAt)
@@ -211,7 +208,7 @@ internal class EngineBambooCatalogSource(
             generation = state.generation,
             totalCount = state.items.size,
             items = state.items.paged(offset = offset, limit = limit),
-            hasNextPage = state.hasNextPage || offset + limit < state.items.size,
+            hasNextPage = state.hasNextPage || offset + limit < state.items.size
         )
     }
 
@@ -220,7 +217,7 @@ internal class EngineBambooCatalogSource(
         outcome: EngineDispatchResult,
         requestSize: Int,
         countOf: (EngineSnapshot) -> Int,
-        pageAt: (Int, Int) -> List<EngineCatalogItem>,
+        pageAt: (Int, Int) -> List<EngineCatalogItem>
     ) {
         val snapshot = outcome.snapshot
         val total = countOf(snapshot).coerceAtLeast(0)
@@ -243,8 +240,8 @@ internal class EngineBambooCatalogSource(
                 appendHistoryPage(
                     EngineCommand(
                         EngineCommand.TYPE_LIST_HISTORY,
-                        EngineCommandPayloads.historyPage(requestSize),
-                    ),
+                        EngineCommandPayloads.historyPage(requestSize)
+                    )
                 )
             }
         }
@@ -257,7 +254,7 @@ internal class EngineBambooCatalogSource(
             generation = currentKey?.generation ?: 0L,
             totalCount = historyCache.size,
             items = historyCache.paged(offset = offset, limit = limit),
-            hasNextPage = hasHistoryNextPage || offset + limit < historyCache.size,
+            hasNextPage = hasHistoryNextPage || offset + limit < historyCache.size
         )
     }
 
@@ -268,7 +265,7 @@ internal class EngineBambooCatalogSource(
         historyCache += engineGateway.historyPage(
             offset = 0,
             limit = snapshot.historyEntriesCount.coerceIn(0, MAX_HISTORY_PAGE_SIZE),
-            generation = snapshot.historyGeneration,
+            generation = snapshot.historyGeneration
         ).items.mapNotNull(EngineHistoryItem::toCatalogNode)
         hasHistoryNextPage = snapshot.hasHistoryNextPage
     }
@@ -286,35 +283,34 @@ internal class BambooMediaLibraryCatalog(private val source: BambooCatalogSource
             source.children(
                 parentId = parentId,
                 page = page,
-                pageSize = pageSize,
+                pageSize = pageSize
             ).map { node -> node.toMediaItem() }
         }
 
-    fun browse(parentId: String, page: Int, pageSize: Int): CatalogPage =
-        source.browse(
-            parentId = parentId,
-            offset = pageOffset(page, pageSize),
-            limit = pageSize,
-        )
+    fun browse(parentId: String, page: Int, pageSize: Int): CatalogPage = source.browse(
+        parentId = parentId,
+        offset = pageOffset(page, pageSize),
+        limit = pageSize
+    )
 
     fun search(query: String, page: Int, pageSize: Int): List<MediaItem> =
         PandaTrace.section("PW.Media3.Catalog.search") {
             source.search(
                 query = query,
                 offset = pageOffset(page, pageSize),
-                limit = pageSize,
+                limit = pageSize
             ).items.map { node -> node.toMediaItem() }
         }
 
-    fun searchPage(query: String, page: Int, pageSize: Int): CatalogPage =
-        source.search(
-            query = query,
-            offset = pageOffset(page, pageSize),
-            limit = pageSize,
-        )
+    fun searchPage(query: String, page: Int, pageSize: Int): CatalogPage = source.search(
+        query = query,
+        offset = pageOffset(page, pageSize),
+        limit = pageSize
+    )
 
     fun item(mediaId: String): MediaItem? = when (mediaId) {
         LibraryItems.ROOT_MEDIA_ID -> LibraryItems.Root
+
         else -> source.item(mediaId)?.toMediaItem()
             ?: BambooMediaLibraryPlaybackSelection.playableMetadataItem(mediaId)
                 .takeIf { mediaId.isNotBlank() }
@@ -356,7 +352,7 @@ private class CatalogQueryState {
 
 private fun EngineGateway.catalogPages(
     count: Int,
-    pageAt: (Int, Int) -> List<EngineCatalogItem>,
+    pageAt: (Int, Int) -> List<EngineCatalogItem>
 ): List<EngineCatalogItem> {
     val total = count.coerceAtLeast(0)
     if (total == 0) return emptyList()
@@ -380,7 +376,7 @@ private fun EngineCatalogItem.toCatalogNode(): BambooCatalogNode = BambooCatalog
     isPlayable = itemType.isPlayableCatalogType(),
     artist = artist.takeUnless { value -> value.isNullOrBlank() },
     album = album.takeUnless { value -> value.isNullOrBlank() },
-    catalogItemType = itemType,
+    catalogItemType = itemType
 )
 
 private fun EngineHistoryItem.toCatalogNode(): BambooCatalogNode? {
@@ -398,7 +394,7 @@ private fun EngineHistoryItem.toCatalogNode(): BambooCatalogNode? {
         isPlayable = playable,
         artist = artist.takeUnless { value -> value.isNullOrBlank() },
         album = album.takeUnless { value -> value.isNullOrBlank() },
-        catalogItemType = EngineCatalogItem.TYPE_TRACK,
+        catalogItemType = EngineCatalogItem.TYPE_TRACK
     )
 }
 
@@ -424,11 +420,7 @@ private fun String.toEngineParentId(): String = when (this) {
     else -> this
 }
 
-private data class HistoryCacheKey(
-    val accountId: String,
-    val sessionId: String,
-    val generation: Long,
-)
+private data class HistoryCacheKey(val accountId: String, val sessionId: String, val generation: Long)
 
 private fun EngineSnapshot.historyCacheKey(): HistoryCacheKey? {
     val accountId = authState.account?.id?.takeIf(String::isNotBlank) ?: return null
@@ -454,11 +446,17 @@ private fun BambooCatalogNode.toMediaItem(): MediaItem = MediaItem.Builder()
 
 private fun Int?.toMediaMetadataType(isBrowsable: Boolean, isPlayable: Boolean): Int = when (this) {
     EngineCatalogItem.TYPE_TRACK -> MediaMetadata.MEDIA_TYPE_MUSIC
+
     EngineCatalogItem.TYPE_ARTIST -> MediaMetadata.MEDIA_TYPE_ARTIST
+
     EngineCatalogItem.TYPE_ALBUM -> MediaMetadata.MEDIA_TYPE_ALBUM
+
     EngineCatalogItem.TYPE_FOLDER -> MediaMetadata.MEDIA_TYPE_FOLDER_MIXED
+
     EngineCatalogItem.TYPE_PLAYLIST -> MediaMetadata.MEDIA_TYPE_PLAYLIST
+
     EngineCatalogItem.TYPE_RADIO_STATION -> MediaMetadata.MEDIA_TYPE_RADIO_STATION
+
     else -> when {
         isBrowsable -> MediaMetadata.MEDIA_TYPE_FOLDER_MIXED
         isPlayable -> MediaMetadata.MEDIA_TYPE_MUSIC

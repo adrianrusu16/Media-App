@@ -13,7 +13,7 @@ internal object BambooMediaSessionControllerPolicy {
         sessionPackageName: String,
         isMediaNotificationController: Boolean,
         isAutomotiveController: Boolean,
-        isAutoCompanionController: Boolean,
+        isAutoCompanionController: Boolean
     ): Boolean {
         if (controllerPackageName == sessionPackageName) return true
         return isMediaNotificationController || isAutomotiveController || isAutoCompanionController

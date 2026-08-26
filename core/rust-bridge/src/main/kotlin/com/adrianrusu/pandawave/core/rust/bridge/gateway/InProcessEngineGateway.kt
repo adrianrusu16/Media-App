@@ -77,8 +77,7 @@ class InProcessEngineGateway(private val engine: RustEngine) :
             engine.loginPassword(email, password, deviceLabel)
         }.also { notifySnapshotChanged(engine.snapshot()) }
 
-    override fun logout(): EngineAuthOperationResult =
-        engine.logout().also { notifySnapshotChanged(engine.snapshot()) }
+    override fun logout(): EngineAuthOperationResult = engine.logout().also { notifySnapshotChanged(engine.snapshot()) }
 
     private inline fun withSecret(
         secret: ByteArray,

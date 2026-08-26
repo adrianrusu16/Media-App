@@ -49,7 +49,7 @@ class BambooMediaLibraryPlaybackSelectionTest {
             listOf(
                 MediaItem.Builder().setMediaId(" track-1 ").build(),
                 MediaItem.Builder().setMediaId(" ").build(),
-                MediaItem.Builder().setMediaId("track-2").build(),
+                MediaItem.Builder().setMediaId("track-2").build()
             )
         )
 

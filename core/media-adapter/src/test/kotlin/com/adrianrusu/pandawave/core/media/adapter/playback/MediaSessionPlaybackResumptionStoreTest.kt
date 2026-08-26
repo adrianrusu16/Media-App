@@ -13,7 +13,7 @@ class MediaSessionPlaybackResumptionStoreTest {
         store.save(
             mediaIds = listOf("track-1", "https://cdn.example/should-not-be-required", "track-3"),
             startIndex = 2,
-            positionMillis = 12_000L,
+            positionMillis = 12_000L
         )
 
         val loaded = store.load()
@@ -49,7 +49,8 @@ private class InMemorySharedPreferences : SharedPreferences {
     override fun getAll(): MutableMap<String, *> = values
     override fun getString(key: String?, defValue: String?): String? = values[key] as? String ?: defValue
     override fun getStringSet(key: String?, defValues: MutableSet<String>?): MutableSet<String>? =
-        @Suppress("UNCHECKED_CAST") (values[key] as? MutableSet<String>) ?: defValues
+        @Suppress("UNCHECKED_CAST")
+        (values[key] as? MutableSet<String>) ?: defValues
     override fun getInt(key: String?, defValue: Int): Int = values[key] as? Int ?: defValue
     override fun getLong(key: String?, defValue: Long): Long = values[key] as? Long ?: defValue
     override fun getFloat(key: String?, defValue: Float): Float = values[key] as? Float ?: defValue

@@ -46,4 +46,3 @@ private class RecordingAppShellRepository : AppShellRepository {
 
     override fun close() = Unit
 }
-

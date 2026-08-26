@@ -106,11 +106,11 @@ private fun SettingsScreen(
                 title = stringResource(R.string.pandawave_settings_history_clear_title),
                 body = stringResource(
                     R.string.pandawave_settings_history_clear_body,
-                    state.historyEntriesCount,
+                    state.historyEntriesCount
                 ),
                 actionLabel = stringResource(R.string.pandawave_settings_history_clear_action),
                 actionEnabled = !state.restriction.isRestricted,
-                onActionClick = { onIntent(SettingsIntent.ClearHistory) },
+                onActionClick = { onIntent(SettingsIntent.ClearHistory) }
             )
         }
         SettingsSwitchRow(
@@ -214,7 +214,7 @@ private fun SettingsSwitchRow(
     body: String,
     checked: Boolean,
     enabled: Boolean = true,
-    onCheckedChange: () -> Unit,
+    onCheckedChange: () -> Unit
 ) {
     BambooSwitchRow(
         title = title,

@@ -35,8 +35,10 @@ class DataStoreThemePreferenceRepository(
             emit(emptyPreferences())
         }
         .map { preferences ->
-            val preference = (preferences[ThemePreferenceProjectionKey]
-                ?: preferences[LegacyThemePreferenceKey])
+            val preference = (
+                preferences[ThemePreferenceProjectionKey]
+                    ?: preferences[LegacyThemePreferenceKey]
+                )
                 ?.let(PandaWaveThemePreference::fromWireOrNull)
                 ?: PandaWaveThemePreference.SystemDefault
             ThemePreferenceState.Ready(preference)

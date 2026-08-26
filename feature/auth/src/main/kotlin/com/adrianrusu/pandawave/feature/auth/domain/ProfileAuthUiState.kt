@@ -53,10 +53,7 @@ enum class ProfileAuthNotice : ProfileAuthEffect {
     LOGOUT_FAILED
 }
 
-data class ProfileAuthTransition(
-    val state: ProfileAuthUiState,
-    val effects: List<ProfileAuthEffect> = emptyList()
-)
+data class ProfileAuthTransition(val state: ProfileAuthUiState, val effects: List<ProfileAuthEffect> = emptyList())
 
 object ProfileAuthReducer {
     fun reduce(state: ProfileAuthUiState, event: ProfileAuthEvent): ProfileAuthTransition = when (event) {
@@ -77,10 +74,7 @@ object ProfileAuthReducer {
         ProfileAuthTransition(state)
     }
 
-    private fun logoutCompleted(
-        state: ProfileAuthUiState,
-        result: EngineAuthOperationResult
-    ): ProfileAuthTransition {
+    private fun logoutCompleted(state: ProfileAuthUiState, result: EngineAuthOperationResult): ProfileAuthTransition {
         if (state.logoutPhase != LogoutPhase.SUBMITTING) return ProfileAuthTransition(state)
         if (state.account == ProfileAccountUi.Anonymous) {
             val warning = result.status == EngineAuthOperationResult.STATUS_ERROR
@@ -113,10 +107,7 @@ object ProfileAuthReducer {
         )
     }
 
-    private fun snapshotChanged(
-        state: ProfileAuthUiState,
-        authState: EngineAuthState
-    ): ProfileAuthTransition {
+    private fun snapshotChanged(state: ProfileAuthUiState, authState: EngineAuthState): ProfileAuthTransition {
         val account = authState.toProfileAccount()
         if (account == ProfileAccountUi.Anonymous) {
             if (state.logoutPhase == LogoutPhase.SUBMITTING) {
@@ -147,14 +138,12 @@ object ProfileAuthReducer {
         ProfileAuthTransition(state)
     }
 
-    private fun warningEffect(
-        state: ProfileAuthUiState,
-        fallback: Boolean = false
-    ): List<ProfileAuthEffect> = if (state.remoteWarningPending || fallback) {
-        listOf(ProfileAuthNotice.REMOTE_LOGOUT_UNCONFIRMED)
-    } else {
-        emptyList()
-    }
+    private fun warningEffect(state: ProfileAuthUiState, fallback: Boolean = false): List<ProfileAuthEffect> =
+        if (state.remoteWarningPending || fallback) {
+            listOf(ProfileAuthNotice.REMOTE_LOGOUT_UNCONFIRMED)
+        } else {
+            emptyList()
+        }
 }
 
 private fun EngineAuthState.toProfileAccount(): ProfileAccountUi {

@@ -3,10 +3,10 @@ package com.adrianrusu.pandawave.feature.nowplaying.domain
 import com.adrianrusu.pandawave.core.audio.visualizer.VisualizerPermissionState
 import com.adrianrusu.pandawave.core.playback.BambooEngineConnectionStatus
 import com.adrianrusu.pandawave.core.playback.BambooEngineConnectionUiState
+import com.adrianrusu.pandawave.core.playback.BambooPlaybackControls
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackProgress
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackProgressAnchor
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackProgressProjector
-import com.adrianrusu.pandawave.core.playback.BambooPlaybackControls
 
 data class NowPlayingState(
     val mediaId: String? = null,

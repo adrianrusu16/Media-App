@@ -17,8 +17,7 @@ internal object BambooMediaLibraryPlaybackSelection {
         .setMediaMetadata(item.mediaMetadata)
         .build()
 
-    fun withoutLocalConfiguration(items: List<MediaItem>): List<MediaItem> =
-        items.map(::withoutLocalConfiguration)
+    fun withoutLocalConfiguration(items: List<MediaItem>): List<MediaItem> = items.map(::withoutLocalConfiguration)
 
     fun playableMetadataItem(mediaId: String, title: String? = null): MediaItem = MediaItem.Builder()
         .setMediaId(mediaId)

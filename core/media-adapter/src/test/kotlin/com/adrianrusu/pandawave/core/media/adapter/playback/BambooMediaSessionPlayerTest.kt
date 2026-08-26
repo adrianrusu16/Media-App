@@ -59,13 +59,11 @@ class BambooMediaSessionPlayerTest {
     }
 }
 
-private class RecordingForwardingDelegate(
-    var currentMediaItemIndex: Int = C.INDEX_UNSET
-) {
+private class RecordingForwardingDelegate(var currentMediaItemIndex: Int = C.INDEX_UNSET) {
     val calls = mutableListOf<String>()
     val proxy: Player = Proxy.newProxyInstance(
         Player::class.java.classLoader,
-        arrayOf(Player::class.java),
+        arrayOf(Player::class.java)
     ) { _, method, args ->
         calls += method.name
         when (method.name) {

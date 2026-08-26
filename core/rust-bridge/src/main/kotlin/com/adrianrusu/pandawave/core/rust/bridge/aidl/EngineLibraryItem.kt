@@ -13,7 +13,7 @@ data class EngineLibraryItem(
     val durationMillis: Long = 0L,
     val explicit: Boolean = false,
     val artworkId: String? = null,
-    val relationshipAtEpochMillis: Long,
+    val relationshipAtEpochMillis: Long
 ) : Parcelable {
     init {
         require(relationshipId.isNotBlank() && mediaId.isNotBlank() && title.isNotBlank())
@@ -30,7 +30,7 @@ data class EngineLibraryItem(
         durationMillis = parcel.readLong(),
         explicit = parcel.readInt() != 0,
         artworkId = parcel.readString(),
-        relationshipAtEpochMillis = parcel.readLong(),
+        relationshipAtEpochMillis = parcel.readLong()
     )
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {

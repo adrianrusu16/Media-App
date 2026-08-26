@@ -10,16 +10,21 @@ internal object PandaEngineNativeAuthOperationMapper {
         return runCatching {
             when (values[STATUS_INDEX]) {
                 EngineAuthOperationResult.STATUS_ACCEPTED -> EngineAuthOperationResult.accepted()
+
                 EngineAuthOperationResult.STATUS_REJECTED -> EngineAuthOperationResult.rejected()
+
                 EngineAuthOperationResult.STATUS_AUTHENTICATED ->
                     EngineAuthOperationResult.authenticated()
+
                 EngineAuthOperationResult.STATUS_ANONYMOUS -> EngineAuthOperationResult.anonymous()
+
                 EngineAuthOperationResult.STATUS_ERROR -> EngineAuthOperationResult.error(
                     errorType = values[ERROR_INDEX].ifBlank {
                         EngineAuthOperationResult.ERROR_UNKNOWN
                     },
                     retryAfterMillis = values[RETRY_INDEX].takeIf(String::isNotBlank)?.toLong()
                 )
+
                 else -> EngineAuthOperationResult.error(
                     EngineAuthOperationResult.ERROR_MAPPING_DEFECT
                 )

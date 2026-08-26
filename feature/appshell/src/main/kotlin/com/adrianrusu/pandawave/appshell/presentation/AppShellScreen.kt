@@ -20,9 +20,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
@@ -51,13 +51,13 @@ import com.adrianrusu.pandawave.core.ui.miniplayer.BambooMiniPlayer
 import com.adrianrusu.pandawave.core.ui.navigation.BambooNavigationItemModel
 import com.adrianrusu.pandawave.core.ui.navigation.BambooNavigationRail
 import com.adrianrusu.pandawave.feature.appshell.R
-import com.adrianrusu.pandawave.feature.home.HomeRoute
 import com.adrianrusu.pandawave.feature.auth.LoginRoute
 import com.adrianrusu.pandawave.feature.auth.RegisterRoute
 import com.adrianrusu.pandawave.feature.auth.domain.LogoutPhase
 import com.adrianrusu.pandawave.feature.auth.domain.ProfileAccountUi
 import com.adrianrusu.pandawave.feature.auth.domain.ProfileAuthNotice
 import com.adrianrusu.pandawave.feature.auth.presentation.ProfileAuthViewModel
+import com.adrianrusu.pandawave.feature.home.HomeRoute
 import com.adrianrusu.pandawave.feature.library.LibraryRoute
 import com.adrianrusu.pandawave.feature.nowplaying.NowPlayingRoute
 import com.adrianrusu.pandawave.feature.profile.ProfileRoute
@@ -76,7 +76,7 @@ fun AppShellScreen(
     onMoveTaskToBack: () -> Unit,
     modifier: Modifier = Modifier,
     openNowPlayingRequested: Boolean = false,
-    onOpenNowPlayingConsumed: () -> Unit = {},
+    onOpenNowPlayingConsumed: () -> Unit = {}
 ) {
     val backStack = rememberNavBackStack(HomeDestination)
     val navigator = remember(backStack) { PandaWaveNavigator(backStack) }
@@ -211,19 +211,19 @@ private fun AppShellContent(
                 entry<HomeDestination> {
                     HomeRoute(
                         modifier = Modifier.fillMaxSize(),
-                        onOpenNowPlaying = navigator::openNowPlaying,
+                        onOpenNowPlaying = navigator::openNowPlaying
                     )
                 }
                 entry<LibraryDestination> {
                     LibraryRoute(
                         modifier = Modifier.fillMaxSize(),
-                        onOpenNowPlaying = navigator::openNowPlaying,
+                        onOpenNowPlaying = navigator::openNowPlaying
                     )
                 }
                 entry<SearchDestination> {
                     SearchRoute(
                         modifier = Modifier.fillMaxSize(),
-                        onOpenNowPlaying = navigator::openNowPlaying,
+                        onOpenNowPlaying = navigator::openNowPlaying
                     )
                 }
                 entry<ProfileDestination> {
@@ -232,7 +232,8 @@ private fun AppShellContent(
                     val authAvailable by profileViewModel.isAvailable.collectAsStateWithLifecycle()
                     val canopyProfileViewModel: ProfileViewModel = hiltViewModel()
                     val canopyProfileState by canopyProfileViewModel.state.collectAsStateWithLifecycle()
-                    val accountSessionsState by canopyProfileViewModel.accountSessionsState.collectAsStateWithLifecycle()
+                    val accountSessionsState by
+                        canopyProfileViewModel.accountSessionsState.collectAsStateWithLifecycle()
                     var logoutWarning by remember { mutableStateOf<String?>(null) }
                     val remoteWarning = stringResource(R.string.pandawave_logout_remote_warning)
                     val failedWarning = stringResource(R.string.pandawave_logout_failed_warning)
@@ -317,6 +318,7 @@ private val PandaWaveDestination.icon: ImageVector
 
 private fun ProfileAccountUi.toProfileUiAccount(): ProfileUiAccount = when (this) {
     ProfileAccountUi.Anonymous -> ProfileUiAccount.Anonymous
+
     is ProfileAccountUi.Authenticated -> ProfileUiAccount.Authenticated(
         email = email,
         accountStatus = accountStatus,

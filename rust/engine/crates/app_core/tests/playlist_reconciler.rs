@@ -149,7 +149,7 @@ impl PlaylistPort for RecordingPlaylistPort {
                         album: None,
                         duration_millis: 0,
                         explicit: false,
-                        artwork_id: None,
+                        artwork: None,
                         genres: vec![],
                     },
                     position: position as u32,

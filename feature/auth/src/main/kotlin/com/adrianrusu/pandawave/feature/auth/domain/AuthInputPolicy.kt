@@ -13,15 +13,9 @@ enum class AuthFieldError {
     PASSWORD_TOO_LONG
 }
 
-data class AuthFieldFeedback(
-    val emailError: AuthFieldError? = null,
-    val passwordError: AuthFieldError? = null
-)
+data class AuthFieldFeedback(val emailError: AuthFieldError? = null, val passwordError: AuthFieldError? = null)
 
-data class AuthInputSubmission(
-    val feedback: AuthFieldFeedback,
-    val canSubmit: Boolean
-)
+data class AuthInputSubmission(val feedback: AuthFieldFeedback, val canSubmit: Boolean)
 
 object AuthInputPolicy {
     const val PASSWORD_MIN_CODE_POINTS = 8
@@ -85,11 +79,9 @@ object AuthInputPolicy {
 }
 
 object AuthFieldFeedbackPolicy {
-    fun onFocus(feedback: AuthFieldFeedback, field: AuthField): AuthFieldFeedback =
-        clear(feedback, field)
+    fun onFocus(feedback: AuthFieldFeedback, field: AuthField): AuthFieldFeedback = clear(feedback, field)
 
-    fun onEdit(feedback: AuthFieldFeedback, field: AuthField): AuthFieldFeedback =
-        clear(feedback, field)
+    fun onEdit(feedback: AuthFieldFeedback, field: AuthField): AuthFieldFeedback = clear(feedback, field)
 
     fun onBlur(
         feedback: AuthFieldFeedback,
@@ -99,6 +91,7 @@ object AuthFieldFeedbackPolicy {
         password: String
     ): AuthFieldFeedback = when (field) {
         AuthField.EMAIL -> feedback.copy(emailError = AuthInputPolicy.emailError(email))
+
         AuthField.PASSWORD -> feedback.copy(
             passwordError = AuthInputPolicy.passwordError(mode, password)
         )
@@ -115,9 +108,8 @@ object AuthFieldFeedbackPolicy {
         )
     }
 
-    private fun clear(feedback: AuthFieldFeedback, field: AuthField): AuthFieldFeedback =
-        when (field) {
-            AuthField.EMAIL -> feedback.copy(emailError = null)
-            AuthField.PASSWORD -> feedback.copy(passwordError = null)
-        }
+    private fun clear(feedback: AuthFieldFeedback, field: AuthField): AuthFieldFeedback = when (field) {
+        AuthField.EMAIL -> feedback.copy(emailError = null)
+        AuthField.PASSWORD -> feedback.copy(passwordError = null)
+    }
 }

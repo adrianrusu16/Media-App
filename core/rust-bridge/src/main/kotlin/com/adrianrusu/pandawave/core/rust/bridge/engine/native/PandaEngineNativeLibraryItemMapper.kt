@@ -24,7 +24,7 @@ internal object PandaEngineNativeLibraryItemMapper {
                 durationMillis = values[offset + 6].toLong(),
                 explicit = values[offset + 7] == "1",
                 artworkId = values[offset + 8].ifEmpty { null },
-                relationshipAtEpochMillis = values[offset + 9].toLong(),
+                relationshipAtEpochMillis = values[offset + 9].toLong()
             )
         }.getOrNull()
     }

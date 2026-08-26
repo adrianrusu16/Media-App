@@ -50,7 +50,7 @@ internal object FakePandaEngineReducer {
         EngineCommand.TYPE_LOAD_HISTORY_SETTINGS -> current.copy(
             hasHistorySettings = true,
             historyEnabled = true,
-            updatedAtEpochMillis = nowMillis,
+            updatedAtEpochMillis = nowMillis
         )
 
         EngineCommand.TYPE_LIST_HISTORY -> current.copy(
@@ -58,13 +58,13 @@ internal object FakePandaEngineReducer {
             historyEnabled = true,
             historyEntriesCount = 2,
             hasHistoryNextPage = true,
-            updatedAtEpochMillis = nowMillis,
+            updatedAtEpochMillis = nowMillis
         )
 
         EngineCommand.TYPE_LOAD_NEXT_HISTORY_PAGE -> current.copy(
             historyEntriesCount = 1,
             hasHistoryNextPage = false,
-            updatedAtEpochMillis = nowMillis,
+            updatedAtEpochMillis = nowMillis
         )
 
         EngineCommand.TYPE_CLEAR_HISTORY -> current.copy(
@@ -72,7 +72,7 @@ internal object FakePandaEngineReducer {
             hasHistoryNextPage = false,
             historyDeletedCount = current.historyEntriesCount.toLong(),
             historyGeneration = current.historyGeneration + 1,
-            updatedAtEpochMillis = nowMillis,
+            updatedAtEpochMillis = nowMillis
         )
 
         EngineCommand.TYPE_PLAY_MEDIA_BY_ID -> {

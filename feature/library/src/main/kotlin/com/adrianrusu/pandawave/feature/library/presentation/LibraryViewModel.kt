@@ -12,7 +12,7 @@ import javax.inject.Inject
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
     private val repository: LibraryRepository,
-    private val playbackRepository: BambooPlaybackRepository,
+    private val playbackRepository: BambooPlaybackRepository
 ) : ViewModel() {
     val state = repository.state
 
@@ -59,7 +59,8 @@ class LibraryViewModel @Inject constructor(
     fun selectPlaylist(playlistId: String) = repository.selectPlaylist(playlistId)
     fun addPlaylistTrack(playlistId: String, mediaId: String) = repository.addPlaylistTrack(playlistId, mediaId)
     fun removePlaylistTrack(playlistId: String, mediaId: String) = repository.removePlaylistTrack(playlistId, mediaId)
-    fun reorderPlaylist(playlistId: String, membershipIds: List<String>, expectedRevision: Long) = repository.reorderPlaylist(playlistId, membershipIds, expectedRevision)
+    fun reorderPlaylist(playlistId: String, membershipIds: List<String>, expectedRevision: Long) =
+        repository.reorderPlaylist(playlistId, membershipIds, expectedRevision)
 
     override fun onCleared() = Unit
 }

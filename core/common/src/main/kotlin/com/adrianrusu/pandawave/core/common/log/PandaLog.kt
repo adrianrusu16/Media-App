@@ -51,11 +51,9 @@ object PandaLog {
 
     fun i(tag: String, message: () -> String) = log(Log.INFO, tag, message)
 
-    fun w(tag: String, throwable: Throwable? = null, message: () -> String) =
-        log(Log.WARN, tag, message, throwable)
+    fun w(tag: String, throwable: Throwable? = null, message: () -> String) = log(Log.WARN, tag, message, throwable)
 
-    fun e(tag: String, throwable: Throwable? = null, message: () -> String) =
-        log(Log.ERROR, tag, message, throwable)
+    fun e(tag: String, throwable: Throwable? = null, message: () -> String) = log(Log.ERROR, tag, message, throwable)
 
     fun field(value: String?, maxChars: Int = MAX_FIELD_CHARS): String {
         if (value.isNullOrEmpty()) return ""
@@ -83,12 +81,7 @@ object PandaLog {
         }
     }
 
-    private fun log(
-        priority: Int,
-        tag: String,
-        message: () -> String,
-        throwable: Throwable? = null,
-    ) {
+    private fun log(priority: Int, tag: String, message: () -> String, throwable: Throwable? = null) {
         if (!shouldEmit(priority, tag)) return
         enqueue {
             val formatted = runCatching { PandaLogRedactor.redact(message()) }
@@ -147,7 +140,7 @@ private val WHITESPACE_REGEX = Regex("\\s+")
 private val QUERY_URL_REGEX = Regex("https?://[^\\s]+\\?[^\\s]*", RegexOption.IGNORE_CASE)
 private val EMAIL_REGEX = Regex("[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}")
 private val SENSITIVE_ASSIGNMENT_REGEX = Regex(
-    "(?i)\\b(password|passwd|token|authorization|apikey|api_key|secret)\\s*[=:]\\s*[^\\s]+",
+    "(?i)\\b(password|passwd|token|authorization|apikey|api_key|secret)\\s*[=:]\\s*[^\\s]+"
 )
 private const val MAX_FIELD_CHARS = 80
 private const val MAX_TITLE_LIST_ITEMS = 6

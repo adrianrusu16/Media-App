@@ -30,12 +30,7 @@ class PandaEngineSessionCryptor(private val protector: SecureSecretProtector) {
         plaintext.fill(0)
     }
 
-    fun open(
-        nonce: ByteArray,
-        ciphertext: ByteArray,
-        tag: ByteArray,
-        associatedData: ByteArray
-    ): ByteArray {
+    fun open(nonce: ByteArray, ciphertext: ByteArray, tag: ByteArray, associatedData: ByteArray): ByteArray {
         require(tag.size == GCM_TAG_LENGTH_BYTES) { "Encrypted session tag is invalid." }
         val combinedCiphertext = ciphertext + tag
         return try {

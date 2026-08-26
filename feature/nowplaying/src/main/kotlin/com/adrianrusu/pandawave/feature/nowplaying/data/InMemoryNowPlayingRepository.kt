@@ -36,9 +36,13 @@ internal class InMemoryNowPlayingRepository(private val playbackRepository: Bamb
     override fun dispatch(intent: NowPlayingIntent) {
         when (intent) {
             NowPlayingIntent.Refresh -> playbackRepository.dispatch(BambooPlaybackIntent.Refresh)
+
             NowPlayingIntent.TogglePlayback -> playbackRepository.dispatch(BambooPlaybackIntent.TogglePlayback)
+
             NowPlayingIntent.SkipPrevious -> playbackRepository.dispatch(BambooPlaybackIntent.SkipPrevious)
+
             NowPlayingIntent.SkipNext -> playbackRepository.dispatch(BambooPlaybackIntent.SkipNext)
+
             is NowPlayingIntent.SetVolume -> playbackRepository.dispatch(
                 BambooPlaybackIntent.SetVolume(intent.volume)
             )

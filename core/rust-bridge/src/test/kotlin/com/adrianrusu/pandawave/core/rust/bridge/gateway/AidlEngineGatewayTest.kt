@@ -8,10 +8,10 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineLibraryItem
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistReconciliation
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistTrackItem
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.pandawave.core.rust.bridge.engine.EngineDispatchResult
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
@@ -37,18 +37,18 @@ class AidlEngineGatewayTest {
             artistId = "artist-1",
             artist = "Artist",
             durationMillis = 120_000,
-            relationshipAtEpochMillis = 1_000,
+            relationshipAtEpochMillis = 1_000
         )
         val liked = saved.copy(relationshipId = "liked-1", mediaId = "track-2", title = "Liked")
         val service = RecordingEngineService(
             initialSnapshot = EngineSnapshot.idle(1L).copy(
                 savedTracksCount = 1,
                 likedTracksCount = 1,
-                libraryPendingCount = 1,
+                libraryPendingCount = 1
             ),
             saved = listOf(saved),
             liked = listOf(liked),
-            pending = listOf("track-pending"),
+            pending = listOf("track-pending")
         )
         val gateway = AidlEngineGateway(FakeEngineServiceConnection(service))
 
@@ -78,11 +78,11 @@ class AidlEngineGatewayTest {
             playedAtEpochMillis = 1_000L,
             listenedDurationMillis = 90_000L,
             completionRatio = 0.75F,
-            playable = true,
+            playable = true
         )
         val service = RecordingEngineService(
             initialSnapshot = EngineSnapshot.idle(1L).copy(historyEntriesCount = 1),
-            history = listOf(history),
+            history = listOf(history)
         )
         val gateway = AidlEngineGateway(FakeEngineServiceConnection(service))
 
@@ -90,7 +90,7 @@ class AidlEngineGatewayTest {
         assertNull(gateway.historyEntry(1))
         assertEquals(
             com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryPage(0L, listOf(history)),
-            gateway.historyPage(0, 10, 0L),
+            gateway.historyPage(0, 10, 0L)
         )
 
         val publicSurface = listOf(EngineHistoryItem::class.java, EngineService::class.java, EngineGateway::class.java)
@@ -117,14 +117,14 @@ class AidlEngineGatewayTest {
             explicit = false,
             artworkId = "artwork-1",
             position = 0,
-            addedAtEpochMillis = 1_500,
+            addedAtEpochMillis = 1_500
         )
         val reconciliation = EnginePlaylistReconciliation(
             playlistId = "playlist-1",
             expectedRevision = 7,
             serverRevision = 8,
             serverMembershipIds = listOf("membership-server"),
-            proposedMembershipIds = listOf("membership-local"),
+            proposedMembershipIds = listOf("membership-local")
         )
         val service = RecordingEngineService(
             initialSnapshot = EngineSnapshot.idle(1L).copy(
@@ -132,12 +132,12 @@ class AidlEngineGatewayTest {
                 playlistTracksCount = 1,
                 hasPlaylistsNextPage = true,
                 hasPlaylistTracksNextPage = true,
-                hasPlaylistReconciliation = true,
+                hasPlaylistReconciliation = true
             ),
             playlists = listOf(playlist),
             playlistTracks = listOf(track),
             selectedPlaylistId = "playlist-1",
-            reconciliation = reconciliation,
+            reconciliation = reconciliation
         )
         val gateway = AidlEngineGateway(FakeEngineServiceConnection(service))
 
@@ -146,8 +146,13 @@ class AidlEngineGatewayTest {
         assertEquals("playlist-1", gateway.selectedPlaylistId())
         assertEquals(reconciliation, gateway.playlistReconciliation())
 
-        val publicSurface = listOf(EnginePlaylistItem::class.java, EnginePlaylistTrackItem::class.java,
-            EnginePlaylistReconciliation::class.java, EngineService::class.java, EngineGateway::class.java)
+        val publicSurface = listOf(
+            EnginePlaylistItem::class.java,
+            EnginePlaylistTrackItem::class.java,
+            EnginePlaylistReconciliation::class.java,
+            EngineService::class.java,
+            EngineGateway::class.java
+        )
             .flatMap { type -> type.declaredFields.map { it.name } + type.methods.map { it.name } }
             .joinToString(" ")
             .lowercase()
@@ -806,7 +811,7 @@ class AidlEngineGatewayTest {
 
         assertEquals(
             List(protectedProfileMutations().size) { EngineEvent.TYPE_GATEWAY_UNAVAILABLE },
-            results.map { result -> result.event.type },
+            results.map { result -> result.event.type }
         )
     }
 
@@ -829,20 +834,25 @@ class AidlEngineGatewayTest {
         val historyMutations = listOf(
             EngineCommand(EngineCommand.TYPE_UPDATE_HISTORY_SETTINGS, "{\"version\":1,\"enabled\":false}"),
             EngineCommand(EngineCommand.TYPE_DELETE_HISTORY_ENTRY, "{\"version\":1,\"history_id\":\"history-1\"}"),
-            EngineCommand(EngineCommand.TYPE_CLEAR_HISTORY, null),
+            EngineCommand(EngineCommand.TYPE_CLEAR_HISTORY, null)
         )
 
         val commandResults = historyMutations.map(gateway::dispatch)
         val completionResult = gateway.dispatchPlatformEvent(
             EnginePlatformEvent(
                 EnginePlatformEvent.TYPE_PLAYBACK_COMPLETED,
-                "{\"version\":1,\"track_id\":\"track-1\",\"duration_ms\":1000,\"completion_ratio\":1.0}",
-            ),
+                "{\"version\":1,\"track_id\":\"track-1\",\"duration_ms\":1000,\"completion_ratio\":1.0}"
+            )
         )
         val service = RecordingEngineService(EngineSnapshot.idle(nowMillis = 100L))
         connection.connectService(service)
 
-        assertEquals(List(historyMutations.size) { EngineEvent.TYPE_GATEWAY_UNAVAILABLE }, commandResults.map { it.event.type })
+        assertEquals(
+            List(historyMutations.size) {
+                EngineEvent.TYPE_GATEWAY_UNAVAILABLE
+            },
+            commandResults.map { it.event.type }
+        )
         assertEquals(EngineEvent.TYPE_GATEWAY_UNAVAILABLE, completionResult.event.type)
         assertEquals(emptyList(), service.commandTypes)
         assertEquals(emptyList(), service.platformEventTypes)
@@ -858,11 +868,23 @@ class AidlEngineGatewayTest {
             EngineCommand(EngineCommand.TYPE_LIKE_TRACK, """{"version":1,"track_id":"track-1"}"""),
             EngineCommand(EngineCommand.TYPE_UNLIKE_TRACK, """{"version":1,"track_id":"track-1"}"""),
             EngineCommand(EngineCommand.TYPE_CREATE_PLAYLIST, """{"version":1,"name":"Road trip"}"""),
-            EngineCommand(EngineCommand.TYPE_UPDATE_PLAYLIST, """{"version":1,"playlist_id":"playlist-1","name":"Road trip","expected_revision":7}"""),
+            EngineCommand(
+                EngineCommand.TYPE_UPDATE_PLAYLIST,
+                """{"version":1,"playlist_id":"playlist-1","name":"Road trip","expected_revision":7}"""
+            ),
             EngineCommand(EngineCommand.TYPE_DELETE_PLAYLIST, """{"version":1,"playlist_id":"playlist-1"}"""),
-            EngineCommand(EngineCommand.TYPE_ADD_PLAYLIST_TRACK, """{"version":1,"playlist_id":"playlist-1","track_id":"track-1"}"""),
-            EngineCommand(EngineCommand.TYPE_REMOVE_PLAYLIST_TRACK, """{"version":1,"playlist_id":"playlist-1","track_id":"track-1"}"""),
-            EngineCommand(EngineCommand.TYPE_REORDER_PLAYLIST_TRACKS, """{"version":1,"playlist_id":"playlist-1","ordered_membership_ids":["membership-1"],"expected_revision":7}"""),
+            EngineCommand(
+                EngineCommand.TYPE_ADD_PLAYLIST_TRACK,
+                """{"version":1,"playlist_id":"playlist-1","track_id":"track-1"}"""
+            ),
+            EngineCommand(
+                EngineCommand.TYPE_REMOVE_PLAYLIST_TRACK,
+                """{"version":1,"playlist_id":"playlist-1","track_id":"track-1"}"""
+            ),
+            EngineCommand(
+                EngineCommand.TYPE_REORDER_PLAYLIST_TRACKS,
+                """{"version":1,"playlist_id":"playlist-1","ordered_membership_ids":["membership-1"],"expected_revision":7}"""
+            )
         )
 
         val results = mutations.map(gateway::dispatch)
@@ -879,8 +901,8 @@ class AidlEngineGatewayTest {
         EngineCommand(EngineCommand.TYPE_DELETE_PROFILE, null),
         EngineCommand(
             EngineCommand.TYPE_UPDATE_PROFILE_PREFERENCES,
-            "{\"preferences\":{\"theme\":\"dark\"}}",
-        ),
+            "{\"preferences\":{\"theme\":\"dark\"}}"
+        )
     )
 }
 
@@ -954,7 +976,7 @@ private class RecordingEngineService(
     private val playlists: List<EnginePlaylistItem> = emptyList(),
     private val playlistTracks: List<EnginePlaylistTrackItem> = emptyList(),
     private val selectedPlaylistId: String? = null,
-    private val reconciliation: EnginePlaylistReconciliation? = null,
+    private val reconciliation: EnginePlaylistReconciliation? = null
 ) : EngineService {
     private var currentSnapshot = initialSnapshot
     private var currentEffects: List<EngineEffect> = emptyList()
@@ -1041,7 +1063,7 @@ private class RecordingEngineService(
         return EngineDispatchResult(
             snapshot = currentSnapshot,
             event = EngineEvent(type = EngineEvent.TYPE_COMMAND_APPLIED, message = command.type),
-            effects = currentEffects,
+            effects = currentEffects
         )
     }
 
@@ -1054,7 +1076,7 @@ private class RecordingEngineService(
         return EngineDispatchResult(
             snapshot = currentSnapshot,
             event = EngineEvent(type = EngineEvent.TYPE_PLATFORM_EVENT_APPLIED, message = event.type),
-            effects = currentEffects,
+            effects = currentEffects
         )
     }
 
@@ -1070,9 +1092,7 @@ private class RecordingEngineService(
     }
 }
 
-private class DeadBinderAfterDispatchService(
-    private val initialSnapshot: EngineSnapshot,
-) : EngineService {
+private class DeadBinderAfterDispatchService(private val initialSnapshot: EngineSnapshot) : EngineService {
     val dispatchedCommands = mutableListOf<EngineCommand>()
 
     override fun snapshot(): EngineSnapshot {
@@ -1095,14 +1115,13 @@ private class DeadBinderAfterDispatchService(
         throw RemoteException("PandaEngine binder died")
     }
 
-    override fun dispatchPlatformEvent(event: EnginePlatformEvent): EngineDispatchResult {
+    override fun dispatchPlatformEvent(event: EnginePlatformEvent): EngineDispatchResult =
         throw RemoteException("PandaEngine binder died")
-    }
 }
 
 private class BlockingDispatchEngineService(
     private val dispatchEntered: CountDownLatch,
-    private val releaseDispatch: CountDownLatch,
+    private val releaseDispatch: CountDownLatch
 ) : EngineService {
     private val currentSnapshot = EngineSnapshot.idle(nowMillis = 1L)
 
@@ -1121,13 +1140,12 @@ private class BlockingDispatchEngineService(
         assertTrue(releaseDispatch.await(2, TimeUnit.SECONDS))
         return EngineDispatchResult(
             snapshot = currentSnapshot,
-            event = EngineEvent(type = EngineEvent.TYPE_COMMAND_APPLIED, message = command.type),
+            event = EngineEvent(type = EngineEvent.TYPE_COMMAND_APPLIED, message = command.type)
         )
     }
 
-    override fun dispatchPlatformEvent(event: EnginePlatformEvent): EngineDispatchResult =
-        EngineDispatchResult(
-            snapshot = currentSnapshot,
-            event = EngineEvent(type = EngineEvent.TYPE_PLATFORM_EVENT_APPLIED, message = event.type),
-        )
+    override fun dispatchPlatformEvent(event: EnginePlatformEvent): EngineDispatchResult = EngineDispatchResult(
+        snapshot = currentSnapshot,
+        event = EngineEvent(type = EngineEvent.TYPE_PLATFORM_EVENT_APPLIED, message = event.type)
+    )
 }

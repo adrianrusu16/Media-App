@@ -16,9 +16,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-class PandaEngineSearchRepository @Inject constructor(
-    private val engineGateway: EngineGateway,
-) : SearchRepository {
+class PandaEngineSearchRepository @Inject constructor(private val engineGateway: EngineGateway) : SearchRepository {
     private val mutableState = MutableStateFlow(SearchState())
     override val state: StateFlow<SearchState> = mutableState.asStateFlow()
 
@@ -49,14 +47,14 @@ class PandaEngineSearchRepository @Inject constructor(
             errorType = null,
             isRetryableError = false,
             hasNextPage = false,
-            generation = generation,
+            generation = generation
         )
         dispatch(
             EngineCommand(
                 EngineCommand.TYPE_SEARCH,
-                EngineCommandPayloads.searchCatalog(normalized, PAGE_SIZE),
+                EngineCommandPayloads.searchCatalog(normalized, PAGE_SIZE)
             ),
-            generation = generation,
+            generation = generation
         )
     }
 
@@ -70,7 +68,7 @@ class PandaEngineSearchRepository @Inject constructor(
             errorType = null,
             isRetryableError = false,
             hasNextPage = false,
-            generation = searchGeneration,
+            generation = searchGeneration
         )
     }
 
@@ -81,9 +79,9 @@ class PandaEngineSearchRepository @Inject constructor(
         dispatch(
             EngineCommand(
                 EngineCommand.TYPE_LOAD_NEXT_CATALOG_PAGE,
-                EngineCommandPayloads.loadNextCatalogPage(id),
+                EngineCommandPayloads.loadNextCatalogPage(id)
             ),
-            generation = current.generation,
+            generation = current.generation
         )
     }
 
@@ -103,7 +101,7 @@ class PandaEngineSearchRepository @Inject constructor(
             mutableState.value = mutableState.value.copy(
                 isLoading = false,
                 errorType = EngineSnapshot.ERROR_NETWORK,
-                isRetryableError = true,
+                isRetryableError = true
             )
             return
         }
@@ -118,7 +116,7 @@ class PandaEngineSearchRepository @Inject constructor(
         mutableState.value = current.copy(
             isLoading = snapshot.isBusy,
             errorType = snapshot.errorType.takeIf { snapshot.hasError },
-            isRetryableError = snapshot.hasError && snapshot.errorType == EngineSnapshot.ERROR_NETWORK,
+            isRetryableError = snapshot.hasError && snapshot.errorType == EngineSnapshot.ERROR_NETWORK
         )
     }
 
@@ -132,7 +130,7 @@ class PandaEngineSearchRepository @Inject constructor(
             errorType = snapshot.errorType.takeIf { snapshot.hasError },
             isRetryableError = snapshot.hasError && snapshot.errorType == EngineSnapshot.ERROR_NETWORK,
             hasNextPage = !snapshot.hasError && results.size >= PAGE_SIZE && total >= PAGE_SIZE,
-            generation = generation,
+            generation = generation
         )
         PandaLog.i(PandaLog.Tag.SEARCH) {
             "search.shown generation=$generation count=${results.size}/$total " +
@@ -168,7 +166,7 @@ private fun EngineCatalogItem.toSearchTrack() = SearchTrack(
     mediaId = mediaId,
     title = title,
     artist = artist.orEmpty(),
-    album = album,
+    album = album
 )
 
 private const val SEARCH_PAGE_QUERY_SIZE = 50

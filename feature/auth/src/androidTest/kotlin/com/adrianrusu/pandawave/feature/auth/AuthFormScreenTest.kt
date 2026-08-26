@@ -69,9 +69,7 @@ class AuthFormScreenTest {
         compose.runOnIdle { assertEquals(0, submissions) }
     }
 
-    private fun setRegisterContent(
-        onSubmit: (String, ByteArray) -> Unit = { _, password -> password.fill(0) }
-    ) {
+    private fun setRegisterContent(onSubmit: (String, ByteArray) -> Unit = { _, password -> password.fill(0) }) {
         compose.setContent {
             PandaWaveTheme(darkTheme = true) {
                 AuthFormScreen(

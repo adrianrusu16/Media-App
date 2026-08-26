@@ -52,6 +52,7 @@ class ProfileRouteTest {
         compose.onNodeWithText("provider-subject").assertDoesNotExist()
         compose.onNodeWithText("token-expiry").assertDoesNotExist()
     }
+
     @Test
     fun authenticatedProfileProjectsDisplayNameAndForwardsUpdate() {
         val updates = mutableListOf<String?>()

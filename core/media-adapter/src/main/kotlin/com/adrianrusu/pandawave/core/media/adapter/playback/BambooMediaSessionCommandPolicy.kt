@@ -7,10 +7,7 @@ import com.adrianrusu.pandawave.core.playback.BambooPlaybackControls
 
 @UnstableApi
 internal object BambooMediaSessionCommandPolicy {
-    fun availablePlayerCommands(
-        playerCommands: Player.Commands,
-        controls: BambooPlaybackControls
-    ): Player.Commands =
+    fun availablePlayerCommands(playerCommands: Player.Commands, controls: BambooPlaybackControls): Player.Commands =
         Player.Commands.Builder()
             .apply {
                 availableCommandTypes(
@@ -26,10 +23,7 @@ internal object BambooMediaSessionCommandPolicy {
     fun availablePlayerCommands(playerCommands: Player.Commands, controlsEnabled: Boolean): Player.Commands =
         availablePlayerCommands(playerCommands, controlsFor(controlsEnabled))
 
-    fun availableCommandTypes(
-        supportedCommandTypes: Set<Int>,
-        controls: BambooPlaybackControls
-    ): Set<Int> = buildSet {
+    fun availableCommandTypes(supportedCommandTypes: Set<Int>, controls: BambooPlaybackControls): Set<Int> = buildSet {
         MetadataCommandTypes.forEach { command ->
             if (command in supportedCommandTypes) {
                 add(command)

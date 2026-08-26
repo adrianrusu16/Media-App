@@ -26,7 +26,7 @@ internal class Media3EngineEffectExecutor(
     private val currentProjection: () -> BambooMediaSessionStateProjection? = { null },
     private val recreatePlayer: () -> Unit = {},
     private val notifyUser: (String) -> Unit = {},
-    private val onAudioFocusRequestResult: (BambooAudioFocusRequestResult) -> Unit = {},
+    private val onAudioFocusRequestResult: (BambooAudioFocusRequestResult) -> Unit = {}
 ) : BambooPlaybackEffectExecutor {
     private val telemetryLogger = telemetryLogger.forModule(TelemetryModule.Media3)
 
@@ -37,12 +37,14 @@ internal class Media3EngineEffectExecutor(
                 effect.type == EngineEffect.TYPE_REQUEST_AUDIO_FOCUS -> {
                     focusRequestResult = requestAudioFocus(effect)
                 }
+
                 effect.type == EngineEffect.TYPE_PLAY &&
                     focusRequestResult != null &&
                     focusRequestResult != BambooAudioFocusRequestResult.Granted -> {
                     logEffectReceived(effect)
                     logAudioFocusNotGranted(effect, checkNotNull(focusRequestResult))
                 }
+
                 else -> execute(effect)
             }
         }
@@ -72,7 +74,7 @@ internal class Media3EngineEffectExecutor(
         onAudioFocusRequestResult(result)
         telemetryLogger.info(
             name = Media3EffectTelemetryEvents.AUDIO_FOCUS_REQUESTED,
-            attributes = mapOf(Media3EffectTelemetryAttributes.RESULT to result.wireValue),
+            attributes = mapOf(Media3EffectTelemetryAttributes.RESULT to result.wireValue)
         )
         return result
     }
@@ -81,21 +83,18 @@ internal class Media3EngineEffectExecutor(
         PandaLog.d(PandaLog.Tag.MEDIA) { "effect_received type=${effect.type}" }
         telemetryLogger.debug(
             name = Media3EffectTelemetryEvents.EFFECT_RECEIVED,
-            attributes = mapOf(Media3EffectTelemetryAttributes.EFFECT_TYPE to effect.type),
+            attributes = mapOf(Media3EffectTelemetryAttributes.EFFECT_TYPE to effect.type)
         )
     }
 
-    private fun logAudioFocusNotGranted(
-        effect: EngineEffect,
-        result: BambooAudioFocusRequestResult,
-    ) {
+    private fun logAudioFocusNotGranted(effect: EngineEffect, result: BambooAudioFocusRequestResult) {
         telemetryLogger.warning(
             name = Media3EffectTelemetryEvents.EFFECT_IGNORED,
             attributes = mapOf(
                 Media3EffectTelemetryAttributes.EFFECT_TYPE to effect.type,
                 Media3EffectTelemetryAttributes.REASON to Media3EffectTelemetryValues.AUDIO_FOCUS_NOT_GRANTED,
-                Media3EffectTelemetryAttributes.RESULT to result.wireValue,
-            ),
+                Media3EffectTelemetryAttributes.RESULT to result.wireValue
+            )
         )
     }
 
@@ -133,7 +132,7 @@ internal class Media3EngineEffectExecutor(
                 remainingMs?.let { remaining ->
                     put(Media3EffectTelemetryAttributes.REMAINING_MS, remaining.toString())
                 }
-            },
+            }
         )
         PandaLog.i(PandaLog.Tag.PLAYER) {
             "source_prepared instance=$playbackInstanceId trackId=$mediaId position_ms=$startPositionMillis " +

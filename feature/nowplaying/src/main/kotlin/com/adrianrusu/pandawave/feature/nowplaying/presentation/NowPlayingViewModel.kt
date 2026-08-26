@@ -160,24 +160,24 @@ class NowPlayingViewModel @Inject constructor(
             var realVisualizerRunning = false
             ambientEligibility
                 .map { eligibility ->
-                eligibility.ambientPermitted &&
-                    eligibility.isPlaying &&
-                    eligibility.hasUsableAmplitudeSource
+                    eligibility.ambientPermitted &&
+                        eligibility.isPlaying &&
+                        eligibility.hasUsableAmplitudeSource
                 }
                 .distinctUntilChanged()
                 .collect { shouldRun ->
-                when {
-                    shouldRun && !realVisualizerRunning -> {
-                        visualizer.start()
-                        realVisualizerRunning = true
-                    }
+                    when {
+                        shouldRun && !realVisualizerRunning -> {
+                            visualizer.start()
+                            realVisualizerRunning = true
+                        }
 
-                    !shouldRun && realVisualizerRunning -> {
-                        visualizer.stop()
-                        realVisualizerRunning = false
+                        !shouldRun && realVisualizerRunning -> {
+                            visualizer.stop()
+                            realVisualizerRunning = false
+                        }
                     }
                 }
-            }
         }
 
         viewModelScope.launch {
@@ -221,17 +221,21 @@ class NowPlayingViewModel @Inject constructor(
                     "${action}_requested trackId=$trackId title=$title"
                 }
             }
+
             NowPlayingIntent.SkipNext -> {
                 PandaLog.v(PandaLog.Tag.NPS) { "click action=skip_next trackId=$trackId title=$title" }
                 PandaLog.i(PandaLog.Tag.NPS) { "skip_next_requested trackId=$trackId title=$title" }
             }
+
             NowPlayingIntent.SkipPrevious -> {
                 PandaLog.v(PandaLog.Tag.NPS) { "click action=skip_previous trackId=$trackId title=$title" }
                 PandaLog.i(PandaLog.Tag.NPS) { "skip_previous_requested trackId=$trackId title=$title" }
             }
+
             is NowPlayingIntent.SetVolume -> {
                 PandaLog.v(PandaLog.Tag.NPS) { "click action=set_volume volume=${intent.volume}" }
             }
+
             NowPlayingIntent.Refresh -> {
                 PandaLog.d(PandaLog.Tag.NPS) { "refresh_requested trackId=$trackId" }
             }

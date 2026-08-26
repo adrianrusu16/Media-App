@@ -3,9 +3,7 @@ package com.adrianrusu.pandawave.core.rust.bridge.gateway
 import java.util.concurrent.Executor
 
 /** Serializes tasks without prescribing which thread executes them. */
-internal class SerialExecutor(
-    private val delegate: Executor,
-) : Executor {
+internal class SerialExecutor(private val delegate: Executor) : Executor {
     private val lock = Any()
     private val tasks = ArrayDeque<Runnable>()
     private var running = false

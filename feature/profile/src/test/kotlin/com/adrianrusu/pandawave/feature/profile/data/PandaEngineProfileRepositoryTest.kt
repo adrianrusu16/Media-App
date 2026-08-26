@@ -1,9 +1,9 @@
 package com.adrianrusu.pandawave.feature.profile.data
 
 import com.adrianrusu.pandawave.core.model.theme.PandaWaveThemePreference
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthState
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAccount
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthSession
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthState
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
@@ -14,8 +14,8 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineThemePreference
 import com.adrianrusu.pandawave.core.rust.bridge.engine.EngineDispatchResult
 import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineGateway
-import com.adrianrusu.pandawave.feature.profile.domain.ProfileState
 import com.adrianrusu.pandawave.feature.profile.domain.AccountSessionsState
+import com.adrianrusu.pandawave.feature.profile.domain.ProfileState
 import java.util.concurrent.Executor
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -87,7 +87,7 @@ class PandaEngineProfileRepositoryTest {
 
         for (transition in listOf(
             authenticatedSnapshot("account-2", "session-1", true),
-            authenticatedSnapshot("account-1", "session-2", true),
+            authenticatedSnapshot("account-1", "session-2", true)
         )) {
             engine.emit(transition)
             assertIs<AccountSessionsState.Loading>(repository.accountSessionsState.value)
@@ -204,12 +204,13 @@ class PandaEngineProfileRepositoryTest {
 
         assertIs<ProfileState.Missing>(repository.state.value)
     }
+
     @Test
     fun `authenticated profile not found is an actionable missing state`() {
         val snapshot = authenticatedSnapshot().copy(
             profile = null,
             hasError = true,
-            errorType = EngineSnapshot.ERROR_NOT_FOUND,
+            errorType = EngineSnapshot.ERROR_NOT_FOUND
         )
         val repository = PandaEngineProfileRepository(RecordingEngineGateway(snapshot), Executor { it.run() })
 
@@ -217,6 +218,7 @@ class PandaEngineProfileRepositoryTest {
 
         assertIs<ProfileState.Missing>(repository.state.value)
     }
+
     @Test
     fun `unavailable non replayable mutation exposes retry classification`() {
         val engine = RecordingEngineGateway(
@@ -285,11 +287,10 @@ private class RecordingEngineGateway(
         )
     }
 
-    override fun dispatchPlatformEvent(event: EnginePlatformEvent): EngineDispatchResult =
-        EngineDispatchResult(
-            snapshot = current,
-            event = EngineEvent(EngineEvent.TYPE_PLATFORM_EVENT_APPLIED, event.type)
-        )
+    override fun dispatchPlatformEvent(event: EnginePlatformEvent): EngineDispatchResult = EngineDispatchResult(
+        snapshot = current,
+        event = EngineEvent(EngineEvent.TYPE_PLATFORM_EVENT_APPLIED, event.type)
+    )
 
     override fun observeSnapshots(listener: (EngineSnapshot) -> Unit): AutoCloseable {
         listeners += listener
@@ -297,8 +298,7 @@ private class RecordingEngineGateway(
         return AutoCloseable { listeners -= listener }
     }
 
-    override fun observeEngineEvents(listener: (EngineEvent) -> Unit): AutoCloseable =
-        AutoCloseable { }
+    override fun observeEngineEvents(listener: (EngineEvent) -> Unit): AutoCloseable = AutoCloseable { }
 
     fun emit(snapshot: EngineSnapshot) {
         current = snapshot

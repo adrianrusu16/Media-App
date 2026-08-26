@@ -654,7 +654,11 @@ impl Engine {
             }),
             duration_millis: snapshot.duration_millis.unwrap_or(record.duration_millis),
             explicit: false,
-            artwork_id: snapshot.thumbnail_url.clone(),
+            artwork: snapshot.thumbnail_url.clone().map(|uri| crate::EngineArtwork {
+                id: String::new(),
+                content_hash: String::new(),
+                uri: Some(uri),
+            }),
             genres: Vec::new(),
         }
     }

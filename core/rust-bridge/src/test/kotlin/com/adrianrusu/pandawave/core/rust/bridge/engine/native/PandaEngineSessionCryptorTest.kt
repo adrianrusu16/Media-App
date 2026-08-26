@@ -47,10 +47,7 @@ class PandaEngineSessionCryptorTest {
             )
         }
 
-        override fun decrypt(
-            secret: EncryptedSecret,
-            associatedData: ByteArray
-        ): ByteArray {
+        override fun decrypt(secret: EncryptedSecret, associatedData: ByteArray): ByteArray {
             assertEquals(SecureSecretPurpose.SessionSecret, secret.purpose)
             lastAssociatedData = associatedData.clone()
             return secret.ciphertext.copyOfRange(0, secret.ciphertext.size - 16)

@@ -3,13 +3,10 @@ package com.adrianrusu.pandawave.core.rust.bridge.aidl
 import android.os.Parcel
 import android.os.Parcelable
 
-data class EngineHistoryPage(
-    val generation: Long,
-    val items: List<EngineHistoryItem>,
-) : Parcelable {
+data class EngineHistoryPage(val generation: Long, val items: List<EngineHistoryItem>) : Parcelable {
     constructor(parcel: Parcel) : this(
         generation = parcel.readLong(),
-        items = parcel.createTypedArrayList(EngineHistoryItem.CREATOR).orEmpty(),
+        items = parcel.createTypedArrayList(EngineHistoryItem.CREATOR).orEmpty()
     )
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
@@ -23,8 +20,7 @@ data class EngineHistoryPage(
         @JvmField
         val CREATOR: Parcelable.Creator<EngineHistoryPage> =
             object : Parcelable.Creator<EngineHistoryPage> {
-                override fun createFromParcel(parcel: Parcel): EngineHistoryPage =
-                    EngineHistoryPage(parcel)
+                override fun createFromParcel(parcel: Parcel): EngineHistoryPage = EngineHistoryPage(parcel)
 
                 override fun newArray(size: Int): Array<EngineHistoryPage?> = arrayOfNulls(size)
             }

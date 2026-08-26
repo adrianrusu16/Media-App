@@ -57,8 +57,8 @@ internal class InMemorySettingsRepository(
         dispatchHistory(
             EngineCommand(
                 EngineCommand.TYPE_LIST_HISTORY,
-                EngineCommandPayloads.historyPage(DEFAULT_HISTORY_PAGE_SIZE),
-            ),
+                EngineCommandPayloads.historyPage(DEFAULT_HISTORY_PAGE_SIZE)
+            )
         )
 
         projectionJob = scope.launch(start = CoroutineStart.UNDISPATCHED) {
@@ -88,8 +88,8 @@ internal class InMemorySettingsRepository(
             is SettingsIntent.SetHistoryEnabled -> dispatchHistory(
                 EngineCommand(
                     EngineCommand.TYPE_UPDATE_HISTORY_SETTINGS,
-                    EngineCommandPayloads.historyEnabled(intent.enabled),
-                ),
+                    EngineCommandPayloads.historyEnabled(intent.enabled)
+                )
             )
 
             SettingsIntent.ClearHistory -> dispatchHistory(EngineCommand(EngineCommand.TYPE_CLEAR_HISTORY, null))
@@ -100,15 +100,15 @@ internal class InMemorySettingsRepository(
             is SettingsIntent.DeleteHistoryEntry -> dispatchHistory(
                 EngineCommand(
                     EngineCommand.TYPE_DELETE_HISTORY_ENTRY,
-                    EngineCommandPayloads.historyEntry(intent.historyId),
-                ),
+                    EngineCommandPayloads.historyEntry(intent.historyId)
+                )
             )
 
             SettingsIntent.RefreshHistory -> dispatchHistory(
                 EngineCommand(
                     EngineCommand.TYPE_LIST_HISTORY,
-                    EngineCommandPayloads.historyPage(DEFAULT_HISTORY_PAGE_SIZE),
-                ),
+                    EngineCommandPayloads.historyPage(DEFAULT_HISTORY_PAGE_SIZE)
+                )
             )
 
             is SettingsIntent.SetAmbientModeEnabled -> ambientModePreferenceRepository.setEnabled(intent.enabled)
@@ -130,7 +130,7 @@ internal class InMemorySettingsRepository(
             hasHistorySettings = snapshot.hasHistorySettings,
             historyEnabled = snapshot.hasHistorySettings && snapshot.historyEnabled,
             historyDeletedCount = if (snapshot.hasHistorySettings) snapshot.historyDeletedCount else 0L,
-            historyEntriesCount = if (snapshot.hasHistorySettings) snapshot.historyEntriesCount else 0,
+            historyEntriesCount = if (snapshot.hasHistorySettings) snapshot.historyEntriesCount else 0
         )
     }
 

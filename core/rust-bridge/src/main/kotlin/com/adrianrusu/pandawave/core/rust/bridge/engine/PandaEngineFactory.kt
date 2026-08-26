@@ -7,15 +7,14 @@ import java.io.File
 object PandaEngineFactory {
     fun create(configJson: String): RustEngine = create(configJson, isDevelopment = false)
 
-    internal fun create(configJson: String, isDevelopment: Boolean): RustEngine =
-        PandaEngine.create().also { engine ->
-            try {
-                engine.configureBackend(configJson, isDevelopment)
-            } catch (error: Throwable) {
-                engine.close()
-                throw error
-            }
+    internal fun create(configJson: String, isDevelopment: Boolean): RustEngine = PandaEngine.create().also { engine ->
+        try {
+            engine.configureBackend(configJson, isDevelopment)
+        } catch (error: Throwable) {
+            engine.close()
+            throw error
         }
+    }
 
     internal fun create(
         configJson: String,

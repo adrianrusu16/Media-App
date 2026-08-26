@@ -23,7 +23,7 @@ class PandaEngineHomeRepositoryTest {
             snapshot = authenticatedSnapshot(),
             forYou = listOf(catalogItem("for-you-1", "Forest Morning")),
             recommendations = listOf(catalogItem("rec-1", "Night Drive")),
-            discovery = listOf(catalogItem("discover-1", "Canopy Mix")),
+            discovery = listOf(catalogItem("discover-1", "Canopy Mix"))
         )
         val repository = testHomeRepository(gateway)
 
@@ -33,9 +33,9 @@ class PandaEngineHomeRepositoryTest {
             listOf(
                 EngineCommand.TYPE_LOAD_FOR_YOU_FEED,
                 EngineCommand.TYPE_LOAD_RECOMMENDATIONS,
-                EngineCommand.TYPE_LOAD_DISCOVERY_FEED,
+                EngineCommand.TYPE_LOAD_DISCOVERY_FEED
             ),
-            gateway.commands.map(EngineCommand::type),
+            gateway.commands.map(EngineCommand::type)
         )
         assertEquals(listOf("for-you-1"), repository.state.value.forYou.map { it.id })
         assertEquals(listOf("rec-1"), repository.state.value.recommendations.map { it.id })
@@ -49,7 +49,7 @@ class PandaEngineHomeRepositoryTest {
             snapshot = authenticatedSnapshot(),
             forYou = listOf(catalogItem("for-you-1", "Forest Morning")),
             recommendations = listOf(catalogItem("rec-1", "Night Drive")),
-            discovery = listOf(catalogItem("discover-1", "Canopy Mix")),
+            discovery = listOf(catalogItem("discover-1", "Canopy Mix"))
         )
         val repository = testHomeRepository(gateway)
         repository.start()
@@ -60,8 +60,8 @@ class PandaEngineHomeRepositoryTest {
                 forYouResultsCount = 0,
                 recommendationsResultsCount = 0,
                 discoveryResultsCount = 0,
-                isBusy = true,
-            ),
+                isBusy = true
+            )
         )
 
         assertTrue(gateway.commands.isEmpty())
@@ -75,7 +75,7 @@ class PandaEngineHomeRepositoryTest {
         val gateway = RecordingHomeGateway(
             snapshot = authenticatedSnapshot(),
             forYou = listOf(catalogItem("for-you-1", "Forest Morning")),
-            recommendations = listOf(catalogItem("rec-1", "Night Drive")),
+            recommendations = listOf(catalogItem("rec-1", "Night Drive"))
         )
         val repository = testHomeRepository(gateway)
         repository.start()
@@ -92,7 +92,7 @@ class PandaEngineHomeRepositoryTest {
     fun `signed out snapshots clear home feeds`() {
         val gateway = RecordingHomeGateway(
             snapshot = authenticatedSnapshot(),
-            forYou = listOf(catalogItem("for-you-1", "Forest Morning")),
+            forYou = listOf(catalogItem("for-you-1", "Forest Morning"))
         )
         val repository = testHomeRepository(gateway)
         repository.start()
@@ -108,7 +108,7 @@ class PandaEngineHomeRepositoryTest {
     fun `authenticated snapshots without account keep previously shown feeds`() {
         val gateway = RecordingHomeGateway(
             snapshot = authenticatedSnapshot(),
-            forYou = listOf(catalogItem("for-you-1", "Forest Morning")),
+            forYou = listOf(catalogItem("for-you-1", "Forest Morning"))
         )
         val repository = testHomeRepository(gateway)
         repository.start()
@@ -116,8 +116,8 @@ class PandaEngineHomeRepositoryTest {
         gateway.emit(
             EngineSnapshot.idle(2L).copy(
                 authState = EngineAuthState(EngineAuthState.AUTHENTICATED),
-                forYouResultsCount = 0,
-            ),
+                forYouResultsCount = 0
+            )
         )
 
         assertEquals(listOf("for-you-1"), repository.state.value.forYou.map { it.id })
@@ -126,7 +126,7 @@ class PandaEngineHomeRepositoryTest {
 
 private fun testHomeRepository(gateway: EngineGateway) = PandaEngineHomeRepository(
     engineGateway = gateway,
-    hydrateExecutor = Executor { it.run() },
+    hydrateExecutor = Executor { it.run() }
 )
 
 private fun authenticatedSnapshot(
@@ -135,31 +135,31 @@ private fun authenticatedSnapshot(
     discoveryResultsCount: Int = 0,
     isBusy: Boolean = false,
     accountId: String = "account-1",
-    sessionId: String = "session-1",
+    sessionId: String = "session-1"
 ): EngineSnapshot = EngineSnapshot.idle(1L).copy(
     authState = EngineAuthState(
         state = EngineAuthState.AUTHENTICATED,
         account = EngineAccount(accountId, "$accountId@example.com", "active", 1L),
-        session = EngineAuthSession(sessionId, "PandaWave", 1L, 1L, 10_000L, true),
+        session = EngineAuthSession(sessionId, "PandaWave", 1L, 1L, 10_000L, true)
     ),
     forYouResultsCount = forYouResultsCount,
     recommendationsResultsCount = recommendationsResultsCount,
     discoveryResultsCount = discoveryResultsCount,
-    isBusy = isBusy,
+    isBusy = isBusy
 )
 
 private fun catalogItem(mediaId: String, title: String) = EngineCatalogItem(
     mediaId = mediaId,
     title = title,
     artist = "Artist",
-    album = "Album",
+    album = "Album"
 )
 
 private class RecordingHomeGateway(
     snapshot: EngineSnapshot,
     var forYou: List<EngineCatalogItem> = emptyList(),
     var recommendations: List<EngineCatalogItem> = emptyList(),
-    var discovery: List<EngineCatalogItem> = emptyList(),
+    var discovery: List<EngineCatalogItem> = emptyList()
 ) : EngineGateway {
     private var current = snapshot
     private val listeners = mutableListOf<(EngineSnapshot) -> Unit>()
@@ -183,30 +183,32 @@ private class RecordingHomeGateway(
         current = when (command.type) {
             EngineCommand.TYPE_LOAD_FOR_YOU_FEED -> current.copy(
                 forYouResultsCount = forYou.size,
-                isBusy = false,
+                isBusy = false
             )
+
             EngineCommand.TYPE_LOAD_RECOMMENDATIONS -> current.copy(
                 recommendationsResultsCount = recommendations.size,
-                isBusy = false,
+                isBusy = false
             )
+
             EngineCommand.TYPE_LOAD_DISCOVERY_FEED -> current.copy(
                 discoveryResultsCount = discovery.size,
-                isBusy = false,
+                isBusy = false
             )
+
             else -> current
         }
         return EngineDispatchResult(
             snapshot = current,
             event = EngineEvent(EngineEvent.TYPE_COMMAND_APPLIED, command.type),
-            effects = emptyList<EngineEffect>(),
+            effects = emptyList<EngineEffect>()
         )
     }
 
-    override fun dispatchPlatformEvent(event: EnginePlatformEvent): EngineDispatchResult =
-        EngineDispatchResult(
-            snapshot = current,
-            event = EngineEvent(EngineEvent.TYPE_PLATFORM_EVENT_APPLIED, event.type),
-        )
+    override fun dispatchPlatformEvent(event: EnginePlatformEvent): EngineDispatchResult = EngineDispatchResult(
+        snapshot = current,
+        event = EngineEvent(EngineEvent.TYPE_PLATFORM_EVENT_APPLIED, event.type)
+    )
 
     override fun observeSnapshots(listener: (EngineSnapshot) -> Unit): AutoCloseable {
         listeners += listener

@@ -73,7 +73,9 @@ pub use crate::model::backend::{
     BackendAvailability, BackendUnavailableReason, EngineBackendStatus, EngineDependencyStatus,
     EngineStatusValue, RetryClass,
 };
-pub use crate::model::catalog::{EngineAlbum, EngineArtist, EngineTrack};
+pub use crate::model::catalog::{
+    EngineAlbum, EngineArtist, EngineArtwork, EngineTrack, canopy_artwork_http_uri,
+};
 pub use crate::model::command::{EngineCommand, EngineCommandType};
 pub use crate::model::discovery::{DiscoveryFeed, DiscoveryPort, EngineDiscoveryIdentity};
 pub use crate::model::effect::EngineEffect;

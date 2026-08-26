@@ -771,4 +771,3 @@ private val STARTUP_COMMAND_TYPES = listOf(
     EngineCommand.TYPE_BOOTSTRAP,
     EngineCommand.TYPE_START_SESSION
 )
-

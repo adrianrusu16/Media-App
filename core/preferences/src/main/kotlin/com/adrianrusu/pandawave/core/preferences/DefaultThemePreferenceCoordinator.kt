@@ -89,8 +89,7 @@ class DefaultThemePreferenceCoordinator(
         preference.source == EngineThemePreference.SOURCE_REMOTE_PROFILE &&
         preference.revision > lastAppliedRemoteRevision
 
-    private fun isAuthenticated(): Boolean =
-        engineGateway.snapshot().authState.state == EngineAuthState.AUTHENTICATED
+    private fun isAuthenticated(): Boolean = engineGateway.snapshot().authState.state == EngineAuthState.AUTHENTICATED
 
     private fun dispatchThemeCommand(type: String, preference: PandaWaveThemePreference) {
         engineGateway.dispatch(

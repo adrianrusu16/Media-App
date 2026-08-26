@@ -18,7 +18,7 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class SearchViewModel @Inject constructor(
     private val repository: SearchRepository,
-    private val playbackRepository: BambooPlaybackRepository,
+    private val playbackRepository: BambooPlaybackRepository
 ) : ViewModel() {
     val state = repository.state
     private val queries = MutableStateFlow("")

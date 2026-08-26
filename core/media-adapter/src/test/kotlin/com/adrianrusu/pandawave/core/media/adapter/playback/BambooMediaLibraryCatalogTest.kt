@@ -147,7 +147,7 @@ class BambooMediaLibraryCatalogTest {
                         generation = 1L,
                         totalCount = 1,
                         items = listOf(node("result")),
-                        hasNextPage = false,
+                        hasNextPage = false
                     )
                 } else {
                     CatalogPage.empty()
@@ -172,7 +172,7 @@ class BambooMediaLibraryCatalogTest {
                     generation = 1L,
                     totalCount = 2,
                     items = listOf(node("one"), node("two")).paged(offset = offset, limit = limit),
-                    hasNextPage = offset + limit < 2,
+                    hasNextPage = offset + limit < 2
                 )
                 override fun item(mediaId: String): BambooCatalogNode? = null
             }
@@ -296,7 +296,10 @@ class BambooMediaLibraryCatalogTest {
         assertEquals("Forest Drive", browseChildren.single().mediaMetadata.title.toString())
         assertEquals("PandaWave", browseChildren.single().mediaMetadata.subtitle.toString())
         assertEquals("PandaWave", browseChildren.single().mediaMetadata.artist)
-        assertEquals(androidx.media3.common.MediaMetadata.MEDIA_TYPE_ALBUM, browseChildren.single().mediaMetadata.mediaType)
+        assertEquals(
+            androidx.media3.common.MediaMetadata.MEDIA_TYPE_ALBUM,
+            browseChildren.single().mediaMetadata.mediaType
+        )
         assertFalse(browseChildren.single().mediaMetadata.isPlayable == true)
         assertTrue(browseChildren.single().mediaMetadata.isBrowsable == true)
         assertEquals(listOf("track-1"), searchResults.map { item -> item.mediaId })
@@ -304,7 +307,10 @@ class BambooMediaLibraryCatalogTest {
         assertEquals("PandaWave - Canopy Sessions", searchResults.single().mediaMetadata.subtitle.toString())
         assertEquals("PandaWave", searchResults.single().mediaMetadata.artist)
         assertEquals("Canopy Sessions", searchResults.single().mediaMetadata.albumTitle)
-        assertEquals(androidx.media3.common.MediaMetadata.MEDIA_TYPE_MUSIC, searchResults.single().mediaMetadata.mediaType)
+        assertEquals(
+            androidx.media3.common.MediaMetadata.MEDIA_TYPE_MUSIC,
+            searchResults.single().mediaMetadata.mediaType
+        )
         assertTrue(searchResults.single().mediaMetadata.isPlayable == true)
         assertFalse(searchResults.single().mediaMetadata.isBrowsable == true)
     }
@@ -316,7 +322,7 @@ class BambooMediaLibraryCatalogTest {
                 authState = authenticatedAuthState(),
                 historyGeneration = 5L,
                 historyEntriesCount = 1,
-                hasHistoryNextPage = true,
+                hasHistoryNextPage = true
             ),
             historyResults = listOf(
                 EngineHistoryItem(
@@ -329,7 +335,7 @@ class BambooMediaLibraryCatalogTest {
                     playedAtEpochMillis = 1_000L,
                     listenedDurationMillis = 90_000L,
                     completionRatio = 0.8F,
-                    playable = true,
+                    playable = true
                 ),
                 EngineHistoryItem(
                     historyId = "history-2",
@@ -341,12 +347,12 @@ class BambooMediaLibraryCatalogTest {
                     playedAtEpochMillis = 2_000L,
                     listenedDurationMillis = 120_000L,
                     completionRatio = 1F,
-                    playable = true,
-                ),
-            ),
+                    playable = true
+                )
+            )
         )
         val catalog = BambooMediaLibraryCatalog(
-            source = EngineBambooCatalogSource(engineGateway = engineGateway),
+            source = EngineBambooCatalogSource(engineGateway = engineGateway)
         )
 
         val first = catalog.children(LibraryItems.HISTORY_MEDIA_ID, page = 0, pageSize = 1)
@@ -356,7 +362,7 @@ class BambooMediaLibraryCatalogTest {
         assertEquals(listOf("track-2"), second.map { it.mediaId })
         assertEquals(
             listOf(EngineCommand.TYPE_LIST_HISTORY, EngineCommand.TYPE_LOAD_NEXT_HISTORY_PAGE),
-            engineGateway.commands.map(EngineCommand::type),
+            engineGateway.commands.map(EngineCommand::type)
         )
         assertEquals(null, engineGateway.commands.last().payload)
     }
@@ -368,17 +374,17 @@ class BambooMediaLibraryCatalogTest {
                 authState = authenticatedAuthState(),
                 historyGeneration = 5L,
                 historyEntriesCount = 1,
-                hasHistoryNextPage = true,
+                hasHistoryNextPage = true
             ),
             historyResults = listOf(
                 historyItem(historyId = "history-unplayable", mediaId = "track-unplayable", playable = false),
                 historyItem(historyId = "history-missing-id", mediaId = null),
                 historyItem(historyId = "history-blank-id", mediaId = " "),
-                historyItem(historyId = "history-playable", mediaId = "track-playable"),
-            ),
+                historyItem(historyId = "history-playable", mediaId = "track-playable")
+            )
         )
         val catalog = BambooMediaLibraryCatalog(
-            source = EngineBambooCatalogSource(engineGateway = engineGateway),
+            source = EngineBambooCatalogSource(engineGateway = engineGateway)
         )
 
         val children = catalog.children(LibraryItems.HISTORY_MEDIA_ID, page = 0, pageSize = 10)
@@ -393,12 +399,12 @@ class BambooMediaLibraryCatalogTest {
             snapshot = EngineSnapshot.idle(nowMillis = 1L).copy(
                 authState = authenticatedAuthState(),
                 historyGeneration = 1L,
-                historyEntriesCount = 1,
+                historyEntriesCount = 1
             ),
-            historyResults = listOf(historyItem(historyId = "history-old", mediaId = "track-old")),
+            historyResults = listOf(historyItem(historyId = "history-old", mediaId = "track-old"))
         )
         val catalog = BambooMediaLibraryCatalog(
-            source = EngineBambooCatalogSource(engineGateway = engineGateway),
+            source = EngineBambooCatalogSource(engineGateway = engineGateway)
         )
 
         val firstPage = catalog.children(LibraryItems.HISTORY_MEDIA_ID, page = 0, pageSize = 1)
@@ -407,12 +413,12 @@ class BambooMediaLibraryCatalogTest {
                 authState = authenticatedAuthState(),
                 historyGeneration = 2L,
                 historyEntriesCount = 1,
-                hasHistoryNextPage = true,
+                hasHistoryNextPage = true
             ),
             historyResults = listOf(
                 historyItem(historyId = "history-new-1", mediaId = "track-new-1"),
-                historyItem(historyId = "history-new-2", mediaId = "track-new-2"),
-            ),
+                historyItem(historyId = "history-new-2", mediaId = "track-new-2")
+            )
         )
         val secondPage = catalog.children(LibraryItems.HISTORY_MEDIA_ID, page = 1, pageSize = 1)
 
@@ -422,9 +428,9 @@ class BambooMediaLibraryCatalogTest {
             listOf(
                 EngineCommand.TYPE_LIST_HISTORY,
                 EngineCommand.TYPE_LIST_HISTORY,
-                EngineCommand.TYPE_LOAD_NEXT_HISTORY_PAGE,
+                EngineCommand.TYPE_LOAD_NEXT_HISTORY_PAGE
             ),
-            engineGateway.commands.map(EngineCommand::type),
+            engineGateway.commands.map(EngineCommand::type)
         )
     }
 }
@@ -443,8 +449,9 @@ private class FixedCatalogSource(private val parentId: String, private val child
             generation = 1L,
             totalCount = children.size,
             items = children.paged(offset = offset, limit = limit),
-            hasNextPage = offset + limit < children.size,
+            hasNextPage = offset + limit < children.size
         )
+
         else -> CatalogPage.empty()
     }
 
@@ -459,13 +466,15 @@ private object PlaceholderBambooCatalogSource : BambooCatalogSource {
         BambooCatalogNode("pandawave.library.recent", "Recently played", isBrowsable = true, isPlayable = false)
     )
 
-    override fun browse(parentId: String, offset: Int, limit: Int): CatalogPage = if (parentId == LibraryItems.ROOT_MEDIA_ID) {
+    override fun browse(parentId: String, offset: Int, limit: Int): CatalogPage = if (parentId ==
+        LibraryItems.ROOT_MEDIA_ID
+    ) {
         CatalogPage(
             operationId = null,
             generation = 1L,
             totalCount = root.size,
             items = root.paged(offset = offset, limit = limit),
-            hasNextPage = offset + limit < root.size,
+            hasNextPage = offset + limit < root.size
         )
     } else {
         CatalogPage.empty()
@@ -485,7 +494,7 @@ private fun node(id: String): BambooCatalogNode = BambooCatalogNode(
 private fun authenticatedAuthState(): EngineAuthState = EngineAuthState(
     state = EngineAuthState.AUTHENTICATED,
     account = EngineAccount("account-1", "driver@example.com", "active", 1L),
-    session = EngineAuthSession("session-1", "PandaWave", 1L, 1L, 10_000L, true),
+    session = EngineAuthSession("session-1", "PandaWave", 1L, 1L, 10_000L, true)
 )
 
 private class CatalogRecordingPlaybackRepository : BambooPlaybackRepository {
@@ -511,11 +520,7 @@ private class CatalogRecordingPlaybackRepository : BambooPlaybackRepository {
     override fun close() = Unit
 }
 
-private fun historyItem(
-    historyId: String,
-    mediaId: String?,
-    playable: Boolean = true,
-) = EngineHistoryItem(
+private fun historyItem(historyId: String, mediaId: String?, playable: Boolean = true) = EngineHistoryItem(
     historyId = historyId,
     mediaId = mediaId,
     title = "Played $historyId",
@@ -525,7 +530,7 @@ private fun historyItem(
     playedAtEpochMillis = 1_000L,
     listenedDurationMillis = 90_000L,
     completionRatio = 0.75F,
-    playable = playable,
+    playable = playable
 )
 
 private class CatalogRecordingEngineGateway(
@@ -534,7 +539,7 @@ private class CatalogRecordingEngineGateway(
     private val searchResults: List<EngineCatalogItem> = emptyList(),
     private val staleBrowseResults: List<EngineCatalogItem> = emptyList(),
     private val staleSearchResults: List<EngineCatalogItem> = emptyList(),
-    private var historyResults: List<EngineHistoryItem> = emptyList(),
+    private var historyResults: List<EngineHistoryItem> = emptyList()
 ) : EngineGateway {
     private var currentSnapshot = snapshot
     private var historyOffset = 0
@@ -552,11 +557,9 @@ private class CatalogRecordingEngineGateway(
 
     override fun snapshot(): EngineSnapshot = currentSnapshot
 
-    override fun browseResult(index: Int): EngineCatalogItem? =
-        visibleBrowse().getOrNull(index)
+    override fun browseResult(index: Int): EngineCatalogItem? = visibleBrowse().getOrNull(index)
 
-    override fun searchResult(index: Int): EngineCatalogItem? =
-        visibleSearch().getOrNull(index)
+    override fun searchResult(index: Int): EngineCatalogItem? = visibleSearch().getOrNull(index)
     override fun historyEntry(index: Int): EngineHistoryItem? = historyResults.getOrNull(historyOffset + index)
 
     override fun dispatch(command: EngineCommand): EngineDispatchResult {
@@ -585,14 +588,14 @@ private class CatalogRecordingEngineGateway(
             historyOffset = 0
             currentSnapshot = currentSnapshot.copy(
                 historyEntriesCount = minOf(1, historyResults.size),
-                hasHistoryNextPage = historyResults.size > 1,
+                hasHistoryNextPage = historyResults.size > 1
             )
         }
         if (command.type == EngineCommand.TYPE_LOAD_NEXT_HISTORY_PAGE) {
             historyOffset = minOf(historyOffset + currentSnapshot.historyEntriesCount, historyResults.size)
             currentSnapshot = currentSnapshot.copy(
                 historyEntriesCount = (historyResults.size - historyOffset).coerceIn(0, 1),
-                hasHistoryNextPage = historyOffset + 1 < historyResults.size,
+                hasHistoryNextPage = historyOffset + 1 < historyResults.size
             )
         }
         return EngineDispatchResult(
@@ -613,11 +616,9 @@ private class CatalogRecordingEngineGateway(
 
     override fun observeEngineEvents(listener: (EngineEvent) -> Unit): AutoCloseable = AutoCloseable { }
 
-    private fun visibleBrowse(): List<EngineCatalogItem> =
-        if (browseDispatched) liveBrowse else staleBrowseResults
+    private fun visibleBrowse(): List<EngineCatalogItem> = if (browseDispatched) liveBrowse else staleBrowseResults
 
-    private fun visibleSearch(): List<EngineCatalogItem> =
-        if (searchDispatched) liveSearch else staleSearchResults
+    private fun visibleSearch(): List<EngineCatalogItem> = if (searchDispatched) liveSearch else staleSearchResults
 }
 
 private fun <T> List<T>.paged(offset: Int, limit: Int): List<T> = when {

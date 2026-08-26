@@ -37,5 +37,4 @@ class PandaWaveApplication : Application() {
     }
 }
 
-internal fun isDefaultProcess(packageName: String, processName: String): Boolean =
-    packageName == processName
+internal fun isDefaultProcess(packageName: String, processName: String): Boolean = packageName == processName

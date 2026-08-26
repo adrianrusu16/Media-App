@@ -14,7 +14,7 @@ class EngineCommandPayloadsTest {
             EngineCommandPayloads.playbackPositionCheckpoint(
                 playbackInstanceId = 42L,
                 positionMillis = 18_300L,
-                durationMillis = 252_395L,
+                durationMillis = 252_395L
             )
         ).jsonObject
 
@@ -71,6 +71,7 @@ class EngineCommandPayloadsTest {
             ).map { PandaEngine.nativeCommandType(EngineCommand(it, null)) }
         )
     }
+
     @Test
     fun searchCatalogBuildsVersionedJsonAndEscapesQuery() {
         assertEquals(
@@ -152,7 +153,7 @@ class EngineCommandPayloadsTest {
             EngineCommand.TYPE_REMOVE_PLAYLIST_TRACK,
             EngineCommand.TYPE_LIST_PLAYLIST_TRACKS,
             EngineCommand.TYPE_LOAD_NEXT_PLAYLIST_TRACKS_PAGE,
-            EngineCommand.TYPE_REORDER_PLAYLIST_TRACKS,
+            EngineCommand.TYPE_REORDER_PLAYLIST_TRACKS
         )
 
         assertEquals((40..49).toList(), types.map { PandaEngine.nativeCommandType(EngineCommand(it, null)) })

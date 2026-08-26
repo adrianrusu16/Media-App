@@ -27,12 +27,10 @@ class FakeSecureSecretProtector : SecureSecretProtector {
         return secret.ciphertext.copyOfRange(1, secret.ciphertext.size).reversedArray()
     }
 
-    private fun authenticationByte(
-        purpose: SecureSecretPurpose,
-        associatedData: ByteArray
-    ): Byte = associatedData.fold(purpose.ordinal.toByte()) { checksum, value ->
-        (checksum.toInt() xor value.toInt()).toByte()
-    }
+    private fun authenticationByte(purpose: SecureSecretPurpose, associatedData: ByteArray): Byte =
+        associatedData.fold(purpose.ordinal.toByte()) { checksum, value ->
+            (checksum.toInt() xor value.toInt()).toByte()
+        }
 
     private companion object {
         val FAKE_IV = byteArrayOf(1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 127)

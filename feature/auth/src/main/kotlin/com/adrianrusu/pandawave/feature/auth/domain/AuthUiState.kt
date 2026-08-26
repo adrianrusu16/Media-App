@@ -66,18 +66,20 @@ sealed interface AuthUiEffect {
     data object Close : AuthUiEffect
 }
 
-data class AuthUiTransition(
-    val state: AuthFormState,
-    val effects: List<AuthUiEffect> = emptyList()
-)
+data class AuthUiTransition(val state: AuthFormState, val effects: List<AuthUiEffect> = emptyList())
 
 object AuthUiReducer {
     fun reduce(state: AuthFormState, event: AuthUiEvent): AuthUiTransition = when (event) {
         AuthUiEvent.Submit -> submit(state)
+
         is AuthUiEvent.CommandCompleted -> commandCompleted(state, event.result)
+
         is AuthUiEvent.SnapshotChanged -> snapshotChanged(state, event.state)
+
         AuthUiEvent.Resend -> resend(state)
+
         is AuthUiEvent.ResendCompleted -> resendCompleted(state, event.result)
+
         AuthUiEvent.CancelOrRestricted -> AuthUiTransition(
             state.copy(
                 phase = AuthFormPhase.IDLE,
@@ -100,10 +102,7 @@ object AuthUiReducer {
         )
     }
 
-    private fun commandCompleted(
-        state: AuthFormState,
-        result: EngineAuthOperationResult
-    ): AuthUiTransition {
+    private fun commandCompleted(state: AuthFormState, result: EngineAuthOperationResult): AuthUiTransition {
         if (state.phase != AuthFormPhase.SUBMITTING) return AuthUiTransition(state)
         return when (state.mode) {
             AuthFormMode.LOGIN -> loginCompleted(state, result)
@@ -111,61 +110,60 @@ object AuthUiReducer {
         }
     }
 
-    private fun loginCompleted(
-        state: AuthFormState,
-        result: EngineAuthOperationResult
-    ): AuthUiTransition = when (result.status) {
-        EngineAuthOperationResult.STATUS_AUTHENTICATED,
-        EngineAuthOperationResult.STATUS_ACCEPTED -> AuthUiTransition(
-            state.copy(phase = AuthFormPhase.FINISHING_SIGN_IN, notice = null)
-        )
-        EngineAuthOperationResult.STATUS_REJECTED -> AuthUiTransition(
-            state.copy(phase = AuthFormPhase.IDLE, notice = AuthNotice.LOGIN_REJECTED)
-        )
-        else -> AuthUiTransition(
-            state.copy(
-                phase = AuthFormPhase.IDLE,
-                notice = noticeFor(result, login = true)
+    private fun loginCompleted(state: AuthFormState, result: EngineAuthOperationResult): AuthUiTransition =
+        when (result.status) {
+            EngineAuthOperationResult.STATUS_AUTHENTICATED,
+            EngineAuthOperationResult.STATUS_ACCEPTED -> AuthUiTransition(
+                state.copy(phase = AuthFormPhase.FINISHING_SIGN_IN, notice = null)
             )
-        )
-    }
 
-    private fun registrationCompleted(
-        state: AuthFormState,
-        result: EngineAuthOperationResult
-    ): AuthUiTransition = when {
-        result.status == EngineAuthOperationResult.STATUS_ACCEPTED -> AuthUiTransition(
-            state.copy(phase = AuthFormPhase.VERIFICATION_PENDING, notice = null)
-        )
-        result.errorType == EngineAuthOperationResult.ERROR_INVALID_INPUT -> AuthUiTransition(
-            state.copy(phase = AuthFormPhase.IDLE, notice = AuthNotice.POLICY_MISMATCH)
-        )
-        result.errorType == EngineAuthOperationResult.ERROR_RATE_LIMITED -> AuthUiTransition(
-            state.copy(phase = AuthFormPhase.IDLE, notice = AuthNotice.RATE_LIMITED)
-        )
-        else -> AuthUiTransition(
-            state.copy(
-                phase = AuthFormPhase.VERIFICATION_PENDING,
-                notice = AuthNotice.REQUEST_UNCONFIRMED
+            EngineAuthOperationResult.STATUS_REJECTED -> AuthUiTransition(
+                state.copy(phase = AuthFormPhase.IDLE, notice = AuthNotice.LOGIN_REJECTED)
             )
-        )
-    }
 
-    private fun snapshotChanged(
-        state: AuthFormState,
-        authState: EngineAuthState
-    ): AuthUiTransition = if (authState.state == EngineAuthState.AUTHENTICATED) {
-        AuthUiTransition(
-            state.copy(
-                phase = AuthFormPhase.IDLE,
-                notice = null,
-                resendInFlight = false
-            ),
-            listOf(AuthUiEffect.Close)
-        )
-    } else {
-        AuthUiTransition(state)
-    }
+            else -> AuthUiTransition(
+                state.copy(
+                    phase = AuthFormPhase.IDLE,
+                    notice = noticeFor(result, login = true)
+                )
+            )
+        }
+
+    private fun registrationCompleted(state: AuthFormState, result: EngineAuthOperationResult): AuthUiTransition =
+        when {
+            result.status == EngineAuthOperationResult.STATUS_ACCEPTED -> AuthUiTransition(
+                state.copy(phase = AuthFormPhase.VERIFICATION_PENDING, notice = null)
+            )
+
+            result.errorType == EngineAuthOperationResult.ERROR_INVALID_INPUT -> AuthUiTransition(
+                state.copy(phase = AuthFormPhase.IDLE, notice = AuthNotice.POLICY_MISMATCH)
+            )
+
+            result.errorType == EngineAuthOperationResult.ERROR_RATE_LIMITED -> AuthUiTransition(
+                state.copy(phase = AuthFormPhase.IDLE, notice = AuthNotice.RATE_LIMITED)
+            )
+
+            else -> AuthUiTransition(
+                state.copy(
+                    phase = AuthFormPhase.VERIFICATION_PENDING,
+                    notice = AuthNotice.REQUEST_UNCONFIRMED
+                )
+            )
+        }
+
+    private fun snapshotChanged(state: AuthFormState, authState: EngineAuthState): AuthUiTransition =
+        if (authState.state == EngineAuthState.AUTHENTICATED) {
+            AuthUiTransition(
+                state.copy(
+                    phase = AuthFormPhase.IDLE,
+                    notice = null,
+                    resendInFlight = false
+                ),
+                listOf(AuthUiEffect.Close)
+            )
+        } else {
+            AuthUiTransition(state)
+        }
 
     private fun resend(state: AuthFormState): AuthUiTransition = if (
         state.phase == AuthFormPhase.VERIFICATION_PENDING && !state.resendInFlight
@@ -178,10 +176,7 @@ object AuthUiReducer {
         AuthUiTransition(state)
     }
 
-    private fun resendCompleted(
-        state: AuthFormState,
-        result: EngineAuthOperationResult
-    ): AuthUiTransition {
+    private fun resendCompleted(state: AuthFormState, result: EngineAuthOperationResult): AuthUiTransition {
         if (!state.resendInFlight) return AuthUiTransition(state)
         val notice = when {
             result.status == EngineAuthOperationResult.STATUS_ACCEPTED -> AuthNotice.EMAIL_SENT
@@ -193,14 +188,21 @@ object AuthUiReducer {
 
     private fun noticeFor(result: EngineAuthOperationResult, login: Boolean): AuthNotice = when (result.errorType) {
         EngineAuthOperationResult.ERROR_INVALID_INPUT -> AuthNotice.POLICY_MISMATCH
+
         EngineAuthOperationResult.ERROR_RATE_LIMITED -> AuthNotice.RATE_LIMITED
+
         EngineAuthOperationResult.ERROR_SESSION_STORAGE -> AuthNotice.SESSION_STORAGE_FAILED
+
         EngineAuthOperationResult.ERROR_SERVICE_UNAVAILABLE,
         EngineAuthOperationResult.ERROR_TRANSPORT,
         EngineAuthOperationResult.ERROR_NETWORK -> AuthNotice.CANOPY_UNREACHABLE
+
         EngineAuthOperationResult.ERROR_UNSAFE_TRANSPORT -> AuthNotice.SERVER_CONFIGURATION_FAILED
+
         EngineAuthOperationResult.ERROR_BACKEND_FAULT -> AuthNotice.CANOPY_SERVER_FAILED
+
         EngineAuthOperationResult.ERROR_MAPPING_DEFECT -> AuthNotice.APP_BACKEND_MISMATCH
+
         EngineAuthOperationResult.ERROR_AUTHENTICATION,
         EngineAuthOperationResult.ERROR_FORBIDDEN,
         EngineAuthOperationResult.ERROR_LOGIN_REQUIRED -> if (login) {
@@ -208,6 +210,7 @@ object AuthUiReducer {
         } else {
             AuthNotice.REQUEST_UNCONFIRMED
         }
+
         else -> AuthNotice.TRY_AGAIN_LATER
     }
 }

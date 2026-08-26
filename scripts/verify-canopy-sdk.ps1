@@ -9,12 +9,14 @@ if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
     $RepositoryRoot = Split-Path -Parent $PSScriptRoot
 }
 
-$expectedRelease = 'v0.2.0'
-$expectedCommit = '145678c1d73e45b7bbaebf7e16ee4d64'
+# Identity is the Cargo.lock BSR digest, not a GitHub tag. `v0.3.0` is the
+# connection-contract label stored in client-connection.json (field `release`).
+$expectedRelease = 'v0.3.0'
+$expectedCommit = 'ff8940d1a15b4034bb430fd47dd45cdc'
 $expectedProstPackage = 'pandawave_canopy-api_community_neoeinstein-prost'
 $expectedTonicPackage = 'pandawave_canopy-api_community_neoeinstein-tonic'
-$expectedProst = '=0.5.0-00000000000000-145678c1d73e.2'
-$expectedTonic = '=0.5.0-00000000000000-145678c1d73e.4'
+$expectedProst = '=0.5.0-00000000000000-ff8940d1a15b.2'
+$expectedTonic = '=0.5.0-00000000000000-ff8940d1a15b.4'
 
 function Fail-Verification {
     param([Parameter(Mandatory = $true)][string]$Message)
@@ -70,7 +72,9 @@ if (-not (Test-Path -LiteralPath $lockFile -PathType Leaf)) {
 
 Push-Location $engineRoot
 try {
-    $metadataJson = & cargo metadata --format-version 1 --locked
+    # --no-deps --offline reads workspace manifests + Cargo.lock without contacting
+    # the private Buf cargo registry. Resolved BSR crates are checked from the lockfile.
+    $metadataJson = & cargo metadata --format-version 1 --locked --offline --no-deps
     if ($LASTEXITCODE -ne 0) {
         Fail-Verification "cargo metadata could not parse the locked workspace (exit $LASTEXITCODE)."
     }
@@ -121,6 +125,48 @@ Assert-Equal 'Prost BSR commit fragment' $prostCommit $expectedCommitFragment
 Assert-Equal 'Tonic BSR commit fragment' $tonicCommit $expectedCommitFragment
 Assert-Equal 'Prost/Tonic BSR commit fragments' $prostCommit $tonicCommit
 
+function Get-LockfilePackages {
+    param([Parameter(Mandatory = $true)][string]$LockFilePath)
+
+    $packages = New-Object 'System.Collections.Generic.List[hashtable]'
+    $current = $null
+    foreach ($line in @(Get-Content -LiteralPath $LockFilePath)) {
+        if ($line -ceq '[[package]]') {
+            if ($null -ne $current) {
+                $packages.Add($current)
+            }
+            $current = @{
+                name = $null
+                version = $null
+                source = $null
+            }
+            continue
+        }
+        if ($null -eq $current) {
+            continue
+        }
+        if ($line -match '^name = "(?<name>[^"]+)"$') {
+            if ($null -eq $current.name) {
+                $current.name = $Matches['name']
+            }
+        } elseif ($line -match '^version = "(?<version>[^"]+)"$') {
+            if ($null -eq $current.version) {
+                $current.version = $Matches['version']
+            }
+        } elseif ($line -match '^source = "(?<source>[^"]+)"$') {
+            if ($null -eq $current.source) {
+                $current.source = $Matches['source']
+            }
+        }
+    }
+    if ($null -ne $current) {
+        $packages.Add($current)
+    }
+    return $packages
+}
+
+$lockfilePackages = @(Get-LockfilePackages $lockFile)
+
 function Assert-ResolvedPackage {
     param(
         [Parameter(Mandatory = $true)][string]$Label,
@@ -128,7 +174,7 @@ function Assert-ResolvedPackage {
         [Parameter(Mandatory = $true)][string]$ExpectedVersion
     )
 
-    $resolved = @($metadata.packages | Where-Object {
+    $resolved = @($lockfilePackages | Where-Object {
         $_.name -ceq $PackageName -and $_.source -ceq $expectedRegistry
     })
     if ($resolved.Count -ne 1) {
@@ -180,6 +226,7 @@ function Get-RepositoryRelativePath {
 
 $generatedDirectoryNames = @(
     '.cache',
+    '.cargo-home',
     '.git',
     '.gradle',
     '.idea',
@@ -216,7 +263,7 @@ foreach ($relativePath in $artifactRelativePaths) {
 
     Assert-Equal "$relativePath protobuf package" $artifact.contract.protobuf_package 'canopy.v1'
     Assert-Equal "$relativePath BSR module" $artifact.contract.bsr_module 'buf.build/pandawave/canopy-api'
-    Assert-Equal "$relativePath documented release" $artifact.contract.release $expectedRelease
+    Assert-Equal "$relativePath documented contract label" $artifact.contract.release $expectedRelease
     Assert-Equal "$relativePath immutable commit" $artifact.contract.commit $expectedCommit
     Assert-Equal "$relativePath Prost package" $artifact.contract.prost_package $expectedProstPackage
     Assert-Equal "$relativePath Prost version" $artifact.contract.prost_version $expectedProst
@@ -304,8 +351,8 @@ foreach ($sourceFile in @($sourceFiles | Where-Object {
 }
 
 Write-Host 'Canopy SDK compatibility check PASS'
-Write-Host "  release: $expectedRelease"
-Write-Host "  commit:  $expectedCommit"
+Write-Host "  locked BSR unit: $expectedCommit"
+Write-Host "  contract label:  $expectedRelease"
 Write-Host "  Prost:   $expectedProstPackage $expectedProst"
 Write-Host "  Tonic:   $expectedTonicPackage $expectedTonic"
 Write-Host "  artifacts: $($artifactRelativePaths -join ', ')"

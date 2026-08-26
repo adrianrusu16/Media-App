@@ -23,7 +23,7 @@ class PandaEngineSearchRepositoryTest {
     @Test
     fun `search dispatches the engine catalog command and projects generation scoped results`() {
         val gateway = RecordingSearchGateway(
-            results = listOf(item("track-1"), item("track-2")),
+            results = listOf(item("track-1"), item("track-2"))
         )
         val repository = PandaEngineSearchRepository(gateway)
         repository.start()
@@ -33,7 +33,7 @@ class PandaEngineSearchRepositoryTest {
         assertEquals(listOf(EngineCommand.TYPE_SEARCH), gateway.commands.map(EngineCommand::type))
         assertEquals(
             EngineCommandPayloads.searchCatalog("rust", 20),
-            gateway.commands.single().payload,
+            gateway.commands.single().payload
         )
         assertEquals(1L, repository.state.value.generation)
         assertEquals(listOf("track-1", "track-2"), repository.state.value.results.map { it.mediaId })
@@ -43,7 +43,7 @@ class PandaEngineSearchRepositoryTest {
     @Test
     fun `a newer search advances generation and replaces prior results`() {
         val gateway = RecordingSearchGateway(
-            results = listOf(item("old")),
+            results = listOf(item("old"))
         )
         val repository = PandaEngineSearchRepository(gateway)
         repository.start()
@@ -54,7 +54,7 @@ class PandaEngineSearchRepositoryTest {
 
         assertEquals(
             listOf(EngineCommand.TYPE_SEARCH, EngineCommand.TYPE_SEARCH),
-            gateway.commands.map(EngineCommand::type),
+            gateway.commands.map(EngineCommand::type)
         )
         assertEquals(2L, repository.state.value.generation)
         assertEquals(listOf("new-1", "new-2"), repository.state.value.results.map { it.mediaId })
@@ -65,7 +65,7 @@ class PandaEngineSearchRepositoryTest {
         val gateway = RecordingSearchGateway(
             results = List(20) { index -> item("track-$index") },
             nextPageResults = listOf(item("track-20")),
-            operationId = "search-op-1",
+            operationId = "search-op-1"
         )
         val repository = PandaEngineSearchRepository(gateway)
         repository.start()
@@ -77,11 +77,11 @@ class PandaEngineSearchRepositoryTest {
 
         assertEquals(
             listOf(EngineCommand.TYPE_LOAD_NEXT_CATALOG_PAGE),
-            gateway.commands.map(EngineCommand::type),
+            gateway.commands.map(EngineCommand::type)
         )
         assertEquals(
             EngineCommandPayloads.loadNextCatalogPage("search-op-1"),
-            gateway.commands.single().payload,
+            gateway.commands.single().payload
         )
         assertEquals(1L, repository.state.value.generation)
         assertEquals("track-20", repository.state.value.results.last().mediaId)
@@ -110,13 +110,13 @@ private fun item(mediaId: String) = EngineCatalogItem(
     title = "Title $mediaId",
     artist = "Artist",
     album = "Album",
-    itemType = EngineCatalogItem.TYPE_TRACK,
+    itemType = EngineCatalogItem.TYPE_TRACK
 )
 
 private class RecordingSearchGateway(
     var results: List<EngineCatalogItem> = emptyList(),
     private val nextPageResults: List<EngineCatalogItem> = emptyList(),
-    private val operationId: String = "search-op-1",
+    private val operationId: String = "search-op-1"
 ) : EngineGateway {
     private var current = EngineSnapshot.idle(1L)
     val commands = mutableListOf<EngineCommand>()
@@ -144,15 +144,14 @@ private class RecordingSearchGateway(
         current = current.copy(searchResultsCount = results.size)
         return EngineDispatchResult(
             snapshot = current,
-            event = EngineEvent(EngineEvent.TYPE_COMMAND_APPLIED, operationId),
+            event = EngineEvent(EngineEvent.TYPE_COMMAND_APPLIED, operationId)
         )
     }
 
-    override fun dispatchPlatformEvent(event: EnginePlatformEvent): EngineDispatchResult =
-        EngineDispatchResult(
-            snapshot = current,
-            event = EngineEvent(EngineEvent.TYPE_PLATFORM_EVENT_APPLIED, event.type),
-        )
+    override fun dispatchPlatformEvent(event: EnginePlatformEvent): EngineDispatchResult = EngineDispatchResult(
+        snapshot = current,
+        event = EngineEvent(EngineEvent.TYPE_PLATFORM_EVENT_APPLIED, event.type)
+    )
 
     override fun observeSnapshots(listener: (EngineSnapshot) -> Unit): AutoCloseable {
         listener(current)

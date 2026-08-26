@@ -9,19 +9,19 @@ class BambooAudioFocusHandlerTest {
     fun `android focus callbacks map to typed engine values`() {
         assertEquals(
             BambooAudioFocusChange.Gain,
-            BambooAudioFocusChange.fromAndroid(AudioManager.AUDIOFOCUS_GAIN),
+            BambooAudioFocusChange.fromAndroid(AudioManager.AUDIOFOCUS_GAIN)
         )
         assertEquals(
             BambooAudioFocusChange.Loss,
-            BambooAudioFocusChange.fromAndroid(AudioManager.AUDIOFOCUS_LOSS),
+            BambooAudioFocusChange.fromAndroid(AudioManager.AUDIOFOCUS_LOSS)
         )
         assertEquals(
             BambooAudioFocusChange.LossTransient,
-            BambooAudioFocusChange.fromAndroid(AudioManager.AUDIOFOCUS_LOSS_TRANSIENT),
+            BambooAudioFocusChange.fromAndroid(AudioManager.AUDIOFOCUS_LOSS_TRANSIENT)
         )
         assertEquals(
             BambooAudioFocusChange.Duck,
-            BambooAudioFocusChange.fromAndroid(AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK),
+            BambooAudioFocusChange.fromAndroid(AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK)
         )
         assertEquals(BambooAudioFocusChange.Unknown, BambooAudioFocusChange.fromAndroid(123_456))
     }

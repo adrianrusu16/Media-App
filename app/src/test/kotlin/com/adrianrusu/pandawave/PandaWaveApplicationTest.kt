@@ -8,6 +8,8 @@ class PandaWaveApplicationTest {
     @Test
     fun defaultProcessMatchesPackageNameOnly() {
         assertTrue(isDefaultProcess(packageName = "com.adrianrusu.pandawave", processName = "com.adrianrusu.pandawave"))
-        assertFalse(isDefaultProcess(packageName = "com.adrianrusu.pandawave", processName = "com.adrianrusu.pandawave:engine"))
+        assertFalse(
+            isDefaultProcess(packageName = "com.adrianrusu.pandawave", processName = "com.adrianrusu.pandawave:engine")
+        )
     }
 }

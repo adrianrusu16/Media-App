@@ -44,7 +44,7 @@ class HistorySettingsRepositoryTest {
 
         assertEquals(
             listOf(EngineCommand.TYPE_LOAD_HISTORY_SETTINGS, EngineCommand.TYPE_LIST_HISTORY),
-            engine.commands.take(2).map { it.type },
+            engine.commands.take(2).map { it.type }
         )
         assertTrue(repository.settingsState.value.historyEnabled)
         assertEquals(2, repository.settingsState.value.historyEntriesCount)
@@ -106,14 +106,16 @@ private class HistoryPlaybackRepository : BambooPlaybackRepository {
 }
 
 private class HistoryThemeCoordinator : ThemePreferenceCoordinator {
-    override val state: StateFlow<ThemePreferenceState> = MutableStateFlow(ThemePreferenceState.Ready(PandaWaveThemePreference.SystemDefault))
+    override val state: StateFlow<ThemePreferenceState> =
+        MutableStateFlow(ThemePreferenceState.Ready(PandaWaveThemePreference.SystemDefault))
     override fun start() = Unit
     override suspend fun select(preference: PandaWaveThemePreference) = Unit
     override fun close() = Unit
 }
 
 private class HistoryAmbientRepository : AmbientModePreferenceRepository {
-    override val state: StateFlow<AmbientModePreferenceState> = MutableStateFlow(AmbientModePreferenceState.Ready(AmbientModePreferences()))
+    override val state: StateFlow<AmbientModePreferenceState> =
+        MutableStateFlow(AmbientModePreferenceState.Ready(AmbientModePreferences()))
     override suspend fun setEnabled(enabled: Boolean) = Unit
     override suspend fun setTimeoutSeconds(timeoutSeconds: Int) = Unit
 }

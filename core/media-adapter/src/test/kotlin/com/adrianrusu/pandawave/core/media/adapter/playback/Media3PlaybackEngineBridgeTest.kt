@@ -1,12 +1,12 @@
 package com.adrianrusu.pandawave.core.media.adapter.playback
 
 import androidx.media3.common.Player
+import com.adrianrusu.pandawave.core.media.adapter.playback.focus.BambooAudioFocusChange
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackIntent
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackIntentNames
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackState
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackTelemetryAttributes
-import com.adrianrusu.pandawave.core.media.adapter.playback.focus.BambooAudioFocusChange
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
@@ -26,7 +26,7 @@ class Media3PlaybackEngineBridgeTest {
         val telemetrySink = RecordingTelemetrySink()
         val bridge = Media3PlaybackEngineBridge(
             playbackRepository = repository,
-            telemetryLogger = testTelemetryLogger(telemetrySink),
+            telemetryLogger = testTelemetryLogger(telemetrySink)
         )
 
         bridge.dispatchAudioFocusChange(BambooAudioFocusChange.LossTransient)
@@ -35,13 +35,13 @@ class Media3PlaybackEngineBridgeTest {
         assertEquals(EnginePlatformEvent.TYPE_AUDIO_FOCUS_CHANGED, event.type)
         assertEquals(
             """{"version":1,"focus_change":"loss_transient"}""",
-            event.payload,
+            event.payload
         )
         assertEquals(
             "loss_transient",
             telemetrySink.events.single {
                 it.name == Media3PlaybackTelemetryEvents.AUDIO_FOCUS_CHANGED
-            }.attributes[Media3PlaybackTelemetryAttributes.FOCUS_CHANGE],
+            }.attributes[Media3PlaybackTelemetryAttributes.FOCUS_CHANGE]
         )
     }
 
@@ -57,7 +57,7 @@ class Media3PlaybackEngineBridgeTest {
             playbackMetricsProvider = PlaybackCompletionMetricsProvider { metrics },
             playbackInstanceIdProvider = { 42L },
             checkpointScheduler = scheduler,
-            checkpointIntervalMillis = 10_000L,
+            checkpointIntervalMillis = 10_000L
         )
 
         bridge.onIsPlayingChanged(true)
@@ -69,7 +69,7 @@ class Media3PlaybackEngineBridgeTest {
         assertEquals(EnginePlatformEvent.TYPE_PLAYBACK_POSITION_CHECKPOINT, startedEvent.type)
         assertEquals(
             """{"version":1,"playback_instance_id":42,"position_ms":18300,"duration_ms":120000}""",
-            startedEvent.payload,
+            startedEvent.payload
         )
         scheduler.runNext()
 
@@ -79,7 +79,7 @@ class Media3PlaybackEngineBridgeTest {
         assertEquals(EnginePlatformEvent.TYPE_PLAYBACK_POSITION_CHECKPOINT, periodicEvent.type)
         assertEquals(
             """{"version":1,"playback_instance_id":42,"position_ms":18300,"duration_ms":120000}""",
-            periodicEvent.payload,
+            periodicEvent.payload
         )
         assertEquals(listOf(10_000L), scheduler.pendingDelays())
 
@@ -91,14 +91,14 @@ class Media3PlaybackEngineBridgeTest {
             .last()
         assertEquals(
             """{"version":1,"playback_instance_id":42,"position_ms":19100,"duration_ms":120000}""",
-            finalEvent.payload,
+            finalEvent.payload
         )
         assertTrue(scheduler.pendingDelays().isEmpty())
         assertEquals(
             listOf("playing_started", "periodic", "paused"),
             telemetrySink.events
                 .filter { it.name == Media3PlaybackTelemetryEvents.POSITION_CHECKPOINT_DISPATCHED }
-                .map { it.attributes.getValue(Media3PlaybackTelemetryAttributes.TRIGGER) },
+                .map { it.attributes.getValue(Media3PlaybackTelemetryAttributes.TRIGGER) }
         )
     }
 
@@ -108,7 +108,7 @@ class Media3PlaybackEngineBridgeTest {
         val bridge = Media3PlaybackEngineBridge(
             playbackRepository = repository,
             telemetryLogger = testTelemetryLogger(),
-            playbackInstanceIdProvider = { 7L },
+            playbackInstanceIdProvider = { 7L }
         )
 
         bridge.onPlaybackStateChanged(Player.STATE_READY)
@@ -120,7 +120,7 @@ class Media3PlaybackEngineBridgeTest {
         assertEquals(1, mediaLoaded.size)
         assertEquals(
             """{"version":1,"playback_instance_id":7}""",
-            mediaLoaded.single().payload,
+            mediaLoaded.single().payload
         )
 
         bridge.onPlaybackStateChanged(Player.STATE_IDLE)
@@ -146,7 +146,7 @@ class Media3PlaybackEngineBridgeTest {
             playbackInstanceIdProvider = { 42L },
             playerSnapshotProvider = {
                 Media3PlayerSnapshot(positionMillis = 55_000L, playWhenReady = true)
-            },
+            }
         )
 
         bridge.onIsPlayingChanged(true)
@@ -163,7 +163,7 @@ class Media3PlaybackEngineBridgeTest {
             Media3PlaybackTelemetryValues.SEEK_IN_PROGRESS,
             telemetrySink.events
                 .single { it.name == Media3PlaybackTelemetryEvents.POSITION_CHECKPOINT_SKIPPED }
-                .attributes[Media3PlaybackTelemetryAttributes.REASON],
+                .attributes[Media3PlaybackTelemetryAttributes.REASON]
         )
     }
 
@@ -458,11 +458,7 @@ private class RecordingEffectExecutor : BambooPlaybackEffectExecutor {
 }
 
 private class RecordingPlaybackCheckpointScheduler : PlaybackCheckpointScheduler {
-    private data class Task(
-        val delayMillis: Long,
-        val action: () -> Unit,
-        var cancelled: Boolean = false,
-    )
+    private data class Task(val delayMillis: Long, val action: () -> Unit, var cancelled: Boolean = false)
 
     private val tasks = mutableListOf<Task>()
 

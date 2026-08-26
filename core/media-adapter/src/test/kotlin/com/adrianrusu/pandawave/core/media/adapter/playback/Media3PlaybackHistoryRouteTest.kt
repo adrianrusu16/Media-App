@@ -6,8 +6,8 @@ import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackState
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
-import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
 import com.adrianrusu.pandawave.core.telemetry.TelemetryEvent
+import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
 import com.adrianrusu.pandawave.core.telemetry.TelemetrySink
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -26,7 +26,7 @@ class Media3PlaybackHistoryRouteTest {
             playbackMetricsProvider = PlaybackCompletionMetricsProvider {
                 PlaybackCompletionMetrics(positionMillis = 750, durationMillis = 1_000)
             },
-            playbackInstanceIdProvider = { 42L },
+            playbackInstanceIdProvider = { 42L }
         )
 
         bridge.onPlaybackStateChanged(Player.STATE_ENDED)
@@ -40,15 +40,17 @@ class Media3PlaybackHistoryRouteTest {
             mapOf(
                 "playback_instance_id" to "42",
                 "duration_millis" to "1000",
-                "completion_ratio" to "0.75",
+                "completion_ratio" to "0.75"
             ),
             telemetrySink.events.single {
                 it.name == "media3.playback.completion.dispatched"
-            }.attributes,
+            }.attributes
         )
-        assertTrue(telemetrySink.events.none { event ->
-            event.attributes.values.any { value -> value == "track-1" }
-        })
+        assertTrue(
+            telemetrySink.events.none { event ->
+                event.attributes.values.any { value -> value == "track-1" }
+            }
+        )
     }
 }
 
@@ -66,7 +68,9 @@ private class HistoryRoutePlaybackRepository : BambooPlaybackRepository {
     )
     val intents = mutableListOf<BambooPlaybackIntent>()
     override fun start() = Unit
-    override fun dispatch(intent: BambooPlaybackIntent) { intents += intent }
+    override fun dispatch(intent: BambooPlaybackIntent) {
+        intents += intent
+    }
     override fun observe(listener: (BambooPlaybackState) -> Unit) = AutoCloseable { }
     override fun observeEffects(listener: (List<EngineEffect>) -> Unit) = AutoCloseable { }
     override fun close() = Unit

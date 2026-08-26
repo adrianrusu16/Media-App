@@ -3,12 +3,12 @@ package com.adrianrusu.pandawave.auth
 import android.content.Intent
 import android.os.Bundle
 import android.os.SystemClock
-import com.adrianrusu.pandawave.core.common.log.PandaLog
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.lifecycle.lifecycleScope
 import com.adrianrusu.pandawave.BuildConfig
 import com.adrianrusu.pandawave.MainActivity
+import com.adrianrusu.pandawave.core.common.log.PandaLog
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthOperationResult
 import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineAuthGateway
 import dagger.hilt.android.AndroidEntryPoint

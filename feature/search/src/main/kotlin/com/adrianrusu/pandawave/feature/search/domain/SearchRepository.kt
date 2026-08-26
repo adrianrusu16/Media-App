@@ -20,12 +20,7 @@ data class SearchState(
     val errorType: String? = null,
     val isRetryableError: Boolean = false,
     val hasNextPage: Boolean = false,
-    val generation: Long = 0L,
+    val generation: Long = 0L
 )
 
-data class SearchTrack(
-    val mediaId: String,
-    val title: String,
-    val artist: String,
-    val album: String?,
-)
+data class SearchTrack(val mediaId: String, val title: String, val artist: String, val album: String?)

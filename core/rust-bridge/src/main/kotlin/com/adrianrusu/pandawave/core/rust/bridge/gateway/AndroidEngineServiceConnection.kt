@@ -6,8 +6,8 @@ import android.content.ServiceConnection
 import android.os.IBinder
 import android.os.RemoteException
 import com.adrianrusu.pandawave.core.common.trace.PandaTrace
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthOperationResult
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
@@ -172,24 +172,16 @@ class AndroidEngineServiceConnection(
     }
 
     private class AidlEngineService(private val remote: IMediaEngineService) : EngineService {
-        override fun registerPassword(
-            email: String,
-            password: ByteArray
-        ): EngineAuthOperationResult = remote.registerPassword(email, password)
+        override fun registerPassword(email: String, password: ByteArray): EngineAuthOperationResult =
+            remote.registerPassword(email, password)
 
-        override fun resendVerification(email: String): EngineAuthOperationResult =
-            remote.resendVerification(email)
+        override fun resendVerification(email: String): EngineAuthOperationResult = remote.resendVerification(email)
 
-        override fun verifyEmail(
-            verificationToken: ByteArray,
-            deviceLabel: String
-        ): EngineAuthOperationResult = remote.verifyEmail(verificationToken, deviceLabel)
+        override fun verifyEmail(verificationToken: ByteArray, deviceLabel: String): EngineAuthOperationResult =
+            remote.verifyEmail(verificationToken, deviceLabel)
 
-        override fun loginPassword(
-            email: String,
-            password: ByteArray,
-            deviceLabel: String
-        ): EngineAuthOperationResult = remote.loginPassword(email, password, deviceLabel)
+        override fun loginPassword(email: String, password: ByteArray, deviceLabel: String): EngineAuthOperationResult =
+            remote.loginPassword(email, password, deviceLabel)
 
         override fun logout(): EngineAuthOperationResult = remote.logout()
 
@@ -198,40 +190,33 @@ class AndroidEngineServiceConnection(
         }
 
         override fun browseResult(index: Int): EngineCatalogItem? = remote.getBrowseResult(index)
-        override fun browseResultsPage(offset: Int, limit: Int) =
-            remote.getBrowseResultsPage(offset, limit).orEmpty()
+        override fun browseResultsPage(offset: Int, limit: Int) = remote.getBrowseResultsPage(offset, limit).orEmpty()
         override fun discoveryResult(index: Int): EngineCatalogItem? = remote.getDiscoveryResult(index)
         override fun forYouResult(index: Int): EngineCatalogItem? = remote.getForYouResult(index)
         override fun recommendationResult(index: Int): EngineCatalogItem? = remote.getRecommendationResult(index)
         override fun discoveryResultsPage(offset: Int, limit: Int) =
             remote.getDiscoveryResultsPage(offset, limit).orEmpty()
-        override fun forYouResultsPage(offset: Int, limit: Int) =
-            remote.getForYouResultsPage(offset, limit).orEmpty()
+        override fun forYouResultsPage(offset: Int, limit: Int) = remote.getForYouResultsPage(offset, limit).orEmpty()
         override fun recommendationResultsPage(offset: Int, limit: Int) =
             remote.getRecommendationResultsPage(offset, limit).orEmpty()
         override fun profilePreferenceValue(key: String): String? = remote.getProfilePreferenceValue(key)
 
         override fun searchResult(index: Int): EngineCatalogItem? = remote.getSearchResult(index)
-        override fun searchResultsPage(offset: Int, limit: Int) =
-            remote.getSearchResultsPage(offset, limit).orEmpty()
+        override fun searchResultsPage(offset: Int, limit: Int) = remote.getSearchResultsPage(offset, limit).orEmpty()
         override fun historyEntry(index: Int): EngineHistoryItem? = remote.getHistoryEntry(index)
         override fun historyPage(offset: Int, limit: Int, generation: Long): EngineHistoryPage =
             remote.getHistoryPage(offset, limit, generation)
         override fun savedTrack(index: Int) = remote.getSavedTrack(index)
-        override fun savedTracksPage(offset: Int, limit: Int) =
-            remote.getSavedTracksPage(offset, limit).orEmpty()
+        override fun savedTracksPage(offset: Int, limit: Int) = remote.getSavedTracksPage(offset, limit).orEmpty()
         override fun likedTrack(index: Int) = remote.getLikedTrack(index)
-        override fun likedTracksPage(offset: Int, limit: Int) =
-            remote.getLikedTracksPage(offset, limit).orEmpty()
+        override fun likedTracksPage(offset: Int, limit: Int) = remote.getLikedTracksPage(offset, limit).orEmpty()
         override fun pendingLibraryTrackId(index: Int) = remote.getPendingLibraryTrackId(index)
         override fun pendingLibraryTrackIdsPage(offset: Int, limit: Int) =
             remote.getPendingLibraryTrackIdsPage(offset, limit).orEmpty()
         override fun playlist(index: Int): EnginePlaylistItem? = remote.getPlaylist(index)
-        override fun playlistsPage(offset: Int, limit: Int) =
-            remote.getPlaylistsPage(offset, limit).orEmpty()
+        override fun playlistsPage(offset: Int, limit: Int) = remote.getPlaylistsPage(offset, limit).orEmpty()
         override fun playlistTrack(index: Int): EnginePlaylistTrackItem? = remote.getPlaylistTrack(index)
-        override fun playlistTracksPage(offset: Int, limit: Int) =
-            remote.getPlaylistTracksPage(offset, limit).orEmpty()
+        override fun playlistTracksPage(offset: Int, limit: Int) = remote.getPlaylistTracksPage(offset, limit).orEmpty()
         override fun selectedPlaylistId(): String? = remote.selectedPlaylistId
         override fun playlistReconciliation(): EnginePlaylistReconciliation? = remote.playlistReconciliation
 

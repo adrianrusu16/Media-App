@@ -17,15 +17,9 @@ sealed interface ProfileState {
     data object SignedOut : ProfileState
     data object Missing : ProfileState
 
-    data class Ready(
-        val profile: ProfileDetails,
-        val theme: PandaWaveThemePreference
-    ) : ProfileState
+    data class Ready(val profile: ProfileDetails, val theme: PandaWaveThemePreference) : ProfileState
 
-    data class Failure(
-        val errorType: String,
-        val retryable: Boolean
-    ) : ProfileState
+    data class Failure(val errorType: String, val retryable: Boolean) : ProfileState
 }
 
 sealed interface AccountSessionsState {

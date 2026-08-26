@@ -70,7 +70,7 @@ internal class FakePandaEngine(private val clock: () -> Long = System::currentTi
             playedAtEpochMillis = clock() - index * 60_000L,
             listenedDurationMillis = 180_000L,
             completionRatio = 1F,
-            playable = true,
+            playable = true
         )
 
         else -> null

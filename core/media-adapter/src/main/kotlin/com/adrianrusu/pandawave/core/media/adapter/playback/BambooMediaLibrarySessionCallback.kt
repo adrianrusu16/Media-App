@@ -49,7 +49,7 @@ internal class BambooMediaLibrarySessionCallback(
                 sessionPackageName = sessionPackageName,
                 isMediaNotificationController = session.isMediaNotificationController(controller),
                 isAutomotiveController = session.isAutomotiveController(controller),
-                isAutoCompanionController = session.isAutoCompanionController(controller),
+                isAutoCompanionController = session.isAutoCompanionController(controller)
             )
         ) {
             return MediaSession.ConnectionResult.reject()
@@ -88,7 +88,7 @@ internal class BambooMediaLibrarySessionCallback(
         if (item == null) {
             LibraryResult.ofError(LibraryResult.RESULT_ERROR_BAD_VALUE)
         } else {
-            LibraryResult.ofItem(item, /* params= */ null)
+            LibraryResult.ofItem(item, null)
         }
     }
 
@@ -99,17 +99,16 @@ internal class BambooMediaLibrarySessionCallback(
         page: Int,
         pageSize: Int,
         params: MediaLibraryService.LibraryParams?
-    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> =
-        asyncCatalog("PW.Media3.Callback.getChildren") {
-            LibraryResult.ofItemList(
-                catalog.children(
-                    parentId = parentId,
-                    page = page,
-                    pageSize = pageSize
-                ),
-                params
-            )
-        }
+    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = asyncCatalog("PW.Media3.Callback.getChildren") {
+        LibraryResult.ofItemList(
+            catalog.children(
+                parentId = parentId,
+                page = page,
+                pageSize = pageSize
+            ),
+            params
+        )
+    }
 
     override fun onSearch(
         session: MediaLibrarySession,
@@ -130,13 +129,12 @@ internal class BambooMediaLibrarySessionCallback(
         page: Int,
         pageSize: Int,
         params: MediaLibraryService.LibraryParams?
-    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> =
-        asyncCatalog("PW.Media3.Callback.getSearchResult") {
-            LibraryResult.ofItemList(
-                catalog.search(query = query, page = page, pageSize = pageSize),
-                params
-            )
-        }
+    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = asyncCatalog("PW.Media3.Callback.getSearchResult") {
+        LibraryResult.ofItemList(
+            catalog.search(query = query, page = page, pageSize = pageSize),
+            params
+        )
+    }
 
     override fun onAddMediaItems(
         mediaSession: MediaSession,
@@ -195,7 +193,7 @@ internal class BambooMediaLibrarySessionCallback(
             dispatchPlayback(
                 items = items,
                 startIndex = stored.startIndex,
-                persist = false,
+                persist = false
             )
         }
         return Futures.immediateFuture(
@@ -216,39 +214,36 @@ internal class BambooMediaLibrarySessionCallback(
         return super.onCustomCommand(session, controller, customCommand, args)
     }
 
-    private fun dispatchPlayback(
-        items: List<MediaItem>,
-        startIndex: Int,
-        persist: Boolean = true,
-    ): List<MediaItem> {
+    private fun dispatchPlayback(items: List<MediaItem>, startIndex: Int, persist: Boolean = true): List<MediaItem> {
         val resolved = BambooMediaLibraryPlaybackSelection.withoutLocalConfiguration(items)
         val mediaIds = BambooMediaLibraryPlaybackSelection.mediaIds(resolved)
         val intent = BambooMediaLibraryPlaybackSelection.playbackIntent(mediaIds, startIndex)
         when (intent) {
             is BambooPlaybackIntent.PlayMedia -> playbackBridge.dispatchCatalogPlay(intent.mediaId)
+
             is BambooPlaybackIntent.PlayQueue -> playbackBridge.dispatchCatalogPlayQueue(
                 mediaIds = intent.mediaIds,
-                startIndex = intent.startIndex,
+                startIndex = intent.startIndex
             )
+
             else -> Unit
         }
         if (persist && mediaIds.isNotEmpty()) {
             resumptionStore?.save(
                 mediaIds = mediaIds,
                 startIndex = startIndex.coerceIn(0, mediaIds.lastIndex),
-                positionMillis = 0L,
+                positionMillis = 0L
             )
         }
         return resolved
     }
 
-    private fun <T> asyncCatalog(traceName: String, block: () -> T): ListenableFuture<T> =
-        Futures.submit(
-            Callable {
-                PandaTrace.section(traceName, block)
-            },
-            catalogExecutor,
-        )
+    private fun <T> asyncCatalog(traceName: String, block: () -> T): ListenableFuture<T> = Futures.submit(
+        Callable {
+            PandaTrace.section(traceName, block)
+        },
+        catalogExecutor
+    )
 
     private fun availableSessionCommands() =
         MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS.buildUpon()

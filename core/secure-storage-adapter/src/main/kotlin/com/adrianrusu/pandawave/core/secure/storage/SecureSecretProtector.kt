@@ -14,8 +14,5 @@ interface SecureSecretProtector {
         associatedData: ByteArray = byteArrayOf()
     ): EncryptedSecret
 
-    fun decrypt(
-        secret: EncryptedSecret,
-        associatedData: ByteArray = byteArrayOf()
-    ): ByteArray
+    fun decrypt(secret: EncryptedSecret, associatedData: ByteArray = byteArrayOf()): ByteArray
 }

@@ -47,7 +47,7 @@ class BambooMediaBrowserSmokeTest {
                         connected.countDown()
                     }
                 },
-                null,
+                null
             )
             browserRef.set(browser)
             browser.connect()
@@ -55,7 +55,7 @@ class BambooMediaBrowserSmokeTest {
 
         assertTrue(
             "Timed out waiting for MediaBrowser connection",
-            connected.await(20, TimeUnit.SECONDS),
+            connected.await(20, TimeUnit.SECONDS)
         )
         assertNull(failure.get())
         assertFalse(rootId.get().isNullOrBlank())

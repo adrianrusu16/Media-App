@@ -18,7 +18,7 @@ class PandaLogTest {
             PandaLog.Tag.MEDIA,
             PandaLog.Tag.PLAYER,
             PandaLog.Tag.APP_SHELL,
-            PandaLog.Tag.HISTORY,
+            PandaLog.Tag.HISTORY
         )
         assertTrue(tags.all { it.length <= 23 })
         assertTrue(tags.all { it.startsWith("PandaWave:") })
@@ -36,7 +36,7 @@ class PandaLogTest {
 
         assertEquals(
             listOf("info:${PandaLog.Tag.HOME}:play_requested section=recommendations trackId=track-1 title=Song"),
-            sink.events,
+            sink.events
         )
     }
 
@@ -53,9 +53,9 @@ class PandaLogTest {
         assertEquals(
             listOf(
                 "info:${PandaLog.Tag.PLAYER}:source uri=https://cdn.example/stream.m3u8?[REDACTED] " +
-                    "email=[REDACTED] password=[REDACTED]",
+                    "email=[REDACTED] password=[REDACTED]"
             ),
-            sink.events,
+            sink.events
         )
     }
 
@@ -72,7 +72,7 @@ class PandaLogTest {
         assertEquals("One,Two", PandaLog.titles(listOf("One", "Two")))
         assertEquals(
             "1,2,3,4,5,6,…",
-            PandaLog.titles((1..8).map(Int::toString)),
+            PandaLog.titles((1..8).map(Int::toString))
         )
     }
 }

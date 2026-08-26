@@ -11,11 +11,13 @@ import javax.inject.Inject
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val repository: HomeRepository,
-    private val playbackRepository: BambooPlaybackRepository,
+    private val playbackRepository: BambooPlaybackRepository
 ) : ViewModel() {
     val state = repository.state
 
-    init { repository.start() }
+    init {
+        repository.start()
+    }
 
     fun play(mediaId: String, section: String, title: String) {
         PandaLog.v(PandaLog.Tag.HOME) {

@@ -1,9 +1,9 @@
 package com.adrianrusu.pandawave.feature.profile.presentation
 
 import com.adrianrusu.pandawave.core.model.theme.PandaWaveThemePreference
+import com.adrianrusu.pandawave.feature.profile.domain.AccountSessionsState
 import com.adrianrusu.pandawave.feature.profile.domain.ProfileRepository
 import com.adrianrusu.pandawave.feature.profile.domain.ProfileState
-import com.adrianrusu.pandawave.feature.profile.domain.AccountSessionsState
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -98,10 +98,18 @@ private class RecordingProfileRepository : ProfileRepository {
         actions += "theme:${preference.wireValue}"
     }
 
-    override fun refreshAccountSessions() { actions += "sessions:refresh" }
-    override fun loadNextDeviceSessionsPage() { actions += "sessions:next" }
-    override fun revokeDeviceSession(sessionId: String) { actions += "sessions:revoke:$sessionId" }
-    override fun deleteAccount() { actions += "account:delete" }
+    override fun refreshAccountSessions() {
+        actions += "sessions:refresh"
+    }
+    override fun loadNextDeviceSessionsPage() {
+        actions += "sessions:next"
+    }
+    override fun revokeDeviceSession(sessionId: String) {
+        actions += "sessions:revoke:$sessionId"
+    }
+    override fun deleteAccount() {
+        actions += "account:delete"
+    }
 
     override fun close() = Unit
 }

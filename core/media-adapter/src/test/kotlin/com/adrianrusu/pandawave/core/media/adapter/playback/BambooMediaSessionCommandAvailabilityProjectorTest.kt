@@ -1,8 +1,8 @@
 package com.adrianrusu.pandawave.core.media.adapter.playback
 
 import com.adrianrusu.pandawave.core.playback.BambooControlState
-import com.adrianrusu.pandawave.core.playback.BambooPlaybackIntent
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackControls
+import com.adrianrusu.pandawave.core.playback.BambooPlaybackIntent
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackState
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
@@ -87,7 +87,7 @@ private fun enabledControls(): BambooPlaybackControls = BambooPlaybackControls(
     playPause = BambooControlState.enabled(),
     skipNext = BambooControlState.enabled(),
     skipPrevious = BambooControlState.enabled(),
-    showPlayIcon = true,
+    showPlayIcon = true
 )
 
 private class CommandAvailabilityRecordingPlaybackRepository(initialState: BambooPlaybackState) :

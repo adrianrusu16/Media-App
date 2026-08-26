@@ -1,7 +1,7 @@
 package com.adrianrusu.pandawave.core.rust.bridge.engine.native
 
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineBackendAvailability
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthState
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineBackendAvailability
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineControlState
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlayerControls
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
@@ -80,10 +80,29 @@ internal object PandaEngineNativeSnapshotMapper {
                 likedTracksCount = nativeValues[SNAPSHOT_LIKED_TRACKS_COUNT_INDEX].toInt(),
                 libraryPendingCount = nativeValues[SNAPSHOT_LIBRARY_PENDING_COUNT_INDEX].toInt(),
                 hasSavedTracksNextPage = nativeValues[SNAPSHOT_HAS_SAVED_NEXT_PAGE_INDEX].toBoolean(),
-                hasLikedTracksNextPage = nativeValues[SNAPSHOT_HAS_LIKED_NEXT_PAGE_INDEX].toBoolean()
-                ,playlistsCount = nativeValues[45].toInt(), playlistTracksCount = nativeValues[46].toInt(), hasPlaylistsNextPage = nativeValues[47].toBoolean(), hasPlaylistTracksNextPage = nativeValues[48].toBoolean(), hasPlaylistReconciliation = nativeValues[49].toBoolean()
-                ,protectedAccount = null, deviceSessions = emptyList(), deviceSessionsCount = nativeValues[51].toInt(), hasDeviceSessionsNextPage = nativeValues[52].toBoolean(), discoveryResultsCount = nativeValues[53].toInt(), hasDiscoveryNextPage = nativeValues[54].toBoolean(), hasHistoryNextPage = nativeValues[55].toBoolean(), forYouResultsCount = nativeValues[56].toInt(), recommendationsResultsCount = nativeValues[57].toInt(), backendAvailability = backendAvailabilityFromNative(nativeValues[SNAPSHOT_BACKEND_AVAILABILITY_INDEX].toInt(), nativeValues[SNAPSHOT_BACKEND_UNAVAILABLE_REASON_INDEX].toInt())
-                ,lastProgressTickEpochMillis = nativeValues[SNAPSHOT_LAST_PROGRESS_TICK_INDEX]
+                hasLikedTracksNextPage = nativeValues[SNAPSHOT_HAS_LIKED_NEXT_PAGE_INDEX].toBoolean(),
+                playlistsCount = nativeValues[SNAPSHOT_PLAYLISTS_COUNT_INDEX].toInt(),
+                playlistTracksCount = nativeValues[SNAPSHOT_PLAYLIST_TRACKS_COUNT_INDEX].toInt(),
+                hasPlaylistsNextPage = nativeValues[SNAPSHOT_HAS_PLAYLISTS_NEXT_PAGE_INDEX].toBoolean(),
+                hasPlaylistTracksNextPage = nativeValues[SNAPSHOT_HAS_PLAYLIST_TRACKS_NEXT_PAGE_INDEX].toBoolean(),
+                hasPlaylistReconciliation =
+                    nativeValues[SNAPSHOT_HAS_PLAYLIST_RECONCILIATION_INDEX].toBoolean(),
+                protectedAccount = null,
+                deviceSessions = emptyList(),
+                deviceSessionsCount = nativeValues[SNAPSHOT_DEVICE_SESSIONS_COUNT_INDEX].toInt(),
+                hasDeviceSessionsNextPage =
+                    nativeValues[SNAPSHOT_HAS_DEVICE_SESSIONS_NEXT_PAGE_INDEX].toBoolean(),
+                discoveryResultsCount = nativeValues[SNAPSHOT_DISCOVERY_RESULTS_COUNT_INDEX].toInt(),
+                hasDiscoveryNextPage = nativeValues[SNAPSHOT_HAS_DISCOVERY_NEXT_PAGE_INDEX].toBoolean(),
+                hasHistoryNextPage = nativeValues[SNAPSHOT_HAS_HISTORY_NEXT_PAGE_INDEX].toBoolean(),
+                forYouResultsCount = nativeValues[SNAPSHOT_FOR_YOU_RESULTS_COUNT_INDEX].toInt(),
+                recommendationsResultsCount =
+                    nativeValues[SNAPSHOT_RECOMMENDATIONS_RESULTS_COUNT_INDEX].toInt(),
+                backendAvailability = backendAvailabilityFromNative(
+                    nativeValues[SNAPSHOT_BACKEND_AVAILABILITY_INDEX].toInt(),
+                    nativeValues[SNAPSHOT_BACKEND_UNAVAILABLE_REASON_INDEX].toInt()
+                ),
+                lastProgressTickEpochMillis = nativeValues[SNAPSHOT_LAST_PROGRESS_TICK_INDEX]
             ),
             metadataRevision = nativeValues[SNAPSHOT_METADATA_REVISION_INDEX],
             backendStatus = nativeValues[SNAPSHOT_HAS_BACKEND_STATUS_INDEX]
@@ -139,6 +158,7 @@ internal object PandaEngineNativeSnapshotMapper {
 
     private fun backendAvailabilityFromNative(status: Int, reason: Int): EngineBackendAvailability = when (status) {
         BACKEND_AVAILABLE -> EngineBackendAvailability(EngineBackendAvailability.AVAILABLE)
+
         BACKEND_UNAVAILABLE -> EngineBackendAvailability(
             EngineBackendAvailability.UNAVAILABLE,
             when (reason) {
@@ -148,6 +168,7 @@ internal object PandaEngineNativeSnapshotMapper {
                 else -> EngineBackendAvailability.REASON_CONNECTION_FAILED
             }
         )
+
         else -> EngineBackendAvailability.connecting()
     }
 
@@ -246,6 +267,18 @@ internal object PandaEngineNativeSnapshotMapper {
     private const val SNAPSHOT_LIBRARY_PENDING_COUNT_INDEX = 42
     private const val SNAPSHOT_HAS_SAVED_NEXT_PAGE_INDEX = 43
     private const val SNAPSHOT_HAS_LIKED_NEXT_PAGE_INDEX = 44
+    private const val SNAPSHOT_PLAYLISTS_COUNT_INDEX = 45
+    private const val SNAPSHOT_PLAYLIST_TRACKS_COUNT_INDEX = 46
+    private const val SNAPSHOT_HAS_PLAYLISTS_NEXT_PAGE_INDEX = 47
+    private const val SNAPSHOT_HAS_PLAYLIST_TRACKS_NEXT_PAGE_INDEX = 48
+    private const val SNAPSHOT_HAS_PLAYLIST_RECONCILIATION_INDEX = 49
+    private const val SNAPSHOT_DEVICE_SESSIONS_COUNT_INDEX = 51
+    private const val SNAPSHOT_HAS_DEVICE_SESSIONS_NEXT_PAGE_INDEX = 52
+    private const val SNAPSHOT_DISCOVERY_RESULTS_COUNT_INDEX = 53
+    private const val SNAPSHOT_HAS_DISCOVERY_NEXT_PAGE_INDEX = 54
+    private const val SNAPSHOT_HAS_HISTORY_NEXT_PAGE_INDEX = 55
+    private const val SNAPSHOT_FOR_YOU_RESULTS_COUNT_INDEX = 56
+    private const val SNAPSHOT_RECOMMENDATIONS_RESULTS_COUNT_INDEX = 57
     private const val SNAPSHOT_BACKEND_AVAILABILITY_INDEX = 58
     private const val SNAPSHOT_BACKEND_UNAVAILABLE_REASON_INDEX = 59
     private const val SNAPSHOT_HISTORY_GENERATION_INDEX = 60

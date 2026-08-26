@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use tonic_014::Request;
+use url::Url;
 
 use crate::{
     EngineError, EngineErrorType, EngineHistoryEntry, EngineHistoryIdentity, EngineHistorySettings,
@@ -23,13 +24,15 @@ use super::{CanopyChannel, SessionCoordinator};
 pub struct CanopyHistoryClient {
     client: HistoryServiceClient<super::sdk::runtime::transport::Channel>,
     session: Arc<SessionCoordinator>,
+    media_origin: Url,
 }
 
 impl CanopyHistoryClient {
-    pub fn new(channel: &CanopyChannel, session: Arc<SessionCoordinator>) -> Self {
+    pub fn new(channel: &CanopyChannel, session: Arc<SessionCoordinator>, media_origin: Url) -> Self {
         Self {
             client: HistoryServiceClient::new(channel.clone_inner()),
             session,
+            media_origin,
         }
     }
 }
@@ -121,7 +124,7 @@ impl HistoryPort for CanopyHistoryClient {
         )
         .await?
         .into_inner();
-        map_history_response(response)
+        map_history_response(response, Some(&self.media_origin))
     }
 
     async fn delete_entry(
@@ -216,18 +219,20 @@ fn map_record_request(event: EnginePlaybackRecord) -> RecordPlaybackRequest {
 
 fn map_history_response(
     response: ListHistoryResponse,
+    media_origin: Option<&Url>,
 ) -> Result<EnginePagedResult<EngineHistoryEntry>, EngineError> {
-    map_history_page(response.entries, response.page_info)
+    map_history_page(response.entries, response.page_info, media_origin)
 }
 
 fn map_history_page(
     entries: Vec<HistoryEntry>,
     page_info: Option<PageInfo>,
+    media_origin: Option<&Url>,
 ) -> Result<EnginePagedResult<EngineHistoryEntry>, EngineError> {
     Ok(EnginePagedResult {
         items: entries
             .into_iter()
-            .map(map_history_entry)
+            .map(|entry| map_history_entry(entry, media_origin))
             .collect::<Result<_, _>>()?,
         next_page_token: match page_info.map(|info| info.next_page_token) {
             Some(token) if !token.is_empty() => Some(
@@ -239,7 +244,10 @@ fn map_history_page(
     })
 }
 
-fn map_history_entry(entry: HistoryEntry) -> Result<EngineHistoryEntry, EngineError> {
+fn map_history_entry(
+    entry: HistoryEntry,
+    media_origin: Option<&Url>,
+) -> Result<EngineHistoryEntry, EngineError> {
     if entry.id.trim().is_empty() {
         return Err(mapping_defect("history entry missing id"));
     }
@@ -252,7 +260,7 @@ fn map_history_entry(entry: HistoryEntry) -> Result<EngineHistoryEntry, EngineEr
         completion_ratio,
         track: entry
             .track
-            .map(|track| map_track_summary(track, Vec::new()))
+            .map(|track| map_track_summary(track, Vec::new(), media_origin))
             .transpose()?,
     })
 }
@@ -328,6 +336,7 @@ mod tests {
             Some(PageInfo {
                 next_page_token: "opaque+/=".into(),
             }),
+            None,
         )
         .unwrap();
         assert_eq!(page.items[0].played_at_epoch_millis, Some(2_003));
@@ -354,7 +363,9 @@ mod tests {
             track: None,
         };
         assert_eq!(
-            map_history_entry(invalid_timestamp).unwrap_err().error_type,
+            map_history_entry(invalid_timestamp, None)
+                .unwrap_err()
+                .error_type,
             EngineErrorType::MappingDefect
         );
         let invalid_ratio = HistoryEntry {
@@ -365,7 +376,7 @@ mod tests {
             track: Some(TrackSummary::default()),
         };
         assert_eq!(
-            map_history_entry(invalid_ratio).unwrap_err().error_type,
+            map_history_entry(invalid_ratio, None).unwrap_err().error_type,
             EngineErrorType::MappingDefect
         );
         assert!(

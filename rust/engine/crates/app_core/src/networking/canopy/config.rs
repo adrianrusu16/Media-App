@@ -8,12 +8,12 @@ const PROTOBUF_PACKAGE: &str = "canopy.v1";
 const BSR_MODULE: &str = "buf.build/pandawave/canopy-api";
 // Connection-contract label in client-connection.json, not a GitHub tag.
 // Locked BSR identity is COMMIT / the Cargo.lock crate digest.
-const RELEASE: &str = "v0.2.0";
-const COMMIT: &str = "af019e2d7fa245a2a7d9fc21a4dd9afa";
+const RELEASE: &str = "v0.3.0";
+const COMMIT: &str = "ff8940d1a15b4034bb430fd47dd45cdc";
 const PROST_PACKAGE: &str = "pandawave_canopy-api_community_neoeinstein-prost";
-const PROST_VERSION: &str = "=0.5.0-00000000000000-af019e2d7fa2.2";
+const PROST_VERSION: &str = "=0.5.0-00000000000000-ff8940d1a15b.2";
 const TONIC_PACKAGE: &str = "pandawave_canopy-api_community_neoeinstein-tonic";
-const TONIC_VERSION: &str = "=0.5.0-00000000000000-af019e2d7fa2.4";
+const TONIC_VERSION: &str = "=0.5.0-00000000000000-ff8940d1a15b.4";
 const MAX_PUBLIC_CA_PEM_BYTES: usize = 64 * 1024;
 
 /// Security posture supplied by the Android build variant, not by JSON input.

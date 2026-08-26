@@ -91,8 +91,7 @@ internal class AndroidFftProcessor(
         }
     }
 
-    private fun FloatArray.ensureCapacity(size: Int): FloatArray =
-        if (this.size >= size) this else FloatArray(size)
+    private fun FloatArray.ensureCapacity(size: Int): FloatArray = if (this.size >= size) this else FloatArray(size)
 
     private companion object {
         const val MIN_PACKED_FFT_SIZE = 2

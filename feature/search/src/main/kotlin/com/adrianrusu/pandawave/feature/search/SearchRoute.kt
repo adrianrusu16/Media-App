@@ -23,9 +23,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.adrianrusu.pandawave.core.designsystem.tokens.LocalPandaWaveDesignTokens
+import com.adrianrusu.pandawave.core.designsystem.tokens.md
 import com.adrianrusu.pandawave.core.designsystem.tokens.mediaCarouselSpacing
 import com.adrianrusu.pandawave.core.designsystem.tokens.mediaSectionSpacing
-import com.adrianrusu.pandawave.core.designsystem.tokens.md
 import com.adrianrusu.pandawave.core.designsystem.tokens.sm
 import com.adrianrusu.pandawave.core.ui.discovery.BambooCategoryCard
 import com.adrianrusu.pandawave.core.ui.discovery.BambooCategoryItem
@@ -46,7 +46,7 @@ import com.adrianrusu.pandawave.feature.search.presentation.SearchViewModel
 fun SearchRoute(
     modifier: Modifier = Modifier,
     onOpenNowPlaying: () -> Unit = {},
-    viewModel: SearchViewModel = hiltViewModel(),
+    viewModel: SearchViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     SearchRoute(
@@ -56,7 +56,7 @@ fun SearchRoute(
         onLoadNext = viewModel::loadNext,
         onRetry = viewModel::retry,
         onPlay = viewModel::play,
-        onOpenNowPlaying = onOpenNowPlaying,
+        onOpenNowPlaying = onOpenNowPlaying
     )
 }
 
@@ -68,7 +68,7 @@ fun SearchRoute(
     onRetry: () -> Unit,
     onPlay: (mediaId: String, title: String) -> Unit,
     onOpenNowPlaying: () -> Unit = {},
-    modifier: Modifier = Modifier,
+    modifier: Modifier = Modifier
 ) {
     val tokens = LocalPandaWaveDesignTokens.current
     val categories = searchCategories()
@@ -125,24 +125,27 @@ fun SearchRoute(
             Surface(
                 modifier = Modifier.fillMaxWidth().testTag("search-error"),
                 color = Color(tokens.colors.error),
-                shape = MaterialTheme.shapes.small,
+                shape = MaterialTheme.shapes.small
             ) {
                 Row(
                     modifier = Modifier.padding(tokens.spacing.md),
                     horizontalArrangement = Arrangement.spacedBy(tokens.spacing.sm),
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = stringResource(
-                            if (state.isRetryableError) R.string.pandawave_search_network_error
-                            else R.string.pandawave_search_error
+                            if (state.isRetryableError) {
+                                R.string.pandawave_search_network_error
+                            } else {
+                                R.string.pandawave_search_error
+                            }
                         ),
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f)
                     )
                     if (state.isRetryableError) {
                         OutlinedButton(
                             onClick = onRetry,
-                            modifier = Modifier.testTag("search-retry"),
+                            modifier = Modifier.testTag("search-retry")
                         ) {
                             Text(stringResource(R.string.pandawave_search_retry))
                         }
@@ -154,7 +157,7 @@ fun SearchRoute(
         if (state.isLoading && state.results.isEmpty()) {
             Row(
                 modifier = Modifier.fillMaxWidth().testTag("search-loading"),
-                horizontalArrangement = Arrangement.Center,
+                horizontalArrangement = Arrangement.Center
             ) {
                 CircularProgressIndicator()
             }
@@ -167,7 +170,7 @@ fun SearchRoute(
         ) {
             Text(
                 text = stringResource(R.string.pandawave_search_empty),
-                modifier = Modifier.testTag("search-empty"),
+                modifier = Modifier.testTag("search-empty")
             )
         }
 
@@ -191,7 +194,7 @@ fun SearchRoute(
             Button(
                 onClick = onLoadNext,
                 enabled = !state.isLoading,
-                modifier = Modifier.fillMaxWidth().testTag("search-next-page"),
+                modifier = Modifier.fillMaxWidth().testTag("search-next-page")
             ) {
                 Text(stringResource(R.string.pandawave_search_load_more))
             }
@@ -228,5 +231,5 @@ private fun SearchTrack.toMediaItem() = BambooMediaItem(
     title = title,
     subtitle = artist.ifBlank { "" },
     description = album.orEmpty(),
-    action = BambooMediaAction.Play,
+    action = BambooMediaAction.Play
 )

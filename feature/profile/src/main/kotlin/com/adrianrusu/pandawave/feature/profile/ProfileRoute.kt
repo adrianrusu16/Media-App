@@ -69,6 +69,7 @@ fun ProfileRoute(
                 onLoginClick = onLoginClick,
                 onRegisterClick = onRegisterClick
             )
+
             is ProfileUiAccount.Authenticated -> {
                 AuthenticatedAccountCards(
                     account = account,
@@ -123,6 +124,7 @@ private fun AccountSessionCards(
 ) {
     when (state) {
         AccountSessionsState.SignedOut -> Unit
+
         AccountSessionsState.Loading -> BambooActionCard(
             modifier = Modifier.testTag("profile-sessions-loading"),
             title = stringResource(R.string.pandawave_profile_sessions_title),
@@ -131,6 +133,7 @@ private fun AccountSessionCards(
             actionEnabled = false,
             onActionClick = onRefresh
         )
+
         is AccountSessionsState.Failure -> BambooActionCard(
             modifier = Modifier.testTag("profile-sessions-failure"),
             title = stringResource(R.string.pandawave_profile_sessions_title),
@@ -139,6 +142,7 @@ private fun AccountSessionCards(
             actionEnabled = actionsEnabled && state.retryable,
             onActionClick = onRefresh
         )
+
         is AccountSessionsState.Ready -> {
             val dateFormat = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
             val operationPending = state.pendingSessionId != null || state.deletingAccount
@@ -229,11 +233,7 @@ private fun AccountSessionCards(
 }
 
 @Composable
-private fun AnonymousAccountCards(
-    actionsEnabled: Boolean,
-    onLoginClick: () -> Unit,
-    onRegisterClick: () -> Unit
-) {
+private fun AnonymousAccountCards(actionsEnabled: Boolean, onLoginClick: () -> Unit, onRegisterClick: () -> Unit) {
     BambooActionCard(
         modifier = Modifier.testTag("profile-login"),
         title = stringResource(R.string.pandawave_profile_login_title),
@@ -298,6 +298,7 @@ private fun ProfileProjectionCards(
 ) {
     when (state) {
         ProfileState.SignedOut -> Unit
+
         ProfileState.Loading -> BambooActionCard(
             modifier = Modifier.testTag("profile-loading"),
             title = stringResource(R.string.pandawave_profile_canopy_title),
@@ -306,6 +307,7 @@ private fun ProfileProjectionCards(
             actionEnabled = actionsEnabled,
             onActionClick = onRefresh
         )
+
         ProfileState.Missing -> BambooActionCard(
             modifier = Modifier.testTag("profile-create"),
             title = stringResource(R.string.pandawave_profile_canopy_title),
@@ -314,6 +316,7 @@ private fun ProfileProjectionCards(
             actionEnabled = actionsEnabled,
             onActionClick = { onUpsert(null) }
         )
+
         is ProfileState.Failure -> BambooActionCard(
             modifier = Modifier.testTag("profile-failure"),
             title = stringResource(R.string.pandawave_profile_canopy_title),
@@ -322,6 +325,7 @@ private fun ProfileProjectionCards(
             actionEnabled = actionsEnabled && state.retryable,
             onActionClick = onRefresh
         )
+
         is ProfileState.Ready -> {
             var displayName by rememberSaveable(state.profile.id, state.profile.displayName) {
                 mutableStateOf(state.profile.displayName.orEmpty())

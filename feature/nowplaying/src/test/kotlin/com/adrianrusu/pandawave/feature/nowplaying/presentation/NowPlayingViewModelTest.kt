@@ -522,4 +522,3 @@ private class MutableMonotonicClock(var nowMillis: Long) : MonotonicClock {
 }
 
 private fun testTelemetryLogger(): TelemetryLogger = TelemetryLogger(TelemetrySink { })
-

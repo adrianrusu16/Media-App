@@ -1,8 +1,8 @@
 package com.adrianrusu.pandawave.feature.library.data
 
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthState
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAccount
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthSession
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthState
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
@@ -10,10 +10,10 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryPage
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineLibraryItem
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistReconciliation
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistTrackItem
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.pandawave.core.rust.bridge.engine.EngineDispatchResult
 import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineGateway
@@ -33,10 +33,10 @@ class PandaEngineLibraryRepositoryTest {
             snapshot = authenticatedSnapshot(
                 savedTracksCount = 2,
                 likedTracksCount = 1,
-                hasSavedTracksNextPage = true,
+                hasSavedTracksNextPage = true
             ),
             saved = listOf(item("saved-1"), item("saved-2")),
-            liked = listOf(item("liked-1")),
+            liked = listOf(item("liked-1"))
         )
         val repository = testLibraryRepository(gateway)
 
@@ -48,9 +48,9 @@ class PandaEngineLibraryRepositoryTest {
                 EngineCommand.TYPE_LIST_LIKED_TRACKS,
                 EngineCommand.TYPE_LOAD_HISTORY_SETTINGS,
                 EngineCommand.TYPE_LIST_HISTORY,
-                EngineCommand.TYPE_LIST_PLAYLISTS,
+                EngineCommand.TYPE_LIST_PLAYLISTS
             ),
-            gateway.commands.map(EngineCommand::type),
+            gateway.commands.map(EngineCommand::type)
         )
         assertEquals(listOf("saved-1", "saved-2"), repository.state.value.savedTracks.map { it.mediaId })
         assertEquals(listOf("liked-1"), repository.state.value.likedTracks.map { it.mediaId })
@@ -73,9 +73,9 @@ class PandaEngineLibraryRepositoryTest {
             listOf(
                 EngineCommand.TYPE_LOAD_NEXT_SAVED_TRACKS_PAGE,
                 EngineCommand.TYPE_LOAD_NEXT_LIKED_TRACKS_PAGE,
-                EngineCommand.TYPE_LOAD_NEXT_HISTORY_PAGE,
+                EngineCommand.TYPE_LOAD_NEXT_HISTORY_PAGE
             ),
-            gateway.commands.map(EngineCommand::type),
+            gateway.commands.map(EngineCommand::type)
         )
         assertEquals(listOf(null, null, null), gateway.commands.map(EngineCommand::payload))
     }
@@ -90,19 +90,19 @@ class PandaEngineLibraryRepositoryTest {
                     historyId = "history-1", mediaId = "track-1", title = "First",
                     artist = "Artist", album = null, artworkUri = "art-1",
                     playedAtEpochMillis = 1_000, listenedDurationMillis = 90_000,
-                    completionRatio = 0.8F, playable = true,
+                    completionRatio = 0.8F, playable = true
                 ),
                 EngineHistoryItem(
                     historyId = "history-2", mediaId = "track-2", title = "Second",
                     artist = "Artist", album = null, artworkUri = null,
                     playedAtEpochMillis = 2_000, listenedDurationMillis = 120_000,
-                    completionRatio = 1F, playable = true,
-                ),
-            ),
+                    completionRatio = 1F, playable = true
+                )
+            )
         )
         val repository = PandaEngineLibraryRepository(
             gateway,
-            TelemetryLogger(sink = telemetrySink, clock = { 42L }),
+            TelemetryLogger(sink = telemetrySink, clock = { 42L })
         )
         repository.start()
 
@@ -124,12 +124,12 @@ class PandaEngineLibraryRepositoryTest {
                 mapOf(
                     "previous_generation" to "0",
                     "current_generation" to "2",
-                    "reason" to "engine_invalidation",
+                    "reason" to "engine_invalidation"
                 )
             ),
             telemetrySink.events
                 .filter { it.name == "library.history.refresh_requested" }
-                .map(TelemetryEvent::attributes),
+                .map(TelemetryEvent::attributes)
         )
 
         gateway.emit(authenticatedSnapshot(historyGeneration = 2))
@@ -144,8 +144,8 @@ class PandaEngineLibraryRepositoryTest {
             snapshot = authenticatedSnapshot(historyEntriesCount = 1),
             history = listOf(
                 historyItem("history-1", "track-1"),
-                historyItem("history-2", "track-2"),
-            ),
+                historyItem("history-2", "track-2")
+            )
         )
         val repository = testLibraryRepository(gateway)
         repository.start()
@@ -158,7 +158,7 @@ class PandaEngineLibraryRepositoryTest {
         assertEquals(emptyList(), gateway.commands.map(EngineCommand::type))
         assertEquals(
             listOf("history-2", "history-1"),
-            repository.state.value.historyEntries.map { it.historyId },
+            repository.state.value.historyEntries.map { it.historyId }
         )
     }
 
@@ -167,7 +167,7 @@ class PandaEngineLibraryRepositoryTest {
         val snapshot = authenticatedSnapshot(historyEntriesCount = 1)
         val gateway = RecordingLibraryGateway(
             snapshot = snapshot,
-            history = listOf(historyItem("history-1", "track-1")),
+            history = listOf(historyItem("history-1", "track-1"))
         )
         val repository = testLibraryRepository(gateway)
         repository.start()
@@ -183,7 +183,7 @@ class PandaEngineLibraryRepositoryTest {
     fun `signed out snapshots switch to anonymous history and hydrate once`() {
         val gateway = RecordingLibraryGateway(
             snapshot = authenticatedSnapshot(historyEntriesCount = 1),
-            history = listOf(historyItem("history-1", "track-1")),
+            history = listOf(historyItem("history-1", "track-1"))
         )
         val repository = testLibraryRepository(gateway)
         repository.start()
@@ -201,9 +201,9 @@ class PandaEngineLibraryRepositoryTest {
         assertEquals(
             listOf(
                 EngineCommand.TYPE_LOAD_HISTORY_SETTINGS,
-                EngineCommand.TYPE_LIST_HISTORY,
+                EngineCommand.TYPE_LIST_HISTORY
             ),
-            gateway.commands.map(EngineCommand::type),
+            gateway.commands.map(EngineCommand::type)
         )
     }
 
@@ -215,7 +215,7 @@ class PandaEngineLibraryRepositoryTest {
                 playlistTracksCount = 1,
                 hasPlaylistsNextPage = true,
                 hasPlaylistTracksNextPage = true,
-                hasPlaylistReconciliation = true,
+                hasPlaylistReconciliation = true
             ),
             playlists = listOf(EnginePlaylistItem("playlist-1", "Road trip", "Summer", 7, 1_000, 2_000)),
             playlistTracks = listOf(
@@ -223,15 +223,17 @@ class PandaEngineLibraryRepositoryTest {
                     membershipId = "membership-1", playlistId = "playlist-1", mediaId = "track-1",
                     title = "Track", artistId = "artist-1", artist = "Artist", album = "Album",
                     durationMillis = 120_000, explicit = false, artworkId = "artwork-1", position = 0,
-                    addedAtEpochMillis = 1_500,
+                    addedAtEpochMillis = 1_500
                 )
             ),
             selectedPlaylistId = "playlist-1",
             reconciliation = EnginePlaylistReconciliation(
-                playlistId = "playlist-1", expectedRevision = 7, serverRevision = 8,
+                playlistId = "playlist-1",
+                expectedRevision = 7,
+                serverRevision = 8,
                 serverMembershipIds = listOf("membership-server"),
-                proposedMembershipIds = listOf("membership-local"),
-            ),
+                proposedMembershipIds = listOf("membership-local")
+            )
         )
         val repository = testLibraryRepository(gateway)
 
@@ -253,7 +255,7 @@ class PandaEngineLibraryRepositoryTest {
         val gateway = RecordingLibraryGateway(
             snapshot = authenticatedSnapshot(libraryPendingCount = 1),
             pending = listOf("track-pending"),
-            dispatchEventType = EngineEvent.TYPE_GATEWAY_UNAVAILABLE,
+            dispatchEventType = EngineEvent.TYPE_GATEWAY_UNAVAILABLE
         )
         val repository = testLibraryRepository(gateway)
         repository.start()
@@ -276,9 +278,9 @@ class PandaEngineLibraryRepositoryTest {
         assertEquals(
             listOf(
                 EngineCommand.TYPE_LOAD_HISTORY_SETTINGS,
-                EngineCommand.TYPE_LIST_HISTORY,
+                EngineCommand.TYPE_LIST_HISTORY
             ),
-            gateway.commands.map(EngineCommand::type),
+            gateway.commands.map(EngineCommand::type)
         )
         gateway.commands.clear()
 
@@ -289,9 +291,9 @@ class PandaEngineLibraryRepositoryTest {
                 EngineCommand.TYPE_LIST_LIKED_TRACKS,
                 EngineCommand.TYPE_LOAD_HISTORY_SETTINGS,
                 EngineCommand.TYPE_LIST_HISTORY,
-                EngineCommand.TYPE_LIST_PLAYLISTS,
+                EngineCommand.TYPE_LIST_PLAYLISTS
             ),
-            gateway.commands.map(EngineCommand::type),
+            gateway.commands.map(EngineCommand::type)
         )
 
         gateway.emit(authenticatedSnapshot(accountId = "account-1", sessionId = "session-1"))
@@ -309,7 +311,7 @@ class PandaEngineLibraryRepositoryTest {
         val replacement = authenticatedSnapshot(accountId = "account-2", sessionId = "session-2")
         val gateway = RecordingLibraryGateway(
             snapshot = authenticatedSnapshot(accountId = "account-1", sessionId = "session-1"),
-            replaceOnFirstSavedLoad = replacement,
+            replaceOnFirstSavedLoad = replacement
         )
         val repository = testLibraryRepository(gateway)
 
@@ -321,9 +323,9 @@ class PandaEngineLibraryRepositoryTest {
                 LibraryLoad(EngineCommand.TYPE_LIST_SAVED_TRACKS, "account-2", "session-2"),
                 LibraryLoad(EngineCommand.TYPE_LIST_LIKED_TRACKS, "account-2", "session-2"),
                 LibraryLoad(EngineCommand.TYPE_LIST_HISTORY, "account-2", "session-2"),
-                LibraryLoad(EngineCommand.TYPE_LIST_PLAYLISTS, "account-2", "session-2"),
+                LibraryLoad(EngineCommand.TYPE_LIST_PLAYLISTS, "account-2", "session-2")
             ),
-            gateway.libraryLoads,
+            gateway.libraryLoads
         )
     }
 
@@ -342,12 +344,12 @@ class PandaEngineLibraryRepositoryTest {
         hasPlaylistTracksNextPage: Boolean = false,
         hasPlaylistReconciliation: Boolean = false,
         accountId: String = "account-1",
-        sessionId: String = "session-1",
+        sessionId: String = "session-1"
     ): EngineSnapshot = EngineSnapshot.idle(1L).copy(
         authState = EngineAuthState(
             state = EngineAuthState.AUTHENTICATED,
             account = EngineAccount(accountId, "$accountId@example.com", "active", 1L),
-            session = EngineAuthSession(sessionId, "PandaWave", 1L, 1L, 10_000L, true),
+            session = EngineAuthSession(sessionId, "PandaWave", 1L, 1L, 10_000L, true)
         ),
         savedTracksCount = savedTracksCount,
         likedTracksCount = likedTracksCount,
@@ -361,7 +363,7 @@ class PandaEngineLibraryRepositoryTest {
         playlistTracksCount = playlistTracksCount,
         hasPlaylistsNextPage = hasPlaylistsNextPage,
         hasPlaylistTracksNextPage = hasPlaylistTracksNextPage,
-        hasPlaylistReconciliation = hasPlaylistReconciliation,
+        hasPlaylistReconciliation = hasPlaylistReconciliation
     )
 
     private fun item(mediaId: String) = EngineLibraryItem(
@@ -371,7 +373,7 @@ class PandaEngineLibraryRepositoryTest {
         artistId = "artist-1",
         artist = "Artist",
         durationMillis = 120_000,
-        relationshipAtEpochMillis = 1_000,
+        relationshipAtEpochMillis = 1_000
     )
 
     private fun historyItem(historyId: String, mediaId: String) = EngineHistoryItem(
@@ -384,7 +386,7 @@ class PandaEngineLibraryRepositoryTest {
         playedAtEpochMillis = 1_000,
         listenedDurationMillis = 90_000,
         completionRatio = 0.8F,
-        playable = true,
+        playable = true
     )
 }
 
@@ -399,7 +401,7 @@ private class RecordingLibraryGateway(
     private val selectedPlaylistId: String? = null,
     private val reconciliation: EnginePlaylistReconciliation? = null,
     private val dispatchEventType: String = EngineEvent.TYPE_COMMAND_APPLIED,
-    private val replaceOnFirstSavedLoad: EngineSnapshot? = null,
+    private val replaceOnFirstSavedLoad: EngineSnapshot? = null
 ) : EngineGateway {
     private var current = snapshot
     private var historyOffset = 0
@@ -431,7 +433,7 @@ private class RecordingLibraryGateway(
             generation = generation,
             items = history
                 .drop(historyOffset + offset.coerceAtLeast(0))
-                .take(limit.coerceAtLeast(0)),
+                .take(limit.coerceAtLeast(0))
         )
     }
     override fun playlistsPage(offset: Int, limit: Int): List<EnginePlaylistItem> =
@@ -446,11 +448,18 @@ private class RecordingLibraryGateway(
 
     override fun dispatch(command: EngineCommand): EngineDispatchResult {
         commands += command
-        if (command.type in setOf(EngineCommand.TYPE_LIST_SAVED_TRACKS, EngineCommand.TYPE_LIST_LIKED_TRACKS, EngineCommand.TYPE_LIST_HISTORY, EngineCommand.TYPE_LIST_PLAYLISTS)) {
+        if (command.type in
+            setOf(
+                EngineCommand.TYPE_LIST_SAVED_TRACKS,
+                EngineCommand.TYPE_LIST_LIKED_TRACKS,
+                EngineCommand.TYPE_LIST_HISTORY,
+                EngineCommand.TYPE_LIST_PLAYLISTS
+            )
+        ) {
             libraryLoads += LibraryLoad(
                 type = command.type,
                 accountId = current.authState.account?.id.orEmpty(),
-                sessionId = current.authState.session?.id.orEmpty(),
+                sessionId = current.authState.session?.id.orEmpty()
             )
         }
         when (command.type) {
@@ -458,14 +467,15 @@ private class RecordingLibraryGateway(
                 historyOffset = 0
                 current = current.copy(
                     historyEntriesCount = minOf(current.historyEntriesCount.coerceAtLeast(1), history.size),
-                    hasHistoryNextPage = history.size > current.historyEntriesCount.coerceAtLeast(1),
+                    hasHistoryNextPage = history.size > current.historyEntriesCount.coerceAtLeast(1)
                 )
             }
+
             EngineCommand.TYPE_LOAD_NEXT_HISTORY_PAGE -> {
                 historyOffset = minOf(historyOffset + current.historyEntriesCount, history.size)
                 current = current.copy(
                     historyEntriesCount = (history.size - historyOffset).coerceIn(0, 1),
-                    hasHistoryNextPage = historyOffset + 1 < history.size,
+                    hasHistoryNextPage = historyOffset + 1 < history.size
                 )
             }
         }
@@ -478,15 +488,14 @@ private class RecordingLibraryGateway(
         return EngineDispatchResult(
             snapshot = current,
             event = EngineEvent(dispatchEventType, command.type),
-            effects = emptyList<EngineEffect>(),
+            effects = emptyList<EngineEffect>()
         )
     }
 
-    override fun dispatchPlatformEvent(event: EnginePlatformEvent): EngineDispatchResult =
-        EngineDispatchResult(
-            snapshot = current,
-            event = EngineEvent(EngineEvent.TYPE_PLATFORM_EVENT_APPLIED, event.type),
-        )
+    override fun dispatchPlatformEvent(event: EnginePlatformEvent): EngineDispatchResult = EngineDispatchResult(
+        snapshot = current,
+        event = EngineEvent(EngineEvent.TYPE_PLATFORM_EVENT_APPLIED, event.type)
+    )
 
     override fun observeSnapshots(listener: (EngineSnapshot) -> Unit): AutoCloseable {
         listeners += listener
@@ -504,11 +513,10 @@ private class RecordingLibraryGateway(
 
 private data class LibraryLoad(val type: String, val accountId: String, val sessionId: String)
 
-private fun testLibraryRepository(gateway: EngineGateway): PandaEngineLibraryRepository =
-    PandaEngineLibraryRepository(
-        engineGateway = gateway,
-        telemetryLogger = TelemetryLogger(sink = TelemetrySink { }, clock = { 42L }),
-    )
+private fun testLibraryRepository(gateway: EngineGateway): PandaEngineLibraryRepository = PandaEngineLibraryRepository(
+    engineGateway = gateway,
+    telemetryLogger = TelemetryLogger(sink = TelemetrySink { }, clock = { 42L })
+)
 
 private class RecordingLibraryTelemetrySink : TelemetrySink {
     val events = mutableListOf<TelemetryEvent>()

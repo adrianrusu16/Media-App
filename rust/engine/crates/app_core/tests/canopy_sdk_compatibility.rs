@@ -2,7 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
-const CANONICAL_COMMIT: &str = "af019e2d7fa245a2a7d9fc21a4dd9afa";
+const CANONICAL_COMMIT: &str = "ff8940d1a15b4034bb430fd47dd45cdc";
 
 struct Fixture {
     root: PathBuf,
@@ -120,7 +120,7 @@ fn verifier_rejects_mixed_or_generated_sdk_contracts() {
         &stale_release
             .root
             .join("app/src/debug/assets/client-connection.json"),
-        "\"release\": \"v0.2.0\"",
+        "\"release\": \"v0.3.0\"",
         "\"release\": \"v0.1.0\"",
     );
     assert_rejected(
@@ -148,8 +148,8 @@ fn verifier_rejects_mixed_or_generated_sdk_contracts() {
         &wrong_artifact_version
             .root
             .join("app/src/debug/assets/client-connection.json"),
-        "=0.5.0-00000000000000-af019e2d7fa2.4",
-        "=0.5.0-00000000000000-af019e2d7fa2.5",
+        "=0.5.0-00000000000000-ff8940d1a15b.4",
+        "=0.5.0-00000000000000-ff8940d1a15b.5",
     );
     assert_rejected(
         "artifact package version mismatch",
@@ -162,8 +162,8 @@ fn verifier_rejects_mixed_or_generated_sdk_contracts() {
         &ranged_tonic
             .root
             .join("rust/engine/crates/app_core/Cargo.toml"),
-        "=0.5.0-00000000000000-af019e2d7fa2.4",
-        ">=0.5.0-00000000000000-af019e2d7fa2.4, <0.6",
+        "=0.5.0-00000000000000-ff8940d1a15b.4",
+        ">=0.5.0-00000000000000-ff8940d1a15b.4, <0.6",
     );
     assert_rejected(
         "Tonic version range",
@@ -174,8 +174,8 @@ fn verifier_rejects_mixed_or_generated_sdk_contracts() {
     let stale_lock = Fixture::new("stale-lock");
     replace_in_file(
         &stale_lock.root.join("rust/engine/Cargo.lock"),
-        "version = \"0.5.0-00000000000000-af019e2d7fa2.4\"",
-        "version = \"0.5.0-00000000000000-af019e2d7fa2.5\"",
+        "version = \"0.5.0-00000000000000-ff8940d1a15b.4\"",
+        "version = \"0.5.0-00000000000000-ff8940d1a15b.5\"",
     );
     assert_rejected(
         "lockfile resolution mismatch",
@@ -277,7 +277,7 @@ fn verifier_discovers_and_rejects_a_third_shipped_artifact() {
         .root
         .join("feature/canopy/src/debug/assets/client-connection.json");
     copy_file(&source, &third);
-    replace_in_file(&third, "\"release\": \"v0.2.0\"", "\"release\": \"v0.1.0\"");
+    replace_in_file(&third, "\"release\": \"v0.3.0\"", "\"release\": \"v0.1.0\"");
 
     assert_rejected(
         "stale third shipped connection artifact",

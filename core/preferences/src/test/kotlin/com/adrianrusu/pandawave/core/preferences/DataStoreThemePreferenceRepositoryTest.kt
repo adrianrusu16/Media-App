@@ -98,6 +98,7 @@ class DataStoreThemePreferenceRepositoryTest {
         assertNull(preferences[stringPreferencesKey("theme_preference")])
         scope.cancel()
     }
+
     @Test
     fun `read failure records a preferences breadcrumb without blocking fallback`() = runTest {
         val telemetrySink = RecordingTelemetrySink()
@@ -156,4 +157,3 @@ private class InMemoryPreferencesDataStore(initial: Preferences) : DataStore<Pre
         return updated
     }
 }
-

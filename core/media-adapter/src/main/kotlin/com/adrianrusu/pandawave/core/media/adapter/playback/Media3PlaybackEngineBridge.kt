@@ -2,12 +2,12 @@ package com.adrianrusu.pandawave.core.media.adapter.playback
 
 import androidx.media3.common.Player
 import com.adrianrusu.pandawave.core.common.log.PandaLog
+import com.adrianrusu.pandawave.core.media.adapter.playback.focus.BambooAudioFocusChange
+import com.adrianrusu.pandawave.core.media.adapter.playback.focus.BambooAudioFocusRequestResult
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackIntent
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackTelemetryAttributes
 import com.adrianrusu.pandawave.core.playback.telemetryName
-import com.adrianrusu.pandawave.core.media.adapter.playback.focus.BambooAudioFocusChange
-import com.adrianrusu.pandawave.core.media.adapter.playback.focus.BambooAudioFocusRequestResult
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommandPayloads
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
@@ -16,10 +16,7 @@ import com.adrianrusu.pandawave.core.telemetry.TelemetryModule
 /**
  * Projects Media3 playback requests into the shared Bamboo playback source of truth.
  */
-data class PlaybackCompletionMetrics(
-    val positionMillis: Long,
-    val durationMillis: Long,
-)
+data class PlaybackCompletionMetrics(val positionMillis: Long, val durationMillis: Long)
 
 fun interface PlaybackCompletionMetricsProvider {
     fun currentMetrics(): PlaybackCompletionMetrics?
@@ -42,7 +39,7 @@ class Media3PlaybackEngineBridge(
     private val playbackInstanceIdProvider: () -> Long? = { null },
     private val playerSnapshotProvider: () -> Media3PlayerSnapshot? = { null },
     private val checkpointScheduler: PlaybackCheckpointScheduler = NoOpPlaybackCheckpointScheduler,
-    private val checkpointIntervalMillis: Long = DEFAULT_CHECKPOINT_INTERVAL_MILLIS,
+    private val checkpointIntervalMillis: Long = DEFAULT_CHECKPOINT_INTERVAL_MILLIS
 ) : Player.Listener,
     AutoCloseable {
     private val telemetryLogger = telemetryLogger.forModule(TelemetryModule.Media3)
@@ -80,11 +77,11 @@ class Media3PlaybackEngineBridge(
     fun dispatchAudioFocusChange(change: BambooAudioFocusChange) {
         telemetryLogger.info(
             name = Media3PlaybackTelemetryEvents.AUDIO_FOCUS_CHANGED,
-            attributes = mapOf(Media3PlaybackTelemetryAttributes.FOCUS_CHANGE to change.wireValue),
+            attributes = mapOf(Media3PlaybackTelemetryAttributes.FOCUS_CHANGE to change.wireValue)
         )
         dispatchPlatformEvent(
             EnginePlatformEvent.TYPE_AUDIO_FOCUS_CHANGED,
-            EngineCommandPayloads.audioFocusChanged(change.wireValue),
+            EngineCommandPayloads.audioFocusChanged(change.wireValue)
         )
     }
 
@@ -94,11 +91,11 @@ class Media3PlaybackEngineBridge(
     ) {
         telemetryLogger.info(
             name = Media3PlaybackTelemetryEvents.AUDIO_FOCUS_REQUEST_RESULT,
-            attributes = mapOf(Media3PlaybackTelemetryAttributes.RESULT to result.wireValue),
+            attributes = mapOf(Media3PlaybackTelemetryAttributes.RESULT to result.wireValue)
         )
         dispatchPlatformEvent(
             EnginePlatformEvent.TYPE_AUDIO_FOCUS_REQUEST_RESULT,
-            EngineCommandPayloads.audioFocusRequestResult(result.wireValue, playbackInstanceId),
+            EngineCommandPayloads.audioFocusRequestResult(result.wireValue, playbackInstanceId)
         )
     }
 
@@ -215,7 +212,7 @@ class Media3PlaybackEngineBridge(
                         positionMillis?.let { position ->
                             put(Media3PlaybackTelemetryAttributes.POSITION_MILLIS, position.toString())
                         }
-                    },
+                    }
                 )
             }
             reportPlaybackPositionCheckpoint(PlaybackCheckpointTriggers.PLAYING_STARTED)
@@ -232,8 +229,8 @@ class Media3PlaybackEngineBridge(
                     name = Media3PlaybackTelemetryEvents.POSITION_CHECKPOINT_SKIPPED,
                     attributes = mapOf(
                         Media3PlaybackTelemetryAttributes.TRIGGER to PlaybackCheckpointTriggers.PAUSED,
-                        Media3PlaybackTelemetryAttributes.REASON to Media3PlaybackTelemetryValues.SEEK_IN_PROGRESS,
-                    ),
+                        Media3PlaybackTelemetryAttributes.REASON to Media3PlaybackTelemetryValues.SEEK_IN_PROGRESS
+                    )
                 )
                 return
             }
@@ -287,7 +284,7 @@ class Media3PlaybackEngineBridge(
                 durationMillis?.let { duration ->
                     put(Media3PlaybackTelemetryAttributes.DURATION_MILLIS, duration.toString())
                 }
-            },
+            }
         )
         dispatchPlatformEvent(
             EnginePlatformEvent.TYPE_PLAYBACK_POSITION_CHECKPOINT,
@@ -295,7 +292,7 @@ class Media3PlaybackEngineBridge(
                 playbackInstanceId = playbackInstanceId,
                 positionMillis = positionMillis,
                 durationMillis = durationMillis
-            ),
+            )
         )
     }
 
@@ -316,12 +313,12 @@ class Media3PlaybackEngineBridge(
             attributes = mapOf(
                 Media3PlaybackTelemetryAttributes.PLAYBACK_INSTANCE_ID to playbackInstanceId.toString(),
                 Media3PlaybackTelemetryAttributes.DURATION_MILLIS to durationMillis.toString(),
-                Media3PlaybackTelemetryAttributes.COMPLETION_RATIO to completionRatio.toString(),
-            ),
+                Media3PlaybackTelemetryAttributes.COMPLETION_RATIO to completionRatio.toString()
+            )
         )
         dispatchPlatformEvent(
             EnginePlatformEvent.TYPE_PLAYBACK_COMPLETED,
-            EngineCommandPayloads.playbackCompleted(trackId, durationMillis, completionRatio, playbackInstanceId),
+            EngineCommandPayloads.playbackCompleted(trackId, durationMillis, completionRatio, playbackInstanceId)
         )
     }
 
@@ -336,8 +333,8 @@ class Media3PlaybackEngineBridge(
             attributes = mapOf(
                 Media3PlaybackTelemetryAttributes.PLAYBACK_INSTANCE_ID to playbackInstanceId.toString(),
                 Media3PlaybackTelemetryAttributes.REASON to failureKind,
-                Media3PlaybackTelemetryAttributes.PLAYER_COMMAND to error.errorCode.toString(),
-            ),
+                Media3PlaybackTelemetryAttributes.PLAYER_COMMAND to error.errorCode.toString()
+            )
         )
         dispatchPlatformEvent(
             EnginePlatformEvent.TYPE_MEDIA_ERROR,
@@ -494,19 +491,19 @@ class Media3PlaybackEngineBridge(
     }
 }
 
-data class Media3PlayerSnapshot(
-    val positionMillis: Long,
-    val playWhenReady: Boolean
-)
+data class Media3PlayerSnapshot(val positionMillis: Long, val playWhenReady: Boolean)
 
 private fun androidx.media3.common.PlaybackException.toEngineFailureKind(): String = when (errorCode) {
     androidx.media3.common.PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS,
     androidx.media3.common.PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND -> "source_rejected"
+
     androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
     androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
     androidx.media3.common.PlaybackException.ERROR_CODE_IO_UNSPECIFIED -> "network"
+
     androidx.media3.common.PlaybackException.ERROR_CODE_DECODER_INIT_FAILED,
     androidx.media3.common.PlaybackException.ERROR_CODE_DECODING_FAILED -> "decoder_failed"
+
     else -> "unknown"
 }
 

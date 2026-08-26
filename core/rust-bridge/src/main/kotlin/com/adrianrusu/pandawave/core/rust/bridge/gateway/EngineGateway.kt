@@ -2,14 +2,14 @@ package com.adrianrusu.pandawave.core.rust.bridge.gateway
 
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineLibraryItem
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistItem
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistTrackItem
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistReconciliation
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryPage
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineLibraryItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistItem
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistReconciliation
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistTrackItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.pandawave.core.rust.bridge.engine.EngineDispatchResult
 
@@ -20,41 +20,35 @@ interface EngineGateway {
     fun snapshot(): EngineSnapshot
 
     fun browseResult(index: Int): EngineCatalogItem?
-    fun browseResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
-        boundedPage(offset, limit, ::browseResult)
+    fun browseResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> = boundedPage(offset, limit, ::browseResult)
     fun discoveryResult(index: Int): EngineCatalogItem? = null
     fun forYouResult(index: Int): EngineCatalogItem? = null
     fun recommendationResult(index: Int): EngineCatalogItem? = null
     fun discoveryResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
         boundedPage(offset, limit, ::discoveryResult)
-    fun forYouResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
-        boundedPage(offset, limit, ::forYouResult)
+    fun forYouResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> = boundedPage(offset, limit, ::forYouResult)
     fun recommendationResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
         boundedPage(offset, limit, ::recommendationResult)
     fun profilePreferenceValue(key: String): String? = null
 
     fun searchResult(index: Int): EngineCatalogItem?
-    fun searchResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
-        boundedPage(offset, limit, ::searchResult)
+    fun searchResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> = boundedPage(offset, limit, ::searchResult)
 
     fun historyEntry(index: Int): EngineHistoryItem? = null
     fun historyPage(offset: Int, limit: Int, generation: Long): EngineHistoryPage =
         EngineHistoryPage(generation, boundedPage(offset, limit, ::historyEntry))
 
     fun savedTrack(index: Int): EngineLibraryItem? = null
-    fun savedTracksPage(offset: Int, limit: Int): List<EngineLibraryItem> =
-        boundedPage(offset, limit, ::savedTrack)
+    fun savedTracksPage(offset: Int, limit: Int): List<EngineLibraryItem> = boundedPage(offset, limit, ::savedTrack)
 
     fun likedTrack(index: Int): EngineLibraryItem? = null
-    fun likedTracksPage(offset: Int, limit: Int): List<EngineLibraryItem> =
-        boundedPage(offset, limit, ::likedTrack)
+    fun likedTracksPage(offset: Int, limit: Int): List<EngineLibraryItem> = boundedPage(offset, limit, ::likedTrack)
 
     fun pendingLibraryTrackId(index: Int): String? = null
     fun pendingLibraryTrackIdsPage(offset: Int, limit: Int): List<String> =
         boundedPage(offset, limit, ::pendingLibraryTrackId)
     fun playlist(index: Int): EnginePlaylistItem? = null
-    fun playlistsPage(offset: Int, limit: Int): List<EnginePlaylistItem> =
-        boundedPage(offset, limit, ::playlist)
+    fun playlistsPage(offset: Int, limit: Int): List<EnginePlaylistItem> = boundedPage(offset, limit, ::playlist)
     fun playlistTrack(index: Int): EnginePlaylistTrackItem? = null
     fun playlistTracksPage(offset: Int, limit: Int): List<EnginePlaylistTrackItem> =
         boundedPage(offset, limit, ::playlistTrack)

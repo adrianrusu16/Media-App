@@ -1,7 +1,7 @@
 package com.adrianrusu.pandawave.feature.auth.presentation
 
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthOperationResult
 import com.adrianrusu.pandawave.core.common.log.PandaLog
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthOperationResult
 import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineAuthGateway
 import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineGateway
 import com.adrianrusu.pandawave.feature.auth.domain.AuthFormMode
@@ -141,11 +141,7 @@ class AuthFlowController(
         return transition
     }
 
-    private fun logAuthPhase(
-        event: AuthUiEvent,
-        previousPhase: AuthFormPhase,
-        transition: AuthUiTransition
-    ) {
+    private fun logAuthPhase(event: AuthUiEvent, previousPhase: AuthFormPhase, transition: AuthUiTransition) {
         val nextPhase = transition.state.phase
         val finishing = previousPhase == AuthFormPhase.SUBMITTING ||
             previousPhase == AuthFormPhase.FINISHING_SIGN_IN ||

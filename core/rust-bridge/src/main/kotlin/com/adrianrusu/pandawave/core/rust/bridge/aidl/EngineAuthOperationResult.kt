@@ -106,19 +106,16 @@ data class EngineAuthOperationResult(
 
         fun rejected(): EngineAuthOperationResult = EngineAuthOperationResult(STATUS_REJECTED)
 
-        fun authenticated(): EngineAuthOperationResult =
-            EngineAuthOperationResult(STATUS_AUTHENTICATED)
+        fun authenticated(): EngineAuthOperationResult = EngineAuthOperationResult(STATUS_AUTHENTICATED)
 
         fun anonymous(): EngineAuthOperationResult = EngineAuthOperationResult(STATUS_ANONYMOUS)
 
-        fun error(
-            errorType: String,
-            retryAfterMillis: Long? = null
-        ): EngineAuthOperationResult = EngineAuthOperationResult(
-            status = STATUS_ERROR,
-            errorType = errorType,
-            retryAfterMillis = retryAfterMillis
-        )
+        fun error(errorType: String, retryAfterMillis: Long? = null): EngineAuthOperationResult =
+            EngineAuthOperationResult(
+                status = STATUS_ERROR,
+                errorType = errorType,
+                retryAfterMillis = retryAfterMillis
+            )
 
         fun unavailable(): EngineAuthOperationResult = error(ERROR_SERVICE_UNAVAILABLE)
 
@@ -128,8 +125,7 @@ data class EngineAuthOperationResult(
                 override fun createFromParcel(parcel: Parcel): EngineAuthOperationResult =
                     EngineAuthOperationResult(parcel)
 
-                override fun newArray(size: Int): Array<EngineAuthOperationResult?> =
-                    arrayOfNulls(size)
+                override fun newArray(size: Int): Array<EngineAuthOperationResult?> = arrayOfNulls(size)
             }
     }
 }

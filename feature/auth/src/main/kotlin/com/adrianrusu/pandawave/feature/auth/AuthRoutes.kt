@@ -34,12 +34,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.adrianrusu.pandawave.core.designsystem.tokens.LocalPandaWaveDesignTokens
 import com.adrianrusu.pandawave.core.designsystem.tokens.lg
 import com.adrianrusu.pandawave.core.designsystem.tokens.md
-import com.adrianrusu.pandawave.feature.auth.domain.AuthFormMode
-import com.adrianrusu.pandawave.feature.auth.domain.AuthFormPhase
 import com.adrianrusu.pandawave.feature.auth.domain.AuthField
 import com.adrianrusu.pandawave.feature.auth.domain.AuthFieldError
 import com.adrianrusu.pandawave.feature.auth.domain.AuthFieldFeedback
 import com.adrianrusu.pandawave.feature.auth.domain.AuthFieldFeedbackPolicy
+import com.adrianrusu.pandawave.feature.auth.domain.AuthFormMode
+import com.adrianrusu.pandawave.feature.auth.domain.AuthFormPhase
 import com.adrianrusu.pandawave.feature.auth.domain.AuthNotice
 import com.adrianrusu.pandawave.feature.auth.domain.AuthUiEffect
 import com.adrianrusu.pandawave.feature.auth.presentation.AuthFormViewModel

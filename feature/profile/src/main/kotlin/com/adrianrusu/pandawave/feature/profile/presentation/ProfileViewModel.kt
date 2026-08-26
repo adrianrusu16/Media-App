@@ -7,9 +7,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
 @HiltViewModel
-class ProfileViewModel @Inject constructor(
-    private val repository: ProfileRepository
-) : ViewModel() {
+class ProfileViewModel @Inject constructor(private val repository: ProfileRepository) : ViewModel() {
     val state = repository.state
     val accountSessionsState = repository.accountSessionsState
 

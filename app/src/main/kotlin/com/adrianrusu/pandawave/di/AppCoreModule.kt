@@ -18,6 +18,7 @@ import com.adrianrusu.pandawave.core.automotive.driving.AutomotiveDrivingStateOb
 import com.adrianrusu.pandawave.core.automotive.driving.PlatformAutomotiveDrivingStateObserver
 import com.adrianrusu.pandawave.core.automotive.ux.AutomotiveUxRestrictionObserver
 import com.adrianrusu.pandawave.core.automotive.ux.PlatformAutomotiveUxRestrictionObserver
+import com.adrianrusu.pandawave.core.common.log.PandaLog
 import com.adrianrusu.pandawave.core.model.theme.ThemePreferenceRepository
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
 import com.adrianrusu.pandawave.core.playback.DefaultBambooPlaybackRepository
@@ -32,7 +33,6 @@ import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineAuthGateway
 import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineGateway
 import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineServiceConnection
 import com.adrianrusu.pandawave.core.telemetry.TelemetryBreadcrumbStore
-import com.adrianrusu.pandawave.core.common.log.PandaLog
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
 import com.adrianrusu.pandawave.core.telemetry.TelemetryPolicy
 import com.adrianrusu.pandawave.core.telemetry.TelemetrySink

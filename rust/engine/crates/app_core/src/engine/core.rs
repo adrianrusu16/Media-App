@@ -226,7 +226,7 @@ fn project_discovery_track(track: crate::EngineTrack) -> crate::MediaItem {
         artist: track.artist.name,
         album: track.album.map(|album| album.title),
         duration_millis: Some(track.duration_millis),
-        thumbnail_url: track.artwork_id,
+        thumbnail_url: track.artwork.and_then(|artwork| artwork.uri),
         ..Default::default()
     }
 }

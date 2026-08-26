@@ -61,7 +61,7 @@ interface BambooAudioFocusController {
 enum class BambooAudioFocusRequestResult(val wireValue: String) {
     Granted("granted"),
     Delayed("delayed"),
-    Failed("failed"),
+    Failed("failed")
 }
 
 enum class BambooAudioFocusChange(val wireValue: String) {

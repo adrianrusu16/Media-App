@@ -1,7 +1,7 @@
 package com.adrianrusu.pandawave.feature.library
 
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,8 +10,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -35,10 +35,10 @@ import com.adrianrusu.pandawave.core.designsystem.tokens.sm
 import com.adrianrusu.pandawave.core.ui.discovery.BambooSectionHeader
 import com.adrianrusu.pandawave.core.ui.focus.BambooRotaryColumn
 import com.adrianrusu.pandawave.feature.library.domain.LibraryHistoryEntry
+import com.adrianrusu.pandawave.feature.library.domain.LibraryPlaylist
 import com.adrianrusu.pandawave.feature.library.domain.LibraryState
 import com.adrianrusu.pandawave.feature.library.domain.LibraryTab
 import com.adrianrusu.pandawave.feature.library.domain.LibraryTrack
-import com.adrianrusu.pandawave.feature.library.domain.LibraryPlaylist
 import com.adrianrusu.pandawave.feature.library.domain.PlaylistConflict
 import com.adrianrusu.pandawave.feature.library.presentation.LibraryViewModel
 
@@ -46,7 +46,7 @@ import com.adrianrusu.pandawave.feature.library.presentation.LibraryViewModel
 fun LibraryRoute(
     modifier: Modifier = Modifier,
     onOpenNowPlaying: () -> Unit = {},
-    viewModel: LibraryViewModel = hiltViewModel(),
+    viewModel: LibraryViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     LibraryRoute(
@@ -67,7 +67,7 @@ fun LibraryRoute(
         onSelectPlaylist = viewModel::selectPlaylist,
         onAddPlaylistTrack = viewModel::addPlaylistTrack,
         onRemovePlaylistTrack = viewModel::removePlaylistTrack,
-        onReorderPlaylist = viewModel::reorderPlaylist,
+        onReorderPlaylist = viewModel::reorderPlaylist
     )
 }
 
@@ -90,62 +90,64 @@ fun LibraryRoute(
     onAddPlaylistTrack: (String, String) -> Unit = { _, _ -> },
     onRemovePlaylistTrack: (String, String) -> Unit = { _, _ -> },
     onReorderPlaylist: (String, List<String>, Long) -> Unit = { _, _, _ -> },
-    modifier: Modifier = Modifier,
+    modifier: Modifier = Modifier
 ) {
     val tokens = LocalPandaWaveDesignTokens.current
     BambooRotaryColumn(
         modifier = modifier
             .fillMaxWidth()
             .testTag("library-route"),
-        verticalArrangement = Arrangement.spacedBy(tokens.spacing.md),
+        verticalArrangement = Arrangement.spacedBy(tokens.spacing.md)
     ) {
         BambooSectionHeader(
             title = stringResource(R.string.pandawave_library_title),
-            subtitle = stringResource(R.string.pandawave_library_subtitle),
+            subtitle = stringResource(R.string.pandawave_library_subtitle)
         )
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(tokens.spacing.sm),
+            horizontalArrangement = Arrangement.spacedBy(tokens.spacing.sm)
         ) {
             LibraryTabButton(
                 modifier = Modifier.weight(1f).testTag("library-tab-saved"),
                 selected = state.selectedTab == LibraryTab.SAVED,
                 text = stringResource(R.string.pandawave_library_saved),
-                onClick = { onSelectTab(LibraryTab.SAVED) },
+                onClick = { onSelectTab(LibraryTab.SAVED) }
             )
             LibraryTabButton(
                 modifier = Modifier.weight(1f).testTag("library-tab-liked"),
                 selected = state.selectedTab == LibraryTab.LIKED,
                 text = stringResource(R.string.pandawave_library_liked),
-                onClick = { onSelectTab(LibraryTab.LIKED) },
+                onClick = { onSelectTab(LibraryTab.LIKED) }
             )
             LibraryTabButton(
                 modifier = Modifier.weight(1f).testTag("library-tab-history"),
                 selected = state.selectedTab == LibraryTab.HISTORY,
                 text = stringResource(R.string.pandawave_library_history),
-                onClick = { onSelectTab(LibraryTab.HISTORY) },
+                onClick = { onSelectTab(LibraryTab.HISTORY) }
             )
             LibraryTabButton(
                 modifier = Modifier.weight(1f).testTag("library-tab-playlists"),
                 selected = state.selectedTab == LibraryTab.PLAYLISTS,
                 text = stringResource(R.string.pandawave_library_playlists),
-                onClick = { onSelectTab(LibraryTab.PLAYLISTS) },
+                onClick = { onSelectTab(LibraryTab.PLAYLISTS) }
             )
         }
 
         if (state.isSignedOut && state.selectedTab != LibraryTab.HISTORY) {
             Text(
                 text = stringResource(R.string.pandawave_library_signed_out),
-                modifier = Modifier.testTag("library-signed-out"),
+                modifier = Modifier.testTag("library-signed-out")
             )
             return@BambooRotaryColumn
         }
 
-        if (state.isLoading && state.selectedTracks.isEmpty() && state.playlists.isEmpty() && state.historyEntries.isEmpty()) {
+        if (state.isLoading && state.selectedTracks.isEmpty() && state.playlists.isEmpty() &&
+            state.historyEntries.isEmpty()
+        ) {
             Row(
                 modifier = Modifier.fillMaxWidth().testTag("library-loading"),
-                horizontalArrangement = Arrangement.Center,
+                horizontalArrangement = Arrangement.Center
             ) {
                 CircularProgressIndicator()
             }
@@ -155,19 +157,22 @@ fun LibraryRoute(
             Surface(
                 modifier = Modifier.fillMaxWidth().testTag("library-error"),
                 color = Color(tokens.colors.error),
-                shape = MaterialTheme.shapes.small,
+                shape = MaterialTheme.shapes.small
             ) {
                 Row(
                     modifier = Modifier.padding(tokens.spacing.md),
                     horizontalArrangement = Arrangement.spacedBy(tokens.spacing.sm),
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = stringResource(
-                            if (state.isRetryableError) R.string.pandawave_library_network_error
-                            else R.string.pandawave_library_error
+                            if (state.isRetryableError) {
+                                R.string.pandawave_library_network_error
+                            } else {
+                                R.string.pandawave_library_error
+                            }
                         ),
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f)
                     )
                     if (state.isRetryableError) {
                         OutlinedButton(onClick = onRefresh, modifier = Modifier.testTag("library-retry")) {
@@ -178,7 +183,9 @@ fun LibraryRoute(
             }
         }
 
-        if (!state.isLoading && state.selectedTab != LibraryTab.PLAYLISTS && state.isSelectedContentEmpty() && state.errorType == null) {
+        if (!state.isLoading && state.selectedTab != LibraryTab.PLAYLISTS && state.isSelectedContentEmpty() &&
+            state.errorType == null
+        ) {
             Text(
                 text = stringResource(
                     when (state.selectedTab) {
@@ -188,7 +195,7 @@ fun LibraryRoute(
                         LibraryTab.PLAYLISTS -> R.string.pandawave_library_empty_playlists
                     }
                 ),
-                modifier = Modifier.testTag("library-empty"),
+                modifier = Modifier.testTag("library-empty")
             )
         }
 
@@ -197,7 +204,7 @@ fun LibraryRoute(
                 LibraryHistoryRow(
                     entry = entry,
                     onPlay = onPlay,
-                    onOpenNowPlaying = onOpenNowPlaying,
+                    onOpenNowPlaying = onOpenNowPlaying
                 )
             }
         } else if (state.selectedTab == LibraryTab.PLAYLISTS) {
@@ -211,7 +218,7 @@ fun LibraryRoute(
                 onRemovePlaylistTrack = onRemovePlaylistTrack,
                 onReorderPlaylist = onReorderPlaylist,
                 onPlay = onPlay,
-                onOpenNowPlaying = onOpenNowPlaying,
+                onOpenNowPlaying = onOpenNowPlaying
             )
         } else {
             val savedIds = state.savedTracks.mapTo(mutableSetOf(), LibraryTrack::mediaId)
@@ -228,7 +235,7 @@ fun LibraryRoute(
                     onLike = onLike,
                     onUnlike = onUnlike,
                     onPlay = onPlay,
-                    onOpenNowPlaying = onOpenNowPlaying,
+                    onOpenNowPlaying = onOpenNowPlaying
                 )
             }
         }
@@ -237,7 +244,7 @@ fun LibraryRoute(
             Button(
                 onClick = onLoadNext,
                 enabled = !state.isLoading,
-                modifier = Modifier.fillMaxWidth().testTag("library-next-page"),
+                modifier = Modifier.fillMaxWidth().testTag("library-next-page")
             ) {
                 Text(stringResource(R.string.pandawave_library_load_more))
             }
@@ -248,7 +255,9 @@ fun LibraryRoute(
 private fun LibraryState.isSelectedContentEmpty(): Boolean = when (selectedTab) {
     LibraryTab.SAVED,
     LibraryTab.LIKED -> selectedTracks.isEmpty()
+
     LibraryTab.HISTORY -> historyEntries.isEmpty()
+
     LibraryTab.PLAYLISTS -> playlists.isEmpty() && selectedPlaylistId == null
 }
 
@@ -263,7 +272,7 @@ private fun PlaylistLibraryContent(
     onRemovePlaylistTrack: (String, String) -> Unit,
     onReorderPlaylist: (String, List<String>, Long) -> Unit,
     onPlay: (String) -> Unit,
-    onOpenNowPlaying: () -> Unit,
+    onOpenNowPlaying: () -> Unit
 ) {
     val tokens = LocalPandaWaveDesignTokens.current
     val selectedPlaylist = state.playlists.firstOrNull { it.id == state.selectedPlaylistId }
@@ -276,18 +285,18 @@ private fun PlaylistLibraryContent(
         onValueChange = { playlistName = it },
         modifier = Modifier.fillMaxWidth().testTag("library-playlist-name"),
         label = { Text(stringResource(R.string.pandawave_library_playlist_name)) },
-        singleLine = true,
+        singleLine = true
     )
     OutlinedTextField(
         value = playlistDescription,
         onValueChange = { playlistDescription = it },
         modifier = Modifier.fillMaxWidth().testTag("library-playlist-description"),
         label = { Text(stringResource(R.string.pandawave_library_playlist_description)) },
-        singleLine = true,
+        singleLine = true
     )
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(tokens.spacing.sm),
+        horizontalArrangement = Arrangement.spacedBy(tokens.spacing.sm)
     ) {
         Button(
             onClick = {
@@ -296,21 +305,31 @@ private fun PlaylistLibraryContent(
                 playlistDescription = ""
             },
             enabled = playlistName.isNotBlank(),
-            modifier = Modifier.weight(1f).testTag("library-create-playlist"),
+            modifier = Modifier.weight(1f).testTag("library-create-playlist")
         ) { Text(stringResource(R.string.pandawave_library_create_playlist)) }
         selectedPlaylist?.let { playlist ->
             OutlinedButton(
                 onClick = {
-                    onUpdatePlaylist(playlist.id, playlistName.trim(), playlistDescription.trim().ifBlank { null }, playlist.revision)
+                    onUpdatePlaylist(
+                        playlist.id,
+                        playlistName.trim(),
+                        playlistDescription.trim().ifBlank {
+                            null
+                        },
+                        playlist.revision
+                    )
                 },
                 enabled = playlistName.isNotBlank(),
-                modifier = Modifier.weight(1f).testTag("library-playlist-update"),
+                modifier = Modifier.weight(1f).testTag("library-playlist-update")
             ) { Text(stringResource(R.string.pandawave_library_update_playlist)) }
         }
     }
 
     if (state.playlists.isEmpty()) {
-        Text(stringResource(R.string.pandawave_library_empty_playlists), modifier = Modifier.testTag("library-empty-playlists"))
+        Text(
+            stringResource(R.string.pandawave_library_empty_playlists),
+            modifier = Modifier.testTag("library-empty-playlists")
+        )
     }
     state.playlists.forEach { playlist ->
         PlaylistRow(
@@ -321,21 +340,21 @@ private fun PlaylistLibraryContent(
                 playlistDescription = playlist.description.orEmpty()
                 onSelectPlaylist(playlist.id)
             },
-            onDelete = { onDeletePlaylist(playlist.id) },
+            onDelete = { onDeletePlaylist(playlist.id) }
         )
     }
 
     selectedPlaylist?.let { playlist ->
         BambooSectionHeader(
             title = playlist.name,
-            subtitle = stringResource(R.string.pandawave_library_playlist_tracks),
+            subtitle = stringResource(R.string.pandawave_library_playlist_tracks)
         )
         OutlinedTextField(
             value = trackId,
             onValueChange = { trackId = it },
             modifier = Modifier.fillMaxWidth().testTag("library-playlist-track-id"),
             label = { Text(stringResource(R.string.pandawave_library_track_id)) },
-            singleLine = true,
+            singleLine = true
         )
         Button(
             onClick = {
@@ -343,7 +362,7 @@ private fun PlaylistLibraryContent(
                 trackId = ""
             },
             enabled = trackId.isNotBlank(),
-            modifier = Modifier.fillMaxWidth().testTag("library-playlist-add-track"),
+            modifier = Modifier.fillMaxWidth().testTag("library-playlist-add-track")
         ) { Text(stringResource(R.string.pandawave_library_add_track)) }
         PlaylistTrackList(
             playlist = playlist,
@@ -352,7 +371,7 @@ private fun PlaylistLibraryContent(
             onRemovePlaylistTrack = onRemovePlaylistTrack,
             onReorderPlaylist = onReorderPlaylist,
             onPlay = onPlay,
-            onOpenNowPlaying = onOpenNowPlaying,
+            onOpenNowPlaying = onOpenNowPlaying
         )
     }
 
@@ -362,35 +381,39 @@ private fun PlaylistLibraryContent(
 }
 
 @Composable
-private fun PlaylistRow(
-    playlist: LibraryPlaylist,
-    selected: Boolean,
-    onSelect: () -> Unit,
-    onDelete: () -> Unit,
-) {
+private fun PlaylistRow(playlist: LibraryPlaylist, selected: Boolean, onSelect: () -> Unit, onDelete: () -> Unit) {
     val tokens = LocalPandaWaveDesignTokens.current
     Surface(
         modifier = Modifier.fillMaxWidth().testTag("library-playlist-${playlist.id}"),
         tonalElevation = tokens.elevation.cardResting,
-        shape = MaterialTheme.shapes.small,
+        shape = MaterialTheme.shapes.small
     ) {
         Column(
             modifier = Modifier.padding(tokens.spacing.md),
-            verticalArrangement = Arrangement.spacedBy(tokens.spacing.sm),
+            verticalArrangement = Arrangement.spacedBy(tokens.spacing.sm)
         ) {
             Text(playlist.name, style = tokens.typography.sectionTitle)
             playlist.description?.takeIf(String::isNotBlank)?.let { Text(it, style = tokens.typography.body) }
             Row(horizontalArrangement = Arrangement.spacedBy(tokens.spacing.sm)) {
                 if (selected) {
-                    Button(onClick = onSelect, modifier = Modifier.weight(1f).testTag("library-playlist-select-${playlist.id}")) {
+                    Button(
+                        onClick = onSelect,
+                        modifier = Modifier.weight(1f).testTag("library-playlist-select-${playlist.id}")
+                    ) {
                         Text(stringResource(R.string.pandawave_library_selected_playlist))
                     }
                 } else {
-                    OutlinedButton(onClick = onSelect, modifier = Modifier.weight(1f).testTag("library-playlist-select-${playlist.id}")) {
+                    OutlinedButton(
+                        onClick = onSelect,
+                        modifier = Modifier.weight(1f).testTag("library-playlist-select-${playlist.id}")
+                    ) {
                         Text(stringResource(R.string.pandawave_library_select_playlist))
                     }
                 }
-                OutlinedButton(onClick = onDelete, modifier = Modifier.weight(1f).testTag("library-playlist-delete-${playlist.id}")) {
+                OutlinedButton(
+                    onClick = onDelete,
+                    modifier = Modifier.weight(1f).testTag("library-playlist-delete-${playlist.id}")
+                ) {
                     Text(stringResource(R.string.pandawave_library_delete_playlist))
                 }
             }
@@ -406,7 +429,7 @@ private fun PlaylistTrackList(
     onRemovePlaylistTrack: (String, String) -> Unit,
     onReorderPlaylist: (String, List<String>, Long) -> Unit,
     onPlay: (String) -> Unit,
-    onOpenNowPlaying: () -> Unit,
+    onOpenNowPlaying: () -> Unit
 ) {
     tracks.forEachIndexed { index, track ->
         PlaylistTrackRow(
@@ -418,7 +441,7 @@ private fun PlaylistTrackList(
             onRemovePlaylistTrack = onRemovePlaylistTrack,
             onReorderPlaylist = onReorderPlaylist,
             onPlay = onPlay,
-            onOpenNowPlaying = onOpenNowPlaying,
+            onOpenNowPlaying = onOpenNowPlaying
         )
     }
 }
@@ -433,7 +456,7 @@ private fun PlaylistTrackRow(
     onRemovePlaylistTrack: (String, String) -> Unit,
     onReorderPlaylist: (String, List<String>, Long) -> Unit,
     onPlay: (String) -> Unit,
-    onOpenNowPlaying: () -> Unit,
+    onOpenNowPlaying: () -> Unit
 ) {
     val tokens = LocalPandaWaveDesignTokens.current
     var draggedDistance by remember(track.relationshipId) { mutableFloatStateOf(0f) }
@@ -455,7 +478,7 @@ private fun PlaylistTrackRow(
                     }
                     draggedDistance = 0f
                 },
-                onDragCancel = { draggedDistance = 0f },
+                onDragCancel = { draggedDistance = 0f }
             )
         }
     } else {
@@ -471,43 +494,46 @@ private fun PlaylistTrackRow(
             }
             .then(reorderModifier),
         tonalElevation = tokens.elevation.cardResting,
-        shape = MaterialTheme.shapes.small,
+        shape = MaterialTheme.shapes.small
     ) {
         Row(
             modifier = Modifier.padding(tokens.spacing.md),
             horizontalArrangement = Arrangement.spacedBy(tokens.spacing.sm),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Text(track.title, modifier = Modifier.weight(1f), style = tokens.typography.sectionTitle)
             OutlinedButton(
                 onClick = { onRemovePlaylistTrack(playlist.id, track.mediaId) },
-                modifier = Modifier.testTag("library-playlist-remove-track-${track.relationshipId}"),
+                modifier = Modifier.testTag("library-playlist-remove-track-${track.relationshipId}")
             ) { Text(stringResource(R.string.pandawave_library_remove_track)) }
         }
     }
 }
 
 @Composable
-private fun PlaylistConflictCard(
-    conflict: PlaylistConflict,
-    onReorderPlaylist: (String, List<String>, Long) -> Unit,
-) {
+private fun PlaylistConflictCard(conflict: PlaylistConflict, onReorderPlaylist: (String, List<String>, Long) -> Unit) {
     val tokens = LocalPandaWaveDesignTokens.current
     Surface(
         modifier = Modifier.fillMaxWidth().testTag("library-playlist-conflict"),
         color = Color(tokens.colors.error),
-        shape = MaterialTheme.shapes.small,
+        shape = MaterialTheme.shapes.small
     ) {
         Column(
             modifier = Modifier.padding(tokens.spacing.md),
-            verticalArrangement = Arrangement.spacedBy(tokens.spacing.sm),
+            verticalArrangement = Arrangement.spacedBy(tokens.spacing.sm)
         ) {
             Text(stringResource(R.string.pandawave_library_playlist_conflict), style = tokens.typography.sectionTitle)
-            Text(stringResource(R.string.pandawave_library_server_order, conflict.serverMembershipIds.joinToString(", ")))
-            Text(stringResource(R.string.pandawave_library_your_order, conflict.proposedMembershipIds.joinToString(", ")))
+            Text(
+                stringResource(R.string.pandawave_library_server_order, conflict.serverMembershipIds.joinToString(", "))
+            )
+            Text(
+                stringResource(R.string.pandawave_library_your_order, conflict.proposedMembershipIds.joinToString(", "))
+            )
             Button(
-                onClick = { onReorderPlaylist(conflict.playlistId, conflict.proposedMembershipIds, conflict.serverRevision) },
-                modifier = Modifier.testTag("library-playlist-confirm-reorder"),
+                onClick = {
+                    onReorderPlaylist(conflict.playlistId, conflict.proposedMembershipIds, conflict.serverRevision)
+                },
+                modifier = Modifier.testTag("library-playlist-confirm-reorder")
             ) { Text(stringResource(R.string.pandawave_library_confirm_reorder)) }
         }
     }
@@ -516,12 +542,7 @@ private fun PlaylistConflictCard(
 private const val DRAG_REORDER_THRESHOLD = 48f
 
 @Composable
-private fun LibraryTabButton(
-    selected: Boolean,
-    text: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
+private fun LibraryTabButton(selected: Boolean, text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     if (selected) {
         Button(onClick = onClick, modifier = modifier) { Text(text) }
     } else {
@@ -541,7 +562,7 @@ private fun LibraryTrackRow(
     onLike: (String) -> Unit,
     onUnlike: (String) -> Unit,
     onPlay: (String) -> Unit,
-    onOpenNowPlaying: () -> Unit,
+    onOpenNowPlaying: () -> Unit
 ) {
     val tokens = LocalPandaWaveDesignTokens.current
     Surface(
@@ -553,40 +574,40 @@ private fun LibraryTrackRow(
                 onOpenNowPlaying()
             },
         tonalElevation = tokens.elevation.cardResting,
-        shape = MaterialTheme.shapes.small,
+        shape = MaterialTheme.shapes.small
     ) {
         Column(
             modifier = Modifier.padding(tokens.spacing.md),
-            verticalArrangement = Arrangement.spacedBy(tokens.spacing.sm),
+            verticalArrangement = Arrangement.spacedBy(tokens.spacing.sm)
         ) {
             Text(track.title, style = tokens.typography.sectionTitle)
             Text(
                 listOfNotNull(track.artist, track.album).joinToString(" · "),
-                style = tokens.typography.body,
+                style = tokens.typography.body
             )
             if (pending) {
                 Text(
                     stringResource(R.string.pandawave_library_pending),
                     modifier = Modifier.testTag("library-pending-${track.mediaId}"),
-                    color = Color(tokens.colors.primary),
+                    color = Color(tokens.colors.primary)
                 )
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(tokens.spacing.sm),
+                horizontalArrangement = Arrangement.spacedBy(tokens.spacing.sm)
             ) {
                 if (tab == LibraryTab.SAVED) {
                     OutlinedButton(
                         onClick = { onRemoveSaved(track.mediaId) },
                         enabled = !pending,
-                        modifier = Modifier.weight(1f).testTag("library-remove-${track.mediaId}"),
+                        modifier = Modifier.weight(1f).testTag("library-remove-${track.mediaId}")
                     ) { Text(stringResource(R.string.pandawave_library_remove_saved)) }
                     LibraryLikeButton(track.mediaId, liked, pending, onLike, onUnlike, Modifier.weight(1f))
                 } else {
                     OutlinedButton(
                         onClick = { onUnlike(track.mediaId) },
                         enabled = !pending,
-                        modifier = Modifier.weight(1f).testTag("library-unlike-${track.mediaId}"),
+                        modifier = Modifier.weight(1f).testTag("library-unlike-${track.mediaId}")
                     ) { Text(stringResource(R.string.pandawave_library_unlike)) }
                     LibrarySaveButton(track.mediaId, saved, pending, onSave, onRemoveSaved, Modifier.weight(1f))
                 }
@@ -596,11 +617,7 @@ private fun LibraryTrackRow(
 }
 
 @Composable
-private fun LibraryHistoryRow(
-    entry: LibraryHistoryEntry,
-    onPlay: (String) -> Unit,
-    onOpenNowPlaying: () -> Unit,
-) {
+private fun LibraryHistoryRow(entry: LibraryHistoryEntry, onPlay: (String) -> Unit, onOpenNowPlaying: () -> Unit) {
     val tokens = LocalPandaWaveDesignTokens.current
     val playableMediaId = entry.mediaId?.takeIf { entry.playable && it.isNotBlank() }
     val clickModifier = playableMediaId?.let { mediaId ->
@@ -615,16 +632,16 @@ private fun LibraryHistoryRow(
             .testTag("library-history-${entry.historyId}")
             .then(clickModifier),
         tonalElevation = tokens.elevation.cardResting,
-        shape = MaterialTheme.shapes.small,
+        shape = MaterialTheme.shapes.small
     ) {
         Column(
             modifier = Modifier.padding(tokens.spacing.md),
-            verticalArrangement = Arrangement.spacedBy(tokens.spacing.sm),
+            verticalArrangement = Arrangement.spacedBy(tokens.spacing.sm)
         ) {
             Text(entry.title, style = tokens.typography.sectionTitle)
             Text(
                 listOfNotNull(entry.artist, entry.album).joinToString(" · "),
-                style = tokens.typography.body,
+                style = tokens.typography.body
             )
         }
     }
@@ -637,12 +654,12 @@ private fun LibraryLikeButton(
     pending: Boolean,
     onLike: (String) -> Unit,
     onUnlike: (String) -> Unit,
-    modifier: Modifier,
+    modifier: Modifier
 ) {
     Button(
         onClick = { if (liked) onUnlike(mediaId) else onLike(mediaId) },
         enabled = !pending,
-        modifier = modifier.testTag("library-${if (liked) "unlike" else "like"}-$mediaId"),
+        modifier = modifier.testTag("library-${if (liked) "unlike" else "like"}-$mediaId")
     ) { Text(stringResource(if (liked) R.string.pandawave_library_unlike else R.string.pandawave_library_like)) }
 }
 
@@ -653,11 +670,11 @@ private fun LibrarySaveButton(
     pending: Boolean,
     onSave: (String) -> Unit,
     onRemoveSaved: (String) -> Unit,
-    modifier: Modifier,
+    modifier: Modifier
 ) {
     Button(
         onClick = { if (saved) onRemoveSaved(mediaId) else onSave(mediaId) },
         enabled = !pending,
-        modifier = modifier.testTag("library-${if (saved) "remove" else "save"}-$mediaId"),
+        modifier = modifier.testTag("library-${if (saved) "remove" else "save"}-$mediaId")
     ) { Text(stringResource(if (saved) R.string.pandawave_library_remove_saved else R.string.pandawave_library_save)) }
 }

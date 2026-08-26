@@ -16,7 +16,7 @@ class Media3PlayerStateSinkTest {
         val calls = mutableListOf<String>()
         val player = Proxy.newProxyInstance(
             Player::class.java.classLoader,
-            arrayOf(Player::class.java),
+            arrayOf(Player::class.java)
         ) { _, method, _ ->
             calls += method.name
             when (method.name) {
@@ -166,13 +166,17 @@ private class RecordingProjectionPlayer(
     val calls = mutableListOf<String>()
     val proxy: Player = Proxy.newProxyInstance(
         Player::class.java.classLoader,
-        arrayOf(Player::class.java),
+        arrayOf(Player::class.java)
     ) { _, method, args ->
         when (method.name) {
-                "getCurrentMediaItem" -> currentMediaItem
-                "getCurrentMediaItemIndex" -> 0
+            "getCurrentMediaItem" -> currentMediaItem
+
+            "getCurrentMediaItemIndex" -> 0
+
             "getCurrentPosition" -> currentPosition
+
             "getVolume" -> volume
+
             "setVolume" -> {
                 val arguments = checkNotNull(args)
                 val nextVolume = arguments[0] as Float
@@ -182,6 +186,7 @@ private class RecordingProjectionPlayer(
             }
 
             "getPlaybackState" -> playbackState
+
             "prepare" -> {
                 calls += "prepare"
                 playbackState = Player.STATE_BUFFERING
@@ -189,6 +194,7 @@ private class RecordingProjectionPlayer(
             }
 
             "getPlayWhenReady" -> playWhenReady
+
             "setPlayWhenReady" -> {
                 val arguments = checkNotNull(args)
                 val nextPlayWhenReady = arguments[0] as Boolean

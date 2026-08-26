@@ -105,7 +105,12 @@ class BambooMediaSessionStateProjectorTest {
         projector.start()
         repository.push(state.copy(title = "Canopy Drift", positionMillis = 8_000L))
 
-        assertEquals(listOf("Bamboo Drive", "Canopy Drift"), sink.projections.map { it.mediaItem.mediaMetadata.title.toString() })
+        assertEquals(
+            listOf("Bamboo Drive", "Canopy Drift"),
+            sink.projections.map {
+                it.mediaItem.mediaMetadata.title.toString()
+            }
+        )
     }
 
     @Test

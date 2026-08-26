@@ -60,9 +60,11 @@ class TelemetryAttributeRedactorTest {
             )
         )
 
-        assertTrue(redacted.values.all { value ->
-            value == TelemetryAttributeRedactor.REDACTED_VALUE
-        })
+        assertTrue(
+            redacted.values.all { value ->
+                value == TelemetryAttributeRedactor.REDACTED_VALUE
+            }
+        )
     }
 
     @Test
@@ -87,9 +89,11 @@ class TelemetryAttributeRedactorTest {
             )
         )
 
-        assertTrue(redacted.values.all { value ->
-            value == TelemetryAttributeRedactor.REDACTED_VALUE
-        })
+        assertTrue(
+            redacted.values.all { value ->
+                value == TelemetryAttributeRedactor.REDACTED_VALUE
+            }
+        )
     }
 
     @Test

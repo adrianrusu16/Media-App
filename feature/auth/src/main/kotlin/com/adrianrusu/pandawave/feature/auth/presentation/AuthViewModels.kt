@@ -13,11 +13,8 @@ import javax.inject.Inject
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.receiveAsFlow
 
-abstract class AuthFormViewModel(
-    mode: AuthFormMode,
-    authGateway: EngineAuthGateway,
-    engineGateway: EngineGateway
-) : ViewModel() {
+abstract class AuthFormViewModel(mode: AuthFormMode, authGateway: EngineAuthGateway, engineGateway: EngineGateway) :
+    ViewModel() {
     private val effectChannel = Channel<AuthUiEffect>(Channel.BUFFERED)
     private val controller = AuthFlowController(
         mode = mode,
@@ -46,22 +43,16 @@ abstract class AuthFormViewModel(
 }
 
 @HiltViewModel
-class LoginViewModel @Inject constructor(
-    authGateway: EngineAuthGateway,
-    engineGateway: EngineGateway
-) : AuthFormViewModel(AuthFormMode.LOGIN, authGateway, engineGateway)
+class LoginViewModel @Inject constructor(authGateway: EngineAuthGateway, engineGateway: EngineGateway) :
+    AuthFormViewModel(AuthFormMode.LOGIN, authGateway, engineGateway)
 
 @HiltViewModel
-class RegisterViewModel @Inject constructor(
-    authGateway: EngineAuthGateway,
-    engineGateway: EngineGateway
-) : AuthFormViewModel(AuthFormMode.REGISTER, authGateway, engineGateway)
+class RegisterViewModel @Inject constructor(authGateway: EngineAuthGateway, engineGateway: EngineGateway) :
+    AuthFormViewModel(AuthFormMode.REGISTER, authGateway, engineGateway)
 
 @HiltViewModel
-class ProfileAuthViewModel @Inject constructor(
-    authGateway: EngineAuthGateway,
-    engineGateway: EngineGateway
-) : ViewModel() {
+class ProfileAuthViewModel @Inject constructor(authGateway: EngineAuthGateway, engineGateway: EngineGateway) :
+    ViewModel() {
     private val effectChannel = Channel<ProfileAuthEffect>(Channel.BUFFERED)
     private val controller = ProfileAuthController(
         authGateway = authGateway,

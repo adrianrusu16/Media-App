@@ -62,7 +62,11 @@ fn catalog_and_status_models_are_service_neutral() {
         }),
         duration_millis: 42_000,
         explicit: false,
-        artwork_id: Some("artwork-1".into()),
+        artwork: Some(panda_engine_core::EngineArtwork {
+            id: "artwork-1".into(),
+            content_hash: "hash-1".into(),
+            uri: None,
+        }),
         genres: vec!["electronic".into()],
     };
     let source = EnginePlaybackSource {

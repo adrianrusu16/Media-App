@@ -101,7 +101,7 @@ fn track(id: &str) -> EngineTrack {
         album: None,
         duration_millis: 42,
         explicit: false,
-        artwork_id: None,
+        artwork: None,
         genres: Vec::new(),
     }
 }

@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use tonic_014::Request;
+use url::Url;
 
 use crate::model::discovery::DiscoveryPort;
 use crate::{
@@ -22,13 +23,15 @@ use super::{CanopyChannel, SessionCoordinator};
 pub struct CanopyDiscoveryClient {
     client: DiscoveryServiceClient<super::sdk::runtime::transport::Channel>,
     session: Arc<SessionCoordinator>,
+    media_origin: Url,
 }
 
 impl CanopyDiscoveryClient {
-    pub fn new(channel: &CanopyChannel, session: Arc<SessionCoordinator>) -> Self {
+    pub fn new(channel: &CanopyChannel, session: Arc<SessionCoordinator>, media_origin: Url) -> Self {
         Self {
             client: DiscoveryServiceClient::new(channel.clone_inner()),
             session,
+            media_origin,
         }
     }
 }
@@ -44,6 +47,7 @@ impl DiscoveryPort for CanopyDiscoveryClient {
     ) -> Result<EnginePagedResult<EngineTrack>, EngineError> {
         let request = map_discovery_request(excluded_track_ids, page);
         let client = self.client.clone();
+        let media_origin = self.media_origin.clone();
         let bound = crate::EngineHistoryIdentity {
             account_id: expected_identity.account_id.clone(),
             session_id: expected_identity.session_id.clone(),
@@ -55,6 +59,7 @@ impl DiscoveryPort for CanopyDiscoveryClient {
             || Request::new(request.clone()),
             move |request| {
                 let mut client = client.clone();
+                let media_origin = media_origin.clone();
                 async move {
                     match feed {
                         crate::DiscoveryFeed::Discovery => client
@@ -63,21 +68,32 @@ impl DiscoveryPort for CanopyDiscoveryClient {
                                 page: request.page,
                             }))
                             .await
-                            .map(|response| response.map(map_discovery_response)),
+                            .map(|response| {
+                                response.map(|inner| {
+                                    map_discovery_response(inner, Some(&media_origin))
+                                })
+                            }),
                         crate::DiscoveryFeed::ForYou => client
                             .get_for_you_feed(request.map(|request| GetForYouFeedRequest {
                                 exclude_track_ids: request.exclude_track_ids,
                                 page: request.page,
                             }))
                             .await
-                            .map(|response| response.map(map_for_you_response)),
+                            .map(|response| {
+                                response
+                                    .map(|inner| map_for_you_response(inner, Some(&media_origin)))
+                            }),
                         crate::DiscoveryFeed::Recommendations => client
                             .get_recommendations(request.map(|request| GetRecommendationsRequest {
                                 exclude_track_ids: request.exclude_track_ids,
                                 page: request.page,
                             }))
                             .await
-                            .map(|response| response.map(map_recommendations_response)),
+                            .map(|response| {
+                                response.map(|inner| {
+                                    map_recommendations_response(inner, Some(&media_origin))
+                                })
+                            }),
                     }
                 }
             },
@@ -99,20 +115,23 @@ fn map_discovery_request(
 
 fn map_discovery_response(
     response: GetDiscoveryFeedResponse,
+    media_origin: Option<&Url>,
 ) -> Result<EnginePagedResult<EngineTrack>, EngineError> {
-    map_page(response.tracks, response.page_info)
+    map_page(response.tracks, response.page_info, media_origin)
 }
 
 fn map_for_you_response(
     response: GetForYouFeedResponse,
+    media_origin: Option<&Url>,
 ) -> Result<EnginePagedResult<EngineTrack>, EngineError> {
-    map_page(response.tracks, response.page_info)
+    map_page(response.tracks, response.page_info, media_origin)
 }
 
 fn map_recommendations_response(
     response: GetRecommendationsResponse,
+    media_origin: Option<&Url>,
 ) -> Result<EnginePagedResult<EngineTrack>, EngineError> {
-    map_page(response.tracks, response.page_info)
+    map_page(response.tracks, response.page_info, media_origin)
 }
 
 impl crate::DiscoveryFeed {
@@ -147,23 +166,26 @@ mod tests {
         assert_eq!(request.page.as_ref().unwrap().page_size, 25);
         assert_eq!(request.page.unwrap().page_token, "incoming+/=");
 
-        let page = map_discovery_response(GetDiscoveryFeedResponse {
-            tracks: vec![TrackSummary {
-                id: "recommended-1".into(),
-                title: "A Recommendation".into(),
-                artist: Some(ArtistSummary {
-                    id: "artist-1".into(),
-                    name: "An Artist".into(),
+        let page = map_discovery_response(
+            GetDiscoveryFeedResponse {
+                tracks: vec![TrackSummary {
+                    id: "recommended-1".into(),
+                    title: "A Recommendation".into(),
+                    artist: Some(ArtistSummary {
+                        id: "artist-1".into(),
+                        name: "An Artist".into(),
+                    }),
+                    album: None,
+                    duration_ms: 123_000,
+                    explicit: false,
+                    artwork: None,
+                }],
+                page_info: Some(PageInfo {
+                    next_page_token: "outgoing+/=".into(),
                 }),
-                album: None,
-                duration_ms: 123_000,
-                explicit: false,
-                artwork: None,
-            }],
-            page_info: Some(PageInfo {
-                next_page_token: "outgoing+/=".into(),
-            }),
-        })
+            },
+            None,
+        )
         .unwrap();
 
         assert_eq!(page.items[0].id, "recommended-1");

@@ -30,6 +30,5 @@ internal object PandaEngineNativeProfileMapper {
         )
     }
 
-    private fun String.toOptionalEpochMillis(): Long? =
-        takeIf(String::isNotEmpty)?.toLongOrNull()?.takeIf { it >= 0L }
+    private fun String.toOptionalEpochMillis(): Long? = takeIf(String::isNotEmpty)?.toLongOrNull()?.takeIf { it >= 0L }
 }

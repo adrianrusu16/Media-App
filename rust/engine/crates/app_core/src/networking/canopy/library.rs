@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use tonic_014::Request;
+use url::Url;
 
 use crate::{
     EngineError, EngineErrorType, EngineHistoryIdentity, EngineLibraryIdentity, EngineLibraryTrack,
@@ -22,13 +23,15 @@ use super::{CanopyChannel, SessionCoordinator};
 pub struct CanopyLibraryClient {
     client: LibraryServiceClient<super::sdk::runtime::transport::Channel>,
     session: Arc<SessionCoordinator>,
+    media_origin: Url,
 }
 
 impl CanopyLibraryClient {
-    pub fn new(channel: &CanopyChannel, session: Arc<SessionCoordinator>) -> Self {
+    pub fn new(channel: &CanopyChannel, session: Arc<SessionCoordinator>, media_origin: Url) -> Self {
         Self {
             client: LibraryServiceClient::new(channel.clone_inner()),
             session,
+            media_origin,
         }
     }
 }
@@ -57,7 +60,7 @@ impl LibraryPort for CanopyLibraryClient {
         )
         .await?
         .into_inner();
-        map_saved_track(response)
+        map_saved_track(response, Some(&self.media_origin))
     }
 
     async fn remove_saved(
@@ -105,7 +108,7 @@ impl LibraryPort for CanopyLibraryClient {
         )
         .await?
         .into_inner();
-        map_saved_response(response)
+        map_saved_response(response, Some(&self.media_origin))
     }
 
     async fn like(
@@ -130,7 +133,7 @@ impl LibraryPort for CanopyLibraryClient {
         )
         .await?
         .into_inner();
-        map_liked_track(response)
+        map_liked_track(response, Some(&self.media_origin))
     }
 
     async fn unlike(
@@ -178,7 +181,7 @@ impl LibraryPort for CanopyLibraryClient {
         )
         .await?
         .into_inner();
-        map_liked_response(response)
+        map_liked_response(response, Some(&self.media_origin))
     }
 }
 
@@ -204,22 +207,33 @@ where
 
 fn map_saved_response(
     response: ListSavedTracksResponse,
+    media_origin: Option<&Url>,
 ) -> Result<EnginePagedResult<EngineLibraryTrack>, EngineError> {
-    map_saved_page(response.tracks, response.page_info)
+    map_saved_page(response.tracks, response.page_info, media_origin)
 }
 
 fn map_saved_page(
     tracks: Vec<SavedTrack>,
     page_info: Option<PageInfo>,
+    media_origin: Option<&Url>,
 ) -> Result<EnginePagedResult<EngineLibraryTrack>, EngineError> {
-    map_relationship_page(tracks.into_iter().map(map_saved_track), page_info)
+    map_relationship_page(
+        tracks
+            .into_iter()
+            .map(|track| map_saved_track(track, media_origin)),
+        page_info,
+    )
 }
 
 fn map_liked_response(
     response: ListLikedTracksResponse,
+    media_origin: Option<&Url>,
 ) -> Result<EnginePagedResult<EngineLibraryTrack>, EngineError> {
     map_relationship_page(
-        response.tracks.into_iter().map(map_liked_track),
+        response
+            .tracks
+            .into_iter()
+            .map(|track| map_liked_track(track, media_origin)),
         response.page_info,
     )
 }
@@ -243,17 +257,24 @@ where
     })
 }
 
-fn map_saved_track(value: SavedTrack) -> Result<EngineLibraryTrack, EngineError> {
-    map_relationship(value.track, value.saved_at)
+fn map_saved_track(
+    value: SavedTrack,
+    media_origin: Option<&Url>,
+) -> Result<EngineLibraryTrack, EngineError> {
+    map_relationship(value.track, value.saved_at, media_origin)
 }
 
-fn map_liked_track(value: LikedTrack) -> Result<EngineLibraryTrack, EngineError> {
-    map_relationship(value.track, value.liked_at)
+fn map_liked_track(
+    value: LikedTrack,
+    media_origin: Option<&Url>,
+) -> Result<EngineLibraryTrack, EngineError> {
+    map_relationship(value.track, value.liked_at, media_origin)
 }
 
 fn map_relationship(
     track: Option<super::sdk::resources::TrackSummary>,
     timestamp: Option<prost_types_014::Timestamp>,
+    media_origin: Option<&Url>,
 ) -> Result<EngineLibraryTrack, EngineError> {
     let track = track.ok_or_else(|| mapping_defect("library relationship missing track"))?;
     let timestamp =
@@ -264,7 +285,7 @@ fn map_relationship(
     }
     Ok(EngineLibraryTrack {
         relationship_id,
-        track: map_track_summary(track, Vec::new())?,
+        track: map_track_summary(track, Vec::new(), media_origin)?,
         relationship_at_epoch_millis: timestamp_to_epoch_millis(timestamp)?,
     })
 }
@@ -321,25 +342,31 @@ mod tests {
 
     #[test]
     fn maps_saved_and_liked_relationships_with_checked_timestamps() {
-        let saved = map_saved_track(SavedTrack {
-            track: Some(track("track-1")),
-            saved_at: Some(prost_types_014::Timestamp {
-                seconds: 2,
-                nanos: 3_000_000,
-            }),
-        })
+        let saved = map_saved_track(
+            SavedTrack {
+                track: Some(track("track-1")),
+                saved_at: Some(prost_types_014::Timestamp {
+                    seconds: 2,
+                    nanos: 3_000_000,
+                }),
+            },
+            None,
+        )
         .unwrap();
         assert_eq!(saved.relationship_id, "track-1");
         assert_eq!(saved.track.title, "Track title");
         assert_eq!(saved.relationship_at_epoch_millis, 2_003);
 
-        let liked = map_liked_track(LikedTrack {
-            track: Some(track("track-2")),
-            liked_at: Some(prost_types_014::Timestamp {
-                seconds: 4,
-                nanos: 5_000_000,
-            }),
-        })
+        let liked = map_liked_track(
+            LikedTrack {
+                track: Some(track("track-2")),
+                liked_at: Some(prost_types_014::Timestamp {
+                    seconds: 4,
+                    nanos: 5_000_000,
+                }),
+            },
+            None,
+        )
         .unwrap();
         assert_eq!(liked.relationship_id, "track-2");
         assert_eq!(liked.relationship_at_epoch_millis, 4_005);
@@ -355,7 +382,7 @@ mod tests {
             }),
         };
         assert_eq!(
-            map_saved_track(missing_track).unwrap_err().error_type,
+            map_saved_track(missing_track, None).unwrap_err().error_type,
             EngineErrorType::MappingDefect
         );
         let missing_timestamp = LikedTrack {
@@ -363,7 +390,9 @@ mod tests {
             liked_at: None,
         };
         assert_eq!(
-            map_liked_track(missing_timestamp).unwrap_err().error_type,
+            map_liked_track(missing_timestamp, None)
+                .unwrap_err()
+                .error_type,
             EngineErrorType::MappingDefect
         );
         let invalid_timestamp = SavedTrack {
@@ -374,7 +403,9 @@ mod tests {
             }),
         };
         assert_eq!(
-            map_saved_track(invalid_timestamp).unwrap_err().error_type,
+            map_saved_track(invalid_timestamp, None)
+                .unwrap_err()
+                .error_type,
             EngineErrorType::MappingDefect
         );
     }
@@ -386,6 +417,7 @@ mod tests {
             Some(PageInfo {
                 next_page_token: "opaque+/=".into(),
             }),
+            None,
         )
         .unwrap();
         assert_eq!(page.next_page_token.unwrap().as_str(), "opaque+/=");

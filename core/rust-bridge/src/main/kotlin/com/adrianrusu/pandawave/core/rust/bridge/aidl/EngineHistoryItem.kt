@@ -13,7 +13,7 @@ data class EngineHistoryItem(
     val playedAtEpochMillis: Long?,
     val listenedDurationMillis: Long,
     val completionRatio: Float,
-    val playable: Boolean,
+    val playable: Boolean
 ) : Parcelable {
     init {
         require(historyId.isNotBlank()) { "Engine history item historyId must not be blank." }
@@ -31,7 +31,7 @@ data class EngineHistoryItem(
         playedAtEpochMillis = parcel.readNullableLong(),
         listenedDurationMillis = parcel.readLong(),
         completionRatio = parcel.readFloat(),
-        playable = parcel.readBooleanValue(),
+        playable = parcel.readBooleanValue()
     )
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
@@ -53,8 +53,7 @@ data class EngineHistoryItem(
         @JvmField
         val CREATOR: Parcelable.Creator<EngineHistoryItem> =
             object : Parcelable.Creator<EngineHistoryItem> {
-                override fun createFromParcel(parcel: Parcel): EngineHistoryItem =
-                    EngineHistoryItem(parcel)
+                override fun createFromParcel(parcel: Parcel): EngineHistoryItem = EngineHistoryItem(parcel)
 
                 override fun newArray(size: Int): Array<EngineHistoryItem?> = arrayOfNulls(size)
             }

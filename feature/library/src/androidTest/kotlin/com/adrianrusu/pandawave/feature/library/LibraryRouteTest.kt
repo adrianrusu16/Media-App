@@ -1,6 +1,5 @@
 package com.adrianrusu.pandawave.feature.library
 
-
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -15,10 +14,10 @@ import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeDown
 import com.adrianrusu.pandawave.core.designsystem.theme.PandaWaveTheme
+import com.adrianrusu.pandawave.feature.library.domain.LibraryPlaylist
 import com.adrianrusu.pandawave.feature.library.domain.LibraryState
 import com.adrianrusu.pandawave.feature.library.domain.LibraryTab
 import com.adrianrusu.pandawave.feature.library.domain.LibraryTrack
-import com.adrianrusu.pandawave.feature.library.domain.LibraryPlaylist
 import com.adrianrusu.pandawave.feature.library.domain.PlaylistConflict
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -35,12 +34,12 @@ class LibraryRouteTest {
             LibraryState(
                 savedTracks = listOf(
                     track("pending-1", "Pending Song"),
-                    track("saved-1", "Saved Song"),
+                    track("saved-1", "Saved Song")
                 ),
                 likedTracks = listOf(track("liked-1", "Liked Song")),
                 pendingMediaIds = setOf("pending-1"),
                 hasSavedNextPage = true,
-                isLoading = false,
+                isLoading = false
             )
         )
         compose.setContent {
@@ -55,7 +54,7 @@ class LibraryRouteTest {
                     onSave = { actions += "save:$it" },
                     onRemoveSaved = { actions += "remove:$it" },
                     onLike = { actions += "like:$it" },
-                    onUnlike = { actions += "unlike:$it" },
+                    onUnlike = { actions += "unlike:$it" }
                 )
             }
         }
@@ -75,8 +74,16 @@ class LibraryRouteTest {
         compose.onNodeWithTag("library-save-liked-1").performScrollTo().performClick()
 
         assertEquals(
-            listOf("next", "play:saved-1", "open-now-playing", "remove:saved-1", "like:saved-1", "unlike:liked-1", "save:liked-1"),
-            actions,
+            listOf(
+                "next",
+                "play:saved-1",
+                "open-now-playing",
+                "remove:saved-1",
+                "like:saved-1",
+                "unlike:liked-1",
+                "save:liked-1"
+            ),
+            actions
         )
     }
 
@@ -108,16 +115,16 @@ class LibraryRouteTest {
             selectedPlaylistId = "playlist-1",
             playlistTracks = listOf(
                 track(mediaId = "media-1", title = "First", relationshipId = "member-1"),
-                track(mediaId = "media-2", title = "Second", relationshipId = "member-2"),
+                track(mediaId = "media-2", title = "Second", relationshipId = "member-2")
             ),
             playlistConflict = PlaylistConflict(
                 playlistId = "playlist-1",
                 expectedRevision = 7,
                 serverRevision = 8,
                 serverMembershipIds = listOf("member-2", "member-1"),
-                proposedMembershipIds = listOf("member-1", "member-2"),
+                proposedMembershipIds = listOf("member-1", "member-2")
             ),
-            isLoading = false,
+            isLoading = false
         )
         compose.setContent {
             PandaWaveTheme(darkTheme = true) {
@@ -131,12 +138,18 @@ class LibraryRouteTest {
                     onLike = {},
                     onUnlike = {},
                     onCreatePlaylist = { name, description -> actions += "create:$name:$description" },
-                    onUpdatePlaylist = { id, name, description, revision -> actions += "update:$id:$name:$description:$revision" },
+                    onUpdatePlaylist = { id, name, description, revision ->
+                        actions +=
+                            "update:$id:$name:$description:$revision"
+                    },
                     onDeletePlaylist = { actions += "delete:$it" },
                     onSelectPlaylist = { actions += "select:$it" },
                     onAddPlaylistTrack = { id, mediaId -> actions += "add:$id:$mediaId" },
                     onRemovePlaylistTrack = { id, mediaId -> actions += "remove:$id:$mediaId" },
-                    onReorderPlaylist = { id, membershipIds, revision -> actions += "reorder:$id:${membershipIds.joinToString(",")}:$revision" },
+                    onReorderPlaylist = { id, membershipIds, revision ->
+                        actions +=
+                            "reorder:$id:${membershipIds.joinToString(",")}:$revision"
+                    }
                 )
             }
         }
@@ -160,9 +173,9 @@ class LibraryRouteTest {
                 "add:playlist-1:media-3",
                 "remove:playlist-1:media-1",
                 "select:playlist-1",
-                "delete:playlist-1",
+                "delete:playlist-1"
             ),
-            actions,
+            actions
         )
 
         compose.onNodeWithTag("library-playlist-confirm-reorder").performScrollTo().performClick()
@@ -174,9 +187,9 @@ class LibraryRouteTest {
                 "remove:playlist-1:media-1",
                 "select:playlist-1",
                 "delete:playlist-1",
-                "reorder:playlist-1:member-1,member-2:8",
+                "reorder:playlist-1:member-1,member-2:8"
             ),
-            actions,
+            actions
         )
     }
 
@@ -192,10 +205,10 @@ class LibraryRouteTest {
                         selectedPlaylistId = "playlist-1",
                         playlistTracks = listOf(
                             track("media-1", "First", "member-1"),
-                            track("media-2", "Second", "member-2"),
+                            track("media-2", "Second", "member-2")
                         ),
                         hasPlaylistTracksNextPage = true,
-                        isLoading = false,
+                        isLoading = false
                     ),
                     onSelectTab = {},
                     onRefresh = {},
@@ -204,7 +217,7 @@ class LibraryRouteTest {
                     onRemoveSaved = {},
                     onLike = {},
                     onUnlike = {},
-                    onReorderPlaylist = { _, ids, _ -> reorders += ids },
+                    onReorderPlaylist = { _, ids, _ -> reorders += ids }
                 )
             }
         }
@@ -227,7 +240,7 @@ class LibraryRouteTest {
                     onSave = {},
                     onRemoveSaved = {},
                     onLike = {},
-                    onUnlike = {},
+                    onUnlike = {}
                 )
             }
         }
@@ -242,6 +255,6 @@ class LibraryRouteTest {
         durationMillis = 120_000,
         explicit = false,
         artworkId = null,
-        relationshipAtEpochMillis = 1_000,
+        relationshipAtEpochMillis = 1_000
     )
 }

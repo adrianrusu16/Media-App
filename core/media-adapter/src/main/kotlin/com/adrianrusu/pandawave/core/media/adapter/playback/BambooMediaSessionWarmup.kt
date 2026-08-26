@@ -9,9 +9,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class BambooMediaSessionWarmup internal constructor(
-    private val connector: MediaSessionControllerConnector
-) : AutoCloseable {
+class BambooMediaSessionWarmup internal constructor(private val connector: MediaSessionControllerConnector) :
+    AutoCloseable {
     @Inject
     constructor(@ApplicationContext context: Context) : this(
         AndroidMediaSessionControllerConnector(context.applicationContext)
@@ -34,9 +33,7 @@ internal fun interface MediaSessionControllerConnector {
     fun connect(): AutoCloseable
 }
 
-private class AndroidMediaSessionControllerConnector(
-    private val context: Context
-) : MediaSessionControllerConnector {
+private class AndroidMediaSessionControllerConnector(private val context: Context) : MediaSessionControllerConnector {
     override fun connect(): AutoCloseable {
         val sessionToken = SessionToken(
             context,

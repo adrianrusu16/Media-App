@@ -14,7 +14,6 @@ import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
-import java.util.concurrent.Executors
 import com.adrianrusu.pandawave.core.audio.visualizer.MutableAudioSessionRepository
 import com.adrianrusu.pandawave.core.common.trace.PandaTrace
 import com.adrianrusu.pandawave.core.media.adapter.playback.focus.BambooAudioFocusHandler
@@ -22,6 +21,7 @@ import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
 import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineGateway
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
 import dagger.hilt.android.AndroidEntryPoint
+import java.util.concurrent.Executors
 import javax.inject.Inject
 
 /**
@@ -94,7 +94,7 @@ class BambooMediaLibraryService : MediaLibraryService() {
                     val currentPlayer = checkNotNull(player)
                     PlaybackCompletionMetrics(
                         positionMillis = currentPlayer.currentPosition,
-                        durationMillis = currentPlayer.duration,
+                        durationMillis = currentPlayer.duration
                     )
                 },
                 playbackInstanceIdProvider = {
@@ -112,7 +112,7 @@ class BambooMediaLibraryService : MediaLibraryService() {
                     val runnable = Runnable(action)
                     mainThreadHandler.postDelayed(runnable, delayMillis)
                     AutoCloseable { mainThreadHandler.removeCallbacks(runnable) }
-                },
+                }
             )
             // The player owns the initial value; keep shared playback state in sync before projection starts.
             playbackEngineBridge.dispatchVolume(exoPlayer.volume)
@@ -136,7 +136,7 @@ class BambooMediaLibraryService : MediaLibraryService() {
                     catalogSource = catalogSource,
                     playbackEngineBridge = playbackEngineBridge,
                     catalogExecutor = catalogDispatcher,
-                    resumptionStore = playbackResumptionStore,
+                    resumptionStore = playbackResumptionStore
                 )
             ).setId(SESSION_ID)
             sessionActivity()?.let(sessionBuilder::setSessionActivity)
@@ -217,7 +217,7 @@ class BambooMediaLibraryService : MediaLibraryService() {
         catalogSource: EngineBambooCatalogSource,
         playbackEngineBridge: Media3PlaybackEngineBridge,
         catalogExecutor: java.util.concurrent.Executor,
-        resumptionStore: MediaSessionPlaybackResumptionStore,
+        resumptionStore: MediaSessionPlaybackResumptionStore
     ) = BambooMediaLibrarySessionCallback(
         controlsEnabled = { playbackRepository.state.value.canDispatchEngineCommands },
         controls = { playbackRepository.state.value.controls },
@@ -231,7 +231,7 @@ class BambooMediaLibraryService : MediaLibraryService() {
             nowPlayingLaunchIntent(this)?.let { intent ->
                 startActivity(intent)
             }
-        },
+        }
     )
 
     private fun sessionActivity(): PendingIntent? {
@@ -253,7 +253,8 @@ class BambooMediaLibraryService : MediaLibraryService() {
                     .setUsage(C.USAGE_MEDIA)
                     .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
                     .build(),
-                /* handleAudioFocus= */ false
+                /* handleAudioFocus= */
+                false
             )
             .setLoadControl(
                 DefaultLoadControl.Builder()
@@ -312,4 +313,3 @@ private const val HTTP_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 10_000
 private const val SESSION_ID = "pandawave.media.session"
 private const val SESSION_ACTIVITY_REQUEST_CODE = 1
 private const val RESUMPTION_PREFERENCES = "pandawave_media_session_resumption"
-

@@ -13,7 +13,7 @@ class BambooMediaSessionControllerPolicyTest {
                 sessionPackageName = "com.adrianrusu.pandawave",
                 isMediaNotificationController = false,
                 isAutomotiveController = false,
-                isAutoCompanionController = false,
+                isAutoCompanionController = false
             )
         )
     }
@@ -26,7 +26,7 @@ class BambooMediaSessionControllerPolicyTest {
                 sessionPackageName = "com.adrianrusu.pandawave",
                 isMediaNotificationController = false,
                 isAutomotiveController = true,
-                isAutoCompanionController = false,
+                isAutoCompanionController = false
             )
         )
         assertTrue(
@@ -35,7 +35,7 @@ class BambooMediaSessionControllerPolicyTest {
                 sessionPackageName = "com.adrianrusu.pandawave",
                 isMediaNotificationController = true,
                 isAutomotiveController = false,
-                isAutoCompanionController = false,
+                isAutoCompanionController = false
             )
         )
     }
@@ -48,7 +48,7 @@ class BambooMediaSessionControllerPolicyTest {
                 sessionPackageName = "com.adrianrusu.pandawave",
                 isMediaNotificationController = false,
                 isAutomotiveController = false,
-                isAutoCompanionController = false,
+                isAutoCompanionController = false
             )
         )
     }

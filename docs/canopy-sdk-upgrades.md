@@ -7,10 +7,10 @@ contract are one compatibility unit. They must move together in a single
 change.
 
 The currently supported compatibility unit is the **locked BSR crate identity**
-from `rust/engine/Cargo.lock`: commit `af019e2d7fa245a2a7d9fc21a4dd9afa`, Prost
-`=0.5.0-00000000000000-af019e2d7fa2.2`, and Tonic
-`=0.5.0-00000000000000-af019e2d7fa2.4`. The connection-contract label
-`v0.2.0` in `client-connection.json` is that JSON field's stored label, not a
+from `rust/engine/Cargo.lock`: commit `ff8940d1a15b4034bb430fd47dd45cdc`, Prost
+`=0.5.0-00000000000000-ff8940d1a15b.2`, and Tonic
+`=0.5.0-00000000000000-ff8940d1a15b.4`. The connection-contract label
+`v0.3.0` in `client-connection.json` is that JSON field's stored label, not a
 GitHub tag and not a separately published Buf BSR release.
 
 ## Upgrade procedure

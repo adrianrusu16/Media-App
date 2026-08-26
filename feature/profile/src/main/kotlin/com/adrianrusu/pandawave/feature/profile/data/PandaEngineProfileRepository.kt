@@ -8,8 +8,8 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommandPayloads
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineGateway
-import com.adrianrusu.pandawave.feature.profile.domain.ProfileDetails
 import com.adrianrusu.pandawave.feature.profile.domain.AccountSessionsState
+import com.adrianrusu.pandawave.feature.profile.domain.ProfileDetails
 import com.adrianrusu.pandawave.feature.profile.domain.ProfileRepository
 import com.adrianrusu.pandawave.feature.profile.domain.ProfileState
 import java.util.concurrent.Executor
@@ -20,10 +20,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-class PandaEngineProfileRepository(
-    private val engineGateway: EngineGateway,
-    private val hydrateExecutor: Executor,
-) : ProfileRepository {
+class PandaEngineProfileRepository(private val engineGateway: EngineGateway, private val hydrateExecutor: Executor) :
+    ProfileRepository {
     @Inject
     constructor(engineGateway: EngineGateway) : this(
         engineGateway,
@@ -87,12 +85,18 @@ class PandaEngineProfileRepository(
         dispatch(EngineCommand(EngineCommand.TYPE_LIST_DEVICE_SESSIONS, EngineCommandPayloads.deviceSessionsPage(50)))
     }
 
-    override fun loadNextDeviceSessionsPage() = dispatch(EngineCommand(EngineCommand.TYPE_LOAD_NEXT_DEVICE_SESSIONS_PAGE, null))
+    override fun loadNextDeviceSessionsPage() =
+        dispatch(EngineCommand(EngineCommand.TYPE_LOAD_NEXT_DEVICE_SESSIONS_PAGE, null))
 
     override fun revokeDeviceSession(sessionId: String) {
         val ready = mutableAccountSessionsState.value as? AccountSessionsState.Ready
         if (ready != null) mutableAccountSessionsState.value = ready.copy(pendingSessionId = sessionId)
-        dispatch(EngineCommand(EngineCommand.TYPE_REVOKE_DEVICE_SESSION, EngineCommandPayloads.revokeDeviceSession(sessionId)))
+        dispatch(
+            EngineCommand(
+                EngineCommand.TYPE_REVOKE_DEVICE_SESSION,
+                EngineCommandPayloads.revokeDeviceSession(sessionId)
+            )
+        )
     }
 
     override fun deleteAccount() {
@@ -196,13 +200,10 @@ class PandaEngineProfileRepository(
         }
     }
 
-    private fun projectAccountSessions(
-        snapshot: EngineSnapshot,
-        identity: String,
-        command: EngineCommand?
-    ) {
+    private fun projectAccountSessions(snapshot: EngineSnapshot, identity: String, command: EngineCommand?) {
         if (snapshot.hasError) {
-            mutableAccountSessionsState.value = AccountSessionsState.Failure(snapshot.errorType, snapshot.errorType == EngineSnapshot.ERROR_NETWORK)
+            mutableAccountSessionsState.value =
+                AccountSessionsState.Failure(snapshot.errorType, snapshot.errorType == EngineSnapshot.ERROR_NETWORK)
             return
         }
         val account = snapshot.protectedAccount ?: run {
@@ -222,7 +223,8 @@ class PandaEngineProfileRepository(
             mutableAccountSessionsState.value = AccountSessionsState.Loading
             return
         }
-        mutableAccountSessionsState.value = AccountSessionsState.Ready(account, snapshot.deviceSessions, snapshot.hasDeviceSessionsNextPage)
+        mutableAccountSessionsState.value =
+            AccountSessionsState.Ready(account, snapshot.deviceSessions, snapshot.hasDeviceSessionsNextPage)
     }
 
     private fun EngineSnapshot.currentIdentity(): String? {

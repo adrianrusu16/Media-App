@@ -21,10 +21,10 @@ class HomeRouteTest {
             PandaWaveTheme(darkTheme = true) {
                 HomeRoute(
                     state = HomeState(
-                        forYou = listOf(HomeTrack("track-1", "Song", "Artist", "Album")),
+                        forYou = listOf(HomeTrack("track-1", "Song", "Artist", "Album"))
                     ),
                     onPlay = { id, _, _ -> actions += "play:$id" },
-                    onOpenNowPlaying = { actions += "open-now-playing" },
+                    onOpenNowPlaying = { actions += "open-now-playing" }
                 )
             }
         }
@@ -40,7 +40,7 @@ class HomeRouteTest {
             PandaWaveTheme(darkTheme = true) {
                 HomeRoute(
                     state = HomeState(),
-                    onPlay = { _, _, _ -> },
+                    onPlay = { _, _, _ -> }
                 )
             }
         }

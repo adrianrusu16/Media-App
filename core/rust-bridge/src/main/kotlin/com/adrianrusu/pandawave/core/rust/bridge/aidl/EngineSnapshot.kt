@@ -42,23 +42,23 @@ data class EngineSnapshot(
     val likedTracksCount: Int = 0,
     val libraryPendingCount: Int = 0,
     val hasSavedTracksNextPage: Boolean = false,
-    val hasLikedTracksNextPage: Boolean = false
-    ,val playlistsCount: Int = 0
-    ,val playlistTracksCount: Int = 0
-    ,val hasPlaylistsNextPage: Boolean = false
-    ,val hasPlaylistTracksNextPage: Boolean = false
-    ,val hasPlaylistReconciliation: Boolean = false
-    ,val protectedAccount: EngineAccount? = null
-    ,val deviceSessions: List<EngineAuthSession> = emptyList()
-    ,val deviceSessionsCount: Int = deviceSessions.size
-    ,val hasDeviceSessionsNextPage: Boolean = false
-    ,val discoveryResultsCount: Int = 0
-    ,val hasDiscoveryNextPage: Boolean = false
-    ,val hasHistoryNextPage: Boolean = false
-    ,val forYouResultsCount: Int = 0
-    ,val recommendationsResultsCount: Int = 0
-    ,val backendAvailability: EngineBackendAvailability = EngineBackendAvailability.connecting()
-    ,val lastProgressTickEpochMillis: Long = 0L
+    val hasLikedTracksNextPage: Boolean = false,
+    val playlistsCount: Int = 0,
+    val playlistTracksCount: Int = 0,
+    val hasPlaylistsNextPage: Boolean = false,
+    val hasPlaylistTracksNextPage: Boolean = false,
+    val hasPlaylistReconciliation: Boolean = false,
+    val protectedAccount: EngineAccount? = null,
+    val deviceSessions: List<EngineAuthSession> = emptyList(),
+    val deviceSessionsCount: Int = deviceSessions.size,
+    val hasDeviceSessionsNextPage: Boolean = false,
+    val discoveryResultsCount: Int = 0,
+    val hasDiscoveryNextPage: Boolean = false,
+    val hasHistoryNextPage: Boolean = false,
+    val forYouResultsCount: Int = 0,
+    val recommendationsResultsCount: Int = 0,
+    val backendAvailability: EngineBackendAvailability = EngineBackendAvailability.connecting(),
+    val lastProgressTickEpochMillis: Long = 0L
 ) : Parcelable {
     constructor(parcel: Parcel) : this(
         playbackState = parcel.readString().orEmpty(),
@@ -109,26 +109,30 @@ data class EngineSnapshot(
         likedTracksCount = parcel.readInt(),
         libraryPendingCount = parcel.readInt(),
         hasSavedTracksNextPage = parcel.readBooleanValue(),
-        hasLikedTracksNextPage = parcel.readBooleanValue()
-        ,playlistsCount = parcel.readInt()
-        ,playlistTracksCount = parcel.readInt()
-        ,hasPlaylistsNextPage = parcel.readBooleanValue()
-        ,hasPlaylistTracksNextPage = parcel.readBooleanValue()
-        ,hasPlaylistReconciliation = parcel.readBooleanValue()
-        ,protectedAccount = parcel.readEngineAccount()
-        ,deviceSessions = buildList { repeat(parcel.readInt()) { add(parcel.readEngineAuthSession() ?: return@repeat) } }
-        ,deviceSessionsCount = parcel.readInt()
-        ,hasDeviceSessionsNextPage = parcel.readBooleanValue()
-        ,discoveryResultsCount = parcel.readInt()
-        ,hasDiscoveryNextPage = parcel.readBooleanValue()
-        ,hasHistoryNextPage = parcel.readBooleanValue()
-        ,forYouResultsCount = parcel.readInt()
-        ,recommendationsResultsCount = parcel.readInt()
-        ,backendAvailability = EngineBackendAvailability(
+        hasLikedTracksNextPage = parcel.readBooleanValue(),
+        playlistsCount = parcel.readInt(),
+        playlistTracksCount = parcel.readInt(),
+        hasPlaylistsNextPage = parcel.readBooleanValue(),
+        hasPlaylistTracksNextPage = parcel.readBooleanValue(),
+        hasPlaylistReconciliation = parcel.readBooleanValue(),
+        protectedAccount = parcel.readEngineAccount(),
+        deviceSessions = buildList {
+            repeat(parcel.readInt()) {
+                add(parcel.readEngineAuthSession() ?: return@repeat)
+            }
+        },
+        deviceSessionsCount = parcel.readInt(),
+        hasDeviceSessionsNextPage = parcel.readBooleanValue(),
+        discoveryResultsCount = parcel.readInt(),
+        hasDiscoveryNextPage = parcel.readBooleanValue(),
+        hasHistoryNextPage = parcel.readBooleanValue(),
+        forYouResultsCount = parcel.readInt(),
+        recommendationsResultsCount = parcel.readInt(),
+        backendAvailability = EngineBackendAvailability(
             status = parcel.readString() ?: EngineBackendAvailability.CONNECTING,
             reason = parcel.readString()
-        )
-        ,lastProgressTickEpochMillis = parcel.readLong()
+        ),
+        lastProgressTickEpochMillis = parcel.readLong()
     )
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
@@ -281,12 +285,7 @@ private fun EngineAuthSession?.isValid(): Boolean = this != null &&
     id.isNotBlank() && createdAtEpochMillis >= 0 && lastUsedAtEpochMillis >= 0 &&
     expiresAtEpochMillis >= 0
 
-data class EngineAccount(
-    val id: String,
-    val primaryEmail: String,
-    val status: String,
-    val createdAtEpochMillis: Long
-)
+data class EngineAccount(val id: String, val primaryEmail: String, val status: String, val createdAtEpochMillis: Long)
 
 data class EngineAuthSession(
     val id: String,
@@ -305,16 +304,9 @@ data class EngineBackendStatus(
     val dependencies: List<EngineBackendDependencyStatus>
 )
 
-data class EngineBackendDependencyStatus(
-    val name: String,
-    val status: String,
-    val message: String
-)
+data class EngineBackendDependencyStatus(val name: String, val status: String, val message: String)
 
-data class EngineBackendAvailability(
-    val status: String,
-    val reason: String? = null
-) {
+data class EngineBackendAvailability(val status: String, val reason: String? = null) {
     companion object {
         const val CONNECTING = "connecting"
         const val AVAILABLE = "available"
@@ -506,21 +498,40 @@ internal fun Parcel.writeEngineAuthState(authState: EngineAuthState) {
 
 private fun Parcel.readEngineAccount(): EngineAccount? {
     if (!readBooleanValue()) return null
-    return EngineAccount(readString().orEmpty(), readString().orEmpty(), readString().orEmpty(), readLong()).takeIf { it.isValid() }
+    return EngineAccount(readString().orEmpty(), readString().orEmpty(), readString().orEmpty(), readLong()).takeIf {
+        it.isValid()
+    }
 }
 
 private fun Parcel.writeEngineAccount(account: EngineAccount?) {
     writeBooleanValue(account != null)
     if (account == null) return
-    writeString(account.id); writeString(account.primaryEmail); writeString(account.status); writeLong(account.createdAtEpochMillis)
+    writeString(account.id)
+    writeString(account.primaryEmail)
+    writeString(account.status)
+    writeLong(account.createdAtEpochMillis)
 }
 
 private fun Parcel.readEngineAuthSession(): EngineAuthSession? {
     if (!readBooleanValue()) return null
-    return EngineAuthSession(readString().orEmpty(), readString().orEmpty(), readLong(), readLong(), readLong(), readBooleanValue()).takeIf { it.isValid() }
+    return EngineAuthSession(
+        readString().orEmpty(),
+        readString().orEmpty(),
+        readLong(),
+        readLong(),
+        readLong(),
+        readBooleanValue()
+    ).takeIf {
+        it.isValid()
+    }
 }
 
 private fun Parcel.writeEngineAuthSession(session: EngineAuthSession) {
     writeBooleanValue(true)
-    writeString(session.id); writeString(session.deviceLabel); writeLong(session.createdAtEpochMillis); writeLong(session.lastUsedAtEpochMillis); writeLong(session.expiresAtEpochMillis); writeBooleanValue(session.current)
+    writeString(session.id)
+    writeString(session.deviceLabel)
+    writeLong(session.createdAtEpochMillis)
+    writeLong(session.lastUsedAtEpochMillis)
+    writeLong(session.expiresAtEpochMillis)
+    writeBooleanValue(session.current)
 }

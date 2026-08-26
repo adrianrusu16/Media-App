@@ -44,7 +44,7 @@ internal object PandaEngineNativeHistoryItemMapper {
                     "1" -> true
                     "0" -> false
                     else -> error("invalid playable flag")
-                },
+                }
             )
         }.getOrNull()
     }

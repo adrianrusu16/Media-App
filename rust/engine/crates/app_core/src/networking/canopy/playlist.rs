@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use tonic_014::Request;
+use url::Url;
 
 use crate::{
     EngineCreatePlaylist, EngineError, EngineErrorType, EnginePageRequest, EnginePageToken,
@@ -24,13 +25,15 @@ use super::{CanopyChannel, SessionCoordinator};
 pub struct CanopyPlaylistClient {
     client: PlaylistServiceClient<super::sdk::runtime::transport::Channel>,
     session: Arc<SessionCoordinator>,
+    media_origin: Url,
 }
 
 impl CanopyPlaylistClient {
-    pub fn new(channel: &CanopyChannel, session: Arc<SessionCoordinator>) -> Self {
+    pub fn new(channel: &CanopyChannel, session: Arc<SessionCoordinator>, media_origin: Url) -> Self {
         Self {
             client: PlaylistServiceClient::new(channel.clone_inner()),
             session,
+            media_origin,
         }
     }
 }
@@ -194,7 +197,7 @@ impl PlaylistPort for CanopyPlaylistClient {
         )
         .await?
         .into_inner();
-        map_playlist_track(response)
+        map_playlist_track(response, Some(&self.media_origin))
     }
 
     async fn remove_track(
@@ -284,7 +287,7 @@ impl PlaylistPort for CanopyPlaylistClient {
         )
         .await?
         .into_inner();
-        map_playlist_track_page(response)
+        map_playlist_track_page(response, Some(&self.media_origin))
     }
 }
 
@@ -322,12 +325,13 @@ fn map_playlist_page(
 }
 fn map_playlist_track_page(
     response: ListPlaylistTracksResponse,
+    media_origin: Option<&Url>,
 ) -> Result<EnginePagedResult<EnginePlaylistTrack>, EngineError> {
     Ok(EnginePagedResult {
         items: response
             .tracks
             .into_iter()
-            .map(map_playlist_track)
+            .map(|track| map_playlist_track(track, media_origin))
             .collect::<Result<_, _>>()?,
         next_page_token: map_page_token(response.page_info)?,
     })
@@ -358,7 +362,10 @@ fn map_playlist(value: Playlist) -> Result<EnginePlaylist, EngineError> {
         )?,
     })
 }
-fn map_playlist_track(value: PlaylistTrack) -> Result<EnginePlaylistTrack, EngineError> {
+fn map_playlist_track(
+    value: PlaylistTrack,
+    media_origin: Option<&Url>,
+) -> Result<EnginePlaylistTrack, EngineError> {
     require_mapping("playlist track playlist id", &value.playlist_id)?;
     let track = value
         .track
@@ -368,7 +375,7 @@ fn map_playlist_track(value: PlaylistTrack) -> Result<EnginePlaylistTrack, Engin
     Ok(EnginePlaylistTrack {
         membership_id,
         playlist_id: value.playlist_id,
-        track: map_track_summary(track, Vec::new())?,
+        track: map_track_summary(track, Vec::new(), media_origin)?,
         position: value.position,
         added_at_epoch_millis: timestamp_to_millis(
             value.added_at,

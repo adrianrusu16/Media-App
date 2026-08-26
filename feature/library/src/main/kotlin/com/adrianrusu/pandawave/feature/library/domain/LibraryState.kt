@@ -9,7 +9,7 @@ data class LibraryTrack(
     val durationMillis: Long,
     val explicit: Boolean,
     val artworkId: String?,
-    val relationshipAtEpochMillis: Long,
+    val relationshipAtEpochMillis: Long
 )
 
 data class LibraryPlaylist(val id: String, val name: String, val description: String?, val revision: Long)
@@ -23,7 +23,7 @@ data class LibraryHistoryEntry(
     val playedAtEpochMillis: Long?,
     val listenedDurationMillis: Long,
     val completionRatio: Float,
-    val playable: Boolean,
+    val playable: Boolean
 )
 
 data class PlaylistConflict(
@@ -31,7 +31,7 @@ data class PlaylistConflict(
     val expectedRevision: Long,
     val serverRevision: Long,
     val serverMembershipIds: List<String>,
-    val proposedMembershipIds: List<String>,
+    val proposedMembershipIds: List<String>
 )
 
 enum class LibraryTab { SAVED, LIKED, HISTORY, PLAYLISTS }
@@ -54,7 +54,7 @@ data class LibraryState(
     val isLoading: Boolean = true,
     val isSignedOut: Boolean = false,
     val errorType: String? = null,
-    val isRetryableError: Boolean = false,
+    val isRetryableError: Boolean = false
 ) {
     val selectedTracks: List<LibraryTrack>
         get() = when (selectedTab) {

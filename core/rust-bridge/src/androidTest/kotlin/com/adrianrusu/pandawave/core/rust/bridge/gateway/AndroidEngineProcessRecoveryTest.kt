@@ -47,11 +47,11 @@ class AndroidEngineProcessRecoveryTest {
 
             assertTrue(
                 "Expected service_disconnected after killing $engineProcessName; events=$observedEvents",
-                disconnected.await(EVENT_TIMEOUT_SECONDS, TimeUnit.SECONDS),
+                disconnected.await(EVENT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             )
             assertTrue(
                 "Expected service_connected after $engineProcessName restarted; events=$observedEvents",
-                reconnected.await(EVENT_TIMEOUT_SECONDS, TimeUnit.SECONDS),
+                reconnected.await(EVENT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             )
             val recoveredPid = awaitProcessPid(engineProcessName, excluding = initialPid)
             assertNotEquals("The engine process must have a new PID after recovery", initialPid, recoveredPid)
@@ -59,8 +59,8 @@ class AndroidEngineProcessRecoveryTest {
             val result = gateway.dispatchPlatformEvent(
                 EnginePlatformEvent(
                     type = EnginePlatformEvent.TYPE_APP_FOREGROUNDED,
-                    payload = null,
-                ),
+                    payload = null
+                )
             )
 
             assertEquals(EngineEvent.TYPE_PLATFORM_EVENT_APPLIED, result.event.type)

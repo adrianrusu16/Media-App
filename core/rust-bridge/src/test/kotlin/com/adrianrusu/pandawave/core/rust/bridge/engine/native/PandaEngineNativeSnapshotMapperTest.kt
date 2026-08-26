@@ -1,12 +1,12 @@
 package com.adrianrusu.pandawave.core.rust.bridge.engine.native
 
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthSession
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthState
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineBackendAvailability
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineLibraryItem
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -78,7 +78,7 @@ class PandaEngineNativeSnapshotMapperTest {
                 2L,
                 3L,
                 11L,
-                77L,
+                77L
             )
         )
         val snapshot = projection.snapshot
@@ -294,9 +294,9 @@ class PandaEngineNativeSnapshotMapperTest {
             arrayOf(
                 "4",
                 "history-1", "track-1", "Played Track", "Artist", "Album", "art-1", "1234", "90000", "0.75", "1",
-                "history-2", "", "Unavailable track", "", "", "", "", "1000", "1", "0",
+                "history-2", "", "Unavailable track", "", "", "", "", "1000", "1", "0"
             ),
-            requestedGeneration = 4L,
+            requestedGeneration = 4L
         )
         assertEquals(4L, packedPage.generation)
         assertEquals(listOf("history-1", "history-2"), packedPage.items.map { it.historyId })
@@ -309,7 +309,7 @@ class PandaEngineNativeSnapshotMapperTest {
 
         val malformed = PandaEngineNativeHistoryItemMapper.toPage(
             arrayOf("4", "history-1"),
-            requestedGeneration = 4L,
+            requestedGeneration = 4L
         )
         assertEquals(4L, malformed.generation)
         assertEquals(emptyList<EngineHistoryItem>(), malformed.items)
@@ -342,7 +342,7 @@ class PandaEngineNativeSnapshotMapperTest {
         val page = PandaEngineNativeCatalogItemMapper.toPage(
             arrayOf(
                 "track-1", "Catalog Track", "Artist", "", "", "canopy://track-1", "", "2",
-                "track-2", "Second", "Other", "Album", "art", "canopy://track-2", "audio/mpeg", "0",
+                "track-2", "Second", "Other", "Album", "art", "canopy://track-2", "audio/mpeg", "0"
             )
         )
         assertEquals(listOf("track-1", "track-2"), page.map { it.mediaId })
@@ -356,7 +356,7 @@ class PandaEngineNativeSnapshotMapperTest {
         val page = PandaEngineNativeLibraryItemMapper.toPage(
             arrayOf(
                 "rel-1", "track-1", "Saved", "artist-1", "Artist", "Album", "180000", "1", "art-1", "10",
-                "rel-2", "track-2", "Liked", "artist-2", "Other", "", "90000", "0", "", "20",
+                "rel-2", "track-2", "Liked", "artist-2", "Other", "", "90000", "0", "", "20"
             )
         )
         assertEquals(listOf("rel-1", "rel-2"), page.map { it.relationshipId })
@@ -372,7 +372,7 @@ class PandaEngineNativeSnapshotMapperTest {
         val sessions = PandaEngineNativeAuthStateMapper.toSessions(
             arrayOf(
                 "session-1", "Car", "1", "2", "3", "1",
-                "session-2", "Phone", "4", "5", "6", "0",
+                "session-2", "Phone", "4", "5", "6", "0"
             )
         )
         assertEquals(listOf("session-1", "session-2"), sessions.map { it.id })

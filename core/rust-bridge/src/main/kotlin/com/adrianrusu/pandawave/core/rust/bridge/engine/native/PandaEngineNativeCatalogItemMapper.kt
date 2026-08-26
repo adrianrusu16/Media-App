@@ -26,7 +26,7 @@ internal object PandaEngineNativeCatalogItemMapper {
                     artworkUri = values[offset + ARTWORK_INDEX].ifBlank { null },
                     sourceUri = values[offset + SOURCE_INDEX].ifBlank { null },
                     mimeType = values[offset + MIME_INDEX].ifBlank { null },
-                    itemType = itemType,
+                    itemType = itemType
                 )
             }.getOrNull()
         }

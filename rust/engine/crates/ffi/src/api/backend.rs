@@ -107,7 +107,8 @@ fn finish_configuration(
     }
 
     let session_store = engine.session_store.lock().unwrap().clone();
-    let composition = compose_backend(&channel, session_store.clone());
+    let media_origin = config.stream_base_url().clone();
+    let composition = compose_backend(&channel, session_store.clone(), media_origin);
     let session = composition.session.clone();
     let engine_session = session.clone();
 
@@ -146,24 +147,45 @@ struct BackendComposition {
     account: Arc<CanopyAuthClient>,
 }
 
-fn compose_backend(channel: &CanopyChannel, store: Arc<dyn SessionStore>) -> BackendComposition {
+fn compose_backend(
+    channel: &CanopyChannel,
+    store: Arc<dyn SessionStore>,
+    media_origin: url::Url,
+) -> BackendComposition {
     let auth = Arc::new(CanopyAuthClient::new(channel));
     let session = Arc::new(SessionCoordinator::new(store, auth));
     let catalog = Arc::new(CanopyCatalogClient::with_session_coordinator(
         channel,
         session.clone(),
+        media_origin.clone(),
     ));
     let repository = RemoteRepository::new(catalog);
     let playback = Arc::new(CanopyPlaybackClient::with_session_coordinator(
         channel,
         session.clone(),
     ));
-    let discovery = Arc::new(CanopyDiscoveryClient::new(channel, session.clone()));
+    let discovery = Arc::new(CanopyDiscoveryClient::new(
+        channel,
+        session.clone(),
+        media_origin.clone(),
+    ));
     let system = Arc::new(CanopySystemClient::new(channel));
     let profile = Arc::new(CanopyProfileClient::new(channel, session.clone()));
-    let history = Arc::new(CanopyHistoryClient::new(channel, session.clone()));
-    let library = Arc::new(CanopyLibraryClient::new(channel, session.clone()));
-    let playlist = Arc::new(CanopyPlaylistClient::new(channel, session.clone()));
+    let history = Arc::new(CanopyHistoryClient::new(
+        channel,
+        session.clone(),
+        media_origin.clone(),
+    ));
+    let library = Arc::new(CanopyLibraryClient::new(
+        channel,
+        session.clone(),
+        media_origin.clone(),
+    ));
+    let playlist = Arc::new(CanopyPlaylistClient::new(
+        channel,
+        session.clone(),
+        media_origin,
+    ));
     let account = Arc::new(CanopyAuthClient::new_protected(channel, session.clone()));
 
     BackendComposition {
@@ -261,7 +283,8 @@ mod concurrency_tests {
         };
 
         let store: Arc<dyn SessionStore> = Arc::new(InMemorySessionStore::new());
-        let composition = compose_backend(&channel, store);
+        let media_origin = url::Url::parse("https://stream.example.com/").unwrap();
+        let composition = compose_backend(&channel, store, media_origin);
 
         assert_eq!(
             composition.session.auth_state().unwrap(),
@@ -299,8 +322,9 @@ mod concurrency_tests {
         );
         let expected = envelope.state();
         let store: Arc<dyn SessionStore> = Arc::new(InMemorySessionStore::with_session(envelope));
+        let media_origin = url::Url::parse("https://stream.example.com/").unwrap();
 
-        let composition = compose_backend(&channel, store);
+        let composition = compose_backend(&channel, store, media_origin);
 
         assert_eq!(composition.session.auth_state().unwrap(), expected);
     }
@@ -340,12 +364,12 @@ mod concurrency_tests {
           "contract": {
             "protobuf_package": "canopy.v1",
             "bsr_module": "buf.build/pandawave/canopy-api",
-            "release": "v0.2.0",
-            "commit": "af019e2d7fa245a2a7d9fc21a4dd9afa",
+            "release": "v0.3.0",
+            "commit": "ff8940d1a15b4034bb430fd47dd45cdc",
             "prost_package": "pandawave_canopy-api_community_neoeinstein-prost",
-            "prost_version": "=0.5.0-00000000000000-af019e2d7fa2.2",
+            "prost_version": "=0.5.0-00000000000000-ff8940d1a15b.2",
             "tonic_package": "pandawave_canopy-api_community_neoeinstein-tonic",
-            "tonic_version": "=0.5.0-00000000000000-af019e2d7fa2.4"
+            "tonic_version": "=0.5.0-00000000000000-ff8940d1a15b.4"
           },
           "transport": {
             "grpc_endpoint": "https://canopy.example.com",

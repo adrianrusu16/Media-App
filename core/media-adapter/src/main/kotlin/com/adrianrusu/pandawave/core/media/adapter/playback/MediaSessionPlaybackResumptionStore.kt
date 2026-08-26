@@ -5,12 +5,10 @@ import android.content.SharedPreferences
 internal data class MediaSessionPlaybackResumption(
     val mediaIds: List<String>,
     val startIndex: Int,
-    val positionMillis: Long,
+    val positionMillis: Long
 )
 
-internal class MediaSessionPlaybackResumptionStore(
-    private val preferences: SharedPreferences,
-) {
+internal class MediaSessionPlaybackResumptionStore(private val preferences: SharedPreferences) {
     fun save(mediaIds: List<String>, startIndex: Int, positionMillis: Long = 0L) {
         val normalized = mediaIds.map(String::trim).filter(String::isNotBlank)
         if (normalized.isEmpty()) return
@@ -39,7 +37,7 @@ internal class MediaSessionPlaybackResumptionStore(
         return MediaSessionPlaybackResumption(
             mediaIds = mediaIds,
             startIndex = preferences.getInt(KEY_START_INDEX, 0).coerceIn(0, mediaIds.lastIndex),
-            positionMillis = preferences.getLong(KEY_POSITION_MILLIS, 0L).coerceAtLeast(0L),
+            positionMillis = preferences.getLong(KEY_POSITION_MILLIS, 0L).coerceAtLeast(0L)
         )
     }
 

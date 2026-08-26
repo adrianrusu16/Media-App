@@ -121,9 +121,11 @@ class AuthUiReducerTest {
     fun `observable form state has no password or credential fields`() {
         val names = AuthFormState::class.java.declaredFields.map { it.name.lowercase() }
 
-        assertTrue(names.none { name ->
-            name.contains("password") || name.contains("credential") || name.contains("token")
-        })
+        assertTrue(
+            names.none { name ->
+                name.contains("password") || name.contains("credential") || name.contains("token")
+            }
+        )
     }
 
     @Test

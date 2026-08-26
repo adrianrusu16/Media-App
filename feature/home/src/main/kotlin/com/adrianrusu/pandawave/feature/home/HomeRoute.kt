@@ -33,7 +33,7 @@ import com.adrianrusu.pandawave.feature.home.presentation.HomeViewModel
 fun HomeRoute(
     modifier: Modifier = Modifier,
     onOpenNowPlaying: () -> Unit = {},
-    viewModel: HomeViewModel = hiltViewModel(),
+    viewModel: HomeViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     HomeRoute(modifier, state, viewModel::play, onOpenNowPlaying)
@@ -44,16 +44,16 @@ fun HomeRoute(
     modifier: Modifier = Modifier,
     state: HomeState,
     onPlay: (mediaId: String, section: String, title: String) -> Unit,
-    onOpenNowPlaying: () -> Unit = {},
+    onOpenNowPlaying: () -> Unit = {}
 ) {
     val tokens = LocalPandaWaveDesignTokens.current
     BambooRotaryColumn(
         modifier = modifier.fillMaxWidth().testTag("home-route"),
-        verticalArrangement = Arrangement.spacedBy(tokens.components.mediaSectionSpacing),
+        verticalArrangement = Arrangement.spacedBy(tokens.components.mediaSectionSpacing)
     ) {
         BambooSectionHeader(
             title = stringResource(R.string.pandawave_home_greeting),
-            subtitle = stringResource(R.string.pandawave_home_greeting_body),
+            subtitle = stringResource(R.string.pandawave_home_greeting_body)
         )
         HomeFeedSection(
             title = stringResource(R.string.pandawave_home_for_you),
@@ -62,7 +62,7 @@ fun HomeRoute(
             testTag = "home-for-you",
             section = HOME_SECTION_FOR_YOU,
             onPlay = onPlay,
-            onOpenNowPlaying = onOpenNowPlaying,
+            onOpenNowPlaying = onOpenNowPlaying
         )
         HomeFeedSection(
             title = stringResource(R.string.pandawave_home_recommendations),
@@ -70,7 +70,7 @@ fun HomeRoute(
             testTag = "home-recommendations",
             section = HOME_SECTION_RECOMMENDATIONS,
             onPlay = onPlay,
-            onOpenNowPlaying = onOpenNowPlaying,
+            onOpenNowPlaying = onOpenNowPlaying
         )
         HomeFeedSection(
             title = stringResource(R.string.pandawave_home_discover),
@@ -78,7 +78,7 @@ fun HomeRoute(
             testTag = "home-discover",
             section = HOME_SECTION_DISCOVERY,
             onPlay = onPlay,
-            onOpenNowPlaying = onOpenNowPlaying,
+            onOpenNowPlaying = onOpenNowPlaying
         )
     }
 }
@@ -91,25 +91,25 @@ private fun HomeFeedSection(
     section: String,
     onPlay: (mediaId: String, section: String, title: String) -> Unit,
     onOpenNowPlaying: () -> Unit,
-    hero: Boolean = false,
+    hero: Boolean = false
 ) {
     val tokens = LocalPandaWaveDesignTokens.current
     Column(
         modifier = Modifier.testTag(testTag),
-        verticalArrangement = Arrangement.spacedBy(tokens.components.mediaCarouselSpacing),
+        verticalArrangement = Arrangement.spacedBy(tokens.components.mediaCarouselSpacing)
     ) {
         BambooSectionHeader(title = title)
         if (tracks.isEmpty()) {
             Text(
                 text = stringResource(R.string.pandawave_home_empty_feed),
                 modifier = Modifier.testTag("$testTag-empty"),
-                color = Color(tokens.colors.onSurfaceVariant),
+                color = Color(tokens.colors.onSurfaceVariant)
             )
             return@Column
         }
         BambooFocusableLazyRow(
             horizontalArrangement = Arrangement.spacedBy(tokens.components.mediaCarouselSpacing),
-            contentPadding = PaddingValues(horizontal = tokens.components.mediaCarouselSpacing),
+            contentPadding = PaddingValues(horizontal = tokens.components.mediaCarouselSpacing)
         ) {
             items(tracks, key = HomeTrack::id) { track ->
                 val item = BambooMediaItem(
@@ -117,7 +117,7 @@ private fun HomeFeedSection(
                     title = track.title,
                     subtitle = track.artist,
                     description = track.album ?: track.artist,
-                    action = BambooMediaAction.Play,
+                    action = BambooMediaAction.Play
                 )
                 val onClick = {
                     onPlay(track.id, section, track.title)
@@ -129,7 +129,7 @@ private fun HomeFeedSection(
                         item = item,
                         icon = PandaWaveIcons.Equalizer,
                         accentColor = Color(tokens.colors.primary),
-                        onClick = onClick,
+                        onClick = onClick
                     )
                 } else {
                     BambooMediaTile(
@@ -137,7 +137,7 @@ private fun HomeFeedSection(
                         item = item,
                         icon = PandaWaveIcons.MusicLibrary,
                         accentColor = Color(tokens.colors.secondary),
-                        onClick = onClick,
+                        onClick = onClick
                     )
                 }
             }

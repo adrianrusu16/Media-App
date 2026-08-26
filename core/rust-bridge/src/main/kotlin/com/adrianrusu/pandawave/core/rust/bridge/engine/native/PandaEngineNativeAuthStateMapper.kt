@@ -31,14 +31,16 @@ internal object PandaEngineNativeAuthStateMapper {
                     "1" -> true
                     "0" -> false
                     else -> error("invalid current flag")
-                },
+                }
             )
         }.getOrNull()
     }
 
     fun toDomain(values: Array<String>): EngineAuthState = when {
         values.contentEquals(arrayOf(EngineAuthState.ANONYMOUS)) -> EngineAuthState.anonymous()
+
         values.contentEquals(arrayOf(EngineAuthState.LOGIN_REQUIRED)) -> EngineAuthState.loginRequired()
+
         values.size == AUTHENTICATED_VALUE_COUNT && values[STATE_INDEX] == EngineAuthState.AUTHENTICATED ->
             runCatching {
                 EngineAuthState(
@@ -63,6 +65,7 @@ internal object PandaEngineNativeAuthStateMapper {
                     )
                 ).normalized()
             }.getOrElse { EngineAuthState.loginRequired() }
+
         else -> EngineAuthState.loginRequired()
     }
 

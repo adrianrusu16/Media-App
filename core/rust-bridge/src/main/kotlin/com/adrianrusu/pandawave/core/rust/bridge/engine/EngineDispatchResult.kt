@@ -18,7 +18,7 @@ data class EngineDispatchResult(
             ?: EngineEvent(EngineEvent.TYPE_GATEWAY_UNAVAILABLE, null),
         effects = mutableListOf<EngineEffect>().also { values ->
             parcel.readTypedList(values, EngineEffect.CREATOR)
-        },
+        }
     )
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
@@ -33,8 +33,7 @@ data class EngineDispatchResult(
         @JvmField
         val CREATOR: Parcelable.Creator<EngineDispatchResult> =
             object : Parcelable.Creator<EngineDispatchResult> {
-                override fun createFromParcel(parcel: Parcel): EngineDispatchResult =
-                    EngineDispatchResult(parcel)
+                override fun createFromParcel(parcel: Parcel): EngineDispatchResult = EngineDispatchResult(parcel)
 
                 override fun newArray(size: Int): Array<EngineDispatchResult?> = arrayOfNulls(size)
             }
