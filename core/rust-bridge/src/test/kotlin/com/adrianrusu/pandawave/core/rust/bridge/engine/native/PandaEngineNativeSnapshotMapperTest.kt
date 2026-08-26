@@ -1,9 +1,12 @@
 package com.adrianrusu.pandawave.core.rust.bridge.engine.native
 
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthSession
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthState
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineBackendAvailability
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryItem
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineLibraryItem
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -287,6 +290,34 @@ class PandaEngineNativeSnapshotMapperTest {
         assertEquals(null, unavailable?.mediaId)
         assertFalse(unavailable?.playable == true)
 
+        val packedPage = PandaEngineNativeHistoryItemMapper.toPage(
+            arrayOf(
+                "4",
+                "history-1", "track-1", "Played Track", "Artist", "Album", "art-1", "1234", "90000", "0.75", "1",
+                "history-2", "", "Unavailable track", "", "", "", "", "1000", "1", "0",
+            ),
+            requestedGeneration = 4L,
+        )
+        assertEquals(4L, packedPage.generation)
+        assertEquals(listOf("history-1", "history-2"), packedPage.items.map { it.historyId })
+        assertEquals("track-1", packedPage.items[0].mediaId)
+        assertFalse(packedPage.items[1].playable)
+
+        val stalePage = PandaEngineNativeHistoryItemMapper.toPage(arrayOf("9"), requestedGeneration = 8L)
+        assertEquals(9L, stalePage.generation)
+        assertEquals(emptyList<EngineHistoryItem>(), stalePage.items)
+
+        val malformed = PandaEngineNativeHistoryItemMapper.toPage(
+            arrayOf("4", "history-1"),
+            requestedGeneration = 4L,
+        )
+        assertEquals(4L, malformed.generation)
+        assertEquals(emptyList<EngineHistoryItem>(), malformed.items)
+
+        val missing = PandaEngineNativeHistoryItemMapper.toPage(null, requestedGeneration = 3L)
+        assertEquals(3L, missing.generation)
+        assertEquals(emptyList<EngineHistoryItem>(), missing.items)
+
         val publicSurface = com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryItem::class.java
             .declaredFields.joinToString(" ") { it.name }.lowercase()
         assertFalse(publicSurface.contains("token"))
@@ -307,6 +338,47 @@ class PandaEngineNativeSnapshotMapperTest {
         assertEquals(null, item?.artworkUri)
         assertEquals("canopy://track-1", item?.sourceUri)
         assertEquals(EngineCatalogItem.TYPE_ALBUM, item?.itemType)
+
+        val page = PandaEngineNativeCatalogItemMapper.toPage(
+            arrayOf(
+                "track-1", "Catalog Track", "Artist", "", "", "canopy://track-1", "", "2",
+                "track-2", "Second", "Other", "Album", "art", "canopy://track-2", "audio/mpeg", "0",
+            )
+        )
+        assertEquals(listOf("track-1", "track-2"), page.map { it.mediaId })
+        assertEquals(EngineCatalogItem.TYPE_TRACK, page[1].itemType)
+        assertEquals(emptyList<EngineCatalogItem>(), PandaEngineNativeCatalogItemMapper.toPage(arrayOf("track-1")))
+        assertEquals(emptyList<EngineCatalogItem>(), PandaEngineNativeCatalogItemMapper.toPage(null))
+    }
+
+    @Test
+    fun `library item pages unpack repeating field groups`() {
+        val page = PandaEngineNativeLibraryItemMapper.toPage(
+            arrayOf(
+                "rel-1", "track-1", "Saved", "artist-1", "Artist", "Album", "180000", "1", "art-1", "10",
+                "rel-2", "track-2", "Liked", "artist-2", "Other", "", "90000", "0", "", "20",
+            )
+        )
+        assertEquals(listOf("rel-1", "rel-2"), page.map { it.relationshipId })
+        assertEquals("Album", page[0].album)
+        assertEquals(null, page[1].album)
+        assertTrue(page[0].explicit)
+        assertFalse(page[1].explicit)
+        assertEquals(emptyList<EngineLibraryItem>(), PandaEngineNativeLibraryItemMapper.toPage(arrayOf("rel-1")))
+    }
+
+    @Test
+    fun `device session pages unpack repeating field groups`() {
+        val sessions = PandaEngineNativeAuthStateMapper.toSessions(
+            arrayOf(
+                "session-1", "Car", "1", "2", "3", "1",
+                "session-2", "Phone", "4", "5", "6", "0",
+            )
+        )
+        assertEquals(listOf("session-1", "session-2"), sessions.map { it.id })
+        assertTrue(sessions[0].current)
+        assertFalse(sessions[1].current)
+        assertEquals(emptyList<EngineAuthSession>(), PandaEngineNativeAuthStateMapper.toSessions(arrayOf("session-1")))
     }
 
     @Test

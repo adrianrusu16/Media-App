@@ -198,6 +198,8 @@ class AndroidEngineServiceConnection(
         }
 
         override fun browseResult(index: Int): EngineCatalogItem? = remote.getBrowseResult(index)
+        override fun browseResultsPage(offset: Int, limit: Int) =
+            remote.getBrowseResultsPage(offset, limit).orEmpty()
         override fun discoveryResult(index: Int): EngineCatalogItem? = remote.getDiscoveryResult(index)
         override fun forYouResult(index: Int): EngineCatalogItem? = remote.getForYouResult(index)
         override fun recommendationResult(index: Int): EngineCatalogItem? = remote.getRecommendationResult(index)
@@ -210,6 +212,8 @@ class AndroidEngineServiceConnection(
         override fun profilePreferenceValue(key: String): String? = remote.getProfilePreferenceValue(key)
 
         override fun searchResult(index: Int): EngineCatalogItem? = remote.getSearchResult(index)
+        override fun searchResultsPage(offset: Int, limit: Int) =
+            remote.getSearchResultsPage(offset, limit).orEmpty()
         override fun historyEntry(index: Int): EngineHistoryItem? = remote.getHistoryEntry(index)
         override fun historyPage(offset: Int, limit: Int, generation: Long): EngineHistoryPage =
             remote.getHistoryPage(offset, limit, generation)
@@ -220,6 +224,8 @@ class AndroidEngineServiceConnection(
         override fun likedTracksPage(offset: Int, limit: Int) =
             remote.getLikedTracksPage(offset, limit).orEmpty()
         override fun pendingLibraryTrackId(index: Int) = remote.getPendingLibraryTrackId(index)
+        override fun pendingLibraryTrackIdsPage(offset: Int, limit: Int) =
+            remote.getPendingLibraryTrackIdsPage(offset, limit).orEmpty()
         override fun playlist(index: Int): EnginePlaylistItem? = remote.getPlaylist(index)
         override fun playlistsPage(offset: Int, limit: Int) =
             remote.getPlaylistsPage(offset, limit).orEmpty()

@@ -6,8 +6,20 @@ use jni::objects::{JByteArray, JObject, JString};
 use jni::sys::{jlong, jlongArray, jobjectArray, jstring};
 
 use crate::api::auth::AuthOperationResult;
-use crate::mappings::effect_to_ffi;
+use crate::mappings::{effect_to_ffi, media_item_type_to_ffi};
 use crate::{FfiEngineSnapshot, panda_engine_free_string};
+
+pub(super) const PAGE_KIND_BROWSE: i32 = 0;
+pub(super) const PAGE_KIND_SEARCH: i32 = 1;
+pub(super) const PAGE_KIND_DISCOVERY: i32 = 2;
+pub(super) const PAGE_KIND_FOR_YOU: i32 = 3;
+pub(super) const PAGE_KIND_RECOMMENDATIONS: i32 = 4;
+pub(super) const PAGE_KIND_SAVED: i32 = 5;
+pub(super) const PAGE_KIND_LIKED: i32 = 6;
+pub(super) const PAGE_KIND_PLAYLISTS: i32 = 7;
+pub(super) const PAGE_KIND_PLAYLIST_TRACKS: i32 = 8;
+pub(super) const PAGE_KIND_PENDING_IDS: i32 = 9;
+pub(super) const PAGE_KIND_DEVICE_SESSIONS: i32 = 10;
 pub(super) fn jni_string_to_c_string(env: &mut JNIEnv, value: JObject) -> Option<CString> {
     if value.is_null() {
         return None;
@@ -135,6 +147,169 @@ pub(super) fn library_track_to_strings(
     ]
 }
 
+pub(super) const HISTORY_ENTRY_VALUE_COUNT: usize = 10;
+pub(super) const CATALOG_ITEM_VALUE_COUNT: usize = 8;
+pub(super) const DEVICE_SESSION_VALUE_COUNT: usize = 6;
+pub(super) const MAX_ENGINE_PAGE_QUERY_SIZE: usize = 50;
+
+pub(super) fn page_range(offset: i32, limit: i32, len: usize) -> std::ops::Range<usize> {
+    let start = offset.max(0) as usize;
+    let count = (limit.max(0) as usize).min(MAX_ENGINE_PAGE_QUERY_SIZE);
+    let end = start.saturating_add(count).min(len);
+    if start >= end {
+        0..0
+    } else {
+        start..end
+    }
+}
+
+pub(super) fn pack_page<T>(
+    items: &[T],
+    offset: i32,
+    limit: i32,
+    encode: impl Fn(&T) -> Vec<String>,
+) -> Vec<String> {
+    let range = page_range(offset, limit, items.len());
+    let mut values = Vec::new();
+    for item in &items[range] {
+        values.extend(encode(item));
+    }
+    values
+}
+
+pub(super) fn catalog_item_to_strings(item: &panda_engine_core::MediaItem) -> Vec<String> {
+    vec![
+        item.id.clone(),
+        item.title.clone(),
+        item.artist.clone(),
+        item.album.clone().unwrap_or_default(),
+        item.thumbnail_url.clone().unwrap_or_default(),
+        item.source_uri.clone().unwrap_or_default(),
+        item.mime_type.clone().unwrap_or_default(),
+        media_item_type_to_ffi(&item.item_type).to_string(),
+    ]
+}
+
+pub(super) fn playlist_to_strings(item: &panda_engine_core::EnginePlaylist) -> Vec<String> {
+    vec![
+        item.id.clone(),
+        item.name.clone(),
+        item.description.clone().unwrap_or_default(),
+        item.revision.to_string(),
+        item.created_at_epoch_millis.to_string(),
+        item.updated_at_epoch_millis.to_string(),
+        if item.description.is_some() {
+            "1"
+        } else {
+            "0"
+        }
+        .into(),
+    ]
+}
+
+pub(super) fn playlist_track_to_strings(
+    item: &panda_engine_core::EnginePlaylistTrack,
+) -> Vec<String> {
+    vec![
+        item.membership_id.clone(),
+        item.playlist_id.clone(),
+        item.track.id.clone(),
+        item.track.title.clone(),
+        item.track.artist.id.clone(),
+        item.track.artist.name.clone(),
+        item.track
+            .album
+            .as_ref()
+            .map(|album| album.title.clone())
+            .unwrap_or_default(),
+        item.track.duration_millis.to_string(),
+        (item.track.explicit as u8).to_string(),
+        item.track.artwork_id.clone().unwrap_or_default(),
+        item.position.to_string(),
+        item.added_at_epoch_millis.to_string(),
+    ]
+}
+
+pub(super) fn snapshot_page_to_strings(
+    snapshot: &panda_engine_core::EngineSnapshot,
+    kind: i32,
+    offset: i32,
+    limit: i32,
+) -> Option<Vec<String>> {
+    Some(match kind {
+        PAGE_KIND_BROWSE => pack_page(
+            &snapshot.browse_results,
+            offset,
+            limit,
+            catalog_item_to_strings,
+        ),
+        PAGE_KIND_SEARCH => pack_page(
+            &snapshot.search_results,
+            offset,
+            limit,
+            catalog_item_to_strings,
+        ),
+        PAGE_KIND_DISCOVERY => pack_page(
+            &snapshot.discovery_results,
+            offset,
+            limit,
+            catalog_item_to_strings,
+        ),
+        PAGE_KIND_FOR_YOU => pack_page(
+            &snapshot.for_you_results,
+            offset,
+            limit,
+            catalog_item_to_strings,
+        ),
+        PAGE_KIND_RECOMMENDATIONS => pack_page(
+            &snapshot.recommendations_results,
+            offset,
+            limit,
+            catalog_item_to_strings,
+        ),
+        PAGE_KIND_SAVED => pack_page(
+            &snapshot.saved_tracks,
+            offset,
+            limit,
+            library_track_to_strings,
+        ),
+        PAGE_KIND_LIKED => pack_page(
+            &snapshot.liked_tracks,
+            offset,
+            limit,
+            library_track_to_strings,
+        ),
+        PAGE_KIND_PLAYLISTS => pack_page(&snapshot.playlists, offset, limit, playlist_to_strings),
+        PAGE_KIND_PLAYLIST_TRACKS => pack_page(
+            &snapshot.playlist_tracks,
+            offset,
+            limit,
+            playlist_track_to_strings,
+        ),
+        PAGE_KIND_PENDING_IDS => pack_page(
+            &snapshot.library_pending_track_ids,
+            offset,
+            limit,
+            |track_id| vec![track_id.clone()],
+        ),
+        PAGE_KIND_DEVICE_SESSIONS => pack_page(
+            &snapshot.device_sessions,
+            offset,
+            limit,
+            session_to_strings,
+        ),
+        _ => return None,
+    })
+}
+
+pub(super) fn effects_page_to_strings(
+    effects: &[panda_engine_core::EngineEffect],
+    offset: i32,
+    limit: i32,
+) -> Vec<String> {
+    pack_page(effects, offset, limit, effect_to_strings)
+}
+
 pub(super) fn history_entry_to_strings(
     item: &panda_engine_core::EngineHistoryEntry,
 ) -> Vec<String> {
@@ -162,6 +337,32 @@ pub(super) fn history_entry_to_strings(
         item.completion_ratio.to_string(),
         if track.is_some() { "1" } else { "0" }.into(),
     ]
+}
+
+/// Packs `[generation, ...entry fields]` for one bounded history page.
+/// Generation mismatch and empty slices return only the current generation.
+pub(super) fn history_page_to_strings(
+    snapshot: &panda_engine_core::EngineSnapshot,
+    offset: i32,
+    limit: i32,
+    requested_generation: i64,
+) -> Vec<String> {
+    let current_generation = snapshot.history_state.generation as i64;
+    let mut values = vec![current_generation.to_string()];
+    if current_generation != requested_generation {
+        return values;
+    }
+    values.extend(pack_page(
+        &snapshot.history_entries,
+        offset,
+        limit,
+        |item| {
+            let packed = history_entry_to_strings(item);
+            debug_assert_eq!(packed.len(), HISTORY_ENTRY_VALUE_COUNT);
+            packed
+        },
+    ));
+    values
 }
 
 pub(super) fn metadata_to_strings(snapshot: &panda_engine_core::EngineSnapshot) -> Vec<String> {
@@ -635,5 +836,138 @@ mod tests {
             vec!["profile-1", "account-1", "1", "", "100", ""]
         );
         assert!(profile_to_strings(None).is_empty());
+    }
+
+    #[test]
+    fn history_page_packs_generation_and_bounded_entries_in_one_payload() {
+        let mut snapshot = panda_engine_core::EngineSnapshot::idle(1);
+        snapshot.history_state.generation = 4;
+        snapshot.history_entries = vec![
+            history_entry("history-1", Some("track-1")),
+            history_entry("history-2", Some("track-2")),
+            history_entry("history-3", None),
+        ];
+
+        let packed = history_page_to_strings(&snapshot, 1, 2, 4);
+        assert_eq!(packed[0], "4");
+        assert_eq!(packed.len(), 1 + 2 * HISTORY_ENTRY_VALUE_COUNT);
+        assert_eq!(&packed[1..11], history_entry_to_strings(&snapshot.history_entries[1]));
+        assert_eq!(&packed[11..], history_entry_to_strings(&snapshot.history_entries[2]));
+    }
+
+    #[test]
+    fn history_page_mismatch_returns_current_generation_without_items() {
+        let mut snapshot = panda_engine_core::EngineSnapshot::idle(1);
+        snapshot.history_state.generation = 9;
+        snapshot.history_entries = vec![history_entry("history-1", Some("track-1"))];
+
+        assert_eq!(history_page_to_strings(&snapshot, 0, 50, 8), vec!["9".to_string()]);
+    }
+
+    #[test]
+    fn history_page_limit_zero_or_past_end_is_generation_only() {
+        let mut snapshot = panda_engine_core::EngineSnapshot::idle(1);
+        snapshot.history_state.generation = 2;
+        snapshot.history_entries = vec![history_entry("history-1", Some("track-1"))];
+
+        assert_eq!(history_page_to_strings(&snapshot, 0, 0, 2), vec!["2".to_string()]);
+        assert_eq!(history_page_to_strings(&snapshot, 5, 10, 2), vec!["2".to_string()]);
+    }
+
+    #[test]
+    fn history_page_caps_at_max_query_size() {
+        let mut snapshot = panda_engine_core::EngineSnapshot::idle(1);
+        snapshot.history_state.generation = 1;
+        snapshot.history_entries = (0..60)
+            .map(|index| history_entry(&format!("history-{index}"), Some("track-1")))
+            .collect();
+
+        let packed = history_page_to_strings(&snapshot, 0, 100, 1);
+        assert_eq!(
+            (packed.len() - 1) / HISTORY_ENTRY_VALUE_COUNT,
+            MAX_ENGINE_PAGE_QUERY_SIZE
+        );
+    }
+
+    #[test]
+    fn snapshot_page_packs_catalog_and_caps_query_size() {
+        let mut snapshot = panda_engine_core::EngineSnapshot::idle(1);
+        snapshot.browse_results = (0..60).map(|index| catalog_item(&format!("track-{index}"))).collect();
+        snapshot.search_results = vec![catalog_item("search-1"), catalog_item("search-2")];
+
+        let browse = snapshot_page_to_strings(&snapshot, PAGE_KIND_BROWSE, 0, 100).expect("browse");
+        assert_eq!(browse.len() / CATALOG_ITEM_VALUE_COUNT, MAX_ENGINE_PAGE_QUERY_SIZE);
+        assert_eq!(&browse[..CATALOG_ITEM_VALUE_COUNT], catalog_item_to_strings(&snapshot.browse_results[0]));
+
+        let search = snapshot_page_to_strings(&snapshot, PAGE_KIND_SEARCH, 1, 1).expect("search");
+        assert_eq!(search, catalog_item_to_strings(&snapshot.search_results[1]));
+        assert!(snapshot_page_to_strings(&snapshot, 99, 0, 10).is_none());
+        assert!(snapshot_page_to_strings(&snapshot, PAGE_KIND_BROWSE, 80, 10)
+            .expect("empty")
+            .is_empty());
+    }
+
+    #[test]
+    fn snapshot_page_packs_library_pending_and_sessions() {
+        let mut snapshot = panda_engine_core::EngineSnapshot::idle(1);
+        snapshot.library_pending_track_ids = vec!["pending-1".into(), "pending-2".into(), "pending-3".into()];
+        snapshot.device_sessions = vec![device_session("session-1"), device_session("session-2")];
+
+        let pending =
+            snapshot_page_to_strings(&snapshot, PAGE_KIND_PENDING_IDS, 1, 2).expect("pending");
+        assert_eq!(pending, vec!["pending-2".to_string(), "pending-3".to_string()]);
+
+        let sessions =
+            snapshot_page_to_strings(&snapshot, PAGE_KIND_DEVICE_SESSIONS, 0, 50).expect("sessions");
+        assert_eq!(sessions.len() / DEVICE_SESSION_VALUE_COUNT, 2);
+        assert_eq!(
+            &sessions[..DEVICE_SESSION_VALUE_COUNT],
+            session_to_strings(&snapshot.device_sessions[0])
+        );
+    }
+
+    fn catalog_item(id: &str) -> panda_engine_core::MediaItem {
+        panda_engine_core::MediaItem {
+            id: id.into(),
+            title: format!("Title {id}"),
+            artist: "Artist".into(),
+            ..Default::default()
+        }
+    }
+
+    fn device_session(id: &str) -> panda_engine_core::AuthSession {
+        panda_engine_core::AuthSession {
+            id: id.into(),
+            device_label: "Car".into(),
+            created_at_epoch_millis: 1,
+            last_used_at_epoch_millis: 2,
+            expires_at_epoch_millis: 3,
+            current: false,
+        }
+    }
+
+    fn history_entry(id: &str, track_id: Option<&str>) -> panda_engine_core::EngineHistoryEntry {
+        panda_engine_core::EngineHistoryEntry {
+            id: id.into(),
+            played_at_epoch_millis: Some(1_234),
+            duration_millis: 90_000,
+            completion_ratio: 0.75,
+            track: track_id.map(|track_id| panda_engine_core::EngineTrack {
+                id: track_id.into(),
+                title: "Played Track".into(),
+                artist: panda_engine_core::EngineArtist {
+                    id: "artist-1".into(),
+                    name: "Artist".into(),
+                },
+                album: Some(panda_engine_core::EngineAlbum {
+                    id: "album-1".into(),
+                    title: "Album".into(),
+                }),
+                duration_millis: 180_000,
+                explicit: false,
+                artwork_id: Some("art-1".into()),
+                genres: Vec::new(),
+            }),
+        }
     }
 }

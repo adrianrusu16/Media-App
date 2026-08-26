@@ -57,6 +57,8 @@ interface EngineService {
     fun snapshot(): EngineSnapshot
 
     fun browseResult(index: Int): EngineCatalogItem?
+    fun browseResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
+        boundedPage(offset, limit, ::browseResult)
     fun discoveryResult(index: Int): EngineCatalogItem? = null
     fun forYouResult(index: Int): EngineCatalogItem? = null
     fun recommendationResult(index: Int): EngineCatalogItem? = null
@@ -69,6 +71,8 @@ interface EngineService {
     fun profilePreferenceValue(key: String): String? = null
 
     fun searchResult(index: Int): EngineCatalogItem?
+    fun searchResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
+        boundedPage(offset, limit, ::searchResult)
 
     fun historyEntry(index: Int): EngineHistoryItem? = null
     fun historyPage(offset: Int, limit: Int, generation: Long): EngineHistoryPage =
@@ -83,6 +87,8 @@ interface EngineService {
         boundedPage(offset, limit, ::likedTrack)
 
     fun pendingLibraryTrackId(index: Int): String? = null
+    fun pendingLibraryTrackIdsPage(offset: Int, limit: Int): List<String> =
+        boundedPage(offset, limit, ::pendingLibraryTrackId)
 
     fun playlist(index: Int): EnginePlaylistItem? = null
     fun playlistsPage(offset: Int, limit: Int): List<EnginePlaylistItem> =

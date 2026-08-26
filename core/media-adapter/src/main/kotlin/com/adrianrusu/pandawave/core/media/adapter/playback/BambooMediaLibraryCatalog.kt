@@ -104,22 +104,37 @@ internal class EngineBambooCatalogSource(
         val outcome = engineGateway.dispatch(command)
         val snapshot = outcome.snapshot
         historyCacheKey = snapshot.historyCacheKey()
-        historyCache += List(snapshot.historyEntriesCount.coerceAtLeast(0), engineGateway::historyEntry)
-            .filterNotNull()
-            .mapNotNull(EngineHistoryItem::toCatalogNode)
+        historyCache += engineGateway.historyPage(
+            offset = 0,
+            limit = snapshot.historyEntriesCount.coerceIn(0, MAX_HISTORY_PAGE_SIZE),
+            generation = snapshot.historyGeneration,
+        ).items.mapNotNull(EngineHistoryItem::toCatalogNode)
         hasHistoryNextPage = snapshot.hasHistoryNextPage
     }
 }
 
-private fun EngineGateway.searchResults(): List<BambooCatalogNode> = List(
-    size = snapshot().searchResultsCount,
-    init = ::searchResult
-).filterNotNull().map { item -> item.toCatalogNode() }
+private fun EngineGateway.searchResults(): List<BambooCatalogNode> =
+    catalogPages(snapshot().searchResultsCount, ::searchResultsPage).map { item -> item.toCatalogNode() }
 
-private fun EngineGateway.browseResults(): List<BambooCatalogNode> = List(
-    size = snapshot().browseResultsCount,
-    init = ::browseResult
-).filterNotNull().map { item -> item.toCatalogNode() }
+private fun EngineGateway.browseResults(): List<BambooCatalogNode> =
+    catalogPages(snapshot().browseResultsCount, ::browseResultsPage).map { item -> item.toCatalogNode() }
+
+private fun EngineGateway.catalogPages(
+    count: Int,
+    pageAt: (Int, Int) -> List<EngineCatalogItem>,
+): List<EngineCatalogItem> {
+    val total = count.coerceAtLeast(0)
+    if (total == 0) return emptyList()
+    return buildList {
+        var offset = 0
+        while (offset < total) {
+            val page = pageAt(offset, minOf(MAX_HISTORY_PAGE_SIZE, total - offset))
+            if (page.isEmpty()) break
+            addAll(page)
+            offset += page.size
+        }
+    }
+}
 
 private fun EngineCatalogItem.toCatalogNode(): BambooCatalogNode = BambooCatalogNode(
     mediaId = mediaId,

@@ -91,6 +91,8 @@ class AidlEngineGateway(
     }
 
     override fun browseResult(index: Int): EngineCatalogItem? = withRemoteService(null) { it.browseResult(index) }
+    override fun browseResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
+        withRemoteService(emptyList()) { it.browseResultsPage(offset, limit) }
     override fun discoveryResult(index: Int): EngineCatalogItem? = withRemoteService(null) { it.discoveryResult(index) }
     override fun forYouResult(index: Int): EngineCatalogItem? = withRemoteService(null) { it.forYouResult(index) }
     override fun recommendationResult(index: Int): EngineCatalogItem? = withRemoteService(null) { it.recommendationResult(index) }
@@ -103,6 +105,8 @@ class AidlEngineGateway(
     override fun profilePreferenceValue(key: String): String? = withRemoteService(null) { it.profilePreferenceValue(key) }
 
     override fun searchResult(index: Int): EngineCatalogItem? = withRemoteService(null) { it.searchResult(index) }
+    override fun searchResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
+        withRemoteService(emptyList()) { it.searchResultsPage(offset, limit) }
     override fun historyEntry(index: Int) = withRemoteService(null) { it.historyEntry(index) }
     override fun historyPage(offset: Int, limit: Int, generation: Long) =
         withRemoteService(super<EngineGateway>.historyPage(offset, limit, generation)) { it.historyPage(offset, limit, generation) }
@@ -113,6 +117,8 @@ class AidlEngineGateway(
     override fun likedTracksPage(offset: Int, limit: Int) =
         withRemoteService(emptyList()) { it.likedTracksPage(offset, limit) }
     override fun pendingLibraryTrackId(index: Int) = withRemoteService(null) { it.pendingLibraryTrackId(index) }
+    override fun pendingLibraryTrackIdsPage(offset: Int, limit: Int): List<String> =
+        withRemoteService(emptyList()) { it.pendingLibraryTrackIdsPage(offset, limit) }
     override fun playlist(index: Int): EnginePlaylistItem? = withRemoteService(null) { it.playlist(index) }
     override fun playlistsPage(offset: Int, limit: Int) =
         withRemoteService(emptyList()) { it.playlistsPage(offset, limit) }

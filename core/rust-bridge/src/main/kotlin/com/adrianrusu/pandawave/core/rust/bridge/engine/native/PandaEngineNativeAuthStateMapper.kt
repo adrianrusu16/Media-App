@@ -11,9 +11,28 @@ internal object PandaEngineNativeAuthStateMapper {
     }
 
     fun toSession(values: Array<String>?): EngineAuthSession? {
-        if (values == null || values.size != 6) return null
+        if (values == null || values.size != SESSION_VALUE_COUNT) return null
+        return itemAt(values, 0)
+    }
+
+    fun toSessions(values: Array<String>?): List<EngineAuthSession> =
+        PandaEngineNativePackedPage.toItems(values, SESSION_VALUE_COUNT, ::itemAt)
+
+    private fun itemAt(values: Array<String>, offset: Int): EngineAuthSession? {
+        if (values.size < offset + SESSION_VALUE_COUNT) return null
         return runCatching {
-            EngineAuthSession(values[0], values[1], values[2].toLong(), values[3].toLong(), values[4].toLong(), when(values[5]) { "1" -> true; "0" -> false; else -> error("invalid current flag") })
+            EngineAuthSession(
+                values[offset],
+                values[offset + 1],
+                values[offset + 2].toLong(),
+                values[offset + 3].toLong(),
+                values[offset + 4].toLong(),
+                when (values[offset + 5]) {
+                    "1" -> true
+                    "0" -> false
+                    else -> error("invalid current flag")
+                },
+            )
         }.getOrNull()
     }
 
@@ -59,4 +78,5 @@ internal object PandaEngineNativeAuthStateMapper {
     private const val SESSION_EXPIRES_INDEX = 9
     private const val SESSION_CURRENT_INDEX = 10
     private const val AUTHENTICATED_VALUE_COUNT = 11
+    private const val SESSION_VALUE_COUNT = 6
 }

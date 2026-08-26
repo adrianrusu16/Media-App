@@ -5,19 +5,27 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 internal object PandaEngineNativeCatalogItemMapper {
     fun toDomain(values: Array<String>?): EngineCatalogItem? {
         if (values == null || values.size != VALUE_COUNT) return null
-        val itemType = values[ITEM_TYPE_INDEX].toIntOrNull() ?: return null
+        return itemAt(values, 0)
+    }
+
+    fun toPage(values: Array<String>?): List<EngineCatalogItem> =
+        PandaEngineNativePackedPage.toItems(values, VALUE_COUNT, ::itemAt)
+
+    private fun itemAt(values: Array<String>, offset: Int): EngineCatalogItem? {
+        if (values.size < offset + VALUE_COUNT) return null
+        val itemType = values[offset + ITEM_TYPE_INDEX].toIntOrNull() ?: return null
         return when {
-            values[ID_INDEX].isBlank() || values[TITLE_INDEX].isBlank() -> null
+            values[offset + ID_INDEX].isBlank() || values[offset + TITLE_INDEX].isBlank() -> null
 
             else -> runCatching {
                 EngineCatalogItem(
-                    mediaId = values[ID_INDEX],
-                    title = values[TITLE_INDEX],
-                    artist = values[ARTIST_INDEX].ifBlank { null },
-                    album = values[ALBUM_INDEX].ifBlank { null },
-                    artworkUri = values[ARTWORK_INDEX].ifBlank { null },
-                    sourceUri = values[SOURCE_INDEX].ifBlank { null },
-                    mimeType = values[MIME_INDEX].ifBlank { null },
+                    mediaId = values[offset + ID_INDEX],
+                    title = values[offset + TITLE_INDEX],
+                    artist = values[offset + ARTIST_INDEX].ifBlank { null },
+                    album = values[offset + ALBUM_INDEX].ifBlank { null },
+                    artworkUri = values[offset + ARTWORK_INDEX].ifBlank { null },
+                    sourceUri = values[offset + SOURCE_INDEX].ifBlank { null },
+                    mimeType = values[offset + MIME_INDEX].ifBlank { null },
                     itemType = itemType,
                 )
             }.getOrNull()

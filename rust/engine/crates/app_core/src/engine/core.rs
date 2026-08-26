@@ -185,6 +185,24 @@ impl AnonymousHistoryBuffer {
 
 const ANONYMOUS_HISTORY_MAX_ENTRIES: usize = 50;
 
+#[derive(Clone, Debug, Default)]
+struct HistoryListenTracker {
+    playback_instance_id: Option<u64>,
+    accumulated_playing_millis: u64,
+    playing_since_epoch_millis: Option<u64>,
+    recorded_instance_id: Option<u64>,
+}
+
+impl HistoryListenTracker {
+    fn elapsed_millis(&self, now_epoch_millis: u64) -> u64 {
+        let live = self
+            .playing_since_epoch_millis
+            .map(|started| now_epoch_millis.saturating_sub(started))
+            .unwrap_or(0);
+        self.accumulated_playing_millis.saturating_add(live)
+    }
+}
+
 #[derive(Clone)]
 struct DeviceSessionsOperation {
     auth_identity: AuthIdentity,
@@ -267,6 +285,8 @@ pub struct Engine {
     history_operation: Option<HistoryOperation>,
     anonymous_history: AnonymousHistoryBuffer,
     anonymous_history_reconciliation_in_flight: bool,
+    history_listen: HistoryListenTracker,
+    next_history_record_sequence: u64,
     library_projection_identity: Option<AuthIdentity>,
     saved_library_operation: Option<LibraryPageOperation>,
     liked_library_operation: Option<LibraryPageOperation>,
@@ -330,6 +350,8 @@ impl Default for Engine {
             history_operation: None,
             anonymous_history: AnonymousHistoryBuffer::default(),
             anonymous_history_reconciliation_in_flight: false,
+            history_listen: HistoryListenTracker::default(),
+            next_history_record_sequence: 0,
             library_port: None,
             playlist_port: None,
             library_projection_identity: None,
@@ -401,6 +423,8 @@ impl Engine {
             history_operation: None,
             anonymous_history: AnonymousHistoryBuffer::default(),
             anonymous_history_reconciliation_in_flight: false,
+            history_listen: HistoryListenTracker::default(),
+            next_history_record_sequence: 0,
             library_port: None,
             playlist_port: None,
             library_projection_identity: None,
@@ -453,6 +477,14 @@ impl Engine {
         let mut outcomes = Vec::new();
         for cmd in commands {
             outcomes.push(self.dispatch(cmd, now_epoch_millis).await);
+        }
+        let generation_before = self.snapshot.history_state.generation;
+        let mut snapshot = self.snapshot.clone();
+        self.maybe_auto_record_history(now_epoch_millis, &mut snapshot)
+            .await;
+        self.snapshot = snapshot;
+        if self.snapshot.history_state.generation != generation_before {
+            self.event_bus.notify_state_changed(&self.snapshot);
         }
         outcomes
     }

@@ -12,6 +12,16 @@ class PandaEngineNativePlaylistMapperTest {
 
         assertEquals("", present?.description)
         assertNull(absent?.description)
+
+        val playlists = PandaEngine.playlistItems(
+            arrayOf(
+                "p1", "Mix", "", "7", "100", "200", "1",
+                "p2", "Chill", "desc", "8", "110", "210", "0",
+            )
+        )
+        assertEquals(listOf("p1", "p2"), playlists.map { it.id })
+        assertEquals("", playlists[0].description)
+        assertNull(playlists[1].description)
     }
 
     @Test

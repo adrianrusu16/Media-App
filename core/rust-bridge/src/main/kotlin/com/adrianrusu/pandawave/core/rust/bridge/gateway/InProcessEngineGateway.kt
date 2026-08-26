@@ -29,6 +29,8 @@ class InProcessEngineGateway(private val engine: RustEngine) :
     override fun snapshot(): EngineSnapshot = engine.snapshot()
 
     override fun browseResult(index: Int): EngineCatalogItem? = engine.browseResult(index)
+    override fun browseResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
+        engine.browseResultsPage(offset, limit)
     override fun discoveryResult(index: Int): EngineCatalogItem? = engine.discoveryResult(index)
     override fun forYouResult(index: Int): EngineCatalogItem? = engine.forYouResult(index)
     override fun recommendationResult(index: Int): EngineCatalogItem? = engine.recommendationResult(index)
@@ -41,6 +43,8 @@ class InProcessEngineGateway(private val engine: RustEngine) :
     override fun profilePreferenceValue(key: String): String? = engine.profilePreferenceValue(key)
 
     override fun searchResult(index: Int): EngineCatalogItem? = engine.searchResult(index)
+    override fun searchResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
+        engine.searchResultsPage(offset, limit)
     override fun historyEntry(index: Int) = engine.historyEntry(index)
     override fun historyPage(offset: Int, limit: Int, generation: Long): EngineHistoryPage =
         engine.historyPage(offset, limit, generation)
@@ -49,6 +53,8 @@ class InProcessEngineGateway(private val engine: RustEngine) :
     override fun likedTrack(index: Int) = engine.likedTrack(index)
     override fun likedTracksPage(offset: Int, limit: Int) = engine.likedTracksPage(offset, limit)
     override fun pendingLibraryTrackId(index: Int) = engine.pendingLibraryTrackId(index)
+    override fun pendingLibraryTrackIdsPage(offset: Int, limit: Int): List<String> =
+        engine.pendingLibraryTrackIdsPage(offset, limit)
     override fun playlist(index: Int) = engine.playlist(index)
     override fun playlistsPage(offset: Int, limit: Int) = engine.playlistsPage(offset, limit)
     override fun playlistTrack(index: Int) = engine.playlistTrack(index)

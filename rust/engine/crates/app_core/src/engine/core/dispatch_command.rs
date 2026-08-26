@@ -1193,6 +1193,15 @@ impl Engine {
             );
         }
 
+        if prev_playback_state == PlaybackState::Playing
+            || self.snapshot.playback_state == PlaybackState::Playing
+        {
+            let mut snapshot = self.snapshot.clone();
+            self.maybe_auto_record_history(now_epoch_millis, &mut snapshot)
+                .await;
+            self.snapshot = snapshot;
+        }
+
         let mut outcome = EngineOutcome {
             snapshot: self.snapshot.clone(),
             event: EngineEvent::command_applied(

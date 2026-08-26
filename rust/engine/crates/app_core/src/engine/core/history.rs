@@ -5,6 +5,7 @@ use crate::EngineErrorType;
 
 const DEFAULT_HISTORY_PAGE_SIZE: u32 = 40;
 const MAX_HISTORY_PAGE_SIZE: u32 = 50;
+pub(crate) const HISTORY_AUTO_RECORD_THRESHOLD_MILLIS: u64 = 5_000;
 
 #[derive(Deserialize)]
 struct PlaybackCompletedPayload {
@@ -305,6 +306,13 @@ impl Engine {
         payload: Option<&str>,
         snapshot: &mut EngineSnapshot,
     ) {
+        if self.history_listen.recorded_instance_id == self.current_playback_instance_id
+            && self.current_playback_instance_id.is_some()
+        {
+            debug!("Skipping playback completion history record because this instance was already recorded");
+            return;
+        }
+        self.sync_history_listen_tracker(snapshot.updated_at_epoch_millis, snapshot.playback_state);
         let record = match Self::qualified_history_record(payload) {
             Ok(record) => record,
             Err(error) => {
@@ -316,6 +324,88 @@ impl Engine {
                 return;
             }
         };
+        self.record_history_listen(record, snapshot).await;
+    }
+
+    pub(super) async fn maybe_auto_record_history(
+        &mut self,
+        now_epoch_millis: u64,
+        snapshot: &mut EngineSnapshot,
+    ) {
+        self.sync_history_listen_tracker(now_epoch_millis, snapshot.playback_state);
+        if self.history_listen.recorded_instance_id == self.current_playback_instance_id
+            && self.current_playback_instance_id.is_some()
+        {
+            return;
+        }
+        let elapsed_millis = self.history_listen.elapsed_millis(now_epoch_millis);
+        if elapsed_millis < HISTORY_AUTO_RECORD_THRESHOLD_MILLIS {
+            return;
+        }
+        snapshot.updated_at_epoch_millis = snapshot
+            .updated_at_epoch_millis
+            .max(now_epoch_millis);
+        let Some(track_id) = snapshot.media_id.clone().filter(|id| !id.trim().is_empty()) else {
+            return;
+        };
+        let listened_millis = elapsed_millis.max(snapshot.position_millis);
+        let duration_millis = snapshot
+            .duration_millis
+            .filter(|duration| *duration > 0)
+            .unwrap_or(listened_millis)
+            .max(listened_millis);
+        let completion_ratio = if duration_millis == 0 {
+            0.0
+        } else {
+            listened_millis as f32 / duration_millis as f32
+        };
+        let record = match crate::EnginePlaybackRecord::new(
+            track_id,
+            listened_millis,
+            completion_ratio,
+        ) {
+            Ok(record) => record,
+            Err(error) => {
+                warn!(
+                    error_type = ?error.error_type,
+                    "Rejected auto-record history payload"
+                );
+                return;
+            }
+        };
+        self.history_listen.recorded_instance_id = self.current_playback_instance_id;
+        self.record_history_listen(record, snapshot).await;
+        if snapshot.last_error.is_some()
+            && self.history_listen.recorded_instance_id == self.current_playback_instance_id
+        {
+            self.history_listen.recorded_instance_id = None;
+        }
+    }
+
+    fn sync_history_listen_tracker(&mut self, now_epoch_millis: u64, playback_state: PlaybackState) {
+        if self.history_listen.playback_instance_id != self.current_playback_instance_id {
+            self.history_listen = HistoryListenTracker {
+                playback_instance_id: self.current_playback_instance_id,
+                ..HistoryListenTracker::default()
+            };
+        }
+        if playback_state == PlaybackState::Playing {
+            if self.history_listen.playing_since_epoch_millis.is_none() {
+                self.history_listen.playing_since_epoch_millis = Some(now_epoch_millis);
+            }
+        } else if let Some(started) = self.history_listen.playing_since_epoch_millis.take() {
+            self.history_listen.accumulated_playing_millis = self
+                .history_listen
+                .accumulated_playing_millis
+                .saturating_add(now_epoch_millis.saturating_sub(started));
+        }
+    }
+
+    async fn record_history_listen(
+        &mut self,
+        record: crate::EnginePlaybackRecord,
+        snapshot: &mut EngineSnapshot,
+    ) {
         if AuthIdentity::from_state(&snapshot.auth_state).is_none() {
             if snapshot.history_settings.is_none() {
                 snapshot.history_settings = Some(crate::EngineHistorySettings {
@@ -356,7 +446,7 @@ impl Engine {
                 Err(error) => {
                     warn!(
                         error_type = ?error.error_type,
-                        "Could not load history settings before recording playback completion"
+                        "Could not load history settings before recording playback"
                     );
                     snapshot.last_error = Some(error);
                     return;
@@ -374,24 +464,20 @@ impl Engine {
         debug!(
             duration_millis = record.duration_millis,
             completion_ratio = %record.completion_ratio,
-            "Recording playback completion in history"
+            "Recording playback in history"
         );
         let result = match Self::history_context(snapshot, self.history_port.clone()) {
             Ok((identity, port)) => {
                 self.reconcile_anonymous_history(&identity, port.clone(), snapshot)
                     .await;
-                let result = port.record(&identity.history_identity(), record).await;
+                let result = port.record(&identity.history_identity(), record.clone()).await;
                 self.history_result_for_current_identity(snapshot, &identity, result)
             }
             Err(error) => Err(error),
         };
         match result {
             Ok(true) => {
-                self.invalidate_history_pages(snapshot);
-                info!(
-                    history_generation = snapshot.history_state.generation,
-                    "Playback history recorded and history projection invalidated"
-                );
+                self.publish_recorded_history_entry(record, snapshot);
             }
             Ok(false) => {
                 info!("Playback history backend declined the completion record");
@@ -446,22 +532,62 @@ impl Engine {
             played_at_epoch_millis: Some(played_at_epoch_millis),
             duration_millis: record.duration_millis,
             completion_ratio: record.completion_ratio,
-            track: Some(Self::anonymous_history_track(record, snapshot)),
+            track: Some(Self::history_track_from_snapshot(&record, snapshot)),
         };
-        self.anonymous_history.entries.push_front(entry);
+        self.anonymous_history.entries.push_front(entry.clone());
         while self.anonymous_history.entries.len() > self.anonymous_history.max_entries {
             self.anonymous_history.entries.pop_back();
         }
         self.history_projection_owner = Some(HistoryProjectionOwner::Anonymous);
-        self.invalidate_history_pages(snapshot);
+        self.publish_history_entry(entry, snapshot);
+    }
+
+    fn publish_recorded_history_entry(
+        &mut self,
+        record: crate::EnginePlaybackRecord,
+        snapshot: &mut EngineSnapshot,
+    ) {
+        let sequence = self.next_history_record_sequence;
+        self.next_history_record_sequence = self.next_history_record_sequence.saturating_add(1);
+        let played_at_epoch_millis = snapshot.updated_at_epoch_millis;
+        let entry = crate::EngineHistoryEntry {
+            id: format!("engine-history-{played_at_epoch_millis}-{sequence}"),
+            played_at_epoch_millis: Some(played_at_epoch_millis),
+            duration_millis: record.duration_millis,
+            completion_ratio: record.completion_ratio,
+            track: Some(Self::history_track_from_snapshot(&record, snapshot)),
+        };
+        if let Some(identity) = AuthIdentity::from_state(&snapshot.auth_state) {
+            self.history_projection_owner = Some(HistoryProjectionOwner::Authenticated(identity));
+        }
+        self.publish_history_entry(entry, snapshot);
+    }
+
+    fn publish_history_entry(
+        &mut self,
+        entry: crate::EngineHistoryEntry,
+        snapshot: &mut EngineSnapshot,
+    ) {
+        snapshot.history_state.generation = snapshot.history_state.generation.saturating_add(1);
+        snapshot.history_state.refresh_state = crate::EngineHistoryRefreshState::Idle;
+        snapshot.history_entries.retain(|existing| existing.id != entry.id);
+        let listened_millis = entry.duration_millis;
+        snapshot.history_entries.insert(0, entry);
+        while snapshot.history_entries.len() > MAX_HISTORY_PAGE_SIZE as usize {
+            snapshot.history_entries.pop();
+        }
+        self.history_listen.recorded_instance_id = self.current_playback_instance_id;
         info!(
+            media_id = snapshot.media_id.as_deref().unwrap_or(""),
+            position_millis = snapshot.position_millis,
+            listened_millis,
             history_generation = snapshot.history_state.generation,
-            "Anonymous playback history recorded and history projection invalidated"
+            "engine.history.recorded"
         );
     }
 
-    fn anonymous_history_track(
-        record: crate::EnginePlaybackRecord,
+    fn history_track_from_snapshot(
+        record: &crate::EnginePlaybackRecord,
         snapshot: &EngineSnapshot,
     ) -> crate::EngineTrack {
         let artist_name = snapshot
@@ -475,7 +601,7 @@ impl Engine {
                 .title
                 .clone()
                 .filter(|value| !value.trim().is_empty())
-                .unwrap_or(record.track_id),
+                .unwrap_or_else(|| record.track_id.clone()),
             artist: crate::EngineArtist {
                 id: artist_name.clone(),
                 name: artist_name,

@@ -25,7 +25,9 @@ interface IMediaEngineService {
     EngineAuthOperationResult logout();
     EngineSnapshot getSnapshot();
     EngineCatalogItem getBrowseResult(int index);
+    List<EngineCatalogItem> getBrowseResultsPage(int offset, int limit);
     EngineCatalogItem getSearchResult(int index);
+    List<EngineCatalogItem> getSearchResultsPage(int offset, int limit);
     EngineHistoryItem getHistoryEntry(int index);
     EngineHistoryPage getHistoryPage(int offset, int limit, long generation);
     int getEffectCount();
@@ -39,6 +41,7 @@ interface IMediaEngineService {
     EngineLibraryItem getLikedTrack(int index);
     List<EngineLibraryItem> getLikedTracksPage(int offset, int limit);
     String getPendingLibraryTrackId(int index);
+    List<String> getPendingLibraryTrackIdsPage(int offset, int limit);
     EnginePlaylistItem getPlaylist(int index);
     List<EnginePlaylistItem> getPlaylistsPage(int offset, int limit);
     EnginePlaylistTrackItem getPlaylistTrack(int index);

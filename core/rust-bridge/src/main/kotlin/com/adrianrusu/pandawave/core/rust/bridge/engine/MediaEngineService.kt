@@ -103,6 +103,8 @@ class MediaEngineService : Service() {
         }
 
         override fun getBrowseResult(index: Int): EngineCatalogItem? = engine?.browseResult(index)
+        override fun getBrowseResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
+            engine?.browseResultsPage(offset, limit).orEmpty()
         override fun getDiscoveryResult(index: Int): EngineCatalogItem? = engine?.discoveryResult(index)
         override fun getForYouResult(index: Int): EngineCatalogItem? = engine?.forYouResult(index)
         override fun getRecommendationResult(index: Int): EngineCatalogItem? = engine?.recommendationResult(index)
@@ -115,19 +117,14 @@ class MediaEngineService : Service() {
         override fun getProfilePreferenceValue(key: String): String? = engine?.profilePreferenceValue(key)
 
         override fun getSearchResult(index: Int): EngineCatalogItem? = engine?.searchResult(index)
+        override fun getSearchResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
+            engine?.searchResultsPage(offset, limit).orEmpty()
         override fun getHistoryEntry(index: Int): EngineHistoryItem? = engine?.historyEntry(index)
-        override fun getHistoryPage(offset: Int, limit: Int, generation: Long): EngineHistoryPage {
-            val current = engine ?: return EngineHistoryPage(generation, emptyList())
-            val currentGeneration = current.snapshot().historyGeneration
-            return EngineHistoryPage(
-                generation = currentGeneration,
-                items = if (currentGeneration == generation) {
-                    current.historyPage(offset, limit, generation).items
-                } else {
-                    emptyList()
-                },
-            )
-        }
+        override fun getHistoryPage(offset: Int, limit: Int, generation: Long): EngineHistoryPage =
+            PandaTrace.section("PW.Engine.Service.historyPage") {
+                engine?.historyPage(offset, limit, generation)
+                    ?: EngineHistoryPage(generation, emptyList())
+            }
         override fun getSavedTrack(index: Int) = engine?.savedTrack(index)
         override fun getSavedTracksPage(offset: Int, limit: Int) =
             engine?.savedTracksPage(offset, limit).orEmpty()
@@ -135,6 +132,8 @@ class MediaEngineService : Service() {
         override fun getLikedTracksPage(offset: Int, limit: Int) =
             engine?.likedTracksPage(offset, limit).orEmpty()
         override fun getPendingLibraryTrackId(index: Int) = engine?.pendingLibraryTrackId(index)
+        override fun getPendingLibraryTrackIdsPage(offset: Int, limit: Int): List<String> =
+            engine?.pendingLibraryTrackIdsPage(offset, limit).orEmpty()
         override fun getPlaylist(index: Int): EnginePlaylistItem? = engine?.playlist(index)
         override fun getPlaylistsPage(offset: Int, limit: Int) =
             engine?.playlistsPage(offset, limit).orEmpty()

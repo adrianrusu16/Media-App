@@ -53,6 +53,8 @@ interface RustEngine {
     fun hintNetworkAvailability(isAvailable: Boolean) = Unit
 
     fun browseResult(index: Int): EngineCatalogItem?
+    fun browseResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
+        boundedPage(offset, limit, ::browseResult)
 
     fun discoveryResult(index: Int): EngineCatalogItem? = null
     fun forYouResult(index: Int): EngineCatalogItem? = null
@@ -67,8 +69,14 @@ interface RustEngine {
     fun profilePreferenceValue(key: String): String? = null
 
     fun searchResult(index: Int): EngineCatalogItem?
+    fun searchResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
+        boundedPage(offset, limit, ::searchResult)
 
     fun historyEntry(index: Int): EngineHistoryItem? = null
+    /**
+     * Default path snapshots once, then walks [historyEntry]. Native [PandaEngine]
+     * overrides this with one bulk JNI call that already includes generation.
+     */
     fun historyPage(offset: Int, limit: Int, generation: Long): EngineHistoryPage {
         val snapshot = snapshot()
         return EngineHistoryPage(
@@ -98,6 +106,8 @@ interface RustEngine {
         boundedPage(offset, limit, ::likedTrack)
 
     fun pendingLibraryTrackId(index: Int): String? = null
+    fun pendingLibraryTrackIdsPage(offset: Int, limit: Int): List<String> =
+        boundedPage(offset, limit, ::pendingLibraryTrackId)
 
     fun effectCount(): Int
 

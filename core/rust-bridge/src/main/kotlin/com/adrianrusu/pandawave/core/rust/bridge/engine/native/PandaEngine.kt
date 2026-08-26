@@ -1,5 +1,6 @@
 package com.adrianrusu.pandawave.core.rust.bridge.engine.native
 
+import com.adrianrusu.pandawave.core.common.log.PandaLog
 import com.adrianrusu.pandawave.core.common.trace.PandaTrace
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineBackendAvailability
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthState
@@ -9,6 +10,7 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryItem
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryPage
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineLibraryItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistTrackItem
@@ -163,6 +165,11 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     override fun browseResult(index: Int): EngineCatalogItem? =
         PandaEngineNativeCatalogItemMapper.toDomain(nativeBrowseResultValues(nativeHandle, index))
 
+    override fun browseResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
+        PandaEngineNativeCatalogItemMapper.toPage(
+            nativeSnapshotPageValues(nativeHandle, PAGE_BROWSE, offset, limit),
+        )
+
     override fun discoveryResult(index: Int): EngineCatalogItem? = nativeDiscoveryResultValues(nativeHandle, index)
         .let(PandaEngineNativeCatalogItemMapper::toDomain)
 
@@ -172,6 +179,21 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     override fun recommendationResult(index: Int): EngineCatalogItem? = nativeRecommendationResultValues(nativeHandle, index)
         .let(PandaEngineNativeCatalogItemMapper::toDomain)
 
+    override fun discoveryResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
+        PandaEngineNativeCatalogItemMapper.toPage(
+            nativeSnapshotPageValues(nativeHandle, PAGE_DISCOVERY, offset, limit),
+        )
+
+    override fun forYouResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
+        PandaEngineNativeCatalogItemMapper.toPage(
+            nativeSnapshotPageValues(nativeHandle, PAGE_FOR_YOU, offset, limit),
+        )
+
+    override fun recommendationResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
+        PandaEngineNativeCatalogItemMapper.toPage(
+            nativeSnapshotPageValues(nativeHandle, PAGE_RECOMMENDATIONS, offset, limit),
+        )
+
     override fun profilePreferenceValue(key: String): String? =
         nativeProfilePreferenceValue(nativeHandle, key.trim())
 
@@ -179,17 +201,53 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
 
     override fun likedTrack(index: Int): EngineLibraryItem? = PandaEngineNativeLibraryItemMapper.toDomain(nativeLikedTrackValues(nativeHandle, index))
 
+    override fun savedTracksPage(offset: Int, limit: Int): List<EngineLibraryItem> =
+        PandaEngineNativeLibraryItemMapper.toPage(
+            nativeSnapshotPageValues(nativeHandle, PAGE_SAVED, offset, limit),
+        )
+
+    override fun likedTracksPage(offset: Int, limit: Int): List<EngineLibraryItem> =
+        PandaEngineNativeLibraryItemMapper.toPage(
+            nativeSnapshotPageValues(nativeHandle, PAGE_LIKED, offset, limit),
+        )
+
     override fun pendingLibraryTrackId(index: Int): String? = nativePendingLibraryTrackId(nativeHandle, index)
+
+    override fun pendingLibraryTrackIdsPage(offset: Int, limit: Int): List<String> =
+        nativeSnapshotPageValues(nativeHandle, PAGE_PENDING_IDS, offset, limit).orEmpty().toList()
+
     override fun playlist(index: Int): EnginePlaylistItem? = playlistItem(nativePlaylistValues(nativeHandle, index))
     override fun playlistTrack(index: Int): EnginePlaylistTrackItem? = playlistTrackItem(nativePlaylistTrackValues(nativeHandle, index))
+    override fun playlistsPage(offset: Int, limit: Int): List<EnginePlaylistItem> =
+        playlistItems(nativeSnapshotPageValues(nativeHandle, PAGE_PLAYLISTS, offset, limit))
+    override fun playlistTracksPage(offset: Int, limit: Int): List<EnginePlaylistTrackItem> =
+        playlistTrackItems(nativeSnapshotPageValues(nativeHandle, PAGE_PLAYLIST_TRACKS, offset, limit))
     override fun selectedPlaylistId(): String? = nativePlaylistSelectionValues(nativeHandle)?.getOrNull(0)?.ifEmpty { null }
     override fun playlistReconciliation(): EnginePlaylistReconciliation? = playlistReconciliationItem(nativePlaylistSelectionValues(nativeHandle))
 
     override fun searchResult(index: Int): EngineCatalogItem? =
         PandaEngineNativeCatalogItemMapper.toDomain(nativeSearchResultValues(nativeHandle, index))
 
+    override fun searchResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
+        PandaEngineNativeCatalogItemMapper.toPage(
+            nativeSnapshotPageValues(nativeHandle, PAGE_SEARCH, offset, limit),
+        )
+
     override fun historyEntry(index: Int): EngineHistoryItem? =
         PandaEngineNativeHistoryItemMapper.toDomain(nativeHistoryEntryValues(nativeHandle, index))
+
+    override fun historyPage(offset: Int, limit: Int, generation: Long): EngineHistoryPage =
+        PandaTrace.section("PW.Engine.Native.historyPage") {
+            val page = PandaEngineNativeHistoryItemMapper.toPage(
+                nativeHistoryPageValues(nativeHandle, offset, limit, generation),
+                generation,
+            )
+            PandaLog.v(PandaLog.Tag.HISTORY) {
+                "page offset=$offset limit=$limit requestedGeneration=$generation " +
+                    "generation=${page.generation} count=${page.items.size}"
+            }
+            page
+        }
 
     override fun effectCount(): Int = nativeEffectCount(nativeHandle)
 
@@ -383,6 +441,18 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     private external fun nativeProfilePreferenceValue(handle: Long, key: String): String?
     private external fun nativeLikedTrackValues(handle: Long, index: Int): Array<String>?
     private external fun nativeHistoryEntryValues(handle: Long, index: Int): Array<String>?
+    private external fun nativeHistoryPageValues(
+        handle: Long,
+        offset: Int,
+        limit: Int,
+        generation: Long,
+    ): Array<String>?
+    private external fun nativeSnapshotPageValues(
+        handle: Long,
+        kind: Int,
+        offset: Int,
+        limit: Int,
+    ): Array<String>?
     private external fun nativePendingLibraryTrackId(handle: Long, index: Int): String?
     private external fun nativePlaylistValues(handle: Long, index: Int): Array<String>?
     private external fun nativePlaylistTrackValues(handle: Long, index: Int): Array<String>?
@@ -391,6 +461,8 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     private external fun nativeEffectCount(handle: Long): Int
 
     private external fun nativeEffectValues(handle: Long, index: Int): Array<String>?
+
+    private external fun nativeEffectPageValues(handle: Long, offset: Int, limit: Int): Array<String>?
 
     private external fun nativeEffectType(handle: Long, index: Int): Int
 
@@ -465,7 +537,14 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             ?: EngineAuthState.loginRequired()
         val profile = PandaEngineNativeProfileMapper.toDomain(nativeProfileValues(nativeHandle))
         val protectedAccount = PandaEngineNativeAuthStateMapper.toAccount(nativeProtectedAccountValues(nativeHandle))
-        val deviceSessions = List(projection.snapshot.deviceSessionsCount) { index -> PandaEngineNativeAuthStateMapper.toSession(nativeDeviceSessionValues(nativeHandle, index)) }.filterNotNull()
+        val deviceSessions = PandaEngineNativeAuthStateMapper.toSessions(
+            nativeSnapshotPageValues(
+                nativeHandle,
+                PAGE_DEVICE_SESSIONS,
+                0,
+                projection.snapshot.deviceSessionsCount.coerceIn(0, MAX_ENGINE_PAGE_QUERY_SIZE),
+            ),
+        )
         snapshot.copy(
             backendStatus = backendStatus,
             authState = authState,
@@ -505,10 +584,16 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     }
 
     private fun effects(): List<EngineEffect> = PandaTrace.section("PW.Engine.Native.effects") {
-        List(
-            size = effectCount(),
-            init = ::effect
-        ).filterNotNull()
+        PandaEngineNativePackedPage.toItems(
+            nativeEffectPageValues(nativeHandle, 0, MAX_ENGINE_PAGE_QUERY_SIZE),
+            EFFECT_VALUE_COUNT,
+        ) { values, offset ->
+            if (values.size < offset + EFFECT_VALUE_COUNT) {
+                null
+            } else {
+                effectItem(values.copyOfRange(offset, offset + EFFECT_VALUE_COUNT))
+            }
+        }
     }
 
     private fun metadataItem(values: Array<String>?): NativeEngineMetadata {
@@ -566,6 +651,18 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     companion object {
         private const val METADATA_VALUE_COUNT = 8
         private const val EFFECT_VALUE_COUNT = 6
+        private const val MAX_ENGINE_PAGE_QUERY_SIZE = 50
+        private const val PAGE_BROWSE = 0
+        private const val PAGE_SEARCH = 1
+        private const val PAGE_DISCOVERY = 2
+        private const val PAGE_FOR_YOU = 3
+        private const val PAGE_RECOMMENDATIONS = 4
+        private const val PAGE_SAVED = 5
+        private const val PAGE_LIKED = 6
+        private const val PAGE_PLAYLISTS = 7
+        private const val PAGE_PLAYLIST_TRACKS = 8
+        private const val PAGE_PENDING_IDS = 9
+        private const val PAGE_DEVICE_SESSIONS = 10
 
         private const val HEALTHY_PROBE_INTERVAL_MILLIS = 60_000L
         private val BACKOFF_DELAYS_MILLIS =
@@ -779,6 +876,11 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             return EnginePlaylistItem(values[0], values[1], description, revision, createdAt, updatedAt)
         }
 
+        internal fun playlistItems(values: Array<String>?): List<EnginePlaylistItem> =
+            PandaEngineNativePackedPage.toItems(values, 7) { packed, offset ->
+                playlistItem(packed.copyOfRange(offset, offset + 7))
+            }
+
         internal fun playlistTrackItem(values: Array<String>?): EnginePlaylistTrackItem? {
             if (values == null || values.size != 12) return null
             val duration = values[7].toNonNegativeLongOrNull() ?: return null
@@ -795,6 +897,11 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
                 values[6].ifEmpty { null }, duration, explicit, values[9].ifEmpty { null }, position, addedAt,
             )
         }
+
+        internal fun playlistTrackItems(values: Array<String>?): List<EnginePlaylistTrackItem> =
+            PandaEngineNativePackedPage.toItems(values, 12) { packed, offset ->
+                playlistTrackItem(packed.copyOfRange(offset, offset + 12))
+            }
 
         internal fun playlistReconciliationItem(values: Array<String>?): EnginePlaylistReconciliation? {
             if (values == null || values.size != 6 || values[1].isEmpty()) return null

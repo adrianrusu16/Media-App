@@ -56,6 +56,7 @@ class AidlEngineGatewayTest {
         assertEquals(saved, gateway.savedTrack(0))
         assertEquals(liked, gateway.likedTrack(0))
         assertEquals("track-pending", gateway.pendingLibraryTrackId(0))
+        assertEquals(listOf("track-pending"), gateway.pendingLibraryTrackIdsPage(0, 10))
 
         val publicSurface = listOf(EngineLibraryItem::class.java, EngineService::class.java, EngineGateway::class.java)
             .flatMap { type -> type.declaredFields.map { it.name } + type.methods.map { it.name } }
@@ -88,6 +89,10 @@ class AidlEngineGatewayTest {
 
         assertEquals(history, gateway.historyEntry(0))
         assertNull(gateway.historyEntry(1))
+        assertEquals(
+            com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryPage(0L, listOf(history)),
+            gateway.historyPage(0, 10, 0L),
+        )
 
         val publicSurface = listOf(EngineHistoryItem::class.java, EngineService::class.java, EngineGateway::class.java)
             .flatMap { type -> type.declaredFields.map { it.name } + type.methods.map { it.name } }

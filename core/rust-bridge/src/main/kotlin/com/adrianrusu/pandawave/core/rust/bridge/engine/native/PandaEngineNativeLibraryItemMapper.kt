@@ -4,14 +4,30 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineLibraryItem
 
 internal object PandaEngineNativeLibraryItemMapper {
     fun toDomain(values: Array<String>?): EngineLibraryItem? {
-        if (values == null || values.size != 10) return null
+        if (values == null || values.size != VALUE_COUNT) return null
+        return itemAt(values, 0)
+    }
+
+    fun toPage(values: Array<String>?): List<EngineLibraryItem> =
+        PandaEngineNativePackedPage.toItems(values, VALUE_COUNT, ::itemAt)
+
+    private fun itemAt(values: Array<String>, offset: Int): EngineLibraryItem? {
+        if (values.size < offset + VALUE_COUNT) return null
         return runCatching {
             EngineLibraryItem(
-                relationshipId = values[0], mediaId = values[1], title = values[2],
-                artistId = values[3], artist = values[4], album = values[5].ifEmpty { null },
-                durationMillis = values[6].toLong(), explicit = values[7] == "1",
-                artworkId = values[8].ifEmpty { null }, relationshipAtEpochMillis = values[9].toLong()
+                relationshipId = values[offset],
+                mediaId = values[offset + 1],
+                title = values[offset + 2],
+                artistId = values[offset + 3],
+                artist = values[offset + 4],
+                album = values[offset + 5].ifEmpty { null },
+                durationMillis = values[offset + 6].toLong(),
+                explicit = values[offset + 7] == "1",
+                artworkId = values[offset + 8].ifEmpty { null },
+                relationshipAtEpochMillis = values[offset + 9].toLong(),
             )
         }.getOrNull()
     }
+
+    private const val VALUE_COUNT = 10
 }

@@ -173,7 +173,7 @@ class PandaEngineLibraryRepository @Inject constructor(
             pendingMediaIds = if (identity == null) emptySet() else pendingIdsCache.project(
                 count = snapshot.libraryPendingCount.coerceAtLeast(0),
                 force = command?.type in libraryMutationCommands,
-                itemAt = engineGateway::pendingLibraryTrackId,
+                pageAt = engineGateway::pendingLibraryTrackIdsPage,
                 mapper = { it },
             ).filter(String::isNotBlank).toSet(),
             hasSavedNextPage = snapshot.hasSavedTracksNextPage,
@@ -237,45 +237,63 @@ class PandaEngineLibraryRepository @Inject constructor(
         snapshot: EngineSnapshot,
         command: EngineCommand?,
     ): HistoryRefreshRequest? {
-        val identity = snapshot.libraryIdentity()
         val owner = snapshot.historyOwner()
         val nextKey = HistoryCacheKey(owner, snapshot.historyGeneration)
         val previousKey = historyCacheKey
-        val refreshRequest = previousKey
-            ?.takeIf {
-                command == null &&
-                    it.owner == nextKey.owner &&
-                    it.generation != nextKey.generation
+        val generationChanged = previousKey != null &&
+            previousKey.owner == nextKey.owner &&
+            previousKey.generation != nextKey.generation
+        if (command?.type == EngineCommand.TYPE_LIST_HISTORY ||
+            command?.type == EngineCommand.TYPE_LOAD_NEXT_HISTORY_PAGE
+        ) {
+            historyCacheKey = nextKey
+            val page = readHistoryPage(snapshot) ?: return null
+            historyEntries = when (command.type) {
+                EngineCommand.TYPE_LIST_HISTORY -> page
+                EngineCommand.TYPE_LOAD_NEXT_HISTORY_PAGE -> historyEntries + page
+                else -> historyEntries
             }
+            return null
+        }
+        if (snapshot.historyEntriesCount > 0) {
+            val page = readHistoryPage(snapshot) ?: return null
+            if (historyCacheKey != nextKey) {
+                historyEntries = if (previousKey == null || previousKey.owner != nextKey.owner) {
+                    page
+                } else {
+                    val existingIds = historyEntries.map { it.historyId }.toSet()
+                    page.filter { it.historyId !in existingIds } + historyEntries
+                }
+                historyCacheKey = nextKey
+                PandaLog.v(PandaLog.Tag.HISTORY) {
+                    "projected count=${historyEntries.size} generation=${snapshot.historyGeneration} " +
+                        "source=snapshot"
+                }
+            }
+            return null
+        }
+        if (historyCacheKey != nextKey) {
+            historyCacheKey = nextKey
+            historyEntries = emptyList()
+        }
+        return previousKey
+            ?.takeIf { generationChanged && command == null }
             ?.let {
                 HistoryRefreshRequest(
                     previousGeneration = it.generation,
                     currentGeneration = nextKey.generation,
                 )
             }
-        if (historyCacheKey != nextKey) {
-            historyCacheKey = nextKey
-            historyEntries = emptyList()
-        }
-        if (command?.type != EngineCommand.TYPE_LIST_HISTORY &&
-            command?.type != EngineCommand.TYPE_LOAD_NEXT_HISTORY_PAGE
-        ) {
-            return refreshRequest
-        }
+    }
+
+    private fun readHistoryPage(snapshot: EngineSnapshot): List<LibraryHistoryEntry>? {
         val historyPage = engineGateway.historyPage(
             offset = 0,
             limit = snapshot.historyEntriesCount.coerceAtLeast(0),
             generation = snapshot.historyGeneration,
         )
-        if (historyPage.generation != snapshot.historyGeneration) return refreshRequest
-        val page = historyPage.items
-            .map { item -> item.toLibraryHistoryEntry() }
-        historyEntries = when (command?.type) {
-            EngineCommand.TYPE_LIST_HISTORY -> page
-            EngineCommand.TYPE_LOAD_NEXT_HISTORY_PAGE -> historyEntries + page
-            else -> historyEntries
-        }
-        return refreshRequest
+        if (historyPage.generation != snapshot.historyGeneration) return null
+        return historyPage.items.map { item -> item.toLibraryHistoryEntry() }
     }
 
     private fun playlistSelection(snapshot: EngineSnapshot, command: EngineCommand?): PlaylistSelection {

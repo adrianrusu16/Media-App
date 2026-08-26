@@ -4,8 +4,9 @@ use async_trait::async_trait;
 use panda_engine_core::{
     Account, AuthSession, AuthState, AuthStateProvider, Engine, EngineCommand, EngineHistoryEntry,
     EngineHistoryIdentity, EngineHistorySettings, EngineHistorySettingsUpdate, EnginePageRequest,
-    EnginePageToken, EnginePagedResult, EnginePlatformEvent, EnginePlaybackRecord, EngineTrack,
-    HistoryPort, normalize_completion_ratio,
+    EnginePageToken, EnginePagedResult, EnginePlatformEvent, EnginePlatformEventType,
+    EnginePlaybackRecord, EngineTrack, InMemoryRepository, MediaItem, PlaybackState, HistoryPort,
+    normalize_completion_ratio,
 };
 
 #[derive(Clone)]
@@ -212,6 +213,16 @@ async fn enabled_history_records_without_settings_route_starting_first() {
         Some(EngineHistorySettings { enabled: true }),
     );
     assert_eq!(port.records.lock().unwrap().len(), 1);
+    assert_eq!(
+        outcome
+            .snapshot
+            .history_entries
+            .first()
+            .and_then(|entry| entry.track.as_ref())
+            .map(|track| track.id.as_str()),
+        Some("track-1"),
+        "recorded history is published on the snapshot without a client ListHistory",
+    );
 }
 #[tokio::test]
 async fn enabled_history_records_clamped_completion_through_panda_engine() {
@@ -251,6 +262,19 @@ async fn anonymous_history_records_in_memory_and_lists_without_history_port() {
             1,
         )
         .await;
+
+    assert_eq!(
+        engine.snapshot().history_settings,
+        Some(EngineHistorySettings { enabled: true })
+    );
+    assert_eq!(engine.snapshot().history_entries.len(), 1);
+    assert_eq!(
+        engine.snapshot().history_entries[0]
+            .track
+            .as_ref()
+            .map(|track| track.id.as_str()),
+        Some("track-1")
+    );
 
     let listed = engine.dispatch(EngineCommand::list_history(40), 2).await;
 
@@ -411,8 +435,20 @@ async fn history_generation_changes_invalidate_projected_pages() {
         .await;
 
     assert_eq!(outcome.snapshot.history_state.generation, 1);
-    assert!(outcome.snapshot.history_entries.is_empty());
-    assert!(outcome.snapshot.history_next_page_token.is_none());
+    assert_eq!(
+        outcome
+            .snapshot
+            .history_entries
+            .iter()
+            .map(|entry| entry
+                .track
+                .as_ref()
+                .map(|track| track.id.as_str())
+                .unwrap_or(entry.id.as_str()))
+            .collect::<Vec<_>>(),
+        vec!["track-1", "history-1"],
+        "recorded history is prepended onto the existing page instead of invalidating it",
+    );
 }
 
 #[tokio::test]
@@ -431,6 +467,116 @@ async fn history_delete_and_clear_update_only_the_current_identity_projection() 
     let switched = engine.dispatch(EngineCommand::clear_history(), 3).await;
     assert!(switched.snapshot.history_entries.is_empty());
     assert_eq!(port.clear_count.lock().unwrap().to_owned(), 1);
+}
+
+#[tokio::test]
+async fn engine_auto_records_history_after_five_seconds_of_play_without_list_history() {
+    let port = Arc::new(RecordingHistoryPort::new(true));
+    let auth = Arc::new(MutableAuth::authenticated("account-1", "session-1"));
+    let mut engine = playing_history_engine(port.clone(), auth);
+
+    engine
+        .dispatch(EngineCommand::start_session("user-1".to_string()), 50)
+        .await;
+    engine.dispatch(EngineCommand::play(), 100).await;
+    engine
+        .dispatch_platform_event(
+            EnginePlatformEvent::new(EnginePlatformEventType::MediaLoaded, None),
+            110,
+        )
+        .await;
+    assert_eq!(engine.snapshot().playback_state, PlaybackState::Playing);
+
+    engine.tick(4_000).await;
+    assert!(
+        engine.snapshot().history_entries.is_empty(),
+        "history stays empty before the 5s listen threshold"
+    );
+    assert!(port.records.lock().unwrap().is_empty());
+
+    engine.tick(5_110).await;
+
+    assert!(
+        port.list_requests.lock().unwrap().is_empty(),
+        "auto-record must publish the snapshot entry without ListHistory"
+    );
+    assert_eq!(port.records.lock().unwrap().len(), 1);
+    assert_eq!(
+        engine
+            .snapshot()
+            .history_entries
+            .first()
+            .and_then(|entry| entry.track.as_ref())
+            .map(|track| track.id.as_str()),
+        Some("track-1"),
+    );
+    assert_eq!(engine.snapshot().history_state.generation, 1);
+
+    engine.tick(8_000).await;
+    assert_eq!(
+        port.records.lock().unwrap().len(),
+        1,
+        "the same playback instance is recorded only once"
+    );
+    assert_eq!(engine.snapshot().history_entries.len(), 1);
+}
+
+#[tokio::test]
+async fn paused_listen_time_does_not_count_toward_history_auto_record() {
+    let port = Arc::new(RecordingHistoryPort::new(true));
+    let auth = Arc::new(MutableAuth::authenticated("account-1", "session-1"));
+    let mut engine = playing_history_engine(port.clone(), auth);
+
+    engine
+        .dispatch(EngineCommand::start_session("user-1".to_string()), 50)
+        .await;
+    engine.dispatch(EngineCommand::play(), 100).await;
+    engine
+        .dispatch_platform_event(
+            EnginePlatformEvent::new(EnginePlatformEventType::MediaLoaded, None),
+            110,
+        )
+        .await;
+
+    engine.tick(4_110).await;
+    engine.dispatch(EngineCommand::pause(), 4_110).await;
+    engine.tick(20_000).await;
+    assert!(
+        port.records.lock().unwrap().is_empty(),
+        "wall-clock time while paused must not auto-record"
+    );
+
+    engine.dispatch(EngineCommand::play(), 20_000).await;
+    engine.tick(21_110).await;
+
+    assert_eq!(port.records.lock().unwrap().len(), 1);
+    assert_eq!(
+        engine
+            .snapshot()
+            .history_entries
+            .first()
+            .and_then(|entry| entry.track.as_ref())
+            .map(|track| track.id.as_str()),
+        Some("track-1"),
+    );
+}
+
+fn playing_history_engine(
+    port: Arc<RecordingHistoryPort>,
+    auth: Arc<MutableAuth>,
+) -> Engine {
+    let mut engine = engine(port, auth);
+    let items = vec![MediaItem {
+        id: "track-1".into(),
+        title: "Song".into(),
+        artist: "Artist".into(),
+        duration_millis: Some(180_000),
+        source_uri: Some("https://media.test/1".into()),
+        ..Default::default()
+    }];
+    engine.set_repository(Box::new(InMemoryRepository::new(items.clone())));
+    engine.queue().set_items(items);
+    engine
 }
 
 #[allow(dead_code)]

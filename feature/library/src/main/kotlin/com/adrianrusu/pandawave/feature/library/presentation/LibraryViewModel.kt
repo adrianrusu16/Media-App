@@ -61,7 +61,5 @@ class LibraryViewModel @Inject constructor(
     fun removePlaylistTrack(playlistId: String, mediaId: String) = repository.removePlaylistTrack(playlistId, mediaId)
     fun reorderPlaylist(playlistId: String, membershipIds: List<String>, expectedRevision: Long) = repository.reorderPlaylist(playlistId, membershipIds, expectedRevision)
 
-    override fun onCleared() {
-        repository.close()
-    }
+    override fun onCleared() = Unit
 }

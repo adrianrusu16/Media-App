@@ -524,7 +524,7 @@ private object PlaybackCheckpointTriggers {
 
 private const val MIN_VOLUME = 0F
 private const val MAX_VOLUME = 1F
-private const val DEFAULT_CHECKPOINT_INTERVAL_MILLIS = 10_000L
+private const val DEFAULT_CHECKPOINT_INTERVAL_MILLIS = 5_000L
 
 private fun playbackStateName(playbackState: Int): String = when (playbackState) {
     Player.STATE_IDLE -> "idle"

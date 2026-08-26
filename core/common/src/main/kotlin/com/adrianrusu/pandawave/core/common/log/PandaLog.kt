@@ -25,6 +25,7 @@ object PandaLog {
         const val MEDIA = "PandaWave:Media"
         const val PLAYER = "PandaWave:Player"
         const val APP_SHELL = "PandaWave:AppShell"
+        const val HISTORY = "PandaWave:History"
     }
 
     @Volatile

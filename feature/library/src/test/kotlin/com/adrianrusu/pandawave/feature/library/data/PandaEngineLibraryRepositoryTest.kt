@@ -139,6 +139,30 @@ class PandaEngineLibraryRepositoryTest {
     }
 
     @Test
+    fun `history projection merges snapshot entries without listing again`() {
+        val gateway = RecordingLibraryGateway(
+            snapshot = authenticatedSnapshot(historyEntriesCount = 1),
+            history = listOf(
+                historyItem("history-1", "track-1"),
+                historyItem("history-2", "track-2"),
+            ),
+        )
+        val repository = testLibraryRepository(gateway)
+        repository.start()
+        gateway.commands.clear()
+
+        assertEquals(listOf("history-1"), repository.state.value.historyEntries.map { it.historyId })
+
+        gateway.emit(authenticatedSnapshot(historyEntriesCount = 2, historyGeneration = 2))
+
+        assertEquals(emptyList(), gateway.commands.map(EngineCommand::type))
+        assertEquals(
+            listOf("history-2", "history-1"),
+            repository.state.value.historyEntries.map { it.historyId },
+        )
+    }
+
+    @Test
     fun `unrelated snapshots reuse cached history without gateway reads`() {
         val snapshot = authenticatedSnapshot(historyEntriesCount = 1)
         val gateway = RecordingLibraryGateway(

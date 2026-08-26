@@ -146,6 +146,10 @@ impl Engine {
                 last_progress_tick_epoch_millis = now_epoch_millis,
                 "Playback position checkpoint accepted"
             );
+            let mut snapshot = self.snapshot.clone();
+            self.maybe_auto_record_history(now_epoch_millis, &mut snapshot)
+                .await;
+            self.snapshot = snapshot;
             return EngineOutcome {
                 snapshot: self.snapshot.clone(),
                 event: EngineEvent::platform_event_applied(Some(
@@ -571,6 +575,10 @@ impl Engine {
         self.snapshot = next_snapshot;
         self.snapshot.controls = self.derive_controls(&self.snapshot);
         self.sync_auth_state_projection();
+        let mut snapshot = self.snapshot.clone();
+        self.maybe_auto_record_history(now_epoch_millis, &mut snapshot)
+            .await;
+        self.snapshot = snapshot;
 
         let middleware = Arc::clone(&self.middleware);
         let outcome = EngineOutcome {
