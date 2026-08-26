@@ -70,7 +70,7 @@ class Media3PlaybackEngineBridgeTest {
             .single()
         assertEquals(EnginePlatformEvent.TYPE_PLAYBACK_POSITION_CHECKPOINT, periodicEvent.type)
         assertEquals(
-            """{"version":1,"playback_instance_id":42,"position_ms":18300}""",
+            """{"version":1,"playback_instance_id":42,"position_ms":18300,"duration_ms":120000}""",
             periodicEvent.payload,
         )
         assertEquals(listOf(10_000L), scheduler.pendingDelays())
@@ -82,7 +82,7 @@ class Media3PlaybackEngineBridgeTest {
             .filterIsInstance<BambooPlaybackIntent.PlatformEvent>()
             .last()
         assertEquals(
-            """{"version":1,"playback_instance_id":42,"position_ms":19100}""",
+            """{"version":1,"playback_instance_id":42,"position_ms":19100,"duration_ms":120000}""",
             finalEvent.payload,
         )
         assertTrue(scheduler.pendingDelays().isEmpty())
@@ -91,6 +91,71 @@ class Media3PlaybackEngineBridgeTest {
             telemetrySink.events
                 .filter { it.name == Media3PlaybackTelemetryEvents.POSITION_CHECKPOINT_DISPATCHED }
                 .map { it.attributes.getValue(Media3PlaybackTelemetryAttributes.TRIGGER) },
+        )
+    }
+
+    @Test
+    fun `duplicate STATE_READY does not redispatch media loaded for the same instance`() {
+        val repository = RecordingPlaybackRepository()
+        val bridge = Media3PlaybackEngineBridge(
+            playbackRepository = repository,
+            telemetryLogger = testTelemetryLogger(),
+            playbackInstanceIdProvider = { 7L },
+        )
+
+        bridge.onPlaybackStateChanged(Player.STATE_READY)
+        bridge.onPlaybackStateChanged(Player.STATE_BUFFERING)
+        bridge.onPlaybackStateChanged(Player.STATE_READY)
+
+        val mediaLoaded = repository.intents.filterIsInstance<BambooPlaybackIntent.PlatformEvent>()
+            .filter { it.type == EnginePlatformEvent.TYPE_MEDIA_LOADED }
+        assertEquals(1, mediaLoaded.size)
+        assertEquals(
+            """{"version":1,"playback_instance_id":7}""",
+            mediaLoaded.single().payload,
+        )
+
+        bridge.onPlaybackStateChanged(Player.STATE_IDLE)
+        bridge.onPlaybackStateChanged(Player.STATE_READY)
+
+        assertEquals(
+            2,
+            repository.intents.filterIsInstance<BambooPlaybackIntent.PlatformEvent>()
+                .count { it.type == EnginePlatformEvent.TYPE_MEDIA_LOADED }
+        )
+    }
+
+    @Test
+    fun `pause during seek does not checkpoint the previous sample`() {
+        val repository = RecordingPlaybackRepository()
+        val telemetrySink = RecordingTelemetrySink()
+        val bridge = Media3PlaybackEngineBridge(
+            playbackRepository = repository,
+            telemetryLogger = testTelemetryLogger(telemetrySink),
+            playbackMetricsProvider = PlaybackCompletionMetricsProvider {
+                PlaybackCompletionMetrics(positionMillis = 55_000L, durationMillis = 120_000L)
+            },
+            playbackInstanceIdProvider = { 42L },
+            playerSnapshotProvider = {
+                Media3PlayerSnapshot(positionMillis = 55_000L, playWhenReady = true)
+            },
+        )
+
+        bridge.onIsPlayingChanged(true)
+        repository.intents.clear()
+        telemetrySink.events.clear()
+        bridge.onIsPlayingChanged(false)
+
+        assertTrue(
+            repository.intents
+                .filterIsInstance<BambooPlaybackIntent.PlatformEvent>()
+                .none { event -> event.type == EnginePlatformEvent.TYPE_PLAYBACK_POSITION_CHECKPOINT }
+        )
+        assertEquals(
+            Media3PlaybackTelemetryValues.SEEK_IN_PROGRESS,
+            telemetrySink.events
+                .single { it.name == Media3PlaybackTelemetryEvents.POSITION_CHECKPOINT_SKIPPED }
+                .attributes[Media3PlaybackTelemetryAttributes.REASON],
         )
     }
 

@@ -20,11 +20,8 @@ impl Engine {
                             Some(prefetched) => prefetched,
                             None => port.list(&identity.playlist_identity(), page.clone()).await,
                         };
-                        match self.playlist_result_for_current_identity(
-                            snapshot,
-                            &identity,
-                            listed,
-                        ) {
+                        match self.playlist_result_for_current_identity(snapshot, &identity, listed)
+                        {
                             Ok(result) => {
                                 snapshot.playlists = result.items;
                                 snapshot.playlists_next_page_token = result.next_page_token;

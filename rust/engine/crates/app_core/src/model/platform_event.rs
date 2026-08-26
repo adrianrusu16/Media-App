@@ -133,6 +133,9 @@ pub(crate) struct PlaybackObservationPayload {
     /// Playback intent captured from the failed player before it is released.
     #[serde(default)]
     pub play_when_ready: Option<bool>,
+    /// Decoder duration from the platform player, when known.
+    #[serde(default)]
+    pub duration_ms: Option<u64>,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq)]

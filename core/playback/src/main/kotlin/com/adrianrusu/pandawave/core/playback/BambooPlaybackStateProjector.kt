@@ -17,7 +17,8 @@ internal object BambooPlaybackStateProjector {
         mimeType = snapshot.mimeType,
         playbackExpiresAtEpochMillis = snapshot.playbackExpiresAtEpochMillis,
         playbackStatus = snapshot.playbackState.toPlaybackStatus(),
-        updatedAtEpochMillis = snapshot.updatedAtEpochMillis,
+        updatedAtEpochMillis = snapshot.lastProgressTickEpochMillis.takeIf { tick -> tick > 0L }
+            ?: snapshot.updatedAtEpochMillis,
         positionMillis = snapshot.positionMillis,
         playbackSpeed = snapshot.playbackSpeed,
         hasActiveSession = snapshot.hasActiveSession,

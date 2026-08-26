@@ -1,5 +1,6 @@
 package com.adrianrusu.pandawave.core.playback
 
+import com.adrianrusu.pandawave.core.ui.playback.MAX_PROGRESS_INTERPOLATION_GAP_MILLIS
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -106,5 +107,20 @@ class BambooPlaybackProgressProjectorTest {
 
         assertEquals(10_000L, progress.positionMillis)
         assertEquals(0.25F, progress.fraction)
+    }
+
+    @Test
+    fun `stale progress clock does not run ahead of the next checkpoint`() {
+        val progress = BambooPlaybackProgressProjector.fromPlaybackState(
+            state = BambooPlaybackState(
+                playbackStatus = BambooPlaybackStatus.Playing,
+                updatedAtEpochMillis = 1_000L,
+                positionMillis = 18_688L,
+                durationMillis = 180_000L
+            ),
+            nowMillis = 50_000L
+        )
+
+        assertEquals(18_688L + MAX_PROGRESS_INTERPOLATION_GAP_MILLIS, progress.positionMillis)
     }
 }

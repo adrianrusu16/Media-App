@@ -5,6 +5,7 @@ import com.adrianrusu.pandawave.appshell.domain.AppShellIntent
 import com.adrianrusu.pandawave.appshell.domain.AppShellRepository
 import com.adrianrusu.pandawave.appshell.domain.DispatchAppShellIntentUseCase
 import com.adrianrusu.pandawave.appshell.domain.ObserveAppShellStateUseCase
+import com.adrianrusu.pandawave.core.common.log.PandaLog
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
 import com.adrianrusu.pandawave.core.telemetry.TelemetryModule
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -27,6 +28,13 @@ class AppShellViewModel @Inject constructor(
     }
 
     fun onIntent(intent: AppShellIntent) {
+        val action = when (intent) {
+            AppShellIntent.TogglePlayback -> "toggle_playback"
+            AppShellIntent.SkipNext -> "skip_next"
+            AppShellIntent.SkipPrevious -> "skip_previous"
+        }
+        PandaLog.v(PandaLog.Tag.APP_SHELL) { "click action=$action section=miniplayer" }
+        PandaLog.i(PandaLog.Tag.NPS) { "miniplayer_$action" }
         dispatchIntent(intent)
     }
 

@@ -1,5 +1,6 @@
 package com.adrianrusu.pandawave.core.playback
 
+import com.adrianrusu.pandawave.core.ui.playback.MAX_PROGRESS_INTERPOLATION_GAP_MILLIS
 import kotlin.math.max
 import kotlin.math.min
 
@@ -57,7 +58,10 @@ object BambooPlaybackProgressProjector {
     ): Long {
         val anchoredPositionMillis = max(0L, anchor.positionMillis)
         val elapsedMillis = if (anchor.isPlaying) {
-            max(0L, nowMillis - anchor.updatedAtEpochMillis)
+            min(
+                MAX_PROGRESS_INTERPOLATION_GAP_MILLIS,
+                max(0L, nowMillis - anchor.updatedAtEpochMillis)
+            )
         } else {
             0L
         }

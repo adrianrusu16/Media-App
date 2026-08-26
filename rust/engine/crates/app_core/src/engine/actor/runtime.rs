@@ -55,10 +55,7 @@ impl EngineActorEventReceiver {
     }
 
     pub fn try_recv(&mut self) -> Option<ActorEvent> {
-        match self.events.try_recv() {
-            Ok(event) => Some(event),
-            Err(mpsc::error::TryRecvError::Empty | mpsc::error::TryRecvError::Disconnected) => None,
-        }
+        self.events.try_recv().ok()
     }
 }
 

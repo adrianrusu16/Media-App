@@ -194,6 +194,9 @@ pub(super) fn effect_to_strings(effect: &panda_engine_core::EngineEffect) -> Vec
     };
     let position_millis = match effect {
         panda_engine_core::EngineEffect::Seek(position_millis)
+        | panda_engine_core::EngineEffect::PreparePlaybackSource {
+            position_millis, ..
+        }
         | panda_engine_core::EngineEffect::RecreatePlayerAndLoad {
             position_millis, ..
         } => position_millis.to_string(),
@@ -332,7 +335,7 @@ pub(super) fn snapshot_to_jlong_array(env: &mut JNIEnv, snapshot: FfiEngineSnaps
     array.into_raw()
 }
 
-fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 61] {
+fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 62] {
     [
         snapshot.playback_state as jlong,
         snapshot.restriction_state as jlong,
@@ -395,6 +398,7 @@ fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 61] {
         snapshot.backend_availability as jlong,
         snapshot.backend_unavailable_reason as jlong,
         snapshot.history_generation as jlong,
+        snapshot.last_progress_tick_epoch_millis as jlong,
     ]
 }
 
@@ -477,6 +481,7 @@ mod tests {
             backend_availability: crate::FFI_BACKEND_UNAVAILABLE,
             backend_unavailable_reason: crate::FFI_BACKEND_REASON_TIMEOUT,
             history_generation: 11,
+            last_progress_tick_epoch_millis: 77,
             playback_state: FFI_PLAYBACK_PLAYING,
             restriction_state: FFI_RESTRICTION_UNKNOWN,
             updated_at_epoch_millis: 42,
@@ -523,7 +528,8 @@ mod tests {
         };
 
         let values = snapshot_to_jlong_values(snapshot);
-        assert_eq!(values.len(), 61);
+        assert_eq!(values.len(), 62);
+        assert_eq!(values[61], 77);
         assert_eq!(
             &values[..45],
             &[
@@ -575,7 +581,7 @@ mod tests {
             ]
         );
         assert_eq!(&values[45..50], &[6, 7, 1, 0, 1]);
-        assert_eq!(&values[50..], &[1, 2, 1, 6, 1, 1, 8, 9, 2, 3, 11]);
+        assert_eq!(&values[50..], &[1, 2, 1, 6, 1, 1, 8, 9, 2, 3, 11, 77]);
     }
 
     #[test]

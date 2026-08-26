@@ -83,6 +83,7 @@ internal object PandaEngineNativeSnapshotMapper {
                 hasLikedTracksNextPage = nativeValues[SNAPSHOT_HAS_LIKED_NEXT_PAGE_INDEX].toBoolean()
                 ,playlistsCount = nativeValues[45].toInt(), playlistTracksCount = nativeValues[46].toInt(), hasPlaylistsNextPage = nativeValues[47].toBoolean(), hasPlaylistTracksNextPage = nativeValues[48].toBoolean(), hasPlaylistReconciliation = nativeValues[49].toBoolean()
                 ,protectedAccount = null, deviceSessions = emptyList(), deviceSessionsCount = nativeValues[51].toInt(), hasDeviceSessionsNextPage = nativeValues[52].toBoolean(), discoveryResultsCount = nativeValues[53].toInt(), hasDiscoveryNextPage = nativeValues[54].toBoolean(), hasHistoryNextPage = nativeValues[55].toBoolean(), forYouResultsCount = nativeValues[56].toInt(), recommendationsResultsCount = nativeValues[57].toInt(), backendAvailability = backendAvailabilityFromNative(nativeValues[SNAPSHOT_BACKEND_AVAILABILITY_INDEX].toInt(), nativeValues[SNAPSHOT_BACKEND_UNAVAILABLE_REASON_INDEX].toInt())
+                ,lastProgressTickEpochMillis = nativeValues[SNAPSHOT_LAST_PROGRESS_TICK_INDEX]
             ),
             metadataRevision = nativeValues[SNAPSHOT_METADATA_REVISION_INDEX],
             backendStatus = nativeValues[SNAPSHOT_HAS_BACKEND_STATUS_INDEX]
@@ -199,7 +200,7 @@ internal object PandaEngineNativeSnapshotMapper {
     private const val PREFERENCE_SOURCE_LOCAL_USER = 2
     private const val PREFERENCE_SOURCE_REMOTE_PROFILE = 3
 
-    private const val SNAPSHOT_VALUE_COUNT = 61
+    private const val SNAPSHOT_VALUE_COUNT = 62
     private const val SNAPSHOT_PLAYBACK_INDEX = 0
     private const val SNAPSHOT_RESTRICTION_INDEX = 1
     private const val SNAPSHOT_UPDATED_AT_INDEX = 2
@@ -248,6 +249,7 @@ internal object PandaEngineNativeSnapshotMapper {
     private const val SNAPSHOT_BACKEND_AVAILABILITY_INDEX = 58
     private const val SNAPSHOT_BACKEND_UNAVAILABLE_REASON_INDEX = 59
     private const val SNAPSHOT_HISTORY_GENERATION_INDEX = 60
+    private const val SNAPSHOT_LAST_PROGRESS_TICK_INDEX = 61
     private const val AUTH_ANONYMOUS = 0
     private const val AUTH_AUTHENTICATED = 1
 

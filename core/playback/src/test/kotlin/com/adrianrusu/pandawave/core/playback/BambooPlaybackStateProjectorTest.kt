@@ -109,6 +109,24 @@ class BambooPlaybackStateProjectorTest {
     }
 
     @Test
+    fun `engine snapshot interpolates from progress tick not command updated at`() {
+        val snapshot = EngineSnapshot.idle(nowMillis = 100L).copy(
+            playbackState = EngineSnapshot.PLAYBACK_PLAYING,
+            updatedAtEpochMillis = 100L,
+            lastProgressTickEpochMillis = 1_000L,
+            positionMillis = 9_000L
+        )
+
+        val state = BambooPlaybackStateProjector.fromEngineSnapshot(
+            current = BambooPlaybackState(),
+            snapshot = snapshot
+        )
+
+        assertEquals(1_000L, state.updatedAtEpochMillis)
+        assertEquals(9_000L, state.positionMillis)
+    }
+
+    @Test
     fun `engine snapshot keeps missing metadata empty for presentation localization`() {
         val snapshot = EngineSnapshot.idle(nowMillis = 1L).copy(
             playbackState = EngineSnapshot.PLAYBACK_PAUSED

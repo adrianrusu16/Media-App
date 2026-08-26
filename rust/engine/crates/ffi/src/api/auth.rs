@@ -1,4 +1,9 @@
-use panda_engine_core::{EngineError, EngineErrorType, validate_production_session_store};
+use std::time::Instant;
+
+use panda_engine_core::{
+    AuthState, EngineError, EngineErrorType, validate_production_session_store,
+};
+use tracing::info;
 
 use crate::engine_handle::{EngineAuthRuntime, PandaEngine};
 
@@ -58,14 +63,14 @@ pub(crate) fn verify_email(
     device_label: &str,
 ) -> AuthOperationResult {
     with_runtime(engine, true, |runtime| {
-        engine
-            .runtime
-            .block_on(
-                runtime
-                    .coordinator
-                    .verify_email(verification_token, device_label),
-            )
-            .map(|_| AuthOperationResult::Authenticated)
+        let started = Instant::now();
+        let state = engine.runtime.block_on(
+            runtime
+                .coordinator
+                .verify_email(verification_token, device_label),
+        )?;
+        publish_committed_session(engine, "verify_email", started, state);
+        Ok(AuthOperationResult::Authenticated)
     })
 }
 
@@ -76,24 +81,49 @@ pub(crate) fn login_password(
     device_label: &str,
 ) -> AuthOperationResult {
     with_runtime(engine, true, |runtime| {
-        engine
-            .runtime
-            .block_on(
-                runtime
-                    .coordinator
-                    .login_password(email, password, device_label),
-            )
-            .map(|_| AuthOperationResult::Authenticated)
+        let started = Instant::now();
+        let state = engine.runtime.block_on(runtime.coordinator.login_password(
+            email,
+            password,
+            device_label,
+        ))?;
+        publish_committed_session(engine, "login_password", started, state);
+        Ok(AuthOperationResult::Authenticated)
     })
 }
 
 pub(crate) fn logout(engine: &PandaEngine) -> AuthOperationResult {
     with_runtime(engine, false, |runtime| {
-        engine
-            .runtime
-            .block_on(runtime.coordinator.logout())
-            .map(|()| AuthOperationResult::Anonymous)
+        let started = Instant::now();
+        engine.runtime.block_on(runtime.coordinator.logout())?;
+        publish_committed_session(engine, "logout", started, AuthState::Anonymous);
+        Ok(AuthOperationResult::Anonymous)
     })
+}
+
+fn publish_committed_session(
+    engine: &PandaEngine,
+    operation: &str,
+    started: Instant,
+    state: AuthState,
+) {
+    info!(
+        operation,
+        elapsed_ms = started.elapsed().as_millis() as u64,
+        "auth.session_committed"
+    );
+    engine.engine.publish_session_auth_state(state);
+    let snapshot_auth = match engine.engine.snapshot().auth_state {
+        AuthState::Anonymous => "anonymous",
+        AuthState::Authenticated { .. } => "authenticated",
+        AuthState::LoginRequired => "login_required",
+    };
+    info!(
+        operation,
+        elapsed_ms = started.elapsed().as_millis() as u64,
+        snapshot_auth,
+        "auth.snapshot_published"
+    );
 }
 
 fn with_runtime(
@@ -154,13 +184,13 @@ mod tests {
 
     use async_trait::async_trait;
     use panda_engine_core::{
-        AuthPort, AuthSessionEnvelope, EngineError, EngineErrorType, InMemorySessionStore,
-        SessionCoordinator, SessionStore,
+        Account, AuthPort, AuthSession, AuthSessionEnvelope, AuthState, EngineError,
+        EngineErrorType, InMemorySessionStore, SessionCoordinator, SessionStore,
     };
 
     use crate::engine_handle::{EngineAuthRuntime, build_engine};
 
-    use super::{AuthOperationResult, register_password};
+    use super::{AuthOperationResult, login_password, register_password, verify_email};
 
     struct UnreachableAuth;
 
@@ -220,6 +250,112 @@ mod tests {
                 error_type: EngineErrorType::SessionStorage,
                 ..
             })
+        ));
+    }
+
+    struct AcceptingAuth;
+
+    #[async_trait]
+    impl AuthPort for AcceptingAuth {
+        async fn login_password(
+            &self,
+            _email: &str,
+            _password: &str,
+            _device_label: &str,
+        ) -> Result<AuthSessionEnvelope, EngineError> {
+            Ok(session_envelope())
+        }
+
+        async fn verify_email(
+            &self,
+            _verification_token: &str,
+            _device_label: &str,
+        ) -> Result<AuthSessionEnvelope, EngineError> {
+            Ok(session_envelope())
+        }
+
+        async fn refresh_session(
+            &self,
+            _refresh_token: &str,
+        ) -> Result<AuthSessionEnvelope, EngineError> {
+            unreachable!()
+        }
+
+        async fn logout(&self, _access_token: &str) -> Result<(), EngineError> {
+            Ok(())
+        }
+    }
+
+    fn session_envelope() -> AuthSessionEnvelope {
+        AuthSessionEnvelope::new(
+            "access-secret".into(),
+            2_000,
+            "refresh-secret".into(),
+            3_000,
+            Account {
+                id: "account-1".into(),
+                primary_email: "driver@example.com".into(),
+                status: "active".into(),
+                created_at_epoch_millis: 500,
+            },
+            AuthSession {
+                id: "session-1".into(),
+                device_label: "PandaWave".into(),
+                created_at_epoch_millis: 1_000,
+                last_used_at_epoch_millis: 1_100,
+                expires_at_epoch_millis: 4_000,
+                current: true,
+            },
+        )
+    }
+
+    #[test]
+    fn login_password_publishes_authenticated_snapshot_without_a_tick() {
+        let engine = build_engine(0);
+        let store: Arc<dyn SessionStore> = Arc::new(InMemorySessionStore::new());
+        let coordinator = Arc::new(SessionCoordinator::new(
+            store.clone(),
+            Arc::new(AcceptingAuth),
+        ));
+        *engine.auth_runtime.lock().unwrap() = Some(EngineAuthRuntime {
+            coordinator,
+            store,
+            production: false,
+        });
+
+        assert_eq!(engine.engine.snapshot().auth_state, AuthState::Anonymous);
+
+        let result = login_password(&engine, "driver@example.com", "secret", "PandaWave");
+
+        assert!(matches!(result, AuthOperationResult::Authenticated));
+        assert!(matches!(
+            engine.engine.snapshot().auth_state,
+            AuthState::Authenticated { .. }
+        ));
+    }
+
+    #[test]
+    fn verify_email_publishes_authenticated_snapshot_without_a_tick() {
+        let engine = build_engine(0);
+        let store: Arc<dyn SessionStore> = Arc::new(InMemorySessionStore::new());
+        let coordinator = Arc::new(SessionCoordinator::new(
+            store.clone(),
+            Arc::new(AcceptingAuth),
+        ));
+        *engine.auth_runtime.lock().unwrap() = Some(EngineAuthRuntime {
+            coordinator,
+            store,
+            production: false,
+        });
+
+        assert_eq!(engine.engine.snapshot().auth_state, AuthState::Anonymous);
+
+        let result = verify_email(&engine, "opaque-token", "PandaWave");
+
+        assert!(matches!(result, AuthOperationResult::Authenticated));
+        assert!(matches!(
+            engine.engine.snapshot().auth_state,
+            AuthState::Authenticated { .. }
         ));
     }
 }

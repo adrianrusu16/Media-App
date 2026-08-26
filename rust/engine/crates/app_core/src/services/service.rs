@@ -1,6 +1,5 @@
 use crate::engine::core::Engine;
 use crate::model::command::EngineCommand;
-use crate::model::playback::PlaybackState;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Trait for background services that need to perform periodic work.
@@ -28,18 +27,7 @@ impl EngineService for ProgressService {
     }
 
     fn on_tick(&self, engine: &Engine, now_epoch_millis: u64) -> Option<EngineCommand> {
-        let snapshot = engine.snapshot();
-
-        // Only update progress if we are playing
-        if snapshot.playback_state == PlaybackState::Playing {
-            let elapsed = now_epoch_millis.saturating_sub(snapshot.last_progress_tick_epoch_millis);
-            if elapsed >= 1000 {
-                // Tick every second
-                let new_position =
-                    snapshot.position_millis + (elapsed as f32 * snapshot.playback_speed) as u64;
-                return Some(EngineCommand::seek(new_position));
-            }
-        }
+        let _ = (engine, now_epoch_millis);
         None
     }
 }

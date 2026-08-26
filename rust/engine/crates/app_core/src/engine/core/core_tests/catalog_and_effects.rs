@@ -89,12 +89,14 @@ async fn skip_previous_restarts_current_item_after_threshold_and_selects_previou
     let selected = engine.dispatch(EngineCommand::skip_previous(), 250).await;
     assert_eq!(selected.snapshot.media_id.as_deref(), Some("1"));
     assert_eq!(selected.snapshot.playback_state, PlaybackState::Buffering);
+    assert_eq!(selected.snapshot.position_millis, 0);
     assert!(
         selected
             .effects
             .contains(&EngineEffect::PreparePlaybackSource {
                 media_id: "1".into(),
                 playback_instance_id: 1,
+                position_millis: 0,
             })
     );
 }
@@ -413,6 +415,7 @@ async fn play_command_emits_effects() {
             .contains(&EngineEffect::PreparePlaybackSource {
                 media_id: "1".to_string(),
                 playback_instance_id: 1,
+                position_millis: 0,
             })
     );
     assert!(outcome.effects.contains(&EngineEffect::UpdateMetadata {
@@ -466,6 +469,7 @@ async fn play_media_by_id_resolves_playback_source() {
             .contains(&EngineEffect::PreparePlaybackSource {
                 media_id: "track-1".to_string(),
                 playback_instance_id: 1,
+                position_millis: 0,
             })
     );
     assert!(outcome.effects.contains(&EngineEffect::UpdateMetadata {
@@ -509,12 +513,14 @@ async fn play_media_by_id_reasserts_play_when_replacing_item_while_buffering() {
 
     assert_eq!(second.snapshot.media_id.as_deref(), Some("track-2"));
     assert_eq!(second.snapshot.playback_state, PlaybackState::Buffering);
+    assert_eq!(second.snapshot.position_millis, 0);
     assert!(
         second
             .effects
             .contains(&EngineEffect::PreparePlaybackSource {
                 media_id: "track-2".to_string(),
                 playback_instance_id: 2,
+                position_millis: 0,
             })
     );
     assert!(second.effects.contains(&EngineEffect::UpdateMetadata {
@@ -524,6 +530,48 @@ async fn play_media_by_id_reasserts_play_when_replacing_item_while_buffering() {
     }));
     assert!(second.effects.contains(&EngineEffect::RequestAudioFocus));
     assert!(second.effects.contains(&EngineEffect::Play));
+}
+
+#[tokio::test]
+async fn play_media_by_id_resets_position_when_replacing_a_playing_item() {
+    let mut engine = Engine::new(100);
+    engine.set_repository(Box::new(InMemoryRepository::new(vec![
+        MediaItem {
+            id: "track-1".into(),
+            title: "First Track".into(),
+            source_uri: Some("https://media.test/track-1.mp3".into()),
+            duration_millis: Some(180_000),
+            ..Default::default()
+        },
+        MediaItem {
+            id: "track-2".into(),
+            title: "Second Track".into(),
+            source_uri: Some("https://media.test/track-2.mp3".into()),
+            duration_millis: Some(90_000),
+            ..Default::default()
+        },
+    ])));
+
+    engine
+        .dispatch(EngineCommand::play_media_by_id("track-1".into()), 200)
+        .await;
+    engine.snapshot.position_millis = 55_000;
+
+    let switched = engine
+        .dispatch(EngineCommand::play_media_by_id("track-2".into()), 300)
+        .await;
+
+    assert_eq!(switched.snapshot.media_id.as_deref(), Some("track-2"));
+    assert_eq!(switched.snapshot.position_millis, 0);
+    assert!(
+        switched
+            .effects
+            .contains(&EngineEffect::PreparePlaybackSource {
+                media_id: "track-2".into(),
+                playback_instance_id: 2,
+                position_millis: 0,
+            })
+    );
 }
 
 #[tokio::test]
@@ -573,6 +621,7 @@ async fn play_media_by_id_projects_canonical_playback_capability_verbatim() {
             .contains(&EngineEffect::PreparePlaybackSource {
                 media_id: "track-1".into(),
                 playback_instance_id: 1,
+                position_millis: 0,
             })
     );
 }
@@ -675,11 +724,12 @@ async fn tick_updates_progress() {
         .with_position(5000)
         .with_speed(1.0);
 
-    // 1 second later
+    // 1 second later. Progress is owned by the platform player, so ticks must
+    // not invent Seek commands or snapshot position.
     let outcomes = engine.tick(1100).await;
 
-    assert_eq!(outcomes.len(), 1);
-    assert_eq!(outcomes[0].snapshot.position_millis, 6000);
+    assert!(outcomes.is_empty());
+    assert_eq!(engine.snapshot().position_millis, 5000);
 }
 
 #[tokio::test]
@@ -700,8 +750,8 @@ async fn tick_progress_is_not_reset_by_unrelated_command() {
 
     let outcomes = engine.tick(1100).await;
 
-    assert_eq!(outcomes.len(), 1);
-    assert_eq!(outcomes[0].snapshot.position_millis, 6000);
+    assert!(outcomes.is_empty());
+    assert_eq!(engine.snapshot().position_millis, 5000);
 }
 
 #[tokio::test]
@@ -779,17 +829,17 @@ async fn player_bridge_drives_mock_player() {
     let items = vec![MediaItem {
         id: "track_1".to_string(),
         title: "Title 1".to_string(),
+        source_uri: Some("https://media.test/track_1".into()),
         ..Default::default()
     }];
     engine.queue().set_items(items);
 
     // Play command should trigger source preparation and Play effects
-    engine.dispatch(EngineCommand::play(), 120).await;
+    let play_outcome = engine.dispatch(EngineCommand::play(), 120).await;
+    assert!(play_outcome.effects.contains(&EngineEffect::Play));
 
-    // Check the player state through the engine (we need to cast or just check effects were emitted)
-    // Since we don't have direct access to the Boxed player easily, we can check outcomes
-    // but the goal was to verify execute_effects works.
-    // Let's verify that PlaybackState is Buffering and then the MediaLoaded event moves it to Playing
+    // MediaLoaded Buffering->Playing must not re-issue Play; the Buffering
+    // transition already set playWhenReady.
     let outcome = engine
         .dispatch_platform_event(
             EnginePlatformEvent::new(EnginePlatformEventType::MediaLoaded, None),
@@ -798,5 +848,6 @@ async fn player_bridge_drives_mock_player() {
         .await;
 
     assert_eq!(outcome.snapshot.playback_state, PlaybackState::Playing);
-    assert!(outcome.effects.contains(&EngineEffect::Play));
+    assert!(!outcome.effects.contains(&EngineEffect::Play));
+    assert_eq!(outcome.snapshot.last_progress_tick_epoch_millis, 130);
 }

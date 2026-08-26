@@ -1,9 +1,11 @@
 package com.adrianrusu.pandawave.feature.auth.presentation
 
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthOperationResult
+import com.adrianrusu.pandawave.core.common.log.PandaLog
 import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineAuthGateway
 import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineGateway
 import com.adrianrusu.pandawave.feature.auth.domain.AuthFormMode
+import com.adrianrusu.pandawave.feature.auth.domain.AuthFormPhase
 import com.adrianrusu.pandawave.feature.auth.domain.AuthFormState
 import com.adrianrusu.pandawave.feature.auth.domain.AuthUiEffect
 import com.adrianrusu.pandawave.feature.auth.domain.AuthUiEvent
@@ -123,14 +125,37 @@ class AuthFlowController(
     }
 
     private fun dispatch(event: AuthUiEvent): AuthUiTransition {
+        val previousPhase = mutableState.value.phase
         val transition = synchronized(lock) {
             if (closed.get()) return@synchronized AuthUiTransition(mutableState.value)
             AuthUiReducer.reduce(mutableState.value, event).also { transition ->
                 mutableState.value = transition.state
             }
         }
+        logAuthPhase(event, previousPhase, transition)
         transition.effects.forEach(onEffect)
         return transition
+    }
+
+    private fun logAuthPhase(
+        event: AuthUiEvent,
+        previousPhase: AuthFormPhase,
+        transition: AuthUiTransition
+    ) {
+        val nextPhase = transition.state.phase
+        val finishing = previousPhase == AuthFormPhase.SUBMITTING ||
+            previousPhase == AuthFormPhase.FINISHING_SIGN_IN ||
+            nextPhase == AuthFormPhase.FINISHING_SIGN_IN
+        val verification = previousPhase == AuthFormPhase.VERIFICATION_PENDING ||
+            nextPhase == AuthFormPhase.VERIFICATION_PENDING
+        if (!finishing && !verification && previousPhase == nextPhase) return
+        val snapshotAuth = (event as? AuthUiEvent.SnapshotChanged)?.state?.state
+        runCatching {
+            PandaLog.i(PandaLog.Tag.AUTH) {
+                "auth.ui event=${event::class.java.simpleName} phase=$previousPhase->$nextPhase" +
+                    (snapshotAuth?.let { " snapshotAuth=$it" } ?: "")
+            }
+        }
     }
 
     override fun close() {

@@ -2,6 +2,7 @@ package com.adrianrusu.pandawave.core.media.adapter.playback
 
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import com.adrianrusu.pandawave.core.common.log.PandaLog
 import com.adrianrusu.pandawave.core.media.adapter.playback.focus.BambooAudioFocusController
 import com.adrianrusu.pandawave.core.media.adapter.playback.focus.BambooAudioFocusRequestResult
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
@@ -75,6 +76,7 @@ internal class Media3EngineEffectExecutor(
     }
 
     private fun logEffectReceived(effect: EngineEffect) {
+        PandaLog.d(PandaLog.Tag.MEDIA) { "effect_received type=${effect.type}" }
         telemetryLogger.debug(
             name = Media3EffectTelemetryEvents.EFFECT_RECEIVED,
             attributes = mapOf(Media3EffectTelemetryAttributes.EFFECT_TYPE to effect.type),
@@ -112,16 +114,38 @@ internal class Media3EngineEffectExecutor(
         }
 
         val playbackInstanceId = effect.playbackInstanceId ?: return logMissingPayload(effect)
-        player().setMediaItem(
-            projection.mediaItem.buildUpon().setTag(playbackInstanceId).build(),
-            effect.positionMillis ?: projection.positionMillis
+        val startPositionMillis = effect.positionMillis ?: projection.positionMillis
+        val mediaItem = projection.mediaItem.buildUpon().setTag(playbackInstanceId).build()
+        val remainingMs = projection.playbackExpiresAtEpochMillis?.let { expiry ->
+            expiry - System.currentTimeMillis()
+        }
+        telemetryLogger.info(
+            name = Media3EffectTelemetryEvents.SOURCE_PREPARED,
+            attributes = buildMap {
+                put(Media3EffectTelemetryAttributes.EFFECT_TYPE, effect.type)
+                put(Media3EffectTelemetryAttributes.PLAYBACK_INSTANCE_ID, playbackInstanceId.toString())
+                put(Media3EffectTelemetryAttributes.POSITION_MILLIS, startPositionMillis.toString())
+                put(Media3EffectTelemetryAttributes.URI_SCHEME, mediaItem.localConfiguration?.uri?.scheme.orEmpty())
+                put(Media3EffectTelemetryAttributes.URI_HOST, mediaItem.localConfiguration?.uri?.host.orEmpty())
+                put(Media3EffectTelemetryAttributes.URI_PATH, mediaItem.localConfiguration?.uri?.path.orEmpty())
+                remainingMs?.let { remaining ->
+                    put(Media3EffectTelemetryAttributes.REMAINING_MS, remaining.toString())
+                }
+            },
         )
+        PandaLog.i(PandaLog.Tag.PLAYER) {
+            "source_prepared instance=$playbackInstanceId trackId=$mediaId position_ms=$startPositionMillis " +
+                "uri_scheme=${mediaItem.localConfiguration?.uri?.scheme.orEmpty()} " +
+                "uri_host=${mediaItem.localConfiguration?.uri?.host.orEmpty()} " +
+                "uri_path=${mediaItem.localConfiguration?.uri?.path.orEmpty()} remaining_ms=$remainingMs"
+        }
+        player().setMediaItem(mediaItem, startPositionMillis)
+        player().prepare()
     }
 
     private fun recreatePlayerAndLoad(effect: EngineEffect) {
         recreatePlayer()
         preparePlaybackSource(effect)
-        player().prepare()
     }
 
     private fun seek(effect: EngineEffect) {
@@ -229,13 +253,20 @@ internal object Media3EffectTelemetryEvents {
     const val EFFECT_IGNORED = "media3.effect.ignored"
     const val EFFECT_NO_OP = "media3.effect.no_op"
     const val AUDIO_FOCUS_REQUESTED = "media3.audio_focus.requested"
+    const val SOURCE_PREPARED = "media3.effect.source_prepared"
 }
 
 internal object Media3EffectTelemetryAttributes {
     const val EFFECT_TYPE = "effect_type"
     const val MEDIA_ID_PRESENT = "media_id_present"
+    const val PLAYBACK_INSTANCE_ID = "playback_instance_id"
+    const val POSITION_MILLIS = "position_millis"
     const val REASON = "reason"
     const val RESULT = "result"
+    const val URI_HOST = "uri_host"
+    const val URI_PATH = "uri_path"
+    const val URI_SCHEME = "uri_scheme"
+    const val REMAINING_MS = "remaining_ms"
 }
 
 internal object Media3EffectTelemetryValues {

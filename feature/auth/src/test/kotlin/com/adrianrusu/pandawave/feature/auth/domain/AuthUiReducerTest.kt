@@ -95,6 +95,10 @@ class AuthUiReducerTest {
         assertEquals(listOf(AuthUiEffect.ResendVerification), resend.effects)
         assertTrue(resend.state.resendInFlight)
         assertTrue(duplicate.effects.isEmpty())
+
+        val verified = AuthUiReducer.reduce(pending, AuthUiEvent.SnapshotChanged(authenticatedState()))
+        assertEquals(listOf(AuthUiEffect.Close), verified.effects)
+        assertEquals(AuthFormPhase.IDLE, verified.state.phase)
     }
 
     @Test

@@ -9,7 +9,20 @@ impl Engine {
     ) -> EngineOutcome {
         info!(
             command_type = command.command_type.as_wire(),
-            now_epoch_millis, "engine.command.dispatching"
+            media_id = match &command.command_type {
+                EngineCommandType::PlayMediaById { media_id } => Some(media_id.as_str()),
+                _ => None,
+            },
+            queue_len = match &command.command_type {
+                EngineCommandType::PlayQueue { media_ids, .. } => Some(media_ids.len()),
+                _ => None,
+            },
+            start_index = match &command.command_type {
+                EngineCommandType::PlayQueue { start_index, .. } => Some(*start_index),
+                _ => None,
+            },
+            now_epoch_millis,
+            "engine.command.dispatching"
         );
         let middleware = Arc::clone(&self.middleware);
         if let Err(error) = middleware.before_dispatch(self, &command) {
@@ -605,6 +618,12 @@ impl Engine {
                 next_snapshot = next_snapshot
                     .with_position(*position_millis)
                     .with_progress_tick(now_epoch_millis);
+                self.pending_seek_target_millis = Some(*position_millis);
+                info!(
+                    position_millis,
+                    playback_instance_id = ?self.current_playback_instance_id,
+                    "engine.playback.seek_requested"
+                );
                 effects.push(EngineEffect::Seek(*position_millis));
             }
             EngineCommandType::UpdateConfig { config } => {
@@ -1114,7 +1133,11 @@ impl Engine {
                     effects.push(EngineEffect::Play);
                 }
                 PlaybackState::Playing => {
-                    effects.push(EngineEffect::Play);
+                    // Buffering already issued Play (playWhenReady). Re-playing
+                    // on MediaLoaded Buffering->Playing glitches the decoder.
+                    if prev != PlaybackState::Buffering {
+                        effects.push(EngineEffect::Play);
+                    }
                 }
                 PlaybackState::Paused => {
                     effects.push(EngineEffect::Pause);

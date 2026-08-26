@@ -32,6 +32,7 @@ import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineAuthGateway
 import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineGateway
 import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineServiceConnection
 import com.adrianrusu.pandawave.core.telemetry.TelemetryBreadcrumbStore
+import com.adrianrusu.pandawave.core.common.log.PandaLog
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
 import com.adrianrusu.pandawave.core.telemetry.TelemetryPolicy
 import com.adrianrusu.pandawave.core.telemetry.TelemetrySink
@@ -47,6 +48,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import java.util.concurrent.Executors
 import javax.inject.Qualifier
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
@@ -129,6 +131,10 @@ object AppCoreModule {
         telemetryLogger: TelemetryLogger
     ): BambooPlaybackRepository {
         val isAutomotive = context.packageManager.hasSystemFeature(PackageManager.FEATURE_AUTOMOTIVE)
+        val mainHandler = Handler(Looper.getMainLooper())
+        val engineDispatchExecutor = Executors.newSingleThreadExecutor { runnable ->
+            Thread(runnable, "pw-playback-dispatch").apply { isDaemon = true }
+        }
         return DefaultBambooPlaybackRepository(
             engine = engine,
             uxRestrictionObserver = if (isAutomotive) {
@@ -141,7 +147,15 @@ object AppCoreModule {
             } else {
                 AutomotiveDrivingStateObserver.Unavailable
             },
-            telemetryLogger = telemetryLogger
+            telemetryLogger = telemetryLogger,
+            engineDispatchExecutor = engineDispatchExecutor,
+            resultExecutor = java.util.concurrent.Executor { runnable ->
+                if (Looper.myLooper() == Looper.getMainLooper()) {
+                    runnable.run()
+                } else {
+                    mainHandler.post(runnable)
+                }
+            }
         )
     }
 
@@ -170,10 +184,13 @@ object AppCoreModule {
 
     @Provides
     @Singleton
-    fun provideTelemetryPolicy(@AppDebuggable isDebuggable: Boolean): TelemetryPolicy = if (isDebuggable) {
-        TelemetryPolicy.developer()
-    } else {
-        TelemetryPolicy.production()
+    fun provideTelemetryPolicy(@AppDebuggable isDebuggable: Boolean): TelemetryPolicy {
+        PandaLog.setDebuggable(isDebuggable)
+        return if (isDebuggable) {
+            TelemetryPolicy.developer()
+        } else {
+            TelemetryPolicy.production()
+        }
     }
 
     @Provides

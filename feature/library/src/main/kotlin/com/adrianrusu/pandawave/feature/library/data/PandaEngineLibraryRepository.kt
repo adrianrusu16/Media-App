@@ -10,6 +10,7 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistTrackItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineGateway
+import com.adrianrusu.pandawave.core.common.log.PandaLog
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
 import com.adrianrusu.pandawave.core.telemetry.TelemetryModule
 import com.adrianrusu.pandawave.feature.library.domain.LibraryHistoryEntry
@@ -216,6 +217,8 @@ class PandaEngineLibraryRepository @Inject constructor(
         if (hydratedIdentity == identity) return
         hydratedIdentity = identity
         hydratedHistoryOwner = historyOwner
+        PandaLog.d(PandaLog.Tag.LIBRARY) { "hydrate start" }
+        val startedAt = System.currentTimeMillis()
         dispatch(EngineCommand(EngineCommand.TYPE_LIST_SAVED_TRACKS, EngineCommandPayloads.libraryPage(PAGE_SIZE)))
         if (hydratedIdentity != identity) return
         dispatch(EngineCommand(EngineCommand.TYPE_LIST_LIKED_TRACKS, EngineCommandPayloads.libraryPage(PAGE_SIZE)))
@@ -225,6 +228,9 @@ class PandaEngineLibraryRepository @Inject constructor(
         dispatch(EngineCommand(EngineCommand.TYPE_LIST_HISTORY, EngineCommandPayloads.historyPage(HISTORY_PAGE_SIZE)))
         if (hydratedIdentity != identity) return
         dispatch(EngineCommand(EngineCommand.TYPE_LIST_PLAYLISTS, EngineCommandPayloads.playlistPage(PAGE_SIZE)))
+        PandaLog.d(PandaLog.Tag.LIBRARY) {
+            "hydrate end elapsedMs=${System.currentTimeMillis() - startedAt}"
+        }
     }
 
     private fun updateHistoryCache(

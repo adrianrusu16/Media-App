@@ -10,6 +10,7 @@ use tokio::time::{Instant, MissedTickBehavior};
 
 use crate::engine::core::{Engine, EngineOutcome};
 use crate::model::auth::AuthState;
+use crate::model::command::EngineCommandType;
 use crate::model::effect::EngineEffect;
 use crate::model::event::EngineEvent;
 use crate::model::platform_event::EnginePlatformEvent;
@@ -20,7 +21,9 @@ use super::ids::{
     AccountGeneration, CommandId, HistoryGeneration, MessageSequence, OperationId,
     PlaybackInstanceId, PlaylistGeneration, SearchGeneration, SnapshotRevision,
 };
-use super::operation::{DomainGenerations, EngineOperation, EngineOperationCompletion};
+use super::operation::{
+    DomainGenerations, EngineOperation, EngineOperationCompletion, EngineOperationRequest,
+};
 use super::protocol::{
     ActorConfig, ActorControl, ActorEvent, ActorFailure, ActorLane, ActorOutcome,
     ActorOutcomeStatus, ActorStartError, CancellationReason, PlayerEdgeEvent, PlayerFacts,
@@ -29,8 +32,21 @@ use super::protocol::{
 use super::runtime::{
     ActorAuthStateProvider, ActorExit, ActorTask, EngineActorEventReceiver, EngineActorRuntime,
 };
+use tracing::{debug, info};
 
 mod operations;
+
+/// Fields of a terminal [`ActorOutcome`], grouped so that emitting one stays a
+/// single-argument call across the inline and off-actor completion paths.
+pub(super) struct OutcomeParts {
+    pub command_id: CommandId,
+    pub message_sequence: MessageSequence,
+    pub snapshot_revision: SnapshotRevision,
+    pub status: ActorOutcomeStatus,
+    pub snapshot: EngineSnapshot,
+    pub event: Option<EngineEvent>,
+    pub effects: Vec<EngineEffect>,
+}
 
 struct EngineActorState {
     engine: Engine,
@@ -53,6 +69,7 @@ struct EngineActorState {
     terminal_commands: HashSet<CommandId>,
     command_responses: HashMap<CommandId, oneshot::Sender<ActorOutcome>>,
     pending_operations: HashMap<OperationId, PendingOperation>,
+    latest_epoch_millis: u64,
 }
 
 /// A launched operation together with everything needed to re-enter the
@@ -91,10 +108,10 @@ impl EngineActorState {
                 biased;
 
                 lifecycle = self.lifecycle_rx.recv() => {
-                    if let Some(message) = lifecycle {
-                        if let Some(exit) = self.process_lifecycle(message).await? {
-                            return Ok(exit);
-                        }
+                    if let Some(message) = lifecycle
+                        && let Some(exit) = self.process_lifecycle(message).await?
+                    {
+                        return Ok(exit);
                     }
                 }
                 edge = self.player_edge_rx.recv() => {
@@ -149,6 +166,16 @@ impl EngineActorState {
                 self.engine.sync_auth_state_projection();
                 let sequence = self.next_sequence();
                 let snapshot_revision = self.publish_snapshot(self.engine.snapshot(), sequence);
+                let auth_kind = match self.auth_provider.get() {
+                    AuthState::Anonymous => "anonymous",
+                    AuthState::Authenticated { .. } => "authenticated",
+                    AuthState::LoginRequired => "login_required",
+                };
+                info!(
+                    auth_state = auth_kind,
+                    snapshot_revision = snapshot_revision.get(),
+                    "engine.auth.snapshot_published"
+                );
                 self.send_event(ActorEvent::ControlApplied {
                     control,
                     message_sequence: sequence,
@@ -192,15 +219,17 @@ impl EngineActorState {
                     if !self.terminal_commands.contains(&command_id) {
                         let sequence = self.next_sequence();
                         let snapshot_revision = self.current_revision();
-                        self.emit_outcome(
+                        self.emit_outcome(OutcomeParts {
                             command_id,
-                            sequence,
+                            message_sequence: sequence,
                             snapshot_revision,
-                            ActorOutcomeStatus::Cancelled(CancellationReason::ShutdownRequested),
-                            self.current_snapshot(),
-                            None,
-                            Vec::new(),
-                        )
+                            status: ActorOutcomeStatus::Cancelled(
+                                CancellationReason::ShutdownRequested,
+                            ),
+                            snapshot: self.current_snapshot(),
+                            event: None,
+                            effects: Vec::new(),
+                        })
                         .await;
                     }
                 }
@@ -219,6 +248,7 @@ impl EngineActorState {
             now_epoch_millis,
             response,
         } = message;
+        self.observe_clock(now_epoch_millis);
         self.accept_command(command_id, response);
 
         let command = match input {
@@ -230,10 +260,45 @@ impl EngineActorState {
             }
         };
 
+        info!(
+            command_id = command_id.get(),
+            command_type = command.command_type.as_wire(),
+            media_id = match &command.command_type {
+                EngineCommandType::PlayMediaById { media_id } => Some(media_id.as_str()),
+                _ => None,
+            },
+            queue_len = match &command.command_type {
+                EngineCommandType::PlayQueue { media_ids, .. } => Some(media_ids.len()),
+                _ => None,
+            },
+            start_index = match &command.command_type {
+                EngineCommandType::PlayQueue { start_index, .. } => Some(*start_index),
+                _ => None,
+            },
+            "engine.command.accepted"
+        );
+
         if self.config.split_remote_operations
             && let Some(operation) = self.prepare_operation(command_id, &command, now_epoch_millis)
             && self.spawn_operation_worker(&operation)
         {
+            info!(
+                command_id = command_id.get(),
+                command_type = command.command_type.as_wire(),
+                operation_id = operation.operation_id.get(),
+                request = match &operation.request {
+                    EngineOperationRequest::AccountProjection { .. } => "account_projection",
+                    EngineOperationRequest::SearchPage { .. } => "search_page",
+                    EngineOperationRequest::PlaylistPage { .. } => "playlist_page",
+                    EngineOperationRequest::HistorySettings { .. } => "history_settings",
+                    EngineOperationRequest::PlaybackResolution { .. } => "playback_resolution",
+                },
+                media_id = match &operation.request {
+                    EngineOperationRequest::PlaybackResolution { media_id } => Some(media_id.as_str()),
+                    _ => None,
+                },
+                "engine.operation.launch"
+            );
             self.pending_operations.insert(
                 operation.operation_id,
                 PendingOperation {
@@ -259,15 +324,15 @@ impl EngineActorState {
             Ok(outcome) => {
                 let sequence = self.next_sequence();
                 let snapshot_revision = self.publish_snapshot(outcome.snapshot.clone(), sequence);
-                self.emit_outcome(
+                self.emit_outcome(OutcomeParts {
                     command_id,
-                    sequence,
+                    message_sequence: sequence,
                     snapshot_revision,
-                    ActorOutcomeStatus::Completed,
-                    outcome.snapshot,
-                    Some(outcome.event),
-                    outcome.effects,
-                )
+                    status: ActorOutcomeStatus::Completed,
+                    snapshot: outcome.snapshot,
+                    event: Some(outcome.event),
+                    effects: outcome.effects,
+                })
                 .await;
                 Ok(())
             }
@@ -293,15 +358,15 @@ impl EngineActorState {
             Ok(outcome) => {
                 let sequence = self.next_sequence();
                 let snapshot_revision = self.publish_snapshot(outcome.snapshot.clone(), sequence);
-                self.emit_outcome(
+                self.emit_outcome(OutcomeParts {
                     command_id,
-                    sequence,
+                    message_sequence: sequence,
                     snapshot_revision,
-                    ActorOutcomeStatus::Completed,
-                    outcome.snapshot,
-                    Some(outcome.event),
-                    outcome.effects,
-                )
+                    status: ActorOutcomeStatus::Completed,
+                    snapshot: outcome.snapshot,
+                    event: Some(outcome.event),
+                    effects: outcome.effects,
+                })
                 .await;
                 Ok(())
             }
@@ -331,6 +396,7 @@ impl EngineActorState {
     }
 
     async fn process_tick(&mut self, now_epoch_millis: u64) -> Vec<EngineOutcome> {
+        self.observe_clock(now_epoch_millis);
         let outcomes = self.engine.tick(now_epoch_millis).await;
         let snapshot = outcomes
             .last()
@@ -354,15 +420,15 @@ impl EngineActorState {
             if !self.terminal_commands.contains(&command_id) {
                 let sequence = self.next_sequence();
                 let snapshot_revision = self.current_revision();
-                self.emit_outcome(
+                self.emit_outcome(OutcomeParts {
                     command_id,
-                    sequence,
+                    message_sequence: sequence,
                     snapshot_revision,
-                    ActorOutcomeStatus::Failed(failure),
-                    self.current_snapshot(),
-                    None,
-                    Vec::new(),
-                )
+                    status: ActorOutcomeStatus::Failed(failure),
+                    snapshot: self.current_snapshot(),
+                    event: None,
+                    effects: Vec::new(),
+                })
                 .await;
             }
         }
@@ -387,17 +453,43 @@ impl EngineActorState {
         }
     }
 
-    async fn emit_outcome(
-        &mut self,
-        command_id: CommandId,
-        message_sequence: MessageSequence,
-        snapshot_revision: SnapshotRevision,
-        status: ActorOutcomeStatus,
-        snapshot: EngineSnapshot,
-        event: Option<EngineEvent>,
-        effects: Vec<EngineEffect>,
-    ) {
+    async fn emit_outcome(&mut self, parts: OutcomeParts) {
+        let OutcomeParts {
+            command_id,
+            message_sequence,
+            snapshot_revision,
+            status,
+            snapshot,
+            event,
+            effects,
+        } = parts;
         self.terminal_commands.insert(command_id);
+        if effects.is_empty() {
+            debug!(
+                command_id = command_id.get(),
+                status = ?status,
+                snapshot_revision = snapshot_revision.get(),
+                "engine.command.complete"
+            );
+        } else {
+            let effect_names = effects
+                .iter()
+                .map(EngineEffect::as_wire)
+                .collect::<Vec<_>>()
+                .join(",");
+            info!(
+                command_id = command_id.get(),
+                effects = %effect_names,
+                "engine.effect.emit"
+            );
+            info!(
+                command_id = command_id.get(),
+                status = ?status,
+                snapshot_revision = snapshot_revision.get(),
+                effect_count = effects.len(),
+                "engine.command.complete"
+            );
+        }
         let outcome = ActorOutcome {
             command_id,
             message_sequence,
@@ -497,6 +589,12 @@ impl EngineActorState {
             PlaybackInstanceId::new(self.generations.playback.get().saturating_add(1));
         self.generations.playback
     }
+
+    fn observe_clock(&mut self, now_epoch_millis: u64) {
+        if now_epoch_millis > self.latest_epoch_millis {
+            self.latest_epoch_millis = now_epoch_millis;
+        }
+    }
 }
 
 pub struct EngineActor;
@@ -580,6 +678,7 @@ impl EngineActor {
             terminal_commands: HashSet::new(),
             command_responses: HashMap::new(),
             pending_operations: HashMap::new(),
+            latest_epoch_millis: config.clock.start_epoch_millis,
         };
         let join = runtime.spawn(state.run());
 

@@ -38,6 +38,9 @@ pub enum EngineEffect {
         media_id: String,
         /// Opaque generation which identifies this exact source load.
         playback_instance_id: u64,
+        /// Start position for this source load. New tracks must start at 0;
+        /// same-track source refresh keeps the last confirmed position.
+        position_millis: u64,
     },
     /// Rebuild the platform player before loading the current, already-resolved
     /// source. This is reserved for a fatal local decoder failure; it must not

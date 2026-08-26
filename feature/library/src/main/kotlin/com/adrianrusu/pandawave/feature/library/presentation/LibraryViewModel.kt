@@ -1,6 +1,7 @@
 package com.adrianrusu.pandawave.feature.library.presentation
 
 import androidx.lifecycle.ViewModel
+import com.adrianrusu.pandawave.core.common.log.PandaLog
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackIntent
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
 import com.adrianrusu.pandawave.feature.library.domain.LibraryRepository
@@ -19,13 +20,28 @@ class LibraryViewModel @Inject constructor(
         repository.start()
     }
 
-    fun selectTab(tab: LibraryTab) = repository.selectTab(tab)
+    fun selectTab(tab: LibraryTab) {
+        PandaLog.v(PandaLog.Tag.LIBRARY) { "click action=select_tab tab=${tab.name.lowercase()}" }
+        repository.selectTab(tab)
+    }
     fun refresh() = repository.refresh()
     fun loadNext() = repository.loadNext(state.value.selectedTab)
     fun play(mediaId: String) {
         val current = state.value
+        val section = current.selectedTab.name.lowercase()
+        val title = current.selectedTracks.find { it.mediaId == mediaId }?.title
+            ?: current.historyEntries.find { it.mediaId == mediaId }?.title
+            ?: ""
         val queue = current.playlistTracks.map { it.mediaId }
         val selectedIndex = queue.indexOf(mediaId)
+        PandaLog.v(PandaLog.Tag.LIBRARY) {
+            "click action=play section=$section playlistId=${current.selectedPlaylistId.orEmpty()} " +
+                "trackId=$mediaId title=${PandaLog.field(title)}"
+        }
+        PandaLog.i(PandaLog.Tag.LIBRARY) {
+            "play_requested section=$section playlistId=${current.selectedPlaylistId.orEmpty()} " +
+                "trackId=$mediaId title=${PandaLog.field(title)}"
+        }
         if (current.selectedPlaylistId != null && selectedIndex >= 0) {
             playbackRepository.dispatch(BambooPlaybackIntent.PlayQueue(queue, selectedIndex))
         } else {

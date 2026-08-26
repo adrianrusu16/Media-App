@@ -14,7 +14,7 @@ It also records a second, sharper comparison. The actor was measured twice on th
 | `actor` | Actor owns state; remote I/O still runs on the actor | `false` | `1` of `5` |
 | `actor-split` | Actor owns state; remote I/O runs on workers | `true` | `5` of `5` |
 
-Both actor checkpoints are commit `4700c4d0a`. The `actor-split` checkpoint adds the engine change described under [Engine Change](#engine-change) and nothing else. The `before` checkpoint is the primary (non host-GPU) before checkpoint from the earlier report.
+Both actor checkpoints are the same `feature: add media warmup` commit on top of `ac81bf46b`. The `actor-split` checkpoint adds the engine change described under [Engine Change](#engine-change) and nothing else. That change has since been folded into the same commit, which is now `ea64618a0`; the `actor` checkpoint was measured before it was folded in. The `before` checkpoint is the primary (non host-GPU) before checkpoint from the earlier report.
 
 ## Summary
 

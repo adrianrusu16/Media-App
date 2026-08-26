@@ -1,13 +1,13 @@
 use std::sync::{Arc, Mutex};
 
 use panda_engine_core::engine::actor::{
-    ActorClockConfig, ActorConfig, ActorFailure, ActorOutcome, ActorOutcomeStatus, ActorStartError,
-    ActorTask, EngineActor, EngineActorHandle, SubmissionError,
+    ActorClockConfig, ActorConfig, ActorControl, ActorFailure, ActorOutcome, ActorOutcomeStatus,
+    ActorStartError, ActorTask, EngineActor, EngineActorHandle, SubmissionError,
 };
 use panda_engine_core::model::config::EngineConfig;
 use panda_engine_core::networking::canopy::CanopyConnectionConfig;
 use panda_engine_core::{
-    Engine, EngineCommand, EngineEffect, EngineEvent, EngineObserver, EngineOutcome,
+    AuthState, Engine, EngineCommand, EngineEffect, EngineEvent, EngineObserver, EngineOutcome,
     EnginePlatformEvent, EngineSnapshot, InMemorySessionStore, LoggerMiddleware,
     MiddlewarePipeline, SessionCoordinator, SessionStore, TelemetryMiddleware,
 };
@@ -101,6 +101,29 @@ impl ActorEngineBridge {
         self.runtime
             .block_on(self.handle.mutate_engine(mutation))
             .expect("actor engine mutation failed")
+    }
+
+    /// Push a session-store auth change onto the actor and wait until a fresh
+    /// snapshot is published. JNI `snapshot()` reads the actor cache, not the
+    /// live coordinator, so login/verify/logout must do this before returning.
+    pub(crate) fn publish_session_auth_state(&self, state: AuthState) {
+        let kind = auth_state_kind(&state);
+        match self
+            .handle
+            .try_send_control(ActorControl::AuthStateChanged(state))
+        {
+            Ok(()) => info!(auth_state = kind, "auth.actor.control_queued"),
+            Err(error) => info!(auth_state = kind, ?error, "auth.actor.control_queue_failed"),
+        }
+        self.with_engine(|_| ());
+    }
+}
+
+fn auth_state_kind(state: &AuthState) -> &'static str {
+    match state {
+        AuthState::Anonymous => "anonymous",
+        AuthState::Authenticated { .. } => "authenticated",
+        AuthState::LoginRequired => "login_required",
     }
 }
 

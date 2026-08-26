@@ -91,6 +91,37 @@ class Media3EngineEffectExecutorTest {
     }
 
     @Test
+    fun `prepare playback source effect uses the engine start position`() {
+        val player = RecordingEffectPlayer(playbackState = Player.STATE_IDLE)
+        val executor = effectExecutor(
+            player = player,
+            currentProjection = {
+                BambooMediaSessionStateProjection(
+                    mediaItem = MediaItem.Builder()
+                        .setMediaId("track-2")
+                        .setMimeType("audio/mpeg")
+                        .build(),
+                    playWhenReady = false,
+                    positionMillis = 55_000L
+                )
+            }
+        )
+
+        executor.execute(
+            listOf(
+                EngineEffect(
+                    type = EngineEffect.TYPE_PREPARE_PLAYBACK_SOURCE,
+                    mediaId = "track-2",
+                    playbackInstanceId = 7L,
+                    positionMillis = 0L
+                )
+            )
+        )
+
+        assertEquals(listOf("setMediaItem:track-2:0", "prepare"), player.calls)
+    }
+
+    @Test
     fun `play effect prepares idle player and starts playback`() {
         val player = RecordingEffectPlayer(playbackState = Player.STATE_IDLE)
         val executor = effectExecutor(player = player)

@@ -58,6 +58,7 @@ data class EngineSnapshot(
     ,val forYouResultsCount: Int = 0
     ,val recommendationsResultsCount: Int = 0
     ,val backendAvailability: EngineBackendAvailability = EngineBackendAvailability.connecting()
+    ,val lastProgressTickEpochMillis: Long = 0L
 ) : Parcelable {
     constructor(parcel: Parcel) : this(
         playbackState = parcel.readString().orEmpty(),
@@ -127,6 +128,7 @@ data class EngineSnapshot(
             status = parcel.readString() ?: EngineBackendAvailability.CONNECTING,
             reason = parcel.readString()
         )
+        ,lastProgressTickEpochMillis = parcel.readLong()
     )
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
@@ -192,6 +194,7 @@ data class EngineSnapshot(
         parcel.writeInt(recommendationsResultsCount)
         parcel.writeString(backendAvailability.status)
         parcel.writeString(backendAvailability.reason)
+        parcel.writeLong(lastProgressTickEpochMillis)
     }
 
     override fun describeContents(): Int = 0
@@ -233,6 +236,7 @@ data class EngineSnapshot(
             userId = null,
             restrictionState = RESTRICTION_UNKNOWN,
             updatedAtEpochMillis = nowMillis,
+            lastProgressTickEpochMillis = nowMillis,
             controls = EnginePlayerControls.defaultIdle()
         )
 

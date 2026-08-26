@@ -12,6 +12,9 @@ class AndroidLogTelemetrySinkTest {
     fun `every module exposes a stable logcat tag within the Android limit`() {
         assertTrue(TelemetryModule.entries.all { module -> module.logcatTag.length <= 23 })
         assertEquals("PandaWave:Playback", TelemetryModule.Playback.logcatTag)
+        assertEquals("PandaWave:Home", TelemetryModule.Home.logcatTag)
+        assertEquals("PandaWave:Nps", TelemetryModule.Nps.logcatTag)
+        assertEquals("PandaWave:Player", TelemetryModule.Player.logcatTag)
     }
 
     @Test

@@ -225,6 +225,7 @@ async fn decoder_failure_recreates_the_local_player_once_without_resolving_a_new
         )
         .await;
     assert_eq!(182_900, checkpoint.snapshot.position_millis);
+    assert_eq!(135, checkpoint.snapshot.last_progress_tick_epoch_millis);
     assert!(checkpoint.effects.is_empty());
 
     let recovered = engine
@@ -516,4 +517,109 @@ async fn unknown_vehicle_payload_fails_closed_to_unknown() {
         .await;
 
     assert_eq!(DrivingState::Unknown, outcome.snapshot.driving_state);
+}
+
+#[tokio::test]
+async fn seek_settling_ignores_stale_position_checkpoints() {
+    let mut engine = Engine::new(100);
+    let item = MediaItem {
+        id: "track-1".into(),
+        source_uri: Some("https://media.test/track-1".into()),
+        duration_millis: Some(180_000),
+        ..Default::default()
+    };
+    engine.set_repository(Box::new(InMemoryRepository::new(vec![item.clone()])));
+    engine.queue().set_items(vec![item]);
+    engine
+        .dispatch(EngineCommand::start_session("user".into()), 110)
+        .await;
+    engine.dispatch(EngineCommand::play(), 120).await;
+    engine
+        .dispatch_platform_event(
+            EnginePlatformEvent::new(
+                EnginePlatformEventType::MediaLoaded,
+                Some(r#"{"version":1,"playback_instance_id":1}"#.into()),
+            ),
+            130,
+        )
+        .await;
+    engine
+        .dispatch_platform_event(
+            EnginePlatformEvent::new(
+                EnginePlatformEventType::PlaybackPositionCheckpoint,
+                Some(r#"{"version":1,"playback_instance_id":1,"position_ms":55000}"#.into()),
+            ),
+            140,
+        )
+        .await;
+
+    let restarted = engine.dispatch(EngineCommand::seek(0), 150).await;
+    assert_eq!(restarted.snapshot.position_millis, 0);
+
+    let stale = engine
+        .dispatch_platform_event(
+            EnginePlatformEvent::new(
+                EnginePlatformEventType::PlaybackPositionCheckpoint,
+                Some(r#"{"version":1,"playback_instance_id":1,"position_ms":55000}"#.into()),
+            ),
+            160,
+        )
+        .await;
+    assert_eq!(stale.snapshot.position_millis, 0);
+
+    let settled = engine
+        .dispatch_platform_event(
+            EnginePlatformEvent::new(
+                EnginePlatformEventType::PlaybackPositionCheckpoint,
+                Some(r#"{"version":1,"playback_instance_id":1,"position_ms":80}"#.into()),
+            ),
+            170,
+        )
+        .await;
+    assert_eq!(settled.snapshot.position_millis, 80);
+}
+
+#[tokio::test]
+async fn decoder_duration_replaces_catalog_length_and_does_not_end_early() {
+    let mut engine = Engine::new(100);
+    let item = MediaItem {
+        id: "track-1".into(),
+        source_uri: Some("https://media.test/track-1".into()),
+        duration_millis: Some(252_395),
+        ..Default::default()
+    };
+    engine.set_repository(Box::new(InMemoryRepository::new(vec![item.clone()])));
+    engine.queue().set_items(vec![item]);
+    engine
+        .dispatch(EngineCommand::start_session("user".into()), 110)
+        .await;
+    engine.dispatch(EngineCommand::play(), 120).await;
+    let loaded = engine
+        .dispatch_platform_event(
+            EnginePlatformEvent::new(
+                EnginePlatformEventType::MediaLoaded,
+                Some(
+                    r#"{"version":1,"playback_instance_id":1,"duration_ms":270000}"#.into(),
+                ),
+            ),
+            130,
+        )
+        .await;
+    assert_eq!(Some(270_000), loaded.snapshot.duration_millis);
+    assert_ne!(PlaybackState::Ended, loaded.snapshot.playback_state);
+
+    let past_catalog = engine
+        .dispatch_platform_event(
+            EnginePlatformEvent::new(
+                EnginePlatformEventType::PlaybackPositionCheckpoint,
+                Some(
+                    r#"{"version":1,"playback_instance_id":1,"position_ms":260000,"duration_ms":270000}"#.into(),
+                ),
+            ),
+            140,
+        )
+        .await;
+    assert_eq!(260_000, past_catalog.snapshot.position_millis);
+    assert_eq!(Some(270_000), past_catalog.snapshot.duration_millis);
+    assert_ne!(PlaybackState::Ended, past_catalog.snapshot.playback_state);
 }

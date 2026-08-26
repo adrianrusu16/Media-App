@@ -3,6 +3,7 @@ package com.adrianrusu.pandawave.auth
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthOperationResult
 import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineAuthGateway
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -16,6 +17,8 @@ class EmailVerificationCoordinator(
     private val deviceLabel: String,
     private val scope: CoroutineScope,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val clock: () -> Long = { System.currentTimeMillis() },
+    private val log: (String) -> Unit = {},
     private val onComplete: (EngineAuthOperationResult) -> Unit
 ) : AutoCloseable {
     private val lock = Any()
@@ -24,6 +27,7 @@ class EmailVerificationCoordinator(
     private var submitted = false
     private var closed = false
     private var availabilitySubscription: AutoCloseable? = null
+    private val consumeAt = AtomicLong(0)
 
     init {
         availabilitySubscription = authGateway.observeAuthAvailability { available ->
@@ -33,6 +37,8 @@ class EmailVerificationCoordinator(
 
     fun consume(link: String?) {
         if (!consumed.compareAndSet(false, true)) return
+        consumeAt.set(clock())
+        log("verify-email.consume available=${authGateway.isAuthAvailable}")
 
         when (val result = parseLink(link)) {
             EmailVerificationLinkResult.Invalid -> complete(
@@ -49,7 +55,11 @@ class EmailVerificationCoordinator(
                     }
                 }
                 if (!accepted) result.value.fill(0)
-                if (accepted && authGateway.isAuthAvailable) submitPendingToken()
+                if (accepted && authGateway.isAuthAvailable) {
+                    submitPendingToken()
+                } else if (accepted) {
+                    log("verify-email.wait_engine")
+                }
             }
         }
     }
@@ -64,6 +74,8 @@ class EmailVerificationCoordinator(
         } ?: return
 
         val job = scope.launch(dispatcher) {
+            val submitAt = clock()
+            log("verify-email.submit waitEngineMs=${submitAt - consumeAt.get()}")
             val result = try {
                 authGateway.verifyEmail(token, deviceLabel)
             } catch (error: CancellationException) {
@@ -71,6 +83,10 @@ class EmailVerificationCoordinator(
             } catch (_: Throwable) {
                 EngineAuthOperationResult.error(EngineAuthOperationResult.ERROR_TRANSPORT)
             }
+            log(
+                "verify-email.engine_result status=${result.status} " +
+                    "rpcMs=${clock() - submitAt} sinceConsumeMs=${clock() - consumeAt.get()}"
+            )
             complete(result)
         }
         job.invokeOnCompletion { token.fill(0) }

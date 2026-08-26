@@ -41,7 +41,7 @@ fun HomeRoute(
 @Composable
 fun HomeRoute(
     state: HomeState,
-    onPlay: (String) -> Unit,
+    onPlay: (mediaId: String, section: String, title: String) -> Unit,
     onOpenNowPlaying: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
@@ -59,6 +59,7 @@ fun HomeRoute(
             tracks = state.forYou,
             hero = true,
             testTag = "home-for-you",
+            section = HOME_SECTION_FOR_YOU,
             onPlay = onPlay,
             onOpenNowPlaying = onOpenNowPlaying,
         )
@@ -66,6 +67,7 @@ fun HomeRoute(
             title = stringResource(R.string.pandawave_home_recommendations),
             tracks = state.recommendations,
             testTag = "home-recommendations",
+            section = HOME_SECTION_RECOMMENDATIONS,
             onPlay = onPlay,
             onOpenNowPlaying = onOpenNowPlaying,
         )
@@ -73,6 +75,7 @@ fun HomeRoute(
             title = stringResource(R.string.pandawave_home_discover),
             tracks = state.discovery,
             testTag = "home-discover",
+            section = HOME_SECTION_DISCOVERY,
             onPlay = onPlay,
             onOpenNowPlaying = onOpenNowPlaying,
         )
@@ -84,7 +87,8 @@ private fun HomeFeedSection(
     title: String,
     tracks: List<HomeTrack>,
     testTag: String,
-    onPlay: (String) -> Unit,
+    section: String,
+    onPlay: (mediaId: String, section: String, title: String) -> Unit,
     onOpenNowPlaying: () -> Unit,
     hero: Boolean = false,
 ) {
@@ -104,16 +108,17 @@ private fun HomeFeedSection(
                     description = track.album ?: track.artist,
                     action = BambooMediaAction.Play,
                 )
+                val onClick = {
+                    onPlay(track.id, section, track.title)
+                    onOpenNowPlaying()
+                }
                 if (hero) {
                     BambooMediaHeroCard(
                         modifier = Modifier.testTag("$testTag-${track.id}"),
                         item = item,
                         icon = PandaWaveIcons.Equalizer,
                         accentColor = Color(tokens.colors.primary),
-                        onClick = {
-                            onPlay(track.id)
-                            onOpenNowPlaying()
-                        },
+                        onClick = onClick,
                     )
                 } else {
                     BambooMediaTile(
@@ -121,13 +126,14 @@ private fun HomeFeedSection(
                         item = item,
                         icon = PandaWaveIcons.MusicLibrary,
                         accentColor = Color(tokens.colors.secondary),
-                        onClick = {
-                            onPlay(track.id)
-                            onOpenNowPlaying()
-                        },
+                        onClick = onClick,
                     )
                 }
             }
         }
     }
 }
+
+private const val HOME_SECTION_FOR_YOU = "for_you"
+private const val HOME_SECTION_RECOMMENDATIONS = "recommendations"
+private const val HOME_SECTION_DISCOVERY = "discovery"

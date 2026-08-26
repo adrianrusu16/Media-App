@@ -1,6 +1,7 @@
 package com.adrianrusu.pandawave.appshell.navigation
 
 import androidx.navigation3.runtime.NavKey
+import com.adrianrusu.pandawave.core.common.log.PandaLog
 
 class PandaWaveNavigator(private val backStack: MutableList<NavKey>) {
     val currentDestination: PandaWaveDestination
@@ -11,6 +12,9 @@ class PandaWaveNavigator(private val backStack: MutableList<NavKey>) {
 
     fun selectPrimary(destination: PandaWaveDestination) {
         require(destination in primaryDestinations)
+        PandaLog.v(PandaLog.Tag.APP_SHELL) {
+            "click action=navigate destination=${destination::class.java.simpleName}"
+        }
         backStack.clear()
         backStack += HomeDestination
         if (destination != HomeDestination) {
@@ -37,6 +41,7 @@ class PandaWaveNavigator(private val backStack: MutableList<NavKey>) {
     }
 
     fun openNowPlaying() {
+        PandaLog.v(PandaLog.Tag.NPS) { "click action=open_now_playing" }
         val primaryDestination = backStack
             .asReversed()
             .filterIsInstance<PandaWaveDestination>()

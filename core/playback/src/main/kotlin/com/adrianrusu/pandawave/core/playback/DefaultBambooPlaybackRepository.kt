@@ -4,6 +4,7 @@ import com.adrianrusu.pandawave.core.automotive.driving.AutomotiveDrivingState
 import com.adrianrusu.pandawave.core.automotive.driving.AutomotiveDrivingStateObserver
 import com.adrianrusu.pandawave.core.automotive.ux.AutomotiveUxRestrictionObserver
 import com.adrianrusu.pandawave.core.automotive.ux.AutomotiveUxRestrictions
+import com.adrianrusu.pandawave.core.common.log.PandaLog
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommandPayloads
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
@@ -12,6 +13,7 @@ import com.adrianrusu.pandawave.core.rust.bridge.engine.EngineDispatchResult
 import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineGateway
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
 import com.adrianrusu.pandawave.core.telemetry.TelemetryModule
+import java.util.concurrent.Executor
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,7 +23,9 @@ class DefaultBambooPlaybackRepository(
     private val engine: EngineGateway,
     private val uxRestrictionObserver: AutomotiveUxRestrictionObserver,
     telemetryLogger: TelemetryLogger,
-    private val drivingStateObserver: AutomotiveDrivingStateObserver = AutomotiveDrivingStateObserver.Unavailable
+    private val drivingStateObserver: AutomotiveDrivingStateObserver = AutomotiveDrivingStateObserver.Unavailable,
+    private val engineDispatchExecutor: Executor = Executor { command -> command.run() },
+    private val resultExecutor: Executor = Executor { command -> command.run() }
 ) : BambooPlaybackRepository {
     private val telemetryLogger = telemetryLogger.forModule(TelemetryModule.Playback)
     private val automotiveTelemetryLogger = telemetryLogger.forModule(TelemetryModule.Automotive)
@@ -140,17 +144,27 @@ class DefaultBambooPlaybackRepository(
 
             is BambooPlaybackIntent.SetVolume -> error("Volume intents are handled before engine dispatch")
 
-            is BambooPlaybackIntent.PlayMedia -> dispatchEngineCommand(
-                commandType = EngineCommand.TYPE_PLAY_MEDIA_BY_ID,
-                payload = EngineCommandPayloads.mediaId(intent.mediaId),
-                sourceIntent = intent
-            )
+            is BambooPlaybackIntent.PlayMedia -> {
+                PandaLog.i(PandaLog.Tag.MEDIA) {
+                    "play_requested command=PlayMediaById trackId=${intent.mediaId}"
+                }
+                dispatchEngineCommand(
+                    commandType = EngineCommand.TYPE_PLAY_MEDIA_BY_ID,
+                    payload = EngineCommandPayloads.mediaId(intent.mediaId),
+                    sourceIntent = intent
+                )
+            }
 
-            is BambooPlaybackIntent.PlayQueue -> dispatchEngineCommand(
-                commandType = EngineCommand.TYPE_PLAY_QUEUE,
-                payload = EngineCommandPayloads.playQueue(intent.mediaIds, intent.startIndex),
-                sourceIntent = intent
-            )
+            is BambooPlaybackIntent.PlayQueue -> {
+                PandaLog.i(PandaLog.Tag.MEDIA) {
+                    "play_requested command=PlayQueue count=${intent.mediaIds.size} startIndex=${intent.startIndex}"
+                }
+                dispatchEngineCommand(
+                    commandType = EngineCommand.TYPE_PLAY_QUEUE,
+                    payload = EngineCommandPayloads.playQueue(intent.mediaIds, intent.startIndex),
+                    sourceIntent = intent
+                )
+            }
 
             is BambooPlaybackIntent.SearchCatalog -> dispatchEngineCommand(
                 commandType = EngineCommand.TYPE_SEARCH,
@@ -247,17 +261,15 @@ class DefaultBambooPlaybackRepository(
     }
 
     private fun dispatchLifecycleCommand(commandType: String, payload: String?) {
-        val result = engine.dispatch(
-            EngineCommand(
-                type = commandType,
-                payload = payload
+        runEngineDispatch {
+            val result = engine.dispatch(
+                EngineCommand(
+                    type = commandType,
+                    payload = payload
+                )
             )
-        )
-
-        updateState { current ->
-            current.fromEngineResult(result)
+            publishEngineResult(result)
         }
-        notifyEffects(result.effects)
     }
 
     private fun refreshFromEngine() {
@@ -270,11 +282,16 @@ class DefaultBambooPlaybackRepository(
             name = PlaybackTelemetryEvents.ENGINE_SNAPSHOT_REQUESTED,
             attributes = mapOf(BambooPlaybackTelemetryAttributes.INTENT to BambooPlaybackIntent.Refresh.telemetryName)
         )
-        updateState { current ->
-            BambooPlaybackStateProjector.fromEngineSnapshot(
-                current = current,
-                snapshot = engine.snapshot()
-            )
+        runEngineDispatch {
+            val snapshot = engine.snapshot()
+            resultExecutor.execute {
+                updateState { current ->
+                    BambooPlaybackStateProjector.fromEngineSnapshot(
+                        current = current,
+                        snapshot = snapshot
+                    )
+                }
+            }
         }
     }
 
@@ -317,17 +334,15 @@ class DefaultBambooPlaybackRepository(
             )
         )
 
-        val result = engine.dispatch(
-            EngineCommand(
-                type = commandType,
-                payload = payload
+        runEngineDispatch {
+            val result = engine.dispatch(
+                EngineCommand(
+                    type = commandType,
+                    payload = payload
+                )
             )
-        )
-
-        updateState { current ->
-            current.fromEngineResult(result)
+            publishEngineResult(result)
         }
-        notifyEffects(result.effects)
     }
 
     private fun dispatchPlatformEvent(intent: BambooPlaybackIntent.PlatformEvent) {
@@ -339,17 +354,28 @@ class DefaultBambooPlaybackRepository(
             )
         )
 
-        val result = engine.dispatchPlatformEvent(
-            EnginePlatformEvent(
-                type = intent.type,
-                payload = intent.payload
+        runEngineDispatch {
+            val result = engine.dispatchPlatformEvent(
+                EnginePlatformEvent(
+                    type = intent.type,
+                    payload = intent.payload
+                )
             )
-        )
-
-        updateState { current ->
-            current.fromEngineResult(result)
+            publishEngineResult(result)
         }
-        notifyEffects(result.effects)
+    }
+
+    private fun runEngineDispatch(block: () -> Unit) {
+        engineDispatchExecutor.execute(block)
+    }
+
+    private fun publishEngineResult(result: EngineDispatchResult) {
+        resultExecutor.execute {
+            updateState { current ->
+                current.fromEngineResult(result)
+            }
+            notifyEffects(result.effects)
+        }
     }
 
     private fun updateState(reducer: (BambooPlaybackState) -> BambooPlaybackState) {
@@ -380,6 +406,9 @@ class DefaultBambooPlaybackRepository(
     }
 
     private fun logBlockedIntent(intent: BambooPlaybackIntent) {
+        PandaLog.w(PandaLog.Tag.MEDIA) {
+            "dispatch_blocked intent=${intent.telemetryName} engineStatus=${state.value.engineConnection.status.name}"
+        }
         telemetryLogger.info(
             name = PlaybackTelemetryEvents.INTENT_BLOCKED,
             attributes = mapOf(

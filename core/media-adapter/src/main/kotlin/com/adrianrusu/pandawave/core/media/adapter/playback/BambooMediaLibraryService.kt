@@ -3,6 +3,9 @@ package com.adrianrusu.pandawave.core.media.adapter.playback
 import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaLibraryService
@@ -221,6 +224,23 @@ class BambooMediaLibraryService : MediaLibraryService() {
         ExoPlayer.Builder(this)
             // Try an alternate platform decoder before full player recreation.
             .setRenderersFactory(DefaultRenderersFactory(this).setEnableDecoderFallback(true))
+            .setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(C.USAGE_MEDIA)
+                    .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+                    .build(),
+                /* handleAudioFocus= */ false
+            )
+            .setLoadControl(
+                DefaultLoadControl.Builder()
+                    .setBufferDurationsMs(
+                        DefaultLoadControl.DEFAULT_MIN_BUFFER_MS,
+                        HTTP_MAX_BUFFER_MS,
+                        DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_MS,
+                        HTTP_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS
+                    )
+                    .build()
+            )
             .build()
     }
 
@@ -259,3 +279,7 @@ class BambooMediaLibraryService : MediaLibraryService() {
         super.onDestroy()
     }
 }
+
+private const val HTTP_MAX_BUFFER_MS = 120_000
+private const val HTTP_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 10_000
+

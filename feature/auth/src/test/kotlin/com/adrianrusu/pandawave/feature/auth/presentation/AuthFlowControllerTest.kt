@@ -136,6 +136,35 @@ class AuthFlowControllerTest {
     }
 
     @Test
+    fun `registration closes only on authenticated snapshot`() = runTest {
+        val gateway = RecordingAuthEngineGateway(
+            registerResult = EngineAuthOperationResult.accepted()
+        )
+        val effects = mutableListOf<AuthUiEffect>()
+        val controller = AuthFlowController(
+            mode = AuthFormMode.REGISTER,
+            authGateway = gateway,
+            engineGateway = gateway,
+            scope = this,
+            dispatcher = StandardTestDispatcher(testScheduler),
+            deviceLabel = "Panda Emulator",
+            onEffect = effects::add
+        )
+
+        controller.submit("driver@example.com", "secret".encodeToByteArray())
+        runCurrent()
+
+        assertEquals(AuthFormPhase.VERIFICATION_PENDING, controller.state.value.phase)
+        assertTrue(AuthUiEffect.Close !in effects)
+
+        gateway.pushAuth(authenticatedState())
+        runCurrent()
+
+        assertEquals(AuthUiEffect.Close, effects.last())
+        assertEquals(AuthFormPhase.IDLE, controller.state.value.phase)
+    }
+
+    @Test
     fun `profile logout handles snapshot before remote ambiguity result`() = runTest {
         val gateway = RecordingAuthEngineGateway(initialAuth = authenticatedState())
         gateway.onLogout = {

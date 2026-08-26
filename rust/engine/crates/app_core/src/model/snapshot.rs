@@ -328,7 +328,20 @@ impl EngineSnapshot {
         self
     }
 
+    /// Functional update for the playback duration, returning a new snapshot.
+    ///
+    /// Prefer the platform decoder duration over catalog ingest when the player
+    /// reports a positive length. Interpolation clamps to this clock.
+    #[must_use]
+    pub fn with_duration(mut self, duration_millis: Option<u64>) -> Self {
+        self.duration_millis = duration_millis;
+        self
+    }
+
     /// Functional update for the progress timing baseline, returning a new snapshot.
+    ///
+    /// Host interpolation must follow this clock, not `updated_at_epoch_millis`.
+    /// Command/catalog snapshots move `updated_at` without rebasing playback.
     #[must_use]
     pub fn with_progress_tick(mut self, epoch_millis: u64) -> Self {
         self.last_progress_tick_epoch_millis = epoch_millis;

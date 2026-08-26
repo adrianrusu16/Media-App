@@ -18,6 +18,7 @@ impl Engine {
                                 playback_instance_id: self
                                     .current_playback_instance_id
                                     .unwrap_or_default(),
+                                position_millis: self.snapshot.position_millis,
                             },
                             EngineEffect::UpdateMetadata {
                                 media_id: media_id.clone(),
@@ -38,6 +39,7 @@ impl Engine {
                                 playback_instance_id: self
                                     .current_playback_instance_id
                                     .unwrap_or_default(),
+                                position_millis: self.snapshot.position_millis,
                             },
                             EngineEffect::UpdateMetadata {
                                 media_id: media_id.clone(),
@@ -54,6 +56,7 @@ impl Engine {
                     EngineEffect::PreparePlaybackSource {
                         media_id: media_id.clone(),
                         playback_instance_id: self.current_playback_instance_id.unwrap_or_default(),
+                        position_millis: self.snapshot.position_millis,
                     },
                     EngineEffect::UpdateMetadata {
                         media_id: media_id.clone(),

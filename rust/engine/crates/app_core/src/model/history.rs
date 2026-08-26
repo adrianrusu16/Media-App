@@ -40,31 +40,21 @@ pub struct EngineHistorySettingsUpdate {
     pub deleted_count: u64,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub enum EngineHistoryAvailability {
+    #[default]
     Unknown,
     Available,
     LoginRequired,
     Unavailable,
 }
 
-impl Default for EngineHistoryAvailability {
-    fn default() -> Self {
-        Self::Unknown
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub enum EngineHistoryRefreshState {
+    #[default]
     Idle,
     Loading,
     Degraded,
-}
-
-impl Default for EngineHistoryRefreshState {
-    fn default() -> Self {
-        Self::Idle
-    }
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]

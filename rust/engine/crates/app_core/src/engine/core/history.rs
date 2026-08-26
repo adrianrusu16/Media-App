@@ -548,9 +548,8 @@ impl Engine {
                 continue;
             };
             let result = port.record(&identity.history_identity(), record).await;
-            match self.history_result_for_current_identity(snapshot, identity, result)? {
-                true => promoted_ids.push(entry.id),
-                false => {}
+            if self.history_result_for_current_identity(snapshot, identity, result)? {
+                promoted_ids.push(entry.id);
             }
         }
         if !promoted_ids.is_empty() {

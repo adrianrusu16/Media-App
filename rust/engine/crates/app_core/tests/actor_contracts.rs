@@ -1483,11 +1483,7 @@ impl AccountPort for PendingAccountPort {
     ) -> Result<EnginePagedResult<AuthSession>, EngineError> {
         unreachable!()
     }
-    async fn revoke_session(
-        &self,
-        _: &EngineAccountIdentity,
-        _: &str,
-    ) -> Result<(), EngineError> {
+    async fn revoke_session(&self, _: &EngineAccountIdentity, _: &str) -> Result<(), EngineError> {
         unreachable!()
     }
     async fn delete_account(&self, _: &EngineAccountIdentity) -> Result<(), EngineError> {

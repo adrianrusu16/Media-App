@@ -33,16 +33,44 @@ impl Engine {
         effects: &mut Vec<EngineEffect>,
     ) -> EngineSnapshot {
         let media = &resolved.media;
-        let next_snapshot = snapshot.with_media(media.clone());
+        let media_changed = snapshot.media_id.as_deref() != Some(media.id.as_str());
+        let now_epoch_millis = snapshot.updated_at_epoch_millis;
+        let previous_position_millis = snapshot.position_millis;
+        let start_position_millis = if media_changed {
+            0
+        } else {
+            previous_position_millis
+        };
+        let mut next_snapshot = snapshot.with_media(media.clone());
+        if media_changed {
+            next_snapshot = next_snapshot
+                .with_position(0)
+                .with_progress_tick(now_epoch_millis);
+        }
         self.next_playback_instance_id = self.next_playback_instance_id.saturating_add(1);
         self.current_playback_instance_id = Some(self.next_playback_instance_id);
+        self.pending_seek_target_millis = Some(start_position_millis);
         self.recovery = PlaybackRecoveryState {
             desired_play_when_ready: true,
             ..Default::default()
         };
+        info!(
+            media_id = media.id.as_str(),
+            playback_instance_id = self.next_playback_instance_id,
+            media_changed,
+            previous_position_millis,
+            start_position_millis,
+            expires_at_epoch_millis = resolved.expires_at_epoch_millis,
+            remaining_ms = resolved.expires_at_epoch_millis.map(|expiry| {
+                expiry.saturating_sub(now_epoch_millis)
+            }),
+            source_uri = source_uri_for_log(media.source_uri.as_deref()),
+            "engine.playback.source_prepared"
+        );
         effects.push(EngineEffect::PreparePlaybackSource {
             media_id: media.id.clone(),
             playback_instance_id: self.next_playback_instance_id,
+            position_millis: start_position_millis,
         });
         effects.push(EngineEffect::UpdateMetadata {
             media_id: media.id.clone(),
@@ -127,4 +155,8 @@ impl Engine {
             expires_at_epoch_millis: None,
         })
     }
+}
+
+fn source_uri_for_log(uri: Option<&str>) -> Option<&str> {
+    uri.map(|value| value.split('?').next().unwrap_or(value))
 }

@@ -1,5 +1,6 @@
 use crate::engine::core::PrefetchedOperation;
 use crate::model::command::{EngineCommand, EngineCommandType};
+use tracing::info;
 
 use super::super::ids::{CommandId, OperationId};
 use super::super::operation::{
@@ -7,7 +8,9 @@ use super::super::operation::{
     OperationGeneration,
 };
 use super::super::protocol::{ActorOutcomeStatus, CancellationReason};
-use super::{EngineActorState, account_identity, history_identity, playlist_identity};
+use super::{
+    EngineActorState, OutcomeParts, account_identity, history_identity, playlist_identity,
+};
 
 impl EngineActorState {
     /// Decides whether a command's remote half can run off-actor. Returns
@@ -161,13 +164,12 @@ impl EngineActorState {
                     return false;
                 };
                 tokio::spawn(async move {
-                    let result =
-                        port.list(&identity, page)
-                            .await
-                            .map(|paged| EngineOperationResult::PlaylistPage {
-                                playlists: paged.items,
-                                next_page_token: paged.next_page_token,
-                            });
+                    let result = port.list(&identity, page).await.map(|paged| {
+                        EngineOperationResult::PlaylistPage {
+                            playlists: paged.items,
+                            next_page_token: paged.next_page_token,
+                        }
+                    });
                     let _ = completion_tx.send(operation.completion(result)).await;
                 });
             }
@@ -207,46 +209,63 @@ impl EngineActorState {
         let Some(pending) = self.pending_operations.remove(&completion.operation_id) else {
             return;
         };
+        info!(
+            operation_id = completion.operation_id.get(),
+            command_id = completion.command_id.get(),
+            command_type = pending.command.command_type.as_wire(),
+            ok = completion.result.is_ok(),
+            "engine.operation.complete"
+        );
         let sequence = self.next_sequence();
 
         if pending.operation.generation != completion.generation
             || !self.generations.is_current(completion.generation)
         {
             let snapshot_revision = self.current_revision();
-            self.emit_outcome(
-                completion.command_id,
-                sequence,
+            self.emit_outcome(OutcomeParts {
+                command_id: completion.command_id,
+                message_sequence: sequence,
                 snapshot_revision,
-                ActorOutcomeStatus::Cancelled(CancellationReason::Superseded),
-                self.current_snapshot(),
-                None,
-                Vec::new(),
-            )
+                status: ActorOutcomeStatus::Cancelled(CancellationReason::Superseded),
+                snapshot: self.current_snapshot(),
+                event: None,
+                effects: Vec::new(),
+            })
             .await;
             return;
         }
 
         // Re-enter the originating command with the remote result injected, so
         // the split path produces the same snapshot, event and effects the
-        // inline path would have produced.
+        // inline path would have produced. Use the latest actor clock, not the
+        // original submit time: a stale now_epoch_millis rebases progress
+        // interpolation and can reload the previous track timestamp.
+        let now_epoch_millis = pending.now_epoch_millis.max(self.latest_epoch_millis);
+        info!(
+            command_type = pending.command.command_type.as_wire(),
+            pending_now_epoch_millis = pending.now_epoch_millis,
+            dispatch_now_epoch_millis = now_epoch_millis,
+            operation_id = pending.operation.operation_id.get(),
+            "engine.operation.redispatch"
+        );
         let prefetched = prefetched_from(&pending.operation.request, completion.result);
         self.engine.set_prefetched_operation(prefetched);
         let outcome = self
             .engine
-            .dispatch(pending.command, pending.now_epoch_millis)
+            .dispatch(pending.command, now_epoch_millis)
             .await;
         self.engine.clear_prefetched_operation();
 
         let snapshot_revision = self.publish_snapshot(outcome.snapshot.clone(), sequence);
-        self.emit_outcome(
-            completion.command_id,
-            sequence,
+        self.emit_outcome(OutcomeParts {
+            command_id: completion.command_id,
+            message_sequence: sequence,
             snapshot_revision,
-            ActorOutcomeStatus::Completed,
-            outcome.snapshot,
-            Some(outcome.event),
-            outcome.effects,
-        )
+            status: ActorOutcomeStatus::Completed,
+            snapshot: outcome.snapshot,
+            event: Some(outcome.event),
+            effects: outcome.effects,
+        })
         .await;
     }
 }

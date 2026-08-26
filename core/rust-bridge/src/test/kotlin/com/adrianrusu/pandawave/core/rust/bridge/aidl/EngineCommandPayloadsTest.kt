@@ -14,12 +14,14 @@ class EngineCommandPayloadsTest {
             EngineCommandPayloads.playbackPositionCheckpoint(
                 playbackInstanceId = 42L,
                 positionMillis = 18_300L,
+                durationMillis = 252_395L,
             )
         ).jsonObject
 
         assertEquals("1", payload.getValue("version").jsonPrimitive.content)
         assertEquals("42", payload.getValue("playback_instance_id").jsonPrimitive.content)
         assertEquals("18300", payload.getValue("position_ms").jsonPrimitive.content)
+        assertEquals("252395", payload.getValue("duration_ms").jsonPrimitive.content)
     }
 
     @Test

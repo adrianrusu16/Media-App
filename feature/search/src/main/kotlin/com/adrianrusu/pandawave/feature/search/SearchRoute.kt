@@ -17,6 +17,7 @@ import androidx.compose.ui.res.stringResource
 import com.adrianrusu.pandawave.core.designsystem.tokens.LocalPandaWaveDesignTokens
 import com.adrianrusu.pandawave.core.designsystem.tokens.mediaCarouselSpacing
 import com.adrianrusu.pandawave.core.designsystem.tokens.mediaSectionSpacing
+import com.adrianrusu.pandawave.core.common.log.PandaLog
 import com.adrianrusu.pandawave.core.ui.discovery.BambooCategoryCard
 import com.adrianrusu.pandawave.core.ui.discovery.BambooCategoryItem
 import com.adrianrusu.pandawave.core.ui.discovery.BambooMediaAction
@@ -78,7 +79,11 @@ fun SearchRoute(modifier: Modifier = Modifier) {
                             "energy" -> Color(tokens.colors.secondary)
                             else -> Color(tokens.colors.primary)
                         },
-                        onClick = {}
+                        onClick = {
+                            PandaLog.v(PandaLog.Tag.SEARCH) {
+                                "click action=select_category section=mood categoryId=${category.id} title=${PandaLog.field(category.title)}"
+                            }
+                        }
                     )
                 }
             }
@@ -92,7 +97,11 @@ fun SearchRoute(modifier: Modifier = Modifier) {
                     item = item,
                     icon = PandaWaveIcons.MusicLibrary,
                     accentColor = Color(tokens.colors.secondary),
-                    onClick = {}
+                    onClick = {
+                        PandaLog.v(PandaLog.Tag.SEARCH) {
+                            "click action=play section=recent trackId=${item.id} title=${PandaLog.field(item.title)}"
+                        }
+                    }
                 )
             }
         }

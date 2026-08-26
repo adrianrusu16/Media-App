@@ -1,6 +1,7 @@
 package com.adrianrusu.pandawave.core.media.adapter.playback
 
 import androidx.media3.common.Player
+import com.adrianrusu.pandawave.core.common.log.PandaLog
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackIntent
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackTelemetryAttributes
@@ -49,6 +50,8 @@ class Media3PlaybackEngineBridge(
     private var effectSubscription: AutoCloseable? = null
     private var isPlaying = false
     private var scheduledCheckpoint: AutoCloseable? = null
+    private var lastMediaLoadedInstanceId: Long? = null
+    private var hasLoggedFirstAudio = false
 
     fun bootstrap() {
         if (effectSubscription == null) {
@@ -132,36 +135,103 @@ class Media3PlaybackEngineBridge(
     }
 
     override fun onPlaybackStateChanged(playbackState: Int) {
+        val instanceId = playbackInstanceIdProvider()
+        PandaLog.d(PandaLog.Tag.PLAYER) {
+            "playback_state state=${playbackStateName(playbackState)} instance=$instanceId"
+        }
         when (playbackState) {
             Player.STATE_READY -> {
-                playbackInstanceIdProvider()?.let { instanceId ->
-                    dispatchPlatformEvent(
-                        EnginePlatformEvent.TYPE_MEDIA_LOADED,
-                        EngineCommandPayloads.playbackObservation(instanceId)
-                    )
+                val instanceId = playbackInstanceIdProvider() ?: return
+                if (lastMediaLoadedInstanceId == instanceId) {
+                    return
                 }
+                lastMediaLoadedInstanceId = instanceId
+                hasLoggedFirstAudio = false
+                val durationMillis = playbackMetricsProvider.currentMetrics()
+                    ?.durationMillis
+                    ?.takeIf { duration -> duration > 0L }
+                PandaLog.i(PandaLog.Tag.PLAYER) {
+                    "media_loaded instance=$instanceId duration_ms=$durationMillis"
+                }
+                dispatchPlatformEvent(
+                    EnginePlatformEvent.TYPE_MEDIA_LOADED,
+                    EngineCommandPayloads.playbackObservation(
+                        playbackInstanceId = instanceId,
+                        durationMillis = durationMillis
+                    )
+                )
             }
 
             Player.STATE_BUFFERING -> {
-                // We could dispatch a buffering event if needed, but Rust handles this via commands
+                PandaLog.w(PandaLog.Tag.PLAYER) {
+                    "rebuffer instance=$instanceId playing=$isPlaying"
+                }
             }
 
             Player.STATE_ENDED -> {
+                lastMediaLoadedInstanceId = null
                 cancelScheduledCheckpoint()
                 reportPlaybackCompletion()
             }
 
-            Player.STATE_IDLE -> cancelScheduledCheckpoint()
+            Player.STATE_IDLE -> {
+                lastMediaLoadedInstanceId = null
+                cancelScheduledCheckpoint()
+            }
+        }
+    }
+
+    override fun onIsLoadingChanged(isLoading: Boolean) {
+        PandaLog.d(PandaLog.Tag.PLAYER) {
+            "loading loading=$isLoading instance=${playbackInstanceIdProvider()}"
         }
     }
 
     override fun onIsPlayingChanged(isPlaying: Boolean) {
         if (this.isPlaying == isPlaying) return
         this.isPlaying = isPlaying
+        PandaLog.d(PandaLog.Tag.PLAYER) {
+            "is_playing playing=$isPlaying instance=${playbackInstanceIdProvider()}"
+        }
         cancelScheduledCheckpoint()
         if (isPlaying) {
+            if (!hasLoggedFirstAudio) {
+                hasLoggedFirstAudio = true
+                val instanceId = playbackInstanceIdProvider()
+                val positionMillis = playbackMetricsProvider.currentMetrics()?.positionMillis
+                PandaLog.i(PandaLog.Tag.PLAYER) {
+                    "first_audio instance=$instanceId position_ms=$positionMillis"
+                }
+                telemetryLogger.info(
+                    name = Media3PlaybackTelemetryEvents.FIRST_AUDIO,
+                    attributes = buildMap {
+                        instanceId?.let { id ->
+                            put(Media3PlaybackTelemetryAttributes.PLAYBACK_INSTANCE_ID, id.toString())
+                        }
+                        positionMillis?.let { position ->
+                            put(Media3PlaybackTelemetryAttributes.POSITION_MILLIS, position.toString())
+                        }
+                    },
+                )
+            }
             scheduleNextCheckpoint()
         } else {
+            val snapshot = playerSnapshotProvider()
+            // A seek reports isPlaying=false while playWhenReady stays true.
+            // Checkpointing the pre-seek sample rewinds engine/UI progress.
+            if (snapshot?.playWhenReady == true) {
+                PandaLog.w(PandaLog.Tag.PLAYER) {
+                    "skipped_checkpoint reason=seek_in_progress instance=${playbackInstanceIdProvider()}"
+                }
+                telemetryLogger.debug(
+                    name = Media3PlaybackTelemetryEvents.POSITION_CHECKPOINT_SKIPPED,
+                    attributes = mapOf(
+                        Media3PlaybackTelemetryAttributes.TRIGGER to PlaybackCheckpointTriggers.PAUSED,
+                        Media3PlaybackTelemetryAttributes.REASON to Media3PlaybackTelemetryValues.SEEK_IN_PROGRESS,
+                    ),
+                )
+                return
+            }
             reportPlaybackPositionCheckpoint(PlaybackCheckpointTriggers.PAUSED)
         }
     }
@@ -181,22 +251,28 @@ class Media3PlaybackEngineBridge(
     }
 
     private fun reportPlaybackPositionCheckpoint(trigger: String) {
-        val positionMillis = playbackMetricsProvider.currentMetrics()
-            ?.positionMillis
-            ?.takeIf { it >= 0L }
-            ?: return
+        val metrics = playbackMetricsProvider.currentMetrics() ?: return
+        val positionMillis = metrics.positionMillis.takeIf { it >= 0L } ?: return
         val playbackInstanceId = playbackInstanceIdProvider() ?: return
+        val durationMillis = metrics.durationMillis.takeIf { it > 0L }
         telemetryLogger.debug(
             name = Media3PlaybackTelemetryEvents.POSITION_CHECKPOINT_DISPATCHED,
-            attributes = mapOf(
-                Media3PlaybackTelemetryAttributes.PLAYBACK_INSTANCE_ID to playbackInstanceId.toString(),
-                Media3PlaybackTelemetryAttributes.POSITION_MILLIS to positionMillis.toString(),
-                Media3PlaybackTelemetryAttributes.TRIGGER to trigger,
-            ),
+            attributes = buildMap {
+                put(Media3PlaybackTelemetryAttributes.PLAYBACK_INSTANCE_ID, playbackInstanceId.toString())
+                put(Media3PlaybackTelemetryAttributes.POSITION_MILLIS, positionMillis.toString())
+                put(Media3PlaybackTelemetryAttributes.TRIGGER, trigger)
+                durationMillis?.let { duration ->
+                    put(Media3PlaybackTelemetryAttributes.DURATION_MILLIS, duration.toString())
+                }
+            },
         )
         dispatchPlatformEvent(
             EnginePlatformEvent.TYPE_PLAYBACK_POSITION_CHECKPOINT,
-            EngineCommandPayloads.playbackPositionCheckpoint(playbackInstanceId, positionMillis),
+            EngineCommandPayloads.playbackPositionCheckpoint(
+                playbackInstanceId = playbackInstanceId,
+                positionMillis = positionMillis,
+                durationMillis = durationMillis
+            ),
         )
     }
 
@@ -229,6 +305,17 @@ class Media3PlaybackEngineBridge(
     override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
         val playbackInstanceId = playbackInstanceIdProvider() ?: return
         val failureKind = error.toEngineFailureKind()
+        PandaLog.e(PandaLog.Tag.PLAYER, error) {
+            "player_error instance=$playbackInstanceId kind=$failureKind code=${error.errorCode}"
+        }
+        telemetryLogger.warning(
+            name = Media3PlaybackTelemetryEvents.PLAYER_ERROR,
+            attributes = mapOf(
+                Media3PlaybackTelemetryAttributes.PLAYBACK_INSTANCE_ID to playbackInstanceId.toString(),
+                Media3PlaybackTelemetryAttributes.REASON to failureKind,
+                Media3PlaybackTelemetryAttributes.PLAYER_COMMAND to error.errorCode.toString(),
+            ),
+        )
         dispatchPlatformEvent(
             EnginePlatformEvent.TYPE_MEDIA_ERROR,
             if (failureKind == "decoder_failed") {
@@ -270,6 +357,7 @@ class Media3PlaybackEngineBridge(
 
     fun dispatchSeek(positionMillis: Long): Boolean {
         val intent = PlaybackEngineCommandMapper.fromSeekPosition(positionMillis)
+        PandaLog.i(PandaLog.Tag.PLAYER) { "seek_requested position_ms=${intent.positionMillis}" }
         telemetryLogger.debug(
             name = Media3PlaybackTelemetryEvents.PLAYER_COMMAND_DISPATCHED,
             attributes = mapOf(
@@ -339,6 +427,7 @@ class Media3PlaybackEngineBridge(
         }
 
         val intent = BambooPlaybackIntent.PlayMedia(mediaId = normalizedMediaId)
+        PandaLog.i(PandaLog.Tag.MEDIA) { "play_requested source=catalog trackId=$normalizedMediaId" }
         telemetryLogger.debug(
             name = Media3PlaybackTelemetryEvents.CATALOG_COMMAND_DISPATCHED,
             attributes = mapOf(
@@ -352,6 +441,8 @@ class Media3PlaybackEngineBridge(
 
     override fun close() {
         isPlaying = false
+        hasLoggedFirstAudio = false
+        lastMediaLoadedInstanceId = null
         cancelScheduledCheckpoint()
         effectSubscription?.close()
         effectSubscription = null
@@ -365,7 +456,11 @@ data class Media3PlayerSnapshot(
 )
 
 private fun androidx.media3.common.PlaybackException.toEngineFailureKind(): String = when (errorCode) {
-    androidx.media3.common.PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS -> "source_rejected"
+    androidx.media3.common.PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS,
+    androidx.media3.common.PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND -> "source_rejected"
+    androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
+    androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
+    androidx.media3.common.PlaybackException.ERROR_CODE_IO_UNSPECIFIED -> "network"
     androidx.media3.common.PlaybackException.ERROR_CODE_DECODER_INIT_FAILED,
     androidx.media3.common.PlaybackException.ERROR_CODE_DECODING_FAILED -> "decoder_failed"
     else -> "unknown"
@@ -394,6 +489,9 @@ internal object Media3PlaybackTelemetryEvents {
     const val PLAYBACK_COMPLETION_DISPATCHED = "media3.playback.completion.dispatched"
     const val CATALOG_COMMAND_DISPATCHED = "media3.catalog.command.dispatched"
     const val POSITION_CHECKPOINT_DISPATCHED = "media3.playback.position_checkpoint.dispatched"
+    const val POSITION_CHECKPOINT_SKIPPED = "media3.playback.position_checkpoint.skipped"
+    const val PLAYER_ERROR = "media3.player.error"
+    const val FIRST_AUDIO = "media3.playback.first_audio"
 }
 
 internal object Media3PlaybackTelemetryAttributes {
@@ -416,6 +514,7 @@ internal object Media3PlaybackTelemetryAttributes {
 
 internal object Media3PlaybackTelemetryValues {
     const val PLATFORM_PROJECTION = "platform_projection"
+    const val SEEK_IN_PROGRESS = "seek_in_progress"
 }
 
 private object PlaybackCheckpointTriggers {
@@ -426,3 +525,11 @@ private object PlaybackCheckpointTriggers {
 private const val MIN_VOLUME = 0F
 private const val MAX_VOLUME = 1F
 private const val DEFAULT_CHECKPOINT_INTERVAL_MILLIS = 10_000L
+
+private fun playbackStateName(playbackState: Int): String = when (playbackState) {
+    Player.STATE_IDLE -> "idle"
+    Player.STATE_BUFFERING -> "buffering"
+    Player.STATE_READY -> "ready"
+    Player.STATE_ENDED -> "ended"
+    else -> playbackState.toString()
+}

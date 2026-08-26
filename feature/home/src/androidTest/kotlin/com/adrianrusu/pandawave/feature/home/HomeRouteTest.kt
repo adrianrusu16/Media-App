@@ -23,7 +23,7 @@ class HomeRouteTest {
                     state = HomeState(
                         forYou = listOf(HomeTrack("track-1", "Song", "Artist", "Album")),
                     ),
-                    onPlay = { actions += "play:$it" },
+                    onPlay = { id, _, _ -> actions += "play:$id" },
                     onOpenNowPlaying = { actions += "open-now-playing" },
                 )
             }

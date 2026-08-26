@@ -33,15 +33,11 @@ pub unsafe extern "C" fn panda_engine_get_config(engine: *const PandaEngine) -> 
         Some(engine) => {
             let config = engine.engine.config();
             FfiEngineConfig {
-                vehicle_name: CString::new(config.vehicle_name.clone())
-                    .unwrap()
-                    .into_raw(),
+                vehicle_name: ffi_string(config.vehicle_name.clone()),
                 hifi_enabled: config.hifi_enabled,
                 max_volume: config.max_volume,
                 auto_resume: config.auto_resume,
-                preferred_language: CString::new(config.preferred_language.clone())
-                    .unwrap()
-                    .into_raw(),
+                preferred_language: ffi_string(config.preferred_language.clone()),
             }
         }
         None => FfiEngineConfig {
@@ -163,7 +159,7 @@ pub unsafe extern "C" fn panda_engine_get_current_user_id(
     if let Some(engine) = engine {
         let snapshot = engine.engine.snapshot();
         if let Some(session) = &snapshot.session {
-            return CString::new(session.user_id.as_str()).unwrap().into_raw();
+            return ffi_string(session.user_id.as_str());
         }
     }
     ptr::null()
@@ -322,7 +318,7 @@ pub unsafe extern "C" fn panda_engine_get_effect_media_id(
                 _ => None,
             };
             if let Some(media_id) = media_id {
-                return CString::new(media_id.as_str()).unwrap().into_raw();
+                return ffi_string(media_id.as_str());
             }
         }
     }
@@ -341,10 +337,11 @@ pub unsafe extern "C" fn panda_engine_get_effect_position_millis(
     if let Some(engine) = engine {
         let effects = engine.last_effects.lock().unwrap();
         match effects.get(index) {
-            Some(EngineEffect::Seek(position_millis)) => {
-                return (*position_millis).try_into().unwrap_or(i64::MAX);
-            }
-            Some(EngineEffect::RecreatePlayerAndLoad {
+            Some(EngineEffect::Seek(position_millis))
+            | Some(EngineEffect::PreparePlaybackSource {
+                position_millis, ..
+            })
+            | Some(EngineEffect::RecreatePlayerAndLoad {
                 position_millis, ..
             }) => {
                 return (*position_millis).try_into().unwrap_or(i64::MAX);
@@ -356,6 +353,9 @@ pub unsafe extern "C" fn panda_engine_get_effect_position_millis(
 }
 
 #[unsafe(no_mangle)]
+/// # Safety
+/// - `engine` must be a valid pointer created by `panda_engine_create` and not yet destroyed.
+/// - The caller must ensure no concurrent mutable access while this function reads engine state.
 pub unsafe extern "C" fn panda_engine_get_effect_playback_instance_id(
     engine: *const PandaEngine,
     index: usize,
@@ -411,7 +411,7 @@ pub unsafe extern "C" fn panda_engine_get_effect_notify_message(
     if let Some(engine) = engine {
         let effects = engine.last_effects.lock().unwrap();
         if let Some(EngineEffect::NotifyUser { message }) = effects.get(index) {
-            return CString::new(message.as_str()).unwrap().into_raw();
+            return ffi_string(message.as_str());
         }
     }
     ptr::null()
@@ -429,7 +429,7 @@ pub unsafe extern "C" fn panda_engine_get_voice_hypothesis(
     if let Some(engine) = engine {
         let snapshot = engine.engine.snapshot();
         if let Some(hypothesis) = &snapshot.voice_hypothesis {
-            return CString::new(hypothesis.as_str()).unwrap().into_raw();
+            return ffi_string(hypothesis.as_str()) as *mut c_char;
         }
     }
     ptr::null_mut()
@@ -448,7 +448,7 @@ pub unsafe extern "C" fn panda_engine_get_search_result_id(
     if let Some(engine) = engine {
         let snapshot = engine.engine.snapshot();
         if let Some(item) = snapshot.search_results.get(index) {
-            return CString::new(item.id.clone()).unwrap().into_raw();
+            return ffi_string(item.id.clone());
         }
     }
     ptr::null()
@@ -557,7 +557,7 @@ pub unsafe extern "C" fn panda_engine_get_browse_result_id(
     if let Some(engine) = engine {
         let snapshot = engine.engine.snapshot();
         if let Some(item) = snapshot.browse_results.get(index) {
-            return CString::new(item.id.clone()).unwrap().into_raw();
+            return ffi_string(item.id.clone());
         }
     }
     ptr::null()
@@ -786,7 +786,7 @@ pub unsafe extern "C" fn panda_engine_get_last_error_message(
     let engine = unsafe { &*engine };
     let snapshot = engine.engine.snapshot();
     if let Some(error) = &snapshot.last_error {
-        CString::new(error.message.clone()).unwrap().into_raw()
+        ffi_string(error.message.clone())
     } else {
         ptr::null()
     }
@@ -819,10 +819,18 @@ pub unsafe extern "C" fn panda_engine_get_last_event_message(
         if let Some(event) = &*event
             && let Some(msg) = &event.message
         {
-            return CString::new(msg.as_str()).unwrap().into_raw();
+            return ffi_string(msg.as_str());
         }
     }
     ptr::null()
+}
+
+/// Returns null when `value` contains an interior NUL rather than panicking:
+/// unwinding out of an `extern "C"` export aborts the process, and these strings
+/// carry backend-supplied data. Callers already treat null as "no value" and
+/// release non-null pointers with `panda_engine_free_string`.
+fn ffi_string(value: impl Into<Vec<u8>>) -> *const c_char {
+    CString::new(value).map_or(ptr::null(), |value| value.into_raw() as *const c_char)
 }
 
 fn current_snapshot_string(
@@ -833,7 +841,7 @@ fn current_snapshot_string(
     if let Some(engine) = engine {
         let snapshot = engine.engine.snapshot();
         if let Some(value) = value(&snapshot) {
-            return CString::new(value.as_str()).unwrap().into_raw();
+            return ffi_string(value.as_str());
         }
     }
     ptr::null()
@@ -849,9 +857,7 @@ fn backend_status_string(
         if let Some(status) = snapshot.backend_status.as_ref()
             && let Some(value) = value(status)
         {
-            return CString::new(value)
-                .map(|value| value.into_raw() as *const c_char)
-                .unwrap_or(ptr::null());
+            return ffi_string(value);
         }
     }
     ptr::null()
@@ -871,9 +877,7 @@ fn backend_dependency_string(
             .and_then(|status| status.dependencies.get(index))
             && let Some(value) = value(dependency)
         {
-            return CString::new(value)
-                .map(|value| value.into_raw() as *const c_char)
-                .unwrap_or(ptr::null());
+            return ffi_string(value);
         }
     }
     ptr::null()
@@ -890,7 +894,7 @@ fn search_result_string(
         if let Some(item) = snapshot.search_results.get(index)
             && let Some(value) = value(item)
         {
-            return CString::new(value.as_str()).unwrap().into_raw();
+            return ffi_string(value.as_str());
         }
     }
     ptr::null()
@@ -907,7 +911,7 @@ fn browse_result_string(
         if let Some(item) = snapshot.browse_results.get(index)
             && let Some(value) = value(item)
         {
-            return CString::new(value.as_str()).unwrap().into_raw();
+            return ffi_string(value.as_str());
         }
     }
     ptr::null()
@@ -924,7 +928,7 @@ fn discovery_result_string(
         if let Some(item) = snapshot.discovery_results.get(index)
             && let Some(value) = value(item)
         {
-            return CString::new(value.as_str()).unwrap().into_raw();
+            return ffi_string(value.as_str());
         }
     }
     ptr::null()

@@ -1,5 +1,6 @@
 package com.adrianrusu.pandawave.feature.profile.data
 
+import com.adrianrusu.pandawave.core.common.log.PandaLog
 import com.adrianrusu.pandawave.core.model.theme.PandaWaveThemePreference
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthState
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
@@ -11,15 +12,25 @@ import com.adrianrusu.pandawave.feature.profile.domain.ProfileDetails
 import com.adrianrusu.pandawave.feature.profile.domain.AccountSessionsState
 import com.adrianrusu.pandawave.feature.profile.domain.ProfileRepository
 import com.adrianrusu.pandawave.feature.profile.domain.ProfileState
+import java.util.concurrent.Executor
+import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-class PandaEngineProfileRepository @Inject constructor(
-    private val engineGateway: EngineGateway
+class PandaEngineProfileRepository(
+    private val engineGateway: EngineGateway,
+    private val hydrateExecutor: Executor,
 ) : ProfileRepository {
+    @Inject
+    constructor(engineGateway: EngineGateway) : this(
+        engineGateway,
+        Executors.newSingleThreadExecutor { runnable ->
+            Thread(runnable, "pw-account-hydrate").apply { isDaemon = true }
+        }
+    )
     private val mutableState = MutableStateFlow<ProfileState>(ProfileState.Loading)
     override val state: StateFlow<ProfileState> = mutableState.asStateFlow()
     private val mutableAccountSessionsState = MutableStateFlow<AccountSessionsState>(AccountSessionsState.Loading)
@@ -173,9 +184,16 @@ class PandaEngineProfileRepository @Inject constructor(
         }
         project(snapshot)
         if (!identityChanged) return
-        dispatch(EngineCommand(EngineCommand.TYPE_GET_PROFILE, null))
-        dispatch(EngineCommand(EngineCommand.TYPE_LOAD_PROFILE_PREFERENCES, null))
-        refreshAccountSessions()
+        hydrateExecutor.execute {
+            if (!started.get()) return@execute
+            val startedAt = System.currentTimeMillis()
+            dispatch(EngineCommand(EngineCommand.TYPE_GET_PROFILE, null))
+            dispatch(EngineCommand(EngineCommand.TYPE_LOAD_PROFILE_PREFERENCES, null))
+            refreshAccountSessions()
+            PandaLog.i(PandaLog.Tag.ACCOUNT) {
+                "account.hydrate elapsedMs=${System.currentTimeMillis() - startedAt}"
+            }
+        }
     }
 
     private fun projectAccountSessions(

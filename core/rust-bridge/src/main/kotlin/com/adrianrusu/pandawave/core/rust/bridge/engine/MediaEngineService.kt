@@ -7,6 +7,7 @@ import android.net.Network
 import android.content.pm.ApplicationInfo
 import android.os.IBinder
 import android.os.RemoteCallbackList
+import com.adrianrusu.pandawave.core.common.log.PandaLog
 import com.adrianrusu.pandawave.core.common.trace.PandaTrace
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthOperationResult
@@ -82,7 +83,7 @@ class MediaEngineService : Service() {
         ): EngineAuthOperationResult = withSecret(verificationToken) {
             engine?.verifyEmail(verificationToken, deviceLabel)
                 ?: EngineAuthOperationResult.unavailable()
-        }.also { notifySnapshotChanged(engine?.snapshot() ?: unavailableSnapshot) }
+        }.also { result -> notifyAuthSnapshot("verifyEmail", result) }
 
         override fun loginPassword(
             email: String,
@@ -91,11 +92,11 @@ class MediaEngineService : Service() {
         ): EngineAuthOperationResult = withSecret(password) {
             engine?.loginPassword(email, password, deviceLabel)
                 ?: EngineAuthOperationResult.unavailable()
-        }.also { notifySnapshotChanged(engine?.snapshot() ?: unavailableSnapshot) }
+        }.also { result -> notifyAuthSnapshot("loginPassword", result) }
 
         override fun logout(): EngineAuthOperationResult =
             (engine?.logout() ?: EngineAuthOperationResult.unavailable())
-                .also { notifySnapshotChanged(engine?.snapshot() ?: unavailableSnapshot) }
+                .also { result -> notifyAuthSnapshot("logout", result) }
 
         override fun getSnapshot(): EngineSnapshot = PandaTrace.section("PW.Engine.Service.snapshot") {
             engine?.snapshot() ?: unavailableSnapshot
@@ -193,6 +194,14 @@ class MediaEngineService : Service() {
         (engine as? AutoCloseable)?.close()
         engine = null
         super.onDestroy()
+    }
+
+    private fun notifyAuthSnapshot(operation: String, result: EngineAuthOperationResult) {
+        val snapshot = engine?.snapshot() ?: unavailableSnapshot
+        PandaLog.i(PandaLog.Tag.AUTH) {
+            "$operation status=${result.status} snapshotAuth=${snapshot.authState.state}"
+        }
+        notifySnapshotChanged(snapshot)
     }
 
     private fun notifySnapshotChanged(snapshot: EngineSnapshot) {

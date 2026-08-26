@@ -16,6 +16,7 @@ import com.adrianrusu.pandawave.core.rust.bridge.engine.EngineDispatchResult
 import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineGateway
 import com.adrianrusu.pandawave.feature.profile.domain.ProfileState
 import com.adrianrusu.pandawave.feature.profile.domain.AccountSessionsState
+import java.util.concurrent.Executor
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -26,7 +27,7 @@ class PandaEngineProfileRepositoryTest {
     @Test
     fun `authenticated start fetches profile and preferences through engine commands`() {
         val engine = RecordingEngineGateway(authenticatedSnapshot())
-        val repository = PandaEngineProfileRepository(engine)
+        val repository = PandaEngineProfileRepository(engine, Executor { it.run() })
 
         repository.start()
 
@@ -44,7 +45,7 @@ class PandaEngineProfileRepositoryTest {
     @Test
     fun `authenticated transition hydrates account and sessions once per exact identity`() {
         val engine = RecordingEngineGateway(EngineSnapshot.idle(1L))
-        val repository = PandaEngineProfileRepository(engine)
+        val repository = PandaEngineProfileRepository(engine, Executor { it.run() })
         repository.start()
 
         engine.emit(authenticatedSnapshot())
@@ -62,7 +63,7 @@ class PandaEngineProfileRepositoryTest {
             deviceSessionsCount = 1,
             hasDeviceSessionsNextPage = true
         )
-        val repository = PandaEngineProfileRepository(RecordingEngineGateway(snapshot))
+        val repository = PandaEngineProfileRepository(RecordingEngineGateway(snapshot), Executor { it.run() })
 
         repository.start()
 
@@ -80,7 +81,7 @@ class PandaEngineProfileRepositoryTest {
             deviceSessionsCount = 1
         )
         val engine = RecordingEngineGateway(initial)
-        val repository = PandaEngineProfileRepository(engine)
+        val repository = PandaEngineProfileRepository(engine, Executor { it.run() })
         repository.start()
         engine.commands.clear()
 
@@ -101,7 +102,7 @@ class PandaEngineProfileRepositoryTest {
         val engine = RecordingEngineGateway(
             authenticatedSnapshot().copy(protectedAccount = account(), deviceSessions = listOf(session()))
         )
-        val repository = PandaEngineProfileRepository(engine)
+        val repository = PandaEngineProfileRepository(engine, Executor { it.run() })
         repository.start()
 
         engine.emit(authenticatedSnapshot(current = false))
@@ -119,7 +120,7 @@ class PandaEngineProfileRepositoryTest {
                 errorType = EngineSnapshot.ERROR_NETWORK
             )
         )
-        val repository = PandaEngineProfileRepository(engine)
+        val repository = PandaEngineProfileRepository(engine, Executor { it.run() })
 
         repository.start()
 
@@ -134,7 +135,7 @@ class PandaEngineProfileRepositoryTest {
             authenticatedSnapshot().copy(protectedAccount = account(), deviceSessions = listOf(session())),
             dispatchEventType = EngineEvent.TYPE_GATEWAY_UNAVAILABLE
         )
-        val repository = PandaEngineProfileRepository(engine)
+        val repository = PandaEngineProfileRepository(engine, Executor { it.run() })
         repository.start()
 
         repository.revokeDeviceSession("session-other")
@@ -148,7 +149,7 @@ class PandaEngineProfileRepositoryTest {
     @Test
     fun `all profile mutations are reachable with typed credential free payloads`() {
         val engine = RecordingEngineGateway(authenticatedSnapshot())
-        val repository = PandaEngineProfileRepository(engine)
+        val repository = PandaEngineProfileRepository(engine, Executor { it.run() })
         repository.start()
         engine.commands.clear()
 
@@ -182,7 +183,7 @@ class PandaEngineProfileRepositoryTest {
         val engine = RecordingEngineGateway(
             authenticatedSnapshot().copy(profile = profile(displayName = null))
         )
-        val repository = PandaEngineProfileRepository(engine)
+        val repository = PandaEngineProfileRepository(engine, Executor { it.run() })
         repository.start()
 
         assertNull(assertIs<ProfileState.Ready>(repository.state.value).profile.displayName)
@@ -194,7 +195,10 @@ class PandaEngineProfileRepositoryTest {
 
     @Test
     fun `authenticated snapshot without a profile is an actionable missing state`() {
-        val repository = PandaEngineProfileRepository(RecordingEngineGateway(authenticatedSnapshot()))
+        val repository = PandaEngineProfileRepository(
+            RecordingEngineGateway(authenticatedSnapshot()),
+            Executor { it.run() }
+        )
 
         repository.start()
 
@@ -207,7 +211,7 @@ class PandaEngineProfileRepositoryTest {
             hasError = true,
             errorType = EngineSnapshot.ERROR_NOT_FOUND,
         )
-        val repository = PandaEngineProfileRepository(RecordingEngineGateway(snapshot))
+        val repository = PandaEngineProfileRepository(RecordingEngineGateway(snapshot), Executor { it.run() })
 
         repository.start()
 
@@ -219,7 +223,7 @@ class PandaEngineProfileRepositoryTest {
             initialSnapshot = authenticatedSnapshot().copy(profile = profile("Driver")),
             dispatchEventType = EngineEvent.TYPE_GATEWAY_UNAVAILABLE
         )
-        val repository = PandaEngineProfileRepository(engine)
+        val repository = PandaEngineProfileRepository(engine, Executor { it.run() })
         repository.start()
 
         repository.updateDisplayName("Passenger")

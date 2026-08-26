@@ -75,6 +75,7 @@ class PandaEngineNativeSnapshotMapperTest {
                 2L,
                 3L,
                 11L,
+                77L,
             )
         )
         val snapshot = projection.snapshot
@@ -144,6 +145,7 @@ class PandaEngineNativeSnapshotMapperTest {
         assertEquals(EngineBackendAvailability.UNAVAILABLE, snapshot.backendAvailability.status)
         assertEquals(EngineBackendAvailability.REASON_TIMEOUT, snapshot.backendAvailability.reason)
         assertEquals(11L, snapshot.historyGeneration)
+        assertEquals(77L, snapshot.lastProgressTickEpochMillis)
     }
 
     @Test
@@ -157,7 +159,7 @@ class PandaEngineNativeSnapshotMapperTest {
 
     @Test
     fun `available native backend projection is surfaced as available`() {
-        val nativeValues = LongArray(61)
+        val nativeValues = LongArray(62)
         nativeValues[58] = 1L
 
         val snapshot = PandaEngineNativeSnapshotMapper.toProjection(nativeValues).snapshot
@@ -168,7 +170,7 @@ class PandaEngineNativeSnapshotMapperTest {
 
     @Test
     fun `network outage native backend projection preserves its reason`() {
-        val nativeValues = LongArray(61)
+        val nativeValues = LongArray(62)
         nativeValues[58] = 2L
         nativeValues[59] = 1L
 

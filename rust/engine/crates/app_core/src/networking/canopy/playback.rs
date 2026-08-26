@@ -6,6 +6,7 @@ use tonic_014::transport::Channel;
 
 use crate::networking::PlaybackPort;
 use crate::{EngineError, EngineErrorType, EnginePlaybackSource};
+use tracing::info;
 
 use super::CanopyChannel;
 use super::operation::CanopyOperation;
@@ -56,6 +57,13 @@ impl PlaybackPort for CanopyPlaybackClient {
         )
         .await?
         .into_inner();
+        info!(
+            track_id,
+            stream_uri = source_uri_for_log(response.stream_url.as_str()),
+            content_type = response.content_type.as_str(),
+            duration_millis = response.duration_ms,
+            "canopy.playback.resolved"
+        );
         map_playback_source(response)
     }
 }
@@ -101,6 +109,10 @@ fn timestamp_to_epoch_millis(
 }
 
 const PROTOBUF_TIMESTAMP_MAX_SECONDS: i64 = 253_402_300_799;
+
+fn source_uri_for_log(uri: &str) -> &str {
+    uri.split('?').next().unwrap_or(uri)
+}
 
 fn mapping_defect() -> EngineError {
     EngineError::new(

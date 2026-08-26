@@ -8,6 +8,7 @@ import com.adrianrusu.pandawave.core.audio.visualizer.AmbientVisualizerAvailabil
 import com.adrianrusu.pandawave.core.audio.visualizer.AudioSessionRepository
 import com.adrianrusu.pandawave.core.audio.visualizer.VisualizerPermissionRepository
 import com.adrianrusu.pandawave.core.audio.visualizer.VisualizerPermissionState
+import com.adrianrusu.pandawave.core.common.log.PandaLog
 import com.adrianrusu.pandawave.core.playback.BambooEngineConnectionStatus
 import com.adrianrusu.pandawave.core.preferences.AmbientModePreferenceRepository
 import com.adrianrusu.pandawave.core.preferences.AmbientModePreferenceState
@@ -207,6 +208,34 @@ class NowPlayingViewModel @Inject constructor(
     }
 
     fun onIntent(intent: NowPlayingIntent) {
+        val current = state.value
+        val trackId = current.mediaId.orEmpty()
+        val title = PandaLog.field(current.title)
+        when (intent) {
+            NowPlayingIntent.TogglePlayback -> {
+                val action = if (current.isPlaying) "pause" else "play"
+                PandaLog.v(PandaLog.Tag.NPS) {
+                    "click action=$action trackId=$trackId title=$title"
+                }
+                PandaLog.i(PandaLog.Tag.NPS) {
+                    "${action}_requested trackId=$trackId title=$title"
+                }
+            }
+            NowPlayingIntent.SkipNext -> {
+                PandaLog.v(PandaLog.Tag.NPS) { "click action=skip_next trackId=$trackId title=$title" }
+                PandaLog.i(PandaLog.Tag.NPS) { "skip_next_requested trackId=$trackId title=$title" }
+            }
+            NowPlayingIntent.SkipPrevious -> {
+                PandaLog.v(PandaLog.Tag.NPS) { "click action=skip_previous trackId=$trackId title=$title" }
+                PandaLog.i(PandaLog.Tag.NPS) { "skip_previous_requested trackId=$trackId title=$title" }
+            }
+            is NowPlayingIntent.SetVolume -> {
+                PandaLog.v(PandaLog.Tag.NPS) { "click action=set_volume volume=${intent.volume}" }
+            }
+            NowPlayingIntent.Refresh -> {
+                PandaLog.d(PandaLog.Tag.NPS) { "refresh_requested trackId=$trackId" }
+            }
+        }
         interactionTracker.recordInteraction()
         dispatchIntent(intent)
     }

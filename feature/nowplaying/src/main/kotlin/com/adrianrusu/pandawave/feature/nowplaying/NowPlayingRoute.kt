@@ -48,6 +48,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.adrianrusu.pandawave.core.designsystem.R as DesignSystemR
+import com.adrianrusu.pandawave.core.common.log.PandaLog
 import com.adrianrusu.pandawave.core.designsystem.tokens.LocalPandaWaveDesignTokens
 import com.adrianrusu.pandawave.core.designsystem.tokens.cardResting
 import com.adrianrusu.pandawave.core.designsystem.tokens.iconMedium
@@ -99,6 +100,16 @@ fun NowPlayingRoute(
     val nowPlayingMode = ambientModeState.toNowPlayingMode()
     val ambientVisible = nowPlayingMode != NowPlayingMode.Interactive
     val lifecycleOwner = LocalLifecycleOwner.current
+
+    LaunchedEffect(Unit) {
+        PandaLog.i(PandaLog.Tag.NPS) { "now_playing_opened" }
+    }
+
+    LaunchedEffect(state.mediaId, state.title, state.isPlaying) {
+        PandaLog.d(PandaLog.Tag.NPS) {
+            "snapshot_apply trackId=${state.mediaId.orEmpty()} title=${PandaLog.field(state.title)} playing=${state.isPlaying}"
+        }
+    }
 
     LaunchedEffect(ambientVisible) {
         onAmbientVisibilityChanged(ambientVisible)

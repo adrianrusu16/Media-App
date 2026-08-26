@@ -1,5 +1,6 @@
 package com.adrianrusu.pandawave.feature.home.data
 
+import com.adrianrusu.pandawave.core.common.log.PandaLog
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthState
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
@@ -9,6 +10,7 @@ import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineGateway
 import com.adrianrusu.pandawave.feature.home.domain.HomeRepository
 import com.adrianrusu.pandawave.feature.home.domain.HomeState
 import com.adrianrusu.pandawave.feature.home.domain.HomeTrack
+import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +25,9 @@ class PandaEngineHomeRepository @Inject constructor(
     private val started = AtomicBoolean(false)
     private var subscription: AutoCloseable? = null
     private var loadedIdentity: String? = null
+    private val hydrateExecutor = Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "pw-home-hydrate").apply { isDaemon = true }
+    }
     private val forYouCache = ProjectionCache<HomeTrack>()
     private val recommendationsCache = ProjectionCache<HomeTrack>()
     private val discoveryCache = ProjectionCache<HomeTrack>()
@@ -85,7 +90,17 @@ class PandaEngineHomeRepository @Inject constructor(
         )
         if (loadedIdentity != identity) {
             loadedIdentity = identity
-            refresh()
+            // Off the snapshot callback thread so AUTHENTICATED UI (verify-email /
+            // finishing sign-in) can close without waiting for catalog hydration.
+            hydrateExecutor.execute {
+                if (!started.get()) return@execute
+                PandaLog.d(PandaLog.Tag.HOME) { "hydrate start identityChanged=true" }
+                val startedAt = System.currentTimeMillis()
+                refresh()
+                PandaLog.i(PandaLog.Tag.HOME) {
+                    "home.hydrate elapsedMs=${System.currentTimeMillis() - startedAt}"
+                }
+            }
         }
     }
 
@@ -97,7 +112,9 @@ class PandaEngineHomeRepository @Inject constructor(
         discoveryCache.clear()
     }
 
-    private companion object { const val PAGE_SIZE = 20 }
+    private companion object {
+        const val PAGE_SIZE = 20
+    }
 }
 
 private class ProjectionCache<T> {

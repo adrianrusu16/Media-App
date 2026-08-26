@@ -64,6 +64,10 @@ impl Engine {
             };
         }
 
+        if event.event_type == EnginePlatformEventType::MediaLoaded {
+            self.pending_seek_target_millis = None;
+        }
+
         if event.event_type == EnginePlatformEventType::PlaybackPositionCheckpoint {
             let Some(observation) = observation.as_ref() else {
                 warn!("Ignoring malformed playback position checkpoint");
@@ -88,18 +92,58 @@ impl Engine {
                     effects: Vec::new(),
                 };
             };
-            let safe_position_millis = self
-                .snapshot
+            let reported_duration_millis = observation.duration_ms.filter(|duration| *duration > 0);
+            let mut next_snapshot = self.snapshot.clone();
+            if let Some(duration_millis) = reported_duration_millis {
+                next_snapshot = next_snapshot.with_duration(Some(duration_millis));
+            }
+            // Clamp to the decoder duration when known. Do not clamp to catalog
+            // ingest length: a shorter catalog label makes the UI hit 100% while
+            // the player is still in the middle of the file.
+            let safe_position_millis = next_snapshot
                 .duration_millis
                 .map_or(position_millis, |duration| position_millis.min(duration));
-            self.snapshot = self
-                .snapshot
-                .clone()
+            if let Some(target) = self.pending_seek_target_millis {
+                const SEEK_SETTLE_TOLERANCE_MILLIS: u64 = 1_500;
+                if safe_position_millis.abs_diff(target) > SEEK_SETTLE_TOLERANCE_MILLIS {
+                    debug!(
+                        playback_instance_id = observation.playback_instance_id,
+                        observed_position_millis = safe_position_millis,
+                        seek_target_millis = target,
+                        "Ignoring playback position checkpoint until seek settles"
+                    );
+                    return EngineOutcome {
+                        snapshot: self.snapshot.clone(),
+                        event: EngineEvent::platform_event_applied(Some(
+                            EnginePlatformEventType::PLAYBACK_POSITION_CHECKPOINT_WIRE.to_owned(),
+                        )),
+                        effects: Vec::new(),
+                    };
+                }
+                self.pending_seek_target_millis = None;
+            }
+            let previous_position_millis = self.snapshot.position_millis;
+            let previous_tick = self.snapshot.last_progress_tick_epoch_millis;
+            self.snapshot = next_snapshot
                 .with_position(safe_position_millis)
                 .with_progress_tick(now_epoch_millis);
+            let jump_millis = safe_position_millis.abs_diff(previous_position_millis);
+            let elapsed_millis = now_epoch_millis.saturating_sub(previous_tick);
+            if jump_millis > elapsed_millis.saturating_add(1_500) && jump_millis > 1_000 {
+                warn!(
+                    playback_instance_id = observation.playback_instance_id,
+                    previous_position_millis,
+                    position_millis = safe_position_millis,
+                    jump_millis,
+                    elapsed_millis,
+                    last_progress_tick_epoch_millis = now_epoch_millis,
+                    "engine.playback.position_jump"
+                );
+            }
             debug!(
                 playback_instance_id = observation.playback_instance_id,
                 position_millis = safe_position_millis,
+                last_progress_tick_epoch_millis = now_epoch_millis,
                 "Playback position checkpoint accepted"
             );
             return EngineOutcome {
@@ -208,6 +252,7 @@ impl Engine {
                 let replacement_instance_id = self.next_playback_instance_id;
                 self.current_playback_instance_id = Some(replacement_instance_id);
                 self.recovery.decoder_attempted_for = Some(replacement_instance_id);
+                self.pending_seek_target_millis = Some(self.snapshot.position_millis);
 
                 self.snapshot = self
                     .snapshot
@@ -469,6 +514,16 @@ impl Engine {
             next_snapshot = next_snapshot.with_progress_tick(now_epoch_millis);
         }
 
+        if event.event_type == EnginePlatformEventType::MediaLoaded {
+            if let Some(duration_millis) = observation
+                .as_ref()
+                .and_then(|value| value.duration_ms)
+                .filter(|duration| *duration > 0)
+            {
+                next_snapshot = next_snapshot.with_duration(Some(duration_millis));
+            }
+        }
+
         if next_playback_state == PlaybackState::Error {
             if let Some(payload) = &event.payload {
                 let error = serde_json::from_str::<EngineError>(payload)
@@ -489,7 +544,11 @@ impl Engine {
                     effects.push(EngineEffect::Pause);
                 }
                 PlaybackState::Playing => {
-                    effects.push(EngineEffect::Play);
+                    // Buffering already issued Play (playWhenReady). A second
+                    // Play on MediaLoaded restarts the decoder mid-buffer.
+                    if prev != PlaybackState::Buffering {
+                        effects.push(EngineEffect::Play);
+                    }
                 }
                 PlaybackState::Idle => {
                     effects.push(EngineEffect::Stop);

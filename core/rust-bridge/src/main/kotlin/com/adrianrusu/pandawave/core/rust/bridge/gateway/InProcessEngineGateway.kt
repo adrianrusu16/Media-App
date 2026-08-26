@@ -64,14 +64,15 @@ class InProcessEngineGateway(private val engine: RustEngine) :
     override fun verifyEmail(verificationToken: ByteArray, deviceLabel: String): EngineAuthOperationResult =
         withSecret(verificationToken) {
             engine.verifyEmail(verificationToken, deviceLabel)
-        }
+        }.also { notifySnapshotChanged(engine.snapshot()) }
 
     override fun loginPassword(email: String, password: ByteArray, deviceLabel: String): EngineAuthOperationResult =
         withSecret(password) {
             engine.loginPassword(email, password, deviceLabel)
-        }
+        }.also { notifySnapshotChanged(engine.snapshot()) }
 
-    override fun logout(): EngineAuthOperationResult = engine.logout()
+    override fun logout(): EngineAuthOperationResult =
+        engine.logout().also { notifySnapshotChanged(engine.snapshot()) }
 
     private inline fun withSecret(
         secret: ByteArray,

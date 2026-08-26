@@ -102,6 +102,8 @@ pub struct FfiEngineSnapshot {
     pub backend_unavailable_reason: i32,
     /// Appended history invalidation generation preserves existing C offsets.
     pub history_generation: u64,
+    /// Dedicated playback interpolation clock. Appended to preserve existing offsets.
+    pub last_progress_tick_epoch_millis: u64,
 }
 
 /// C-compatible representation of the engine outcome.
@@ -142,6 +144,7 @@ impl FfiEngineSnapshot {
             backend_availability: crate::FFI_BACKEND_CONNECTING,
             backend_unavailable_reason: crate::FFI_BACKEND_REASON_NONE,
             history_generation: 0,
+            last_progress_tick_epoch_millis: 0,
             playback_state: FFI_COMMAND_UNKNOWN,
             restriction_state: FFI_COMMAND_UNKNOWN,
             updated_at_epoch_millis: 0,
@@ -254,6 +257,7 @@ impl From<&EngineSnapshot> for FfiEngineSnapshot {
                 _ => crate::FFI_BACKEND_REASON_NONE,
             },
             history_generation: snapshot.history_state.generation,
+            last_progress_tick_epoch_millis: snapshot.last_progress_tick_epoch_millis,
             playback_state: playback_to_ffi(snapshot.playback_state),
             restriction_state: restriction_to_ffi(snapshot.restriction_state),
             updated_at_epoch_millis: snapshot.updated_at_epoch_millis,

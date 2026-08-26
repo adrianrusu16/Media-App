@@ -89,7 +89,7 @@ class Media3PlayerStateSinkTest {
     }
 
     @Test
-    fun `position projection seeks when the projected playback position changes`() {
+    fun `position projection does not seek the player`() {
         val mediaItem = mediaItem()
         val player = RecordingProjectionPlayer(
             currentMediaItem = mediaItem,
@@ -110,7 +110,7 @@ class Media3PlayerStateSinkTest {
 
         sink.project(initialProjection.copy(positionMillis = 12_345L))
 
-        assertEquals(listOf("seekTo:12345"), player.calls)
+        assertEquals(emptyList<String>(), player.calls)
     }
 }
 

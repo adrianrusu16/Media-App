@@ -11,11 +11,18 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
 
 object EngineCommandPayloads {
-    fun playbackPositionCheckpoint(playbackInstanceId: Long, positionMillis: Long): String =
+    fun playbackPositionCheckpoint(
+        playbackInstanceId: Long,
+        positionMillis: Long,
+        durationMillis: Long? = null
+    ): String =
         buildJsonObject {
             put(KEY_VERSION, PAYLOAD_VERSION)
             put("playback_instance_id", playbackInstanceId)
             put("position_ms", positionMillis.coerceAtLeast(MIN_POSITION_MILLIS))
+            durationMillis?.takeIf { duration -> duration > 0L }?.let { duration ->
+                put(KEY_DURATION_MILLIS, duration)
+            }
         }.toString()
 
     fun audioFocusChanged(focusChange: String): String = buildJsonObject {
@@ -29,10 +36,17 @@ object EngineCommandPayloads {
         playbackInstanceId?.let { put("playback_instance_id", it) }
     }.toString()
 
-    fun playbackObservation(playbackInstanceId: Long, kind: String? = null): String = buildJsonObject {
+    fun playbackObservation(
+        playbackInstanceId: Long,
+        kind: String? = null,
+        durationMillis: Long? = null
+    ): String = buildJsonObject {
         put(KEY_VERSION, PAYLOAD_VERSION)
         put("playback_instance_id", playbackInstanceId)
         kind?.let { put("kind", it) }
+        durationMillis?.takeIf { duration -> duration > 0L }?.let { duration ->
+            put(KEY_DURATION_MILLIS, duration)
+        }
     }.toString()
 
     fun decoderFailed(

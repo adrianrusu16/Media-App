@@ -1,8 +1,10 @@
 package com.adrianrusu.pandawave.core.rust.bridge.gateway
 
 import android.os.RemoteException
+import com.adrianrusu.pandawave.core.common.log.PandaLog
 import com.adrianrusu.pandawave.core.common.trace.PandaTrace
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthOperationResult
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthState
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
@@ -144,12 +146,34 @@ class AidlEngineGateway(
 
     override fun verifyEmail(verificationToken: ByteArray, deviceLabel: String): EngineAuthOperationResult =
         withSecret(verificationToken) {
-            withRemoteService(null) { it.verifyEmail(verificationToken, deviceLabel) }
+            val startedAt = clock()
+            val result = withRemoteService(null) { it.verifyEmail(verificationToken, deviceLabel) }
+            val snapshotAuth = synchronized(stateLock) { latestSnapshot?.authState?.state } ?: "unknown"
+            telemetryLogger?.info(
+                name = EVENT_ENGINE_AUTH_VERIFY,
+                attributes = mapOf(
+                    ATTRIBUTE_STATUS to (result?.status ?: STATUS_UNAVAILABLE),
+                    ATTRIBUTE_ELAPSED_MS to (clock() - startedAt).toString(),
+                    ATTRIBUTE_SNAPSHOT_AUTH to snapshotAuth
+                )
+            )
+            result
         }
 
     override fun loginPassword(email: String, password: ByteArray, deviceLabel: String): EngineAuthOperationResult =
         withSecret(password) {
-            withRemoteService(null) { it.loginPassword(email, password, deviceLabel) }
+            val startedAt = clock()
+            val result = withRemoteService(null) { it.loginPassword(email, password, deviceLabel) }
+            val snapshotAuth = synchronized(stateLock) { latestSnapshot?.authState?.state } ?: "unknown"
+            telemetryLogger?.info(
+                name = EVENT_ENGINE_AUTH_LOGIN,
+                attributes = mapOf(
+                    ATTRIBUTE_STATUS to (result?.status ?: STATUS_UNAVAILABLE),
+                    ATTRIBUTE_ELAPSED_MS to (clock() - startedAt).toString(),
+                    ATTRIBUTE_SNAPSHOT_AUTH to snapshotAuth
+                )
+            )
+            result
         }
 
     override fun logout(): EngineAuthOperationResult = if (closed()) {
@@ -333,7 +357,18 @@ class AidlEngineGateway(
         val callbacks = synchronized(stateLock) { listeners.toList() }
         if (callbacks.isNotEmpty()) callbackExecutor.execute {
             PandaTrace.section("PW.Engine.Gateway.snapshotCallback") {
+                val startedAt = clock()
                 if (!closed()) callbacks.forEach { listener -> listener(snapshot) }
+                val elapsedMs = clock() - startedAt
+                if (
+                    elapsedMs >= SNAPSHOT_FANOUT_LOG_THRESHOLD_MS ||
+                    snapshot.authState.state == EngineAuthState.AUTHENTICATED
+                ) {
+                    PandaLog.i(PandaLog.Tag.AUTH) {
+                        "snapshot.fanout listeners=${callbacks.size} elapsedMs=$elapsedMs " +
+                            "auth=${snapshot.authState.state}"
+                    }
+                }
             }
         }
     }
@@ -543,12 +578,17 @@ class AidlEngineGateway(
         const val EVENT_ENGINE_GATEWAY_COMMAND = "engine_gateway.command"
         const val EVENT_ENGINE_GATEWAY_EVENT = "engine_gateway.event"
         const val EVENT_ENGINE_GATEWAY_PLATFORM_EVENT = "engine_gateway.platform_event"
+        const val EVENT_ENGINE_AUTH_LOGIN = "engine.auth.login_password"
+        const val EVENT_ENGINE_AUTH_VERIFY = "engine.auth.verify_email"
+        const val SNAPSHOT_FANOUT_LOG_THRESHOLD_MS = 50L
         const val ATTRIBUTE_COMMAND_TYPE = "command_type"
         const val ATTRIBUTE_EVENT_TYPE = "event_type"
         const val ATTRIBUTE_PLATFORM_EVENT_TYPE = "platform_event_type"
         const val ATTRIBUTE_MESSAGE_PRESENT = "message_present"
         const val ATTRIBUTE_PENDING_COUNT = "pending_count"
         const val ATTRIBUTE_STATUS = "status"
+        const val ATTRIBUTE_ELAPSED_MS = "elapsed_ms"
+        const val ATTRIBUTE_SNAPSHOT_AUTH = "snapshot_auth"
         const val STATUS_APPLIED = "applied"
         const val STATUS_QUEUED = "queued"
         const val STATUS_REPLAYED = "replayed"
