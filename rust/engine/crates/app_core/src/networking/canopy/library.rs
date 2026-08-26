@@ -27,7 +27,11 @@ pub struct CanopyLibraryClient {
 }
 
 impl CanopyLibraryClient {
-    pub fn new(channel: &CanopyChannel, session: Arc<SessionCoordinator>, media_origin: Url) -> Self {
+    pub fn new(
+        channel: &CanopyChannel,
+        session: Arc<SessionCoordinator>,
+        media_origin: Url,
+    ) -> Self {
         Self {
             client: LibraryServiceClient::new(channel.clone_inner()),
             session,

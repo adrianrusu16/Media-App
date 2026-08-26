@@ -167,10 +167,7 @@ fn map_page_token(page_info: Option<PageInfo>) -> Result<Option<EnginePageToken>
     }
 }
 
-fn map_track(
-    track: Track,
-    media_origin: Option<&Url>,
-) -> Result<EngineTrack, EngineError> {
+fn map_track(track: Track, media_origin: Option<&Url>) -> Result<EngineTrack, EngineError> {
     let summary = track
         .summary
         .ok_or_else(|| mapping_defect("catalog track missing summary"))?;

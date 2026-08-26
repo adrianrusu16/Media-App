@@ -309,7 +309,9 @@ impl Engine {
         if self.history_listen.recorded_instance_id == self.current_playback_instance_id
             && self.current_playback_instance_id.is_some()
         {
-            debug!("Skipping playback completion history record because this instance was already recorded");
+            debug!(
+                "Skipping playback completion history record because this instance was already recorded"
+            );
             return;
         }
         self.sync_history_listen_tracker(snapshot.updated_at_epoch_millis, snapshot.playback_state);
@@ -358,9 +360,7 @@ impl Engine {
             );
             return;
         }
-        snapshot.updated_at_epoch_millis = snapshot
-            .updated_at_epoch_millis
-            .max(now_epoch_millis);
+        snapshot.updated_at_epoch_millis = snapshot.updated_at_epoch_millis.max(now_epoch_millis);
         let Some(track_id) = snapshot.media_id.clone().filter(|id| !id.trim().is_empty()) else {
             warn!(
                 elapsed_millis,
@@ -387,20 +387,17 @@ impl Engine {
         } else {
             listened_millis as f32 / duration_millis as f32
         };
-        let record = match crate::EnginePlaybackRecord::new(
-            track_id,
-            listened_millis,
-            completion_ratio,
-        ) {
-            Ok(record) => record,
-            Err(error) => {
-                warn!(
-                    error_type = ?error.error_type,
-                    "Rejected auto-record history payload"
-                );
-                return;
-            }
-        };
+        let record =
+            match crate::EnginePlaybackRecord::new(track_id, listened_millis, completion_ratio) {
+                Ok(record) => record,
+                Err(error) => {
+                    warn!(
+                        error_type = ?error.error_type,
+                        "Rejected auto-record history payload"
+                    );
+                    return;
+                }
+            };
         self.history_listen.recorded_instance_id = self.current_playback_instance_id;
         self.record_history_listen(record, snapshot).await;
         if snapshot.last_error.is_some()
@@ -410,7 +407,11 @@ impl Engine {
         }
     }
 
-    fn sync_history_listen_tracker(&mut self, now_epoch_millis: u64, playback_state: PlaybackState) {
+    fn sync_history_listen_tracker(
+        &mut self,
+        now_epoch_millis: u64,
+        playback_state: PlaybackState,
+    ) {
         if self.history_listen.playback_instance_id != self.current_playback_instance_id {
             self.history_listen = HistoryListenTracker {
                 playback_instance_id: self.current_playback_instance_id,
@@ -505,7 +506,9 @@ impl Engine {
             Ok((identity, port)) => {
                 self.reconcile_anonymous_history(&identity, port.clone(), snapshot)
                     .await;
-                let result = port.record(&identity.history_identity(), record.clone()).await;
+                let result = port
+                    .record(&identity.history_identity(), record.clone())
+                    .await;
                 self.history_result_for_current_identity(snapshot, &identity, result)
             }
             Err(error) => Err(error),
@@ -609,7 +612,9 @@ impl Engine {
     ) {
         snapshot.history_state.generation = snapshot.history_state.generation.saturating_add(1);
         snapshot.history_state.refresh_state = crate::EngineHistoryRefreshState::Idle;
-        snapshot.history_entries.retain(|existing| existing.id != entry.id);
+        snapshot
+            .history_entries
+            .retain(|existing| existing.id != entry.id);
         let listened_millis = entry.duration_millis;
         snapshot.history_entries.insert(0, entry);
         while snapshot.history_entries.len() > MAX_HISTORY_PAGE_SIZE as usize {
@@ -654,11 +659,14 @@ impl Engine {
             }),
             duration_millis: snapshot.duration_millis.unwrap_or(record.duration_millis),
             explicit: false,
-            artwork: snapshot.thumbnail_url.clone().map(|uri| crate::EngineArtwork {
-                id: String::new(),
-                content_hash: String::new(),
-                uri: Some(uri),
-            }),
+            artwork: snapshot
+                .thumbnail_url
+                .clone()
+                .map(|uri| crate::EngineArtwork {
+                    id: String::new(),
+                    content_hash: String::new(),
+                    uri: Some(uri),
+                }),
             genres: Vec::new(),
         }
     }

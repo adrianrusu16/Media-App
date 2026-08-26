@@ -61,9 +61,9 @@ impl Engine {
             previous_position_millis,
             start_position_millis,
             expires_at_epoch_millis = resolved.expires_at_epoch_millis,
-            remaining_ms = resolved.expires_at_epoch_millis.map(|expiry| {
-                expiry.saturating_sub(now_epoch_millis)
-            }),
+            remaining_ms = resolved
+                .expires_at_epoch_millis
+                .map(|expiry| { expiry.saturating_sub(now_epoch_millis) }),
             source_uri = source_uri_for_log(media.source_uri.as_deref()),
             "engine.playback.source_prepared"
         );

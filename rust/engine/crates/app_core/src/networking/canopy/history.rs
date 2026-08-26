@@ -28,7 +28,11 @@ pub struct CanopyHistoryClient {
 }
 
 impl CanopyHistoryClient {
-    pub fn new(channel: &CanopyChannel, session: Arc<SessionCoordinator>, media_origin: Url) -> Self {
+    pub fn new(
+        channel: &CanopyChannel,
+        session: Arc<SessionCoordinator>,
+        media_origin: Url,
+    ) -> Self {
         Self {
             client: HistoryServiceClient::new(channel.clone_inner()),
             session,
@@ -376,7 +380,9 @@ mod tests {
             track: Some(TrackSummary::default()),
         };
         assert_eq!(
-            map_history_entry(invalid_ratio, None).unwrap_err().error_type,
+            map_history_entry(invalid_ratio, None)
+                .unwrap_err()
+                .error_type,
             EngineErrorType::MappingDefect
         );
         assert!(

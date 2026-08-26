@@ -294,7 +294,8 @@ impl EngineActorState {
                     EngineOperationRequest::PlaybackResolution { .. } => "playback_resolution",
                 },
                 media_id = match &operation.request {
-                    EngineOperationRequest::PlaybackResolution { media_id } => Some(media_id.as_str()),
+                    EngineOperationRequest::PlaybackResolution { media_id } =>
+                        Some(media_id.as_str()),
                     _ => None,
                 },
                 "engine.operation.launch"

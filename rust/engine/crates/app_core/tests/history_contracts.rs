@@ -5,7 +5,7 @@ use panda_engine_core::{
     Account, AuthSession, AuthState, AuthStateProvider, Engine, EngineCommand, EngineHistoryEntry,
     EngineHistoryIdentity, EngineHistorySettings, EngineHistorySettingsUpdate, EnginePageRequest,
     EnginePageToken, EnginePagedResult, EnginePlatformEvent, EnginePlatformEventType,
-    EnginePlaybackRecord, EngineTrack, InMemoryRepository, MediaItem, PlaybackState, HistoryPort,
+    EnginePlaybackRecord, EngineTrack, HistoryPort, InMemoryRepository, MediaItem, PlaybackState,
     normalize_completion_ratio,
 };
 
@@ -561,10 +561,7 @@ async fn paused_listen_time_does_not_count_toward_history_auto_record() {
     );
 }
 
-fn playing_history_engine(
-    port: Arc<RecordingHistoryPort>,
-    auth: Arc<MutableAuth>,
-) -> Engine {
+fn playing_history_engine(port: Arc<RecordingHistoryPort>, auth: Arc<MutableAuth>) -> Engine {
     let mut engine = engine(port, auth);
     let items = vec![MediaItem {
         id: "track-1".into(),

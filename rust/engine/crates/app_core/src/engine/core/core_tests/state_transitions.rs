@@ -598,9 +598,7 @@ async fn decoder_duration_replaces_catalog_length_and_does_not_end_early() {
         .dispatch_platform_event(
             EnginePlatformEvent::new(
                 EnginePlatformEventType::MediaLoaded,
-                Some(
-                    r#"{"version":1,"playback_instance_id":1,"duration_ms":270000}"#.into(),
-                ),
+                Some(r#"{"version":1,"playback_instance_id":1,"duration_ms":270000}"#.into()),
             ),
             130,
         )

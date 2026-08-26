@@ -29,7 +29,11 @@ pub struct CanopyPlaylistClient {
 }
 
 impl CanopyPlaylistClient {
-    pub fn new(channel: &CanopyChannel, session: Arc<SessionCoordinator>, media_origin: Url) -> Self {
+    pub fn new(
+        channel: &CanopyChannel,
+        session: Arc<SessionCoordinator>,
+        media_origin: Url,
+    ) -> Self {
         Self {
             client: PlaylistServiceClient::new(channel.clone_inner()),
             session,

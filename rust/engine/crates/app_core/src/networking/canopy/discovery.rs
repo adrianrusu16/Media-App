@@ -27,7 +27,11 @@ pub struct CanopyDiscoveryClient {
 }
 
 impl CanopyDiscoveryClient {
-    pub fn new(channel: &CanopyChannel, session: Arc<SessionCoordinator>, media_origin: Url) -> Self {
+    pub fn new(
+        channel: &CanopyChannel,
+        session: Arc<SessionCoordinator>,
+        media_origin: Url,
+    ) -> Self {
         Self {
             client: DiscoveryServiceClient::new(channel.clone_inner()),
             session,
@@ -69,9 +73,8 @@ impl DiscoveryPort for CanopyDiscoveryClient {
                             }))
                             .await
                             .map(|response| {
-                                response.map(|inner| {
-                                    map_discovery_response(inner, Some(&media_origin))
-                                })
+                                response
+                                    .map(|inner| map_discovery_response(inner, Some(&media_origin)))
                             }),
                         crate::DiscoveryFeed::ForYou => client
                             .get_for_you_feed(request.map(|request| GetForYouFeedRequest {
