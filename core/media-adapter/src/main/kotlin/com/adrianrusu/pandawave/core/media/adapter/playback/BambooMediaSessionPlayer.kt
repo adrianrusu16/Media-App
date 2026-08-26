@@ -1,6 +1,7 @@
 package com.adrianrusu.pandawave.core.media.adapter.playback
 
 import androidx.media3.common.ForwardingPlayer
+import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import com.adrianrusu.pandawave.core.playback.BambooControlState
@@ -30,6 +31,14 @@ internal class BambooMediaSessionPlayer(
         playbackEngineBridge.dispatchPlayWhenReady(playWhenReady)
     }
 
+    override fun stop() {
+        playbackEngineBridge.dispatchPlayWhenReady(playWhenReady = false)
+    }
+
+    override fun prepare() {
+        // PandaEngine owns prepare via PREPARE_PLAYBACK_SOURCE. Do not fall through to ExoPlayer.
+    }
+
     override fun seekToPreviousMediaItem() {
         playbackEngineBridge.dispatchPlayerCommand(COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
     }
@@ -51,7 +60,9 @@ internal class BambooMediaSessionPlayer(
     }
 
     override fun seekTo(mediaItemIndex: Int, positionMs: Long) {
-        playbackEngineBridge.dispatchSeek(positionMs)
+        if (mediaItemIndex == currentMediaItemIndex) {
+            playbackEngineBridge.dispatchSeek(positionMs)
+        }
     }
 
     override fun setPlaybackSpeed(speed: Float) {
@@ -61,6 +72,26 @@ internal class BambooMediaSessionPlayer(
     override fun setVolume(volume: Float) {
         playbackEngineBridge.dispatchVolume(volume)
     }
+
+    override fun setMediaItem(mediaItem: MediaItem) = Unit
+
+    override fun setMediaItem(mediaItem: MediaItem, resetPosition: Boolean) = Unit
+
+    override fun setMediaItem(mediaItem: MediaItem, startPositionMs: Long) = Unit
+
+    override fun setMediaItems(mediaItems: List<MediaItem>) = Unit
+
+    override fun setMediaItems(mediaItems: List<MediaItem>, resetPosition: Boolean) = Unit
+
+    override fun setMediaItems(mediaItems: List<MediaItem>, startIndex: Int, startPositionMs: Long) = Unit
+
+    override fun addMediaItem(mediaItem: MediaItem) = Unit
+
+    override fun addMediaItem(index: Int, mediaItem: MediaItem) = Unit
+
+    override fun addMediaItems(mediaItems: List<MediaItem>) = Unit
+
+    override fun addMediaItems(index: Int, mediaItems: List<MediaItem>) = Unit
 }
 
 private fun controlsFor(enabled: Boolean): BambooPlaybackControls {

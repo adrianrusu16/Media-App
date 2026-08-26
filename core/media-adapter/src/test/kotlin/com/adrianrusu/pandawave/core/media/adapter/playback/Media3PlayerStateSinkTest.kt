@@ -1,7 +1,9 @@
 package com.adrianrusu.pandawave.core.media.adapter.playback
 
 import android.net.PandawaveTestUri
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackState
 import java.lang.reflect.Proxy
@@ -19,6 +21,7 @@ class Media3PlayerStateSinkTest {
             calls += method.name
             when (method.name) {
                 "getCurrentMediaItem" -> null
+                "getCurrentMediaItemIndex" -> C.INDEX_UNSET
                 "getCurrentPosition" -> 0L
                 "getVolume" -> 1F
                 "getPlaybackState" -> Player.STATE_IDLE
@@ -112,6 +115,40 @@ class Media3PlayerStateSinkTest {
 
         assertEquals(emptyList<String>(), player.calls)
     }
+
+    @Test
+    fun `metadata projection updates the current item without reloading the source`() {
+        val mediaItem = mediaItem()
+        val player = RecordingProjectionPlayer(
+            currentMediaItem = mediaItem,
+            currentPosition = 9_000L,
+            volume = 1F,
+            playbackState = Player.STATE_READY,
+            playWhenReady = true
+        )
+        val sink = Media3PlayerStateSink(player.proxy)
+
+        sink.project(
+            BambooMediaSessionStateProjection(
+                mediaItem = MediaItem.Builder()
+                    .setMediaId("track-1")
+                    .setUri(PandawaveTestUri)
+                    .setMediaMetadata(
+                        MediaMetadata.Builder()
+                            .setTitle("Canopy Drift")
+                            .setArtist("PandaWave")
+                            .build()
+                    )
+                    .build(),
+                playWhenReady = true,
+                positionMillis = 9_000L,
+                volume = 1F
+            )
+        )
+
+        assertEquals(listOf("replaceMediaItem:track-1:Canopy Drift"), player.calls)
+        assertEquals("Canopy Drift", player.currentMediaItem?.mediaMetadata?.title.toString())
+    }
 }
 
 private fun mediaItem(): MediaItem = MediaItem.Builder()
@@ -132,7 +169,8 @@ private class RecordingProjectionPlayer(
         arrayOf(Player::class.java),
     ) { _, method, args ->
         when (method.name) {
-            "getCurrentMediaItem" -> currentMediaItem
+                "getCurrentMediaItem" -> currentMediaItem
+                "getCurrentMediaItemIndex" -> 0
             "getCurrentPosition" -> currentPosition
             "getVolume" -> volume
             "setVolume" -> {
@@ -164,6 +202,13 @@ private class RecordingProjectionPlayer(
                 currentMediaItem = arguments[0] as MediaItem
                 currentPosition = arguments.getOrNull(1) as? Long ?: currentPosition
                 calls += "setMediaItem:${currentMediaItem?.mediaId}:$currentPosition"
+                null
+            }
+
+            "replaceMediaItem" -> {
+                val arguments = checkNotNull(args)
+                currentMediaItem = arguments[1] as MediaItem
+                calls += "replaceMediaItem:${currentMediaItem?.mediaId}:${currentMediaItem?.mediaMetadata?.title}"
                 null
             }
 

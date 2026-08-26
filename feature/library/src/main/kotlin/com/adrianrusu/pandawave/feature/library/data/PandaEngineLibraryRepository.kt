@@ -253,31 +253,43 @@ class PandaEngineLibraryRepository @Inject constructor(
                 EngineCommand.TYPE_LOAD_NEXT_HISTORY_PAGE -> historyEntries + page
                 else -> historyEntries
             }
+            PandaLog.i(PandaLog.Tag.HISTORY) {
+                "received source=${command.type} generation=${snapshot.historyGeneration} " +
+                    "count=${historyEntries.size} titles=${PandaLog.titles(historyEntries.map { it.title })}"
+            }
             return null
         }
         if (snapshot.historyEntriesCount > 0) {
+            if (historyCacheKey == nextKey) return null
             val page = readHistoryPage(snapshot) ?: return null
-            if (historyCacheKey != nextKey) {
-                historyEntries = if (previousKey == null || previousKey.owner != nextKey.owner) {
-                    page
-                } else {
-                    val existingIds = historyEntries.map { it.historyId }.toSet()
-                    page.filter { it.historyId !in existingIds } + historyEntries
-                }
-                historyCacheKey = nextKey
-                PandaLog.v(PandaLog.Tag.HISTORY) {
-                    "projected count=${historyEntries.size} generation=${snapshot.historyGeneration} " +
-                        "source=snapshot"
-                }
+            historyEntries = if (previousKey == null || previousKey.owner != nextKey.owner) {
+                page
+            } else {
+                val existingIds = historyEntries.map { it.historyId }.toSet()
+                page.filter { it.historyId !in existingIds } + historyEntries
+            }
+            historyCacheKey = nextKey
+            PandaLog.i(PandaLog.Tag.HISTORY) {
+                "received source=snapshot generation=${snapshot.historyGeneration} " +
+                    "count=${historyEntries.size} titles=${PandaLog.titles(historyEntries.map { it.title })}"
             }
             return null
         }
         if (historyCacheKey != nextKey) {
             historyCacheKey = nextKey
             historyEntries = emptyList()
+            PandaLog.i(PandaLog.Tag.HISTORY) {
+                "cleared generation=${snapshot.historyGeneration} owner=$owner"
+            }
         }
         return previousKey
             ?.takeIf { generationChanged && command == null }
+            ?.also {
+                PandaLog.i(PandaLog.Tag.HISTORY) {
+                    "list_requested reason=generation_bump previous=${it.generation} " +
+                        "current=${nextKey.generation} count=0"
+                }
+            }
             ?.let {
                 HistoryRefreshRequest(
                     previousGeneration = it.generation,
@@ -292,7 +304,13 @@ class PandaEngineLibraryRepository @Inject constructor(
             limit = snapshot.historyEntriesCount.coerceAtLeast(0),
             generation = snapshot.historyGeneration,
         )
-        if (historyPage.generation != snapshot.historyGeneration) return null
+        if (historyPage.generation != snapshot.historyGeneration) {
+            PandaLog.w(PandaLog.Tag.HISTORY) {
+                "page_generation_mismatch requested=${snapshot.historyGeneration} " +
+                    "actual=${historyPage.generation} count=${snapshot.historyEntriesCount}"
+            }
+            return null
+        }
         return historyPage.items.map { item -> item.toLibraryHistoryEntry() }
     }
 

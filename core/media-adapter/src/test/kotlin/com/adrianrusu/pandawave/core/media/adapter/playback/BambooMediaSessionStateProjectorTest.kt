@@ -62,7 +62,7 @@ class BambooMediaSessionStateProjectorTest {
     }
 
     @Test
-    fun `position changes are projected to media3`() {
+    fun `position-only changes are not projected to media3`() {
         val state = BambooPlaybackState(
             mediaId = "track-1",
             title = "Bamboo Drive",
@@ -81,10 +81,31 @@ class BambooMediaSessionStateProjectorTest {
         projector.start()
         repository.push(state.copy(positionMillis = 4_000L))
 
-        assertEquals(
-            listOf(1_000L, 4_000L),
-            sink.projections.map { projection -> projection.positionMillis }
+        assertEquals(1, sink.projections.size)
+        assertEquals(1_000L, sink.projections.single().positionMillis)
+    }
+
+    @Test
+    fun `metadata changes are projected without a position change`() {
+        val state = BambooPlaybackState(
+            mediaId = "track-1",
+            title = "Bamboo Drive",
+            artist = "PandaWave",
+            playbackStatus = BambooPlaybackStatus.Playing,
+            positionMillis = 1_000L
         )
+        val repository = ProjectorRecordingPlaybackRepository(state)
+        val sink = RecordingMediaSessionStateSink()
+        val projector = BambooMediaSessionStateProjector(
+            playbackRepository = repository,
+            sink = sink,
+            playbackEngineBridge = Media3PlaybackEngineBridge(repository, testTelemetryLogger())
+        )
+
+        projector.start()
+        repository.push(state.copy(title = "Canopy Drift", positionMillis = 8_000L))
+
+        assertEquals(listOf("Bamboo Drive", "Canopy Drift"), sink.projections.map { it.mediaItem.mediaMetadata.title.toString() })
     }
 
     @Test

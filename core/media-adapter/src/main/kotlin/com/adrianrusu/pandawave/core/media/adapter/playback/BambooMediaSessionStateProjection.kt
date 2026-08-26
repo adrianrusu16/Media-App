@@ -19,7 +19,6 @@ internal data class BambooMediaSessionStateProjection(
 internal fun BambooMediaSessionStateProjection.hasSameMediaSessionState(
     other: BambooMediaSessionStateProjection
 ): Boolean = playWhenReady == other.playWhenReady &&
-    positionMillis == other.positionMillis &&
     volume == other.volume &&
     playbackExpiresAtEpochMillis == other.playbackExpiresAtEpochMillis &&
     contentType == other.contentType &&

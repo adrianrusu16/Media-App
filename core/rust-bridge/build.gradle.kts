@@ -1,4 +1,5 @@
 import com.adrianrusu.pandawave.buildlogic.BuildPandaEngineAndroidTask
+import com.adrianrusu.pandawave.buildlogic.PandaEngineCargoMutex
 import org.gradle.api.tasks.Sync
 
 plugins {
@@ -62,11 +63,18 @@ android {
     }
 }
 
+// Cargo serializes on the shared package cache and target dir; keep ABI tasks exclusive.
+val pandaEngineCargoMutex =
+    gradle.sharedServices.registerIfAbsent("pandaEngineCargoMutex", PandaEngineCargoMutex::class.java) {
+        maxParallelUsages.set(1)
+    }
+
 val buildPandaEngineAndroidTargetTasks =
     pandaEngineAndroidTargets.map { (taskSuffix, target) ->
         tasks.register<BuildPandaEngineAndroidTask>("buildPandaEngineAndroid$taskSuffix") {
             group = "build"
             description = "Builds $pandaEngineLibraryName for ${target.abi}."
+            usesService(pandaEngineCargoMutex)
             cargoExecutable.set(cargoExecutableProvider)
             rustcExecutable.set(rustcExecutableProvider)
             rustTarget.set(target.rustTarget)

@@ -332,7 +332,17 @@ impl Engine {
         now_epoch_millis: u64,
         snapshot: &mut EngineSnapshot,
     ) {
+        let was_waiting = self.history_listen.playing_since_epoch_millis.is_none();
         self.sync_history_listen_tracker(now_epoch_millis, snapshot.playback_state);
+        if was_waiting && self.history_listen.playing_since_epoch_millis.is_some() {
+            info!(
+                playback_instance_id = ?self.current_playback_instance_id,
+                media_id = snapshot.media_id.as_deref().unwrap_or(""),
+                title = snapshot.title.as_deref().unwrap_or(""),
+                threshold_millis = HISTORY_AUTO_RECORD_THRESHOLD_MILLIS,
+                "engine.history.timer_armed"
+            );
+        }
         if self.history_listen.recorded_instance_id == self.current_playback_instance_id
             && self.current_playback_instance_id.is_some()
         {
@@ -340,14 +350,32 @@ impl Engine {
         }
         let elapsed_millis = self.history_listen.elapsed_millis(now_epoch_millis);
         if elapsed_millis < HISTORY_AUTO_RECORD_THRESHOLD_MILLIS {
+            debug!(
+                playback_instance_id = ?self.current_playback_instance_id,
+                elapsed_millis,
+                threshold_millis = HISTORY_AUTO_RECORD_THRESHOLD_MILLIS,
+                "engine.history.waiting"
+            );
             return;
         }
         snapshot.updated_at_epoch_millis = snapshot
             .updated_at_epoch_millis
             .max(now_epoch_millis);
         let Some(track_id) = snapshot.media_id.clone().filter(|id| !id.trim().is_empty()) else {
+            warn!(
+                elapsed_millis,
+                "engine.history.skipped reason=missing_media_id"
+            );
             return;
         };
+        info!(
+            playback_instance_id = ?self.current_playback_instance_id,
+            media_id = track_id.as_str(),
+            title = snapshot.title.as_deref().unwrap_or(""),
+            elapsed_millis,
+            threshold_millis = HISTORY_AUTO_RECORD_THRESHOLD_MILLIS,
+            "engine.history.qualified"
+        );
         let listened_millis = elapsed_millis.max(snapshot.position_millis);
         let duration_millis = snapshot
             .duration_millis
@@ -414,7 +442,10 @@ impl Engine {
                 snapshot.history_state.availability = crate::EngineHistoryAvailability::Available;
             }
             if !self.anonymous_history.enabled {
-                info!("Skipping anonymous playback history record because history is disabled");
+                info!(
+                    media_id = record.track_id.as_str(),
+                    "engine.history.skipped reason=anonymous_disabled"
+                );
                 return;
             }
             self.record_anonymous_history_event(record, snapshot);
@@ -446,7 +477,8 @@ impl Engine {
                 Err(error) => {
                     warn!(
                         error_type = ?error.error_type,
-                        "Could not load history settings before recording playback"
+                        media_id = record.track_id.as_str(),
+                        "engine.history.skipped reason=settings_unavailable"
                     );
                     snapshot.last_error = Some(error);
                     return;
@@ -458,7 +490,10 @@ impl Engine {
             .is_some_and(|settings| settings.enabled)
         {
             self.clear_anonymous_history_for_authenticated_disabled(snapshot);
-            info!("Skipping playback history record because history is disabled");
+            info!(
+                media_id = record.track_id.as_str(),
+                "engine.history.skipped reason=history_disabled"
+            );
             return;
         }
         debug!(
@@ -480,12 +515,16 @@ impl Engine {
                 self.publish_recorded_history_entry(record, snapshot);
             }
             Ok(false) => {
-                info!("Playback history backend declined the completion record");
+                info!(
+                    media_id = record.track_id.as_str(),
+                    "engine.history.skipped reason=backend_declined"
+                );
             }
             Err(error) => {
                 warn!(
                     error_type = ?error.error_type,
-                    "Playback history record failed"
+                    media_id = record.track_id.as_str(),
+                    "engine.history.record_failed"
                 );
                 snapshot.last_error = Some(error);
             }
@@ -579,9 +618,12 @@ impl Engine {
         self.history_listen.recorded_instance_id = self.current_playback_instance_id;
         info!(
             media_id = snapshot.media_id.as_deref().unwrap_or(""),
+            title = snapshot.title.as_deref().unwrap_or(""),
             position_millis = snapshot.position_millis,
             listened_millis,
             history_generation = snapshot.history_state.generation,
+            history_count = snapshot.history_entries.len(),
+            titles = history_titles(&snapshot.history_entries),
             "engine.history.recorded"
         );
     }
@@ -828,5 +870,25 @@ impl Engine {
             "history service is not configured",
             false,
         )
+    }
+}
+
+fn history_titles(entries: &[crate::EngineHistoryEntry]) -> String {
+    const MAX_TITLES: usize = 6;
+    let titles: Vec<&str> = entries
+        .iter()
+        .map(|entry| {
+            entry
+                .track
+                .as_ref()
+                .map(|track| track.title.as_str())
+                .unwrap_or("Unavailable track")
+        })
+        .take(MAX_TITLES)
+        .collect();
+    if entries.len() > MAX_TITLES {
+        format!("{},…", titles.join(","))
+    } else {
+        titles.join(",")
     }
 }

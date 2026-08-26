@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -35,15 +36,15 @@ fun HomeRoute(
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    HomeRoute(state, viewModel::play, onOpenNowPlaying, modifier)
+    HomeRoute(modifier, state, viewModel::play, onOpenNowPlaying)
 }
 
 @Composable
 fun HomeRoute(
+    modifier: Modifier = Modifier,
     state: HomeState,
     onPlay: (mediaId: String, section: String, title: String) -> Unit,
     onOpenNowPlaying: () -> Unit = {},
-    modifier: Modifier = Modifier,
 ) {
     val tokens = LocalPandaWaveDesignTokens.current
     BambooRotaryColumn(
@@ -92,10 +93,20 @@ private fun HomeFeedSection(
     onOpenNowPlaying: () -> Unit,
     hero: Boolean = false,
 ) {
-    if (tracks.isEmpty()) return
     val tokens = LocalPandaWaveDesignTokens.current
-    Column(verticalArrangement = Arrangement.spacedBy(tokens.components.mediaCarouselSpacing)) {
+    Column(
+        modifier = Modifier.testTag(testTag),
+        verticalArrangement = Arrangement.spacedBy(tokens.components.mediaCarouselSpacing),
+    ) {
         BambooSectionHeader(title = title)
+        if (tracks.isEmpty()) {
+            Text(
+                text = stringResource(R.string.pandawave_home_empty_feed),
+                modifier = Modifier.testTag("$testTag-empty"),
+                color = Color(tokens.colors.onSurfaceVariant),
+            )
+            return@Column
+        }
         BambooFocusableLazyRow(
             horizontalArrangement = Arrangement.spacedBy(tokens.components.mediaCarouselSpacing),
             contentPadding = PaddingValues(horizontal = tokens.components.mediaCarouselSpacing),

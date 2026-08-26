@@ -63,11 +63,19 @@ class Media3PlaybackEngineBridgeTest {
         bridge.onIsPlayingChanged(true)
 
         assertEquals(listOf(10_000L), scheduler.pendingDelays())
+        val startedEvent = repository.intents
+            .filterIsInstance<BambooPlaybackIntent.PlatformEvent>()
+            .single()
+        assertEquals(EnginePlatformEvent.TYPE_PLAYBACK_POSITION_CHECKPOINT, startedEvent.type)
+        assertEquals(
+            """{"version":1,"playback_instance_id":42,"position_ms":18300,"duration_ms":120000}""",
+            startedEvent.payload,
+        )
         scheduler.runNext()
 
         val periodicEvent = repository.intents
             .filterIsInstance<BambooPlaybackIntent.PlatformEvent>()
-            .single()
+            .last()
         assertEquals(EnginePlatformEvent.TYPE_PLAYBACK_POSITION_CHECKPOINT, periodicEvent.type)
         assertEquals(
             """{"version":1,"playback_instance_id":42,"position_ms":18300,"duration_ms":120000}""",
@@ -87,7 +95,7 @@ class Media3PlaybackEngineBridgeTest {
         )
         assertTrue(scheduler.pendingDelays().isEmpty())
         assertEquals(
-            listOf("periodic", "paused"),
+            listOf("playing_started", "periodic", "paused"),
             telemetrySink.events
                 .filter { it.name == Media3PlaybackTelemetryEvents.POSITION_CHECKPOINT_DISPATCHED }
                 .map { it.attributes.getValue(Media3PlaybackTelemetryAttributes.TRIGGER) },
@@ -312,12 +320,14 @@ class Media3PlaybackEngineBridgeTest {
         bridge.dispatchCatalogBrowse(LibraryItems.ENGINE_ROOT_PARENT_ID)
         bridge.dispatchCatalogSearch("Rust")
         bridge.dispatchCatalogPlay("track-1")
+        bridge.dispatchCatalogPlayQueue(listOf("track-1", "track-2"), startIndex = 1)
 
         assertEquals(
             listOf<BambooPlaybackIntent>(
                 BambooPlaybackIntent.BrowseCatalog(parentId = LibraryItems.ENGINE_ROOT_PARENT_ID),
                 BambooPlaybackIntent.SearchCatalog(query = "Rust"),
-                BambooPlaybackIntent.PlayMedia(mediaId = "track-1")
+                BambooPlaybackIntent.PlayMedia(mediaId = "track-1"),
+                BambooPlaybackIntent.PlayQueue(mediaIds = listOf("track-1", "track-2"), startIndex = 1)
             ),
             repository.intents
         )

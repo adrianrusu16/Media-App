@@ -1,6 +1,7 @@
 package com.adrianrusu.pandawave
 
 import android.Manifest
+import android.content.Intent
 import android.os.Bundle
 import android.view.InputDevice
 import android.view.MotionEvent
@@ -23,6 +24,7 @@ import com.adrianrusu.pandawave.core.common.trace.PandaTrace
 import com.adrianrusu.pandawave.core.designsystem.R as DesignSystemR
 import com.adrianrusu.pandawave.core.designsystem.theme.PandaWaveTheme
 import com.adrianrusu.pandawave.core.media.adapter.playback.BambooMediaSessionWarmup
+import com.adrianrusu.pandawave.core.media.adapter.playback.PandaWaveMediaSessionContract
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
 import com.adrianrusu.pandawave.core.playback.BambooRestrictionState
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
@@ -33,6 +35,7 @@ import com.adrianrusu.pandawave.theme.AppThemeViewModel
 import com.adrianrusu.pandawave.theme.ThemeStartupGate
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
@@ -57,6 +60,7 @@ class MainActivity : ComponentActivity() {
     lateinit var telemetryLogger: TelemetryLogger
 
     private var visualizerPermissionRequestInFlight = false
+    private val openNowPlayingRequested = MutableStateFlow(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         PandaTrace.section("PW.Startup.MainActivity.onCreate") {
@@ -64,6 +68,7 @@ class MainActivity : ComponentActivity() {
                 installSplashScreen()
             }
             super.onCreate(savedInstanceState)
+            handleOpenNowPlayingIntent(intent)
             splashScreen.setKeepOnScreenCondition(themeStartupGate::shouldKeepSplashVisible)
             splashScreen.setOnExitAnimationListener { provider ->
                 PandaTrace.section("PW.Startup.Splash.exitAnimation") {
@@ -141,6 +146,7 @@ class MainActivity : ComponentActivity() {
                     val playbackState = playbackRepository.state.collectAsStateWithLifecycle()
                     val themePreference = themeViewModel.preference.collectAsStateWithLifecycle()
 
+                    val openNowPlaying = openNowPlayingRequested.collectAsStateWithLifecycle()
                     PandaWaveTheme(
                         darkTheme = isSystemInDarkTheme(),
                         themePreference = themePreference.value
@@ -150,7 +156,9 @@ class MainActivity : ComponentActivity() {
                             interactiveAccountActionsAllowed =
                                 playbackState.value.vehicleSafety.restrictionState != BambooRestrictionState.Restricted,
                             onIntent = viewModel::onIntent,
-                            onMoveTaskToBack = { moveTaskToBack(true) }
+                            onMoveTaskToBack = { moveTaskToBack(true) },
+                            openNowPlayingRequested = openNowPlaying.value,
+                            onOpenNowPlayingConsumed = { openNowPlayingRequested.value = false }
                         )
                     }
                 }
@@ -168,6 +176,19 @@ class MainActivity : ComponentActivity() {
             userInteractionTracker.recordInteraction()
         }
         return super.dispatchGenericMotionEvent(event)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleOpenNowPlayingIntent(intent)
+    }
+
+    private fun handleOpenNowPlayingIntent(intent: Intent?) {
+        if (intent?.getBooleanExtra(PandaWaveMediaSessionContract.EXTRA_OPEN_NOW_PLAYING, false) == true) {
+            openNowPlayingRequested.value = true
+            intent.removeExtra(PandaWaveMediaSessionContract.EXTRA_OPEN_NOW_PLAYING)
+        }
     }
 
     override fun onDestroy() {

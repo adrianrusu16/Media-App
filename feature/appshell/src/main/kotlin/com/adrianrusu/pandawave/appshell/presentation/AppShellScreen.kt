@@ -74,11 +74,19 @@ fun AppShellScreen(
     interactiveAccountActionsAllowed: Boolean,
     onIntent: (AppShellIntent) -> Unit,
     onMoveTaskToBack: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    openNowPlayingRequested: Boolean = false,
+    onOpenNowPlayingConsumed: () -> Unit = {},
 ) {
     val backStack = rememberNavBackStack(HomeDestination)
     val navigator = remember(backStack) { PandaWaveNavigator(backStack) }
     val currentDestination = navigator.currentDestination
+    LaunchedEffect(openNowPlayingRequested) {
+        if (openNowPlayingRequested) {
+            navigator.openNowPlaying()
+            onOpenNowPlayingConsumed()
+        }
+    }
     var ambientVisible by remember { mutableStateOf(false) }
     val chrome = resolveAppShellChrome(
         currentDestination = currentDestination,

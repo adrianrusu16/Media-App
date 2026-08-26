@@ -65,6 +65,16 @@ class PandaLogTest {
         assertEquals("a".repeat(80), PandaLog.field("a".repeat(120)))
         assertEquals("", PandaLog.field(null))
     }
+
+    @Test
+    fun titlesJoinsAndCapsTheList() {
+        assertEquals("", PandaLog.titles(emptyList()))
+        assertEquals("One,Two", PandaLog.titles(listOf("One", "Two")))
+        assertEquals(
+            "1,2,3,4,5,6,…",
+            PandaLog.titles((1..8).map(Int::toString)),
+        )
+    }
 }
 
 private class RecordingPandaLogSink : PandaLogSink {

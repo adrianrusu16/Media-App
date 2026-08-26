@@ -242,9 +242,10 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
                 nativeHistoryPageValues(nativeHandle, offset, limit, generation),
                 generation,
             )
-            PandaLog.v(PandaLog.Tag.HISTORY) {
-                "page offset=$offset limit=$limit requestedGeneration=$generation " +
-                    "generation=${page.generation} count=${page.items.size}"
+            PandaLog.i(PandaLog.Tag.HISTORY) {
+                "page_read offset=$offset limit=$limit requestedGeneration=$generation " +
+                    "generation=${page.generation} count=${page.items.size} " +
+                    "titles=${PandaLog.titles(page.items.map { it.title })}"
             }
             page
         }

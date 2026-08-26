@@ -1,5 +1,7 @@
 package com.adrianrusu.pandawave.core.media.adapter.playback
 
+import androidx.annotation.OptIn
+import androidx.media3.common.util.UnstableApi
 import com.adrianrusu.pandawave.core.model.catalog.BambooCatalogNode
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackIntent
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
@@ -16,8 +18,6 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.pandawave.core.rust.bridge.engine.EngineDispatchResult
 import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineGateway
-import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
-import com.adrianrusu.pandawave.core.telemetry.TelemetrySink
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -25,6 +25,7 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
+@OptIn(UnstableApi::class)
 class BambooMediaLibraryCatalogTest {
     @Test
     fun `root returns browsable panda wave item`() {
@@ -139,14 +140,19 @@ class BambooMediaLibraryCatalogTest {
     fun `search delegates to source`() {
         val catalog = BambooMediaLibraryCatalog(
             source = object : BambooCatalogSource {
-                override fun children(parentId: String, page: Int, pageSize: Int): List<BambooCatalogNode> =
-                    emptyList()
-
-                override fun search(query: String): List<BambooCatalogNode> = if (query == "test") {
-                    listOf(node("result"))
+                override fun browse(parentId: String, offset: Int, limit: Int): CatalogPage = CatalogPage.empty()
+                override fun search(query: String, offset: Int, limit: Int): CatalogPage = if (query == "test") {
+                    CatalogPage(
+                        operationId = "catalog-search-1",
+                        generation = 1L,
+                        totalCount = 1,
+                        items = listOf(node("result")),
+                        hasNextPage = false,
+                    )
                 } else {
-                    emptyList()
+                    CatalogPage.empty()
                 }
+                override fun item(mediaId: String): BambooCatalogNode? = null
             }
         )
 
@@ -157,18 +163,36 @@ class BambooMediaLibraryCatalogTest {
     }
 
     @Test
-    fun `engine source dispatches browse and search commands`() {
+    fun `search page reports count without materializing an unbounded page`() {
+        val catalog = BambooMediaLibraryCatalog(
+            source = object : BambooCatalogSource {
+                override fun browse(parentId: String, offset: Int, limit: Int): CatalogPage = CatalogPage.empty()
+                override fun search(query: String, offset: Int, limit: Int): CatalogPage = CatalogPage(
+                    operationId = "catalog-search-1",
+                    generation = 1L,
+                    totalCount = 2,
+                    items = listOf(node("one"), node("two")).paged(offset = offset, limit = limit),
+                    hasNextPage = offset + limit < 2,
+                )
+                override fun item(mediaId: String): BambooCatalogNode? = null
+            }
+        )
+
+        val first = catalog.searchPage("q", page = 0, pageSize = 1)
+        val second = catalog.search("q", page = 1, pageSize = 1)
+
+        assertEquals(1, first.items.size)
+        assertEquals("one", first.items.single().mediaId)
+        assertTrue(first.hasNextPage)
+        assertEquals(listOf("two"), second.map { it.mediaId })
+    }
+
+    @Test
+    fun `engine source dispatches browse and search through the gateway not the playback bridge`() {
         val repository = CatalogRecordingPlaybackRepository()
         val engineGateway = CatalogRecordingEngineGateway()
-        val bridge = Media3PlaybackEngineBridge(
-            playbackRepository = repository,
-            telemetryLogger = testTelemetryLogger()
-        )
         val catalog = BambooMediaLibraryCatalog(
-            source = EngineBambooCatalogSource(
-                playbackBridge = bridge,
-                engineGateway = engineGateway
-            )
+            source = EngineBambooCatalogSource(engineGateway = engineGateway)
         )
 
         val rootChildren = catalog.children(LibraryItems.ROOT_MEDIA_ID, page = 0, pageSize = 10)
@@ -183,22 +207,64 @@ class BambooMediaLibraryCatalogTest {
             rootChildren.map { item -> item.mediaId }
         )
         assertEquals(
-            listOf<BambooPlaybackIntent>(
-                BambooPlaybackIntent.BrowseCatalog(parentId = LibraryItems.ENGINE_ROOT_PARENT_ID),
-                BambooPlaybackIntent.SearchCatalog(query = "Rust")
-            ),
-            repository.intents
+            listOf(EngineCommand.TYPE_BROWSE, EngineCommand.TYPE_SEARCH),
+            engineGateway.commands.map(EngineCommand::type)
         )
+        assertEquals(emptyList<BambooPlaybackIntent>(), repository.intents)
     }
 
     @Test
-    fun `engine source projects non root browse and search results from gateway`() {
-        val repository = CatalogRecordingPlaybackRepository()
+    fun `engine source reads the dispatch snapshot not a stale predispatch buffer`() {
+        val staleBrowse = EngineCatalogItem(
+            mediaId = "stale-album",
+            title = "Stale Album",
+            itemType = EngineCatalogItem.TYPE_ALBUM
+        )
+        val freshBrowse = EngineCatalogItem(
+            mediaId = "fresh-album",
+            title = "Fresh Album",
+            artist = "PandaWave",
+            itemType = EngineCatalogItem.TYPE_ALBUM
+        )
+        val staleSearch = EngineCatalogItem(
+            mediaId = "stale-track",
+            title = "Stale Track",
+            itemType = EngineCatalogItem.TYPE_TRACK
+        )
+        val freshSearch = EngineCatalogItem(
+            mediaId = "fresh-track",
+            title = "Fresh Track",
+            itemType = EngineCatalogItem.TYPE_TRACK
+        )
         val engineGateway = CatalogRecordingEngineGateway(
             snapshot = EngineSnapshot.idle(nowMillis = 1L).copy(
                 browseResultsCount = 1,
                 searchResultsCount = 1
             ),
+            staleBrowseResults = listOf(staleBrowse),
+            staleSearchResults = listOf(staleSearch),
+            browseResults = listOf(freshBrowse),
+            searchResults = listOf(freshSearch)
+        )
+        val catalog = BambooMediaLibraryCatalog(
+            source = EngineBambooCatalogSource(engineGateway = engineGateway)
+        )
+
+        val browseChildren = catalog.children("engine.parent", page = 0, pageSize = 10)
+        val searchResults = catalog.search("Bamboo", page = 0, pageSize = 10)
+
+        assertEquals(listOf("fresh-album"), browseChildren.map { item -> item.mediaId })
+        assertEquals(listOf("fresh-track"), searchResults.map { item -> item.mediaId })
+        assertEquals(
+            listOf(EngineCommand.TYPE_BROWSE, EngineCommand.TYPE_SEARCH),
+            engineGateway.commands.map(EngineCommand::type)
+        )
+    }
+
+    @Test
+    fun `engine source projects non root browse and search results from gateway`() {
+        val engineGateway = CatalogRecordingEngineGateway(
+            snapshot = EngineSnapshot.idle(nowMillis = 1L),
             browseResults = listOf(
                 EngineCatalogItem(
                     mediaId = "album-1",
@@ -219,15 +285,8 @@ class BambooMediaLibraryCatalogTest {
                 )
             )
         )
-        val bridge = Media3PlaybackEngineBridge(
-            playbackRepository = repository,
-            telemetryLogger = testTelemetryLogger()
-        )
         val catalog = BambooMediaLibraryCatalog(
-            source = EngineBambooCatalogSource(
-                playbackBridge = bridge,
-                engineGateway = engineGateway
-            )
+            source = EngineBambooCatalogSource(engineGateway = engineGateway)
         )
 
         val browseChildren = catalog.children("engine.parent", page = 0, pageSize = 10)
@@ -236,18 +295,22 @@ class BambooMediaLibraryCatalogTest {
         assertEquals(listOf("album-1"), browseChildren.map { item -> item.mediaId })
         assertEquals("Forest Drive", browseChildren.single().mediaMetadata.title.toString())
         assertEquals("PandaWave", browseChildren.single().mediaMetadata.subtitle.toString())
+        assertEquals("PandaWave", browseChildren.single().mediaMetadata.artist)
+        assertEquals(androidx.media3.common.MediaMetadata.MEDIA_TYPE_ALBUM, browseChildren.single().mediaMetadata.mediaType)
         assertFalse(browseChildren.single().mediaMetadata.isPlayable == true)
         assertTrue(browseChildren.single().mediaMetadata.isBrowsable == true)
         assertEquals(listOf("track-1"), searchResults.map { item -> item.mediaId })
         assertEquals("Bamboo Radio", searchResults.single().mediaMetadata.title.toString())
         assertEquals("PandaWave - Canopy Sessions", searchResults.single().mediaMetadata.subtitle.toString())
+        assertEquals("PandaWave", searchResults.single().mediaMetadata.artist)
+        assertEquals("Canopy Sessions", searchResults.single().mediaMetadata.albumTitle)
+        assertEquals(androidx.media3.common.MediaMetadata.MEDIA_TYPE_MUSIC, searchResults.single().mediaMetadata.mediaType)
         assertTrue(searchResults.single().mediaMetadata.isPlayable == true)
         assertFalse(searchResults.single().mediaMetadata.isBrowsable == true)
     }
 
     @Test
     fun `engine source appends bounded history pages without exposing page keys`() {
-        val repository = CatalogRecordingPlaybackRepository()
         val engineGateway = CatalogRecordingEngineGateway(
             snapshot = EngineSnapshot.idle(nowMillis = 1L).copy(
                 authState = authenticatedAuthState(),
@@ -283,10 +346,7 @@ class BambooMediaLibraryCatalogTest {
             ),
         )
         val catalog = BambooMediaLibraryCatalog(
-            source = EngineBambooCatalogSource(
-                playbackBridge = Media3PlaybackEngineBridge(repository, testTelemetryLogger()),
-                engineGateway = engineGateway,
-            ),
+            source = EngineBambooCatalogSource(engineGateway = engineGateway),
         )
 
         val first = catalog.children(LibraryItems.HISTORY_MEDIA_ID, page = 0, pageSize = 1)
@@ -303,7 +363,6 @@ class BambooMediaLibraryCatalogTest {
 
     @Test
     fun `engine source filters unavailable history rows before exposing media items`() {
-        val repository = CatalogRecordingPlaybackRepository()
         val engineGateway = CatalogRecordingEngineGateway(
             snapshot = EngineSnapshot.idle(nowMillis = 1L).copy(
                 authState = authenticatedAuthState(),
@@ -319,10 +378,7 @@ class BambooMediaLibraryCatalogTest {
             ),
         )
         val catalog = BambooMediaLibraryCatalog(
-            source = EngineBambooCatalogSource(
-                playbackBridge = Media3PlaybackEngineBridge(repository, testTelemetryLogger()),
-                engineGateway = engineGateway,
-            ),
+            source = EngineBambooCatalogSource(engineGateway = engineGateway),
         )
 
         val children = catalog.children(LibraryItems.HISTORY_MEDIA_ID, page = 0, pageSize = 10)
@@ -333,7 +389,6 @@ class BambooMediaLibraryCatalogTest {
 
     @Test
     fun `engine source refreshes history cache when generation changes`() {
-        val repository = CatalogRecordingPlaybackRepository()
         val engineGateway = CatalogRecordingEngineGateway(
             snapshot = EngineSnapshot.idle(nowMillis = 1L).copy(
                 authState = authenticatedAuthState(),
@@ -343,10 +398,7 @@ class BambooMediaLibraryCatalogTest {
             historyResults = listOf(historyItem(historyId = "history-old", mediaId = "track-old")),
         )
         val catalog = BambooMediaLibraryCatalog(
-            source = EngineBambooCatalogSource(
-                playbackBridge = Media3PlaybackEngineBridge(repository, testTelemetryLogger()),
-                engineGateway = engineGateway,
-            ),
+            source = EngineBambooCatalogSource(engineGateway = engineGateway),
         )
 
         val firstPage = catalog.children(LibraryItems.HISTORY_MEDIA_ID, page = 0, pageSize = 1)
@@ -378,32 +430,49 @@ class BambooMediaLibraryCatalogTest {
 }
 
 private object EmptyCatalogSource : BambooCatalogSource {
-    override fun children(parentId: String, page: Int, pageSize: Int): List<BambooCatalogNode> = emptyList()
-    override fun search(query: String): List<BambooCatalogNode> = emptyList()
+    override fun browse(parentId: String, offset: Int, limit: Int): CatalogPage = CatalogPage.empty()
+    override fun search(query: String, offset: Int, limit: Int): CatalogPage = CatalogPage.empty()
+    override fun item(mediaId: String): BambooCatalogNode? = null
 }
 
 private class FixedCatalogSource(private val parentId: String, private val children: List<BambooCatalogNode>) :
     BambooCatalogSource {
-    override fun children(parentId: String, page: Int, pageSize: Int): List<BambooCatalogNode> = when (parentId) {
-        this.parentId -> children.paged(page = page, pageSize = pageSize)
-        else -> emptyList()
+    override fun browse(parentId: String, offset: Int, limit: Int): CatalogPage = when (parentId) {
+        this.parentId -> CatalogPage(
+            operationId = null,
+            generation = 1L,
+            totalCount = children.size,
+            items = children.paged(offset = offset, limit = limit),
+            hasNextPage = offset + limit < children.size,
+        )
+        else -> CatalogPage.empty()
     }
 
-    override fun search(query: String): List<BambooCatalogNode> = emptyList()
+    override fun search(query: String, offset: Int, limit: Int): CatalogPage = CatalogPage.empty()
+    override fun item(mediaId: String): BambooCatalogNode? = children.firstOrNull { node -> node.mediaId == mediaId }
 }
 
 private object PlaceholderBambooCatalogSource : BambooCatalogSource {
-    override fun children(parentId: String, page: Int, pageSize: Int): List<BambooCatalogNode> = if (parentId == LibraryItems.ROOT_MEDIA_ID) {
-        listOf(
-            BambooCatalogNode("pandawave.library.saved", "Saved music", isBrowsable = true, isPlayable = false),
-            BambooCatalogNode("pandawave.library.downloads", "Downloads", isBrowsable = true, isPlayable = false),
-            BambooCatalogNode("pandawave.library.recent", "Recently played", isBrowsable = true, isPlayable = false)
-        ).paged(page = page, pageSize = pageSize)
+    private val root = listOf(
+        BambooCatalogNode("pandawave.library.saved", "Saved music", isBrowsable = true, isPlayable = false),
+        BambooCatalogNode("pandawave.library.downloads", "Downloads", isBrowsable = true, isPlayable = false),
+        BambooCatalogNode("pandawave.library.recent", "Recently played", isBrowsable = true, isPlayable = false)
+    )
+
+    override fun browse(parentId: String, offset: Int, limit: Int): CatalogPage = if (parentId == LibraryItems.ROOT_MEDIA_ID) {
+        CatalogPage(
+            operationId = null,
+            generation = 1L,
+            totalCount = root.size,
+            items = root.paged(offset = offset, limit = limit),
+            hasNextPage = offset + limit < root.size,
+        )
     } else {
-        emptyList()
+        CatalogPage.empty()
     }
 
-    override fun search(query: String): List<BambooCatalogNode> = emptyList()
+    override fun search(query: String, offset: Int, limit: Int): CatalogPage = CatalogPage.empty()
+    override fun item(mediaId: String): BambooCatalogNode? = root.firstOrNull { node -> node.mediaId == mediaId }
 }
 
 private fun node(id: String): BambooCatalogNode = BambooCatalogNode(
@@ -442,11 +511,6 @@ private class CatalogRecordingPlaybackRepository : BambooPlaybackRepository {
     override fun close() = Unit
 }
 
-private fun testTelemetryLogger(): TelemetryLogger = TelemetryLogger(
-    sink = TelemetrySink { },
-    clock = { 42L }
-)
-
 private fun historyItem(
     historyId: String,
     mediaId: String?,
@@ -468,10 +532,16 @@ private class CatalogRecordingEngineGateway(
     snapshot: EngineSnapshot = EngineSnapshot.idle(nowMillis = 1L),
     private val browseResults: List<EngineCatalogItem> = emptyList(),
     private val searchResults: List<EngineCatalogItem> = emptyList(),
+    private val staleBrowseResults: List<EngineCatalogItem> = emptyList(),
+    private val staleSearchResults: List<EngineCatalogItem> = emptyList(),
     private var historyResults: List<EngineHistoryItem> = emptyList(),
 ) : EngineGateway {
     private var currentSnapshot = snapshot
     private var historyOffset = 0
+    private var liveBrowse = emptyList<EngineCatalogItem>()
+    private var liveSearch = emptyList<EngineCatalogItem>()
+    private var browseDispatched = false
+    private var searchDispatched = false
     val commands = mutableListOf<EngineCommand>()
 
     fun replaceHistory(snapshot: EngineSnapshot, historyResults: List<EngineHistoryItem>) {
@@ -482,13 +552,35 @@ private class CatalogRecordingEngineGateway(
 
     override fun snapshot(): EngineSnapshot = currentSnapshot
 
-    override fun browseResult(index: Int): EngineCatalogItem? = browseResults.getOrNull(index)
+    override fun browseResult(index: Int): EngineCatalogItem? =
+        visibleBrowse().getOrNull(index)
 
-    override fun searchResult(index: Int): EngineCatalogItem? = searchResults.getOrNull(index)
+    override fun searchResult(index: Int): EngineCatalogItem? =
+        visibleSearch().getOrNull(index)
     override fun historyEntry(index: Int): EngineHistoryItem? = historyResults.getOrNull(historyOffset + index)
 
     override fun dispatch(command: EngineCommand): EngineDispatchResult {
         commands += command
+        if (command.type == EngineCommand.TYPE_BROWSE) {
+            browseDispatched = true
+            liveBrowse = browseResults
+            currentSnapshot = currentSnapshot.copy(browseResultsCount = liveBrowse.size)
+        }
+        if (command.type == EngineCommand.TYPE_SEARCH) {
+            searchDispatched = true
+            liveSearch = searchResults
+            currentSnapshot = currentSnapshot.copy(searchResultsCount = liveSearch.size)
+        }
+        if (command.type == EngineCommand.TYPE_LOAD_NEXT_CATALOG_PAGE) {
+            if (command.payload?.contains("browse") == true || liveBrowse.isNotEmpty()) {
+                liveBrowse = browseResults
+                currentSnapshot = currentSnapshot.copy(browseResultsCount = liveBrowse.size)
+            }
+            if (command.payload?.contains("search") == true || liveSearch.isNotEmpty()) {
+                liveSearch = searchResults
+                currentSnapshot = currentSnapshot.copy(searchResultsCount = liveSearch.size)
+            }
+        }
         if (command.type == EngineCommand.TYPE_LIST_HISTORY) {
             historyOffset = 0
             currentSnapshot = currentSnapshot.copy(
@@ -505,7 +597,7 @@ private class CatalogRecordingEngineGateway(
         }
         return EngineDispatchResult(
             snapshot = currentSnapshot,
-            event = EngineEvent(type = EngineEvent.TYPE_COMMAND_APPLIED, message = command.type)
+            event = EngineEvent(type = EngineEvent.TYPE_COMMAND_APPLIED, message = "catalog-${command.type}")
         )
     }
 
@@ -520,13 +612,15 @@ private class CatalogRecordingEngineGateway(
     }
 
     override fun observeEngineEvents(listener: (EngineEvent) -> Unit): AutoCloseable = AutoCloseable { }
+
+    private fun visibleBrowse(): List<EngineCatalogItem> =
+        if (browseDispatched) liveBrowse else staleBrowseResults
+
+    private fun visibleSearch(): List<EngineCatalogItem> =
+        if (searchDispatched) liveSearch else staleSearchResults
 }
 
-private fun <T> List<T>.paged(page: Int, pageSize: Int): List<T> {
-    val fromIndex = page * pageSize
-    return when {
-        page < 0 || pageSize < 1 -> emptyList()
-        fromIndex >= size -> emptyList()
-        else -> subList(fromIndex, minOf(fromIndex + pageSize, size))
-    }
+private fun <T> List<T>.paged(offset: Int, limit: Int): List<T> = when {
+    offset < 0 || limit < 1 || offset >= size -> emptyList()
+    else -> subList(offset, minOf(offset + limit, size))
 }

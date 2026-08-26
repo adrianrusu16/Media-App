@@ -178,7 +178,7 @@ pub(super) fn pack_page<T>(
 }
 
 pub(super) fn catalog_item_to_strings(item: &panda_engine_core::MediaItem) -> Vec<String> {
-    vec![
+    let packed = vec![
         item.id.clone(),
         item.title.clone(),
         item.artist.clone(),
@@ -187,7 +187,9 @@ pub(super) fn catalog_item_to_strings(item: &panda_engine_core::MediaItem) -> Ve
         item.source_uri.clone().unwrap_or_default(),
         item.mime_type.clone().unwrap_or_default(),
         media_item_type_to_ffi(&item.item_type).to_string(),
-    ]
+    ];
+    debug_assert_eq!(packed.len(), CATALOG_ITEM_VALUE_COUNT);
+    packed
 }
 
 pub(super) fn playlist_to_strings(item: &panda_engine_core::EnginePlaylist) -> Vec<String> {
@@ -512,14 +514,16 @@ pub(super) fn account_to_strings(account: Option<&panda_engine_core::Account>) -
 }
 
 pub(super) fn session_to_strings(session: &panda_engine_core::AuthSession) -> Vec<String> {
-    vec![
+    let packed = vec![
         session.id.clone(),
         session.device_label.clone(),
         session.created_at_epoch_millis.to_string(),
         session.last_used_at_epoch_millis.to_string(),
         session.expires_at_epoch_millis.to_string(),
         if session.current { "1" } else { "0" }.into(),
-    ]
+    ];
+    debug_assert_eq!(packed.len(), DEVICE_SESSION_VALUE_COUNT);
+    packed
 }
 
 pub(super) fn snapshot_to_jlong_array(env: &mut JNIEnv, snapshot: FfiEngineSnapshot) -> jlongArray {

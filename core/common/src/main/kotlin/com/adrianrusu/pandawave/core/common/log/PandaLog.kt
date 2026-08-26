@@ -62,6 +62,13 @@ object PandaLog {
         return WHITESPACE_REGEX.replace(value, " ").trim().take(maxChars)
     }
 
+    fun titles(values: Iterable<String?>, maxItems: Int = MAX_TITLE_LIST_ITEMS): String {
+        val compact = values.map { field(it) }.filter { it.isNotEmpty() }
+        if (compact.isEmpty()) return ""
+        val shown = compact.take(maxItems).joinToString(",")
+        return if (compact.size > maxItems) "$shown,…" else shown
+    }
+
     fun withSinkForTest(testSink: PandaLogSink): AutoCloseable {
         val previousSink = sink
         val previousInline = runInline
@@ -143,3 +150,4 @@ private val SENSITIVE_ASSIGNMENT_REGEX = Regex(
     "(?i)\\b(password|passwd|token|authorization|apikey|api_key|secret)\\s*[=:]\\s*[^\\s]+",
 )
 private const val MAX_FIELD_CHARS = 80
+private const val MAX_TITLE_LIST_ITEMS = 6

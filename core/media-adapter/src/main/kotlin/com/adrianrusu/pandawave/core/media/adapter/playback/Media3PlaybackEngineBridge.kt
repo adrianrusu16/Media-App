@@ -202,6 +202,10 @@ class Media3PlaybackEngineBridge(
                 PandaLog.i(PandaLog.Tag.PLAYER) {
                     "first_audio instance=$instanceId position_ms=$positionMillis"
                 }
+                PandaLog.i(PandaLog.Tag.HISTORY) {
+                    "timer_armed instance=$instanceId threshold_ms=$checkpointIntervalMillis " +
+                        "position_ms=$positionMillis"
+                }
                 telemetryLogger.info(
                     name = Media3PlaybackTelemetryEvents.FIRST_AUDIO,
                     attributes = buildMap {
@@ -214,6 +218,7 @@ class Media3PlaybackEngineBridge(
                     },
                 )
             }
+            reportPlaybackPositionCheckpoint(PlaybackCheckpointTriggers.PLAYING_STARTED)
             scheduleNextCheckpoint()
         } else {
             val snapshot = playerSnapshotProvider()
@@ -251,9 +256,27 @@ class Media3PlaybackEngineBridge(
     }
 
     private fun reportPlaybackPositionCheckpoint(trigger: String) {
-        val metrics = playbackMetricsProvider.currentMetrics() ?: return
-        val positionMillis = metrics.positionMillis.takeIf { it >= 0L } ?: return
-        val playbackInstanceId = playbackInstanceIdProvider() ?: return
+        val metrics = playbackMetricsProvider.currentMetrics()
+        if (metrics == null) {
+            PandaLog.w(PandaLog.Tag.HISTORY) {
+                "checkpoint_skipped trigger=$trigger reason=missing_metrics instance=${playbackInstanceIdProvider()}"
+            }
+            return
+        }
+        val positionMillis = metrics.positionMillis.takeIf { it >= 0L }
+        if (positionMillis == null) {
+            PandaLog.w(PandaLog.Tag.HISTORY) {
+                "checkpoint_skipped trigger=$trigger reason=invalid_position instance=${playbackInstanceIdProvider()}"
+            }
+            return
+        }
+        val playbackInstanceId = playbackInstanceIdProvider()
+        if (playbackInstanceId == null) {
+            PandaLog.w(PandaLog.Tag.HISTORY) {
+                "checkpoint_skipped trigger=$trigger reason=missing_instance"
+            }
+            return
+        }
         val durationMillis = metrics.durationMillis.takeIf { it > 0L }
         telemetryLogger.debug(
             name = Media3PlaybackTelemetryEvents.POSITION_CHECKPOINT_DISPATCHED,
@@ -439,6 +462,27 @@ class Media3PlaybackEngineBridge(
         return true
     }
 
+    fun dispatchCatalogPlayQueue(mediaIds: List<String>, startIndex: Int): Boolean {
+        val normalized = mediaIds.map(String::trim).filter(String::isNotBlank)
+        if (normalized.isEmpty()) {
+            return false
+        }
+        val index = startIndex.coerceIn(0, normalized.lastIndex)
+        val intent = BambooPlaybackIntent.PlayQueue(mediaIds = normalized, startIndex = index)
+        PandaLog.i(PandaLog.Tag.MEDIA) {
+            "play_requested source=catalog command=PlayQueue count=${normalized.size} startIndex=$index"
+        }
+        telemetryLogger.debug(
+            name = Media3PlaybackTelemetryEvents.CATALOG_COMMAND_DISPATCHED,
+            attributes = mapOf(
+                BambooPlaybackTelemetryAttributes.INTENT to intent.telemetryName,
+                Media3PlaybackTelemetryAttributes.MEDIA_ID_PRESENT to "true"
+            )
+        )
+        playbackRepository.dispatch(intent)
+        return true
+    }
+
     override fun close() {
         isPlaying = false
         hasLoggedFirstAudio = false
@@ -518,6 +562,7 @@ internal object Media3PlaybackTelemetryValues {
 }
 
 private object PlaybackCheckpointTriggers {
+    const val PLAYING_STARTED = "playing_started"
     const val PERIODIC = "periodic"
     const val PAUSED = "paused"
 }

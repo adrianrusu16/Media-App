@@ -84,6 +84,7 @@ class Media3EngineEffectExecutorTest {
             listOf(
                 "setMediaItem:track-1:9000",
                 "prepare",
+                "updateMediaMetadata:none",
                 "play"
             ),
             player.calls
@@ -320,6 +321,10 @@ private class RecordingEffectPlayer(override var playbackState: Int) : Media3Eff
 
     override fun setPlaybackSpeed(speed: Float) {
         calls += "setPlaybackSpeed:$speed"
+    }
+
+    override fun updateMediaMetadata(metadata: androidx.media3.common.MediaMetadata) {
+        calls += "updateMediaMetadata:${metadata.title ?: "none"}"
     }
 }
 

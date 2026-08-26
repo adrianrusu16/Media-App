@@ -1,6 +1,8 @@
 package com.adrianrusu.pandawave.core.media.adapter.playback
 
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import com.adrianrusu.pandawave.core.common.log.PandaLog
 import com.adrianrusu.pandawave.core.media.adapter.playback.focus.BambooAudioFocusController
@@ -57,7 +59,7 @@ internal class Media3EngineEffectExecutor(
             EngineEffect.TYPE_PREPARE_PLAYBACK_SOURCE -> preparePlaybackSource(effect)
             EngineEffect.TYPE_RECREATE_PLAYER_AND_LOAD -> recreatePlayerAndLoad(effect)
             EngineEffect.TYPE_NOTIFY_USER -> effect.message?.let(notifyUser) ?: logMissingPayload(effect)
-            EngineEffect.TYPE_UPDATE_METADATA -> logNoOp(effect)
+            EngineEffect.TYPE_UPDATE_METADATA -> updateMetadata(effect)
             EngineEffect.TYPE_SEEK -> seek(effect)
             EngineEffect.TYPE_SET_SPEED -> setSpeed(effect)
             else -> logNoOp(effect)
@@ -148,6 +150,14 @@ internal class Media3EngineEffectExecutor(
         preparePlaybackSource(effect)
     }
 
+    private fun updateMetadata(effect: EngineEffect) {
+        val projection = currentProjection() ?: return logMissingProjection(effect)
+        if (effect.mediaId != null && projection.mediaItem.mediaId != effect.mediaId) {
+            return logStaleProjection(effect)
+        }
+        player().updateMediaMetadata(projection.mediaItem.mediaMetadata)
+    }
+
     private fun seek(effect: EngineEffect) {
         val positionMillis = effect.positionMillis ?: return logMissingPayload(effect)
         player().seekTo(positionMillis.coerceAtLeast(MIN_POSITION_MILLIS))
@@ -213,6 +223,8 @@ internal interface Media3EffectPlayer {
     fun seekTo(positionMillis: Long)
 
     fun setPlaybackSpeed(speed: Float)
+
+    fun updateMediaMetadata(metadata: MediaMetadata)
 }
 
 internal class PlayerMedia3EffectPlayer(private val player: Player) : Media3EffectPlayer {
@@ -245,6 +257,16 @@ internal class PlayerMedia3EffectPlayer(private val player: Player) : Media3Effe
 
     override fun setPlaybackSpeed(speed: Float) {
         player.setPlaybackSpeed(speed)
+    }
+
+    override fun updateMediaMetadata(metadata: MediaMetadata) {
+        val current = player.currentMediaItem ?: return
+        val index = player.currentMediaItemIndex
+        if (index == C.INDEX_UNSET) return
+        player.replaceMediaItem(
+            index,
+            current.buildUpon().setMediaMetadata(metadata).build()
+        )
     }
 }
 

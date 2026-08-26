@@ -7,6 +7,16 @@ pub enum DiscoveryFeed {
     Recommendations,
 }
 
+impl DiscoveryFeed {
+    pub const fn as_wire(self) -> &'static str {
+        match self {
+            Self::Discovery => "discovery",
+            Self::ForYou => "for_you",
+            Self::Recommendations => "recommendations",
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EngineDiscoveryIdentity {
     pub account_id: String,

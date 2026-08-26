@@ -389,6 +389,12 @@ impl Engine {
                     next_snapshot = next_snapshot.with_discovery_next_page_token(None);
                 }
                 next_snapshot = next_snapshot.with_feed_results(feed, Vec::new());
+                info!(
+                    feed = feed.as_wire(),
+                    page_size = page.page_size,
+                    excluded_count = excluded_track_ids.len(),
+                    "engine.feed.request"
+                );
                 let auth_identity = AuthIdentity::from_state(&next_snapshot.auth_state);
                 let result = match (auth_identity.clone(), self.discovery_port.clone()) {
                     (Some(identity), Some(port)) => {
@@ -402,16 +408,28 @@ impl Engine {
                         )
                         .await
                     }
-                    (None, _) => Err(EngineError::new(
-                        crate::EngineErrorType::LoginRequired,
-                        "discovery requires an authenticated session",
-                        false,
-                    )),
-                    (Some(_), None) => Err(EngineError::new(
-                        crate::EngineErrorType::FailedPrecondition,
-                        "discovery service is not configured",
-                        false,
-                    )),
+                    (None, _) => {
+                        warn!(
+                            feed = feed.as_wire(),
+                            "engine.feed.skipped reason=login_required"
+                        );
+                        Err(EngineError::new(
+                            crate::EngineErrorType::LoginRequired,
+                            "discovery requires an authenticated session",
+                            false,
+                        ))
+                    }
+                    (Some(_), None) => {
+                        warn!(
+                            feed = feed.as_wire(),
+                            "engine.feed.skipped reason=discovery_unconfigured"
+                        );
+                        Err(EngineError::new(
+                            crate::EngineErrorType::FailedPrecondition,
+                            "discovery service is not configured",
+                            false,
+                        ))
+                    }
                 };
                 next_snapshot.auth_state = self
                     .auth_state_provider
@@ -424,6 +442,10 @@ impl Engine {
                         self.discovery_operation = None;
                         next_snapshot = next_snapshot.with_discovery_next_page_token(None);
                     }
+                    warn!(
+                        feed = feed.as_wire(),
+                        "engine.feed.skipped reason=session_changed"
+                    );
                     next_snapshot = next_snapshot
                         .with_feed_results(feed, Vec::new())
                         .with_error(Some(EngineError::new(
@@ -439,6 +461,12 @@ impl Engine {
                                 .into_iter()
                                 .map(project_discovery_track)
                                 .collect();
+                            info!(
+                                feed = feed.as_wire(),
+                                count = items.len(),
+                                titles = catalog_titles(&items),
+                                "engine.feed.loaded"
+                            );
                             if feed == crate::DiscoveryFeed::Discovery {
                                 let next_page_token = result.next_page_token;
                                 self.discovery_operation = Some(DiscoveryOperation {
@@ -456,7 +484,14 @@ impl Engine {
                             self.feed_projection_identity = auth_identity;
                             next_snapshot = next_snapshot.with_feed_results(feed, items);
                         }
-                        Err(error) => next_snapshot = next_snapshot.with_error(Some(error)),
+                        Err(error) => {
+                            warn!(
+                                feed = feed.as_wire(),
+                                error_type = ?error.error_type,
+                                "engine.feed.failed"
+                            );
+                            next_snapshot = next_snapshot.with_error(Some(error));
+                        }
                     }
                 }
                 next_snapshot = next_snapshot.with_busy(false);
@@ -1308,6 +1343,20 @@ fn backend_unavailable_reason(error: &crate::EngineError) -> crate::BackendUnava
         EngineErrorType::Transport => crate::BackendUnavailableReason::Timeout,
         EngineErrorType::ServiceUnavailable => crate::BackendUnavailableReason::ServiceUnavailable,
         _ => crate::BackendUnavailableReason::ConnectionFailed,
+    }
+}
+
+fn catalog_titles(items: &[MediaItem]) -> String {
+    const MAX_TITLES: usize = 6;
+    let titles: Vec<&str> = items
+        .iter()
+        .take(MAX_TITLES)
+        .map(|item| item.title.as_str())
+        .collect();
+    if items.len() > MAX_TITLES {
+        format!("{},…", titles.join(","))
+    } else {
+        titles.join(",")
     }
 }
 

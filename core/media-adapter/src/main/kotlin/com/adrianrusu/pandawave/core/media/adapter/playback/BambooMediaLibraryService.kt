@@ -1,15 +1,20 @@
+@file:OptIn(UnstableApi::class)
+
 package com.adrianrusu.pandawave.core.media.adapter.playback
 
+import android.app.PendingIntent
 import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
+import java.util.concurrent.Executors
 import com.adrianrusu.pandawave.core.audio.visualizer.MutableAudioSessionRepository
 import com.adrianrusu.pandawave.core.common.trace.PandaTrace
 import com.adrianrusu.pandawave.core.media.adapter.playback.focus.BambooAudioFocusHandler
@@ -47,6 +52,8 @@ class BambooMediaLibraryService : MediaLibraryService() {
     private var commandAvailabilityProjector: BambooMediaSessionCommandAvailabilityProjector? = null
     private var audioFocusHandler: BambooAudioFocusHandler? = null
     private var audioSessionObserver: ExoPlayerAudioSessionObserver? = null
+    private var catalogExecutor: java.util.concurrent.ExecutorService? = null
+    private var resumptionStore: MediaSessionPlaybackResumptionStore? = null
     private val mainThreadHandler = Handler(Looper.getMainLooper())
 
     override fun onCreate() {
@@ -115,22 +122,25 @@ class BambooMediaLibraryService : MediaLibraryService() {
                 controlsEnabled = { playbackRepository.state.value.canDispatchEngineCommands },
                 controls = { playbackRepository.state.value.controls }
             )
-            val catalogSource = EngineBambooCatalogSource(
-                playbackBridge = playbackEngineBridge,
-                engineGateway = engineGateway
-            )
-            val mediaLibrarySession = MediaLibrarySession.Builder(
+            val catalogDispatcher = this.catalogExecutor ?: Executors.newSingleThreadExecutor { runnable ->
+                Thread(runnable, "pw-media-catalog").apply { isDaemon = true }
+            }.also { this.catalogExecutor = it }
+            val playbackResumptionStore = this.resumptionStore ?: MediaSessionPlaybackResumptionStore(
+                getSharedPreferences(RESUMPTION_PREFERENCES, MODE_PRIVATE)
+            ).also { this.resumptionStore = it }
+            val catalogSource = EngineBambooCatalogSource(engineGateway = engineGateway)
+            val sessionBuilder = MediaLibrarySession.Builder(
                 this,
                 sessionPlayer,
-                BambooMediaLibrarySessionCallback(
-                    controlsEnabled = { playbackRepository.state.value.canDispatchEngineCommands },
-                    controls = { playbackRepository.state.value.controls },
-                    catalog = BambooMediaLibraryCatalog(
-                        source = catalogSource
-                    ),
-                    playbackBridge = playbackEngineBridge
+                sessionCallback(
+                    catalogSource = catalogSource,
+                    playbackEngineBridge = playbackEngineBridge,
+                    catalogExecutor = catalogDispatcher,
+                    resumptionStore = playbackResumptionStore,
                 )
-            ).build()
+            ).setId(SESSION_ID)
+            sessionActivity()?.let(sessionBuilder::setSessionActivity)
+            val mediaLibrarySession = sessionBuilder.build()
             val playbackStateProjector = BambooMediaSessionStateProjector(
                 playbackRepository = playbackRepository,
                 sink = Media3PlayerStateSink(exoPlayer),
@@ -160,14 +170,14 @@ class BambooMediaLibraryService : MediaLibraryService() {
     }
 
     /**
-     * A fatal decoder error leaves Media3 in an unusable idle state. Rebuild every
-     * Android-owned object that holds the old player, then let the explicit engine
-     * effect load the same already-resolved source under a new instance id.
+     * A fatal decoder error leaves Media3 in an unusable idle state. Swap the
+     * session player in place so controllers keep the same MediaLibrarySession,
+     * then let the explicit engine effect load the already-resolved source.
      */
     private fun recreatePlayerForDecoderFailure() {
         val bridge = engineBridge ?: return
-        val focusHandler = audioFocusHandler ?: return
         val previousPlayer = player ?: return
+        val mediaLibrarySession = session ?: return
 
         PandaTrace.section("PW.Media3.Service.recreatePlayer") {
             previousPlayer.removeListener(bridge)
@@ -175,8 +185,6 @@ class BambooMediaLibraryService : MediaLibraryService() {
             audioSessionObserver = null
             stateProjector?.close()
             stateProjector = null
-            session?.release()
-            session = null
             previousPlayer.release()
 
             val exoPlayer = newPlayer()
@@ -190,21 +198,7 @@ class BambooMediaLibraryService : MediaLibraryService() {
                 controlsEnabled = { playbackRepository.state.value.canDispatchEngineCommands },
                 controls = { playbackRepository.state.value.controls }
             )
-            val mediaLibrarySession = MediaLibrarySession.Builder(
-                this,
-                sessionPlayer,
-                BambooMediaLibrarySessionCallback(
-                    controlsEnabled = { playbackRepository.state.value.canDispatchEngineCommands },
-                    controls = { playbackRepository.state.value.controls },
-                    catalog = BambooMediaLibraryCatalog(
-                        source = EngineBambooCatalogSource(
-                            playbackBridge = bridge,
-                            engineGateway = engineGateway
-                        )
-                    ),
-                    playbackBridge = bridge
-                )
-            ).build()
+            mediaLibrarySession.setPlayer(sessionPlayer)
             val projector = BambooMediaSessionStateProjector(
                 playbackRepository = playbackRepository,
                 sink = Media3PlayerStateSink(exoPlayer),
@@ -212,12 +206,42 @@ class BambooMediaLibraryService : MediaLibraryService() {
             )
 
             player = exoPlayer
-            session = mediaLibrarySession
             audioSessionObserver = observer
             stateProjector = projector
             exoPlayer.addListener(bridge)
             projector.start()
         }
+    }
+
+    private fun sessionCallback(
+        catalogSource: EngineBambooCatalogSource,
+        playbackEngineBridge: Media3PlaybackEngineBridge,
+        catalogExecutor: java.util.concurrent.Executor,
+        resumptionStore: MediaSessionPlaybackResumptionStore,
+    ) = BambooMediaLibrarySessionCallback(
+        controlsEnabled = { playbackRepository.state.value.canDispatchEngineCommands },
+        controls = { playbackRepository.state.value.controls },
+        catalog = BambooMediaLibraryCatalog(source = catalogSource),
+        playbackBridge = playbackEngineBridge,
+        sessionPackageName = packageName,
+        catalogExecutor = catalogExecutor,
+        resumptionStore = resumptionStore,
+        playbackState = { playbackRepository.state.value },
+        openNowPlaying = {
+            nowPlayingLaunchIntent(this)?.let { intent ->
+                startActivity(intent)
+            }
+        },
+    )
+
+    private fun sessionActivity(): PendingIntent? {
+        val intent = nowPlayingLaunchIntent(this) ?: return null
+        return PendingIntent.getActivity(
+            this,
+            SESSION_ACTIVITY_REQUEST_CODE,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
     }
 
     private fun newPlayer(): ExoPlayer = PandaTrace.section("PW.Media3.Player.create") {
@@ -274,6 +298,9 @@ class BambooMediaLibraryService : MediaLibraryService() {
             audioSessionObserver = null
             player?.release()
             player = null
+            catalogExecutor?.shutdownNow()
+            catalogExecutor = null
+            resumptionStore = null
         }
 
         super.onDestroy()
@@ -282,4 +309,7 @@ class BambooMediaLibraryService : MediaLibraryService() {
 
 private const val HTTP_MAX_BUFFER_MS = 120_000
 private const val HTTP_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 10_000
+private const val SESSION_ID = "pandawave.media.session"
+private const val SESSION_ACTIVITY_REQUEST_CODE = 1
+private const val RESUMPTION_PREFERENCES = "pandawave_media_session_resumption"
 
