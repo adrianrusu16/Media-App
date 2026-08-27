@@ -71,3 +71,42 @@ alone is not enough.
   `buildPandaEngineAndroidRelease*` tasks (`release`)
 
 `buildPandaEngineAndroid` still builds every configured release ABI.
+
+Gradle pins `CARGO_TARGET_DIR` to `rust/engine/target` so a shell or
+sandbox `CARGO_TARGET_DIR` cannot send the `.so` somewhere the JNI sync
+task does not look.
+
+## Gradle
+
+The repository enables:
+
+- `org.gradle.parallel=true`
+- `org.gradle.caching=true`
+- `org.gradle.configuration-cache=true`
+
+Cargo ABI tasks still run one at a time (`PandaEngineCargoMutex`).
+
+On this Windows machine, keep Gradle away from Android Studio's daemon
+registry when measuring builds:
+
+```powershell
+$env:GRADLE_USER_HOME = 'C:\GradleHome'
+```
+
+`kotlin.compiler.execution.strategy=in-process` remains until an ASCII
+Gradle home is confirmed working with the Kotlin daemon.
+
+## CI
+
+- `android-fast`: quality, lint, and unit tests with
+  `-PpandaEngine.buildNative=false` (no NDK, no Android Rust targets)
+- `android-debug`: one `x86_64` `android-dev` native assemble after fast
+  validation
+- `android-release`: production ABIs + `assembleRelease` /
+  `assembleBenchmark` on `master`, `release*` branches, and
+  `workflow_dispatch`
+- Connected MediaBrowser smoke stays `buildNative=false`
+
+## AIDL
+
+AIDL processing is enabled only on `:core:rust-bridge`.
