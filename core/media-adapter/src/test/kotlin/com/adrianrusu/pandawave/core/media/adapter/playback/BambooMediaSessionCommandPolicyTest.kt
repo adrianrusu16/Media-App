@@ -3,6 +3,8 @@ package com.adrianrusu.pandawave.core.media.adapter.playback
 import androidx.annotation.OptIn
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import com.adrianrusu.pandawave.core.playback.BambooControlState
+import com.adrianrusu.pandawave.core.playback.BambooPlaybackControls
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -46,6 +48,22 @@ class BambooMediaSessionCommandPolicyTest {
     }
 
     @Test
+    fun `seek to media item is advertised only when the engine queue is a timeline`() {
+        val withoutTimeline = BambooMediaSessionCommandPolicy.availableCommandTypes(
+            controls = enabledControls(),
+            hasSeekableTimeline = false
+        )
+        val withTimeline = BambooMediaSessionCommandPolicy.availableCommandTypes(
+            controls = enabledControls(),
+            hasSeekableTimeline = true
+        )
+
+        assertFalse(Player.COMMAND_SEEK_TO_MEDIA_ITEM in withoutTimeline)
+        assertTrue(Player.COMMAND_SEEK_TO_MEDIA_ITEM in withTimeline)
+        assertFalse(Player.COMMAND_CHANGE_MEDIA_ITEMS in withTimeline)
+    }
+
+    @Test
     fun `enabled controls cannot expose unsupported player commands`() {
         val commands = BambooMediaSessionCommandPolicy.availableCommandTypes(
             supportedCommandTypes = setOf(
@@ -77,3 +95,8 @@ private fun allSupportedCommandTypes(): Set<Int> = setOf(
     Player.COMMAND_SET_SPEED_AND_PITCH,
     Player.COMMAND_SET_MEDIA_ITEM
 )
+
+private fun enabledControls(): BambooPlaybackControls {
+    val control = BambooControlState.enabled()
+    return BambooPlaybackControls(control, control, control, showPlayIcon = true)
+}

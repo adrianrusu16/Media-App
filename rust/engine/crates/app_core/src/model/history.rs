@@ -121,6 +121,21 @@ pub struct EngineHistoryEntry {
     pub track: Option<EngineTrack>,
 }
 
+impl EngineHistoryEntry {
+    pub fn to_playback_record(&self) -> Option<EnginePlaybackRecord> {
+        let track_id = self.track.as_ref()?.id.clone();
+        EnginePlaybackRecord::new(track_id, self.duration_millis, self.completion_ratio).ok()
+    }
+}
+
+/// Outcome of promoting anonymous listens onto an authenticated history.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct HistoryReconciliation {
+    pub promoted_entry_ids: Vec<String>,
+    pub clear_anonymous: bool,
+    pub error: Option<EngineError>,
+}
+
 pub fn normalize_completion_ratio(value: f32) -> Result<f32, EngineError> {
     if !value.is_finite() {
         return Err(invalid_history_input(

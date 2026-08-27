@@ -323,8 +323,34 @@ pub(crate) enum PrefetchedOperation {
     Playlists(
         Result<crate::EnginePagedResult<crate::EnginePlaylist>, crate::model::error::EngineError>,
     ),
-    HistorySettings(Result<crate::EngineHistorySettings, crate::model::error::EngineError>),
+    HistorySettings(PrefetchedHistorySettings),
+    HistorySettingsUpdate(
+        Result<crate::EngineHistorySettingsUpdate, crate::model::error::EngineError>,
+    ),
+    HistoryPage(PrefetchedHistoryPage),
+    HistoryDelete(Result<(), crate::model::error::EngineError>),
+    HistoryClear(Result<u64, crate::model::error::EngineError>),
     Playback(Result<crate::EnginePlaybackSource, crate::model::error::EngineError>),
+    LibraryPage(
+        Result<
+            crate::EnginePagedResult<crate::EngineLibraryTrack>,
+            crate::model::error::EngineError,
+        >,
+    ),
+    LibraryMutation(Result<Option<crate::EngineLibraryTrack>, crate::model::error::EngineError>),
+}
+
+pub(crate) struct PrefetchedHistorySettings {
+    pub settings: Result<crate::EngineHistorySettings, crate::model::error::EngineError>,
+    pub reconciliation: crate::HistoryReconciliation,
+}
+
+pub(crate) struct PrefetchedHistoryPage {
+    pub page: Result<
+        crate::EnginePagedResult<crate::EngineHistoryEntry>,
+        crate::model::error::EngineError,
+    >,
+    pub reconciliation: crate::HistoryReconciliation,
 }
 
 impl Default for Engine {
@@ -532,6 +558,10 @@ impl Engine {
         self.history_port.clone()
     }
 
+    pub(crate) fn actor_library_port(&self) -> Option<Arc<dyn crate::LibraryPort>> {
+        self.library_port.clone()
+    }
+
     pub(crate) fn actor_account_port(&self) -> Option<Arc<dyn crate::AccountPort>> {
         self.account_port.clone()
     }
@@ -616,11 +646,55 @@ impl Engine {
         }
     }
 
-    pub(super) fn take_prefetched_history_settings(
-        &mut self,
-    ) -> Option<Result<crate::EngineHistorySettings, crate::model::error::EngineError>> {
+    pub(super) fn take_prefetched_history_settings(&mut self) -> Option<PrefetchedHistorySettings> {
         match self.prefetched_operation.take() {
             Some(PrefetchedOperation::HistorySettings(result)) => Some(result),
+            other => {
+                self.prefetched_operation = other;
+                None
+            }
+        }
+    }
+
+    pub(super) fn take_prefetched_history_settings_update(
+        &mut self,
+    ) -> Option<Result<crate::EngineHistorySettingsUpdate, crate::model::error::EngineError>> {
+        match self.prefetched_operation.take() {
+            Some(PrefetchedOperation::HistorySettingsUpdate(result)) => Some(result),
+            other => {
+                self.prefetched_operation = other;
+                None
+            }
+        }
+    }
+
+    pub(super) fn take_prefetched_history_page(&mut self) -> Option<PrefetchedHistoryPage> {
+        match self.prefetched_operation.take() {
+            Some(PrefetchedOperation::HistoryPage(result)) => Some(result),
+            other => {
+                self.prefetched_operation = other;
+                None
+            }
+        }
+    }
+
+    pub(super) fn take_prefetched_history_delete(
+        &mut self,
+    ) -> Option<Result<(), crate::model::error::EngineError>> {
+        match self.prefetched_operation.take() {
+            Some(PrefetchedOperation::HistoryDelete(result)) => Some(result),
+            other => {
+                self.prefetched_operation = other;
+                None
+            }
+        }
+    }
+
+    pub(super) fn take_prefetched_history_clear(
+        &mut self,
+    ) -> Option<Result<u64, crate::model::error::EngineError>> {
+        match self.prefetched_operation.take() {
+            Some(PrefetchedOperation::HistoryClear(result)) => Some(result),
             other => {
                 self.prefetched_operation = other;
                 None
@@ -633,6 +707,35 @@ impl Engine {
     ) -> Option<Result<crate::EnginePlaybackSource, crate::model::error::EngineError>> {
         match self.prefetched_operation.take() {
             Some(PrefetchedOperation::Playback(result)) => Some(result),
+            other => {
+                self.prefetched_operation = other;
+                None
+            }
+        }
+    }
+
+    pub(super) fn take_prefetched_library_page(
+        &mut self,
+    ) -> Option<
+        Result<
+            crate::EnginePagedResult<crate::EngineLibraryTrack>,
+            crate::model::error::EngineError,
+        >,
+    > {
+        match self.prefetched_operation.take() {
+            Some(PrefetchedOperation::LibraryPage(result)) => Some(result),
+            other => {
+                self.prefetched_operation = other;
+                None
+            }
+        }
+    }
+
+    pub(super) fn take_prefetched_library_mutation(
+        &mut self,
+    ) -> Option<Result<Option<crate::EngineLibraryTrack>, crate::model::error::EngineError>> {
+        match self.prefetched_operation.take() {
+            Some(PrefetchedOperation::LibraryMutation(result)) => Some(result),
             other => {
                 self.prefetched_operation = other;
                 None

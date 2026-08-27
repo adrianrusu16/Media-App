@@ -2,11 +2,11 @@ package com.adrianrusu.pandawave.core.rust.bridge.gateway
 
 import android.os.RemoteException
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthOperationResult
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryItem
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryPage
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineLibraryItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistItem
@@ -52,9 +52,8 @@ class AidlEngineGatewayTest {
         )
         val gateway = AidlEngineGateway(FakeEngineServiceConnection(service))
 
-        assertEquals(saved, gateway.savedTrack(0))
-        assertEquals(liked, gateway.likedTrack(0))
-        assertEquals("track-pending", gateway.pendingLibraryTrackId(0))
+        assertEquals(listOf(saved), gateway.savedTracksPage(0, 10))
+        assertEquals(listOf(liked), gateway.likedTracksPage(0, 10))
         assertEquals(listOf("track-pending"), gateway.pendingLibraryTrackIdsPage(0, 10))
 
         val publicSurface = listOf(EngineLibraryItem::class.java, EngineService::class.java, EngineGateway::class.java)
@@ -86,8 +85,6 @@ class AidlEngineGatewayTest {
         )
         val gateway = AidlEngineGateway(FakeEngineServiceConnection(service))
 
-        assertEquals(history, gateway.historyEntry(0))
-        assertNull(gateway.historyEntry(1))
         assertEquals(
             com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryPage(0L, listOf(history)),
             gateway.historyPage(0, 10, 0L)
@@ -142,8 +139,8 @@ class AidlEngineGatewayTest {
         )
         val gateway = AidlEngineGateway(FakeEngineServiceConnection(service))
 
-        assertEquals(playlist, gateway.playlist(0))
-        assertEquals(track, gateway.playlistTrack(0))
+        assertEquals(listOf(playlist), gateway.playlistsPage(0, 10))
+        assertEquals(listOf(track), gateway.playlistTracksPage(0, 10))
         assertEquals("playlist-1", gateway.selectedPlaylistId())
         assertEquals(reconciliation, gateway.playlistReconciliation())
 
@@ -1015,21 +1012,26 @@ private class RecordingEngineService(
         return currentSnapshot
     }
 
-    override fun browseResult(index: Int): EngineCatalogItem? = null
+    override fun savedTracksPage(offset: Int, limit: Int): List<EngineLibraryItem> =
+        saved.drop(offset.coerceAtLeast(0)).take(limit.coerceAtLeast(0))
 
-    override fun searchResult(index: Int): EngineCatalogItem? = null
+    override fun likedTracksPage(offset: Int, limit: Int): List<EngineLibraryItem> =
+        liked.drop(offset.coerceAtLeast(0)).take(limit.coerceAtLeast(0))
 
-    override fun savedTrack(index: Int): EngineLibraryItem? = saved.getOrNull(index)
+    override fun historyPage(offset: Int, limit: Int, generation: Long) =
+        EngineHistoryPage(
+            generation,
+            history.drop(offset.coerceAtLeast(0)).take(limit.coerceAtLeast(0))
+        )
 
-    override fun likedTrack(index: Int): EngineLibraryItem? = liked.getOrNull(index)
+    override fun pendingLibraryTrackIdsPage(offset: Int, limit: Int): List<String> =
+        pending.drop(offset.coerceAtLeast(0)).take(limit.coerceAtLeast(0))
 
-    override fun historyEntry(index: Int): EngineHistoryItem? = history.getOrNull(index)
+    override fun playlistsPage(offset: Int, limit: Int): List<EnginePlaylistItem> =
+        playlists.drop(offset.coerceAtLeast(0)).take(limit.coerceAtLeast(0))
 
-    override fun pendingLibraryTrackId(index: Int): String? = pending.getOrNull(index)
-
-    override fun playlist(index: Int): EnginePlaylistItem? = playlists.getOrNull(index)
-
-    override fun playlistTrack(index: Int): EnginePlaylistTrackItem? = playlistTracks.getOrNull(index)
+    override fun playlistTracksPage(offset: Int, limit: Int): List<EnginePlaylistTrackItem> =
+        playlistTracks.drop(offset.coerceAtLeast(0)).take(limit.coerceAtLeast(0))
 
     override fun selectedPlaylistId(): String? = selectedPlaylistId
 
@@ -1105,10 +1107,6 @@ private class DeadBinderAfterDispatchService(private val initialSnapshot: Engine
 
     override fun effectCount(): Int = 0
 
-    override fun browseResult(index: Int): EngineCatalogItem? = null
-
-    override fun searchResult(index: Int): EngineCatalogItem? = null
-
     override fun effect(index: Int): EngineEffect? = null
 
     override fun dispatch(command: EngineCommand): EngineDispatchResult {
@@ -1127,10 +1125,6 @@ private class BlockingDispatchEngineService(
     private val currentSnapshot = EngineSnapshot.idle(nowMillis = 1L)
 
     override fun snapshot(): EngineSnapshot = currentSnapshot
-
-    override fun browseResult(index: Int): EngineCatalogItem? = null
-
-    override fun searchResult(index: Int): EngineCatalogItem? = null
 
     override fun effectCount(): Int = 0
 

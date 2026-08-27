@@ -143,7 +143,8 @@ pub(super) fn strings_to_jobject_array(env: &mut JNIEnv, values: Vec<String>) ->
 pub(super) fn library_track_to_strings(
     item: &panda_engine_core::EngineLibraryTrack,
 ) -> Vec<String> {
-    let (artwork_id, artwork_hash, artwork_uri) = artwork_identity_strings(item.track.artwork.as_ref());
+    let (artwork_id, artwork_hash, artwork_uri) =
+        artwork_identity_strings(item.track.artwork.as_ref());
     let packed = vec![
         item.relationship_id.clone(),
         item.track.id.clone(),
@@ -227,7 +228,8 @@ pub(super) fn playlist_to_strings(item: &panda_engine_core::EnginePlaylist) -> V
 pub(super) fn playlist_track_to_strings(
     item: &panda_engine_core::EnginePlaylistTrack,
 ) -> Vec<String> {
-    let (artwork_id, artwork_hash, artwork_uri) = artwork_identity_strings(item.track.artwork.as_ref());
+    let (artwork_id, artwork_hash, artwork_uri) =
+        artwork_identity_strings(item.track.artwork.as_ref());
     let packed = vec![
         item.membership_id.clone(),
         item.playlist_id.clone(),
@@ -856,14 +858,20 @@ mod tests {
         };
         let catalog_packed = catalog_item_to_strings(&catalog);
         assert_eq!(catalog_packed.len(), CATALOG_ITEM_VALUE_COUNT);
-        assert_eq!(catalog_packed[4], "https://example.com/artwork/art-1/hash-1");
+        assert_eq!(
+            catalog_packed[4],
+            "https://example.com/artwork/art-1/hash-1"
+        );
         assert_eq!(catalog_packed[8], "art-1");
         assert_eq!(catalog_packed[9], "hash-1");
 
         let history = history_entry("history-1", Some("track-1"));
         let history_packed = history_entry_to_strings(&history);
         assert_eq!(history_packed.len(), HISTORY_ENTRY_VALUE_COUNT);
-        assert_eq!(history_packed[5], "https://example.com/artwork/art-1/hash-1");
+        assert_eq!(
+            history_packed[5],
+            "https://example.com/artwork/art-1/hash-1"
+        );
         assert_eq!(history_packed[10], "art-1");
         assert_eq!(history_packed[11], "hash-1");
 

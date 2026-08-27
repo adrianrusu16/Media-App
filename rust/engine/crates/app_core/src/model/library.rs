@@ -35,6 +35,14 @@ pub enum EngineLibraryRelationshipKind {
     Liked,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum EngineLibraryMutation {
+    Save,
+    RemoveSaved,
+    Like,
+    Unlike,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct EngineLibraryTrack {
     pub relationship_id: String,

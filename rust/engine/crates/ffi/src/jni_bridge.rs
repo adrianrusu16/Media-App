@@ -1,5 +1,5 @@
 use jni::JNIEnv;
-use jni::objects::{JByteArray, JClass, JObject, JString};
+use jni::objects::{JByteArray, JClass, JObject};
 use jni::sys::{jboolean, jfloat, jint, jlong, jlongArray, jobjectArray, jstring};
 use std::ptr;
 use std::sync::Arc;
@@ -8,11 +8,10 @@ mod conversions;
 
 use conversions::{
     account_to_strings, auth_result_array, auth_state_to_strings, backend_status_to_strings,
-    catalog_item_to_strings, effect_to_strings, effects_page_to_strings, history_entry_to_strings,
-    history_page_to_strings, invalid_auth_input, jni_secret_to_string, jni_string_to_c_string,
-    jni_string_to_string, library_track_to_strings, metadata_to_strings, owned_c_string_to_jstring,
-    playlist_to_strings, playlist_track_to_strings, profile_to_strings, session_to_strings,
-    snapshot_page_to_strings, snapshot_to_jlong_array, strings_to_jobject_array,
+    effect_to_strings, effects_page_to_strings, history_page_to_strings, invalid_auth_input,
+    jni_secret_to_string, jni_string_to_c_string, jni_string_to_string, metadata_to_strings,
+    owned_c_string_to_jstring, profile_to_strings, session_to_strings, snapshot_page_to_strings,
+    snapshot_to_jlong_array, strings_to_jobject_array,
 };
 
 use crate::api::auth::{
@@ -429,82 +428,6 @@ pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_eng
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeBrowseResultValues(
-    mut env: JNIEnv,
-    _: JObject,
-    handle: jlong,
-    index: jint,
-) -> jobjectArray {
-    catalog_result_values(&mut env, handle, index, |snapshot| &snapshot.browse_results)
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeSearchResultValues(
-    mut env: JNIEnv,
-    _: JObject,
-    handle: jlong,
-    index: jint,
-) -> jobjectArray {
-    catalog_result_values(&mut env, handle, index, |snapshot| &snapshot.search_results)
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeDiscoveryResultValues(
-    mut env: JNIEnv,
-    _: JObject,
-    handle: jlong,
-    index: jint,
-) -> jobjectArray {
-    catalog_result_values(&mut env, handle, index, |snapshot| {
-        &snapshot.discovery_results
-    })
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeForYouResultValues(
-    mut env: JNIEnv,
-    _: JObject,
-    handle: jlong,
-    index: jint,
-) -> jobjectArray {
-    catalog_result_values(&mut env, handle, index, |snapshot| {
-        &snapshot.for_you_results
-    })
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeRecommendationResultValues(
-    mut env: JNIEnv,
-    _: JObject,
-    handle: jlong,
-    index: jint,
-) -> jobjectArray {
-    catalog_result_values(&mut env, handle, index, |snapshot| {
-        &snapshot.recommendations_results
-    })
-}
-
-fn catalog_result_values(
-    env: &mut JNIEnv,
-    handle: jlong,
-    index: jint,
-    select: impl FnOnce(&panda_engine_core::EngineSnapshot) -> &Vec<panda_engine_core::MediaItem>,
-) -> jobjectArray {
-    let Some(snapshot) =
-        (unsafe { (handle as *const PandaEngine).as_ref() }).map(|engine| engine.engine.snapshot())
-    else {
-        return ptr::null_mut();
-    };
-    let Some(item) = usize::try_from(index)
-        .ok()
-        .and_then(|index| select(&snapshot).get(index))
-    else {
-        return ptr::null_mut();
-    };
-    strings_to_jobject_array(env, catalog_item_to_strings(item))
-}
-
-#[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeProfilePreferenceValue(
     mut env: JNIEnv,
     _: JObject,
@@ -518,69 +441,6 @@ pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_eng
         crate::panda_engine_get_profile_preference_value(handle as *const PandaEngine, key.as_ptr())
     };
     owned_c_string_to_jstring(&mut env, value)
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeSavedTrackValues(
-    mut env: JNIEnv,
-    _this: JObject,
-    handle: jlong,
-    index: jint,
-) -> jobjectArray {
-    let Some(snapshot) =
-        (unsafe { (handle as *const PandaEngine).as_ref() }).map(|engine| engine.engine.snapshot())
-    else {
-        return ptr::null_mut();
-    };
-    let Some(item) = usize::try_from(index)
-        .ok()
-        .and_then(|index| snapshot.saved_tracks.get(index))
-    else {
-        return ptr::null_mut();
-    };
-    strings_to_jobject_array(&mut env, library_track_to_strings(item))
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeLikedTrackValues(
-    mut env: JNIEnv,
-    _this: JObject,
-    handle: jlong,
-    index: jint,
-) -> jobjectArray {
-    let Some(snapshot) =
-        (unsafe { (handle as *const PandaEngine).as_ref() }).map(|engine| engine.engine.snapshot())
-    else {
-        return ptr::null_mut();
-    };
-    let Some(item) = usize::try_from(index)
-        .ok()
-        .and_then(|index| snapshot.liked_tracks.get(index))
-    else {
-        return ptr::null_mut();
-    };
-    strings_to_jobject_array(&mut env, library_track_to_strings(item))
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativeHistoryEntryValues(
-    mut env: JNIEnv,
-    _this: JObject,
-    handle: jlong,
-    index: jint,
-) -> jobjectArray {
-    let Some(snapshot) =
-        (unsafe { (handle as *const PandaEngine).as_ref() }).map(|engine| engine.engine.snapshot())
-    else {
-        return ptr::null_mut();
-    };
-    let Some(item) = usize::try_from(index)
-        .ok()
-        .and_then(|index| snapshot.history_entries.get(index))
-    else {
-        return ptr::null_mut();
-    };
-    strings_to_jobject_array(&mut env, history_entry_to_strings(item))
 }
 
 #[unsafe(no_mangle)]
@@ -628,68 +488,6 @@ pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_eng
     strings_to_jobject_array(&mut env, values)
 }
 
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativePendingLibraryTrackId(
-    env: JNIEnv,
-    _this: JObject,
-    handle: jlong,
-    index: jint,
-) -> jstring {
-    let Some(snapshot) =
-        (unsafe { (handle as *const PandaEngine).as_ref() }).map(|engine| engine.engine.snapshot())
-    else {
-        return ptr::null_mut();
-    };
-    let Some(track_id) = usize::try_from(index)
-        .ok()
-        .and_then(|index| snapshot.library_pending_track_ids.get(index))
-    else {
-        return ptr::null_mut();
-    };
-    env.new_string(track_id)
-        .map_or(ptr::null_mut(), JString::into_raw)
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativePlaylistValues(
-    mut env: JNIEnv,
-    _: JObject,
-    handle: jlong,
-    index: jint,
-) -> jobjectArray {
-    let Some(snapshot) =
-        (unsafe { (handle as *const PandaEngine).as_ref() }).map(|e| e.engine.snapshot())
-    else {
-        return ptr::null_mut();
-    };
-    let Some(item) = usize::try_from(index)
-        .ok()
-        .and_then(|index| snapshot.playlists.get(index))
-    else {
-        return ptr::null_mut();
-    };
-    strings_to_jobject_array(&mut env, playlist_to_strings(item))
-}
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativePlaylistTrackValues(
-    mut env: JNIEnv,
-    _: JObject,
-    handle: jlong,
-    index: jint,
-) -> jobjectArray {
-    let Some(snapshot) =
-        (unsafe { (handle as *const PandaEngine).as_ref() }).map(|e| e.engine.snapshot())
-    else {
-        return ptr::null_mut();
-    };
-    let Some(item) = usize::try_from(index)
-        .ok()
-        .and_then(|index| snapshot.playlist_tracks.get(index))
-    else {
-        return ptr::null_mut();
-    };
-    strings_to_jobject_array(&mut env, playlist_track_to_strings(item))
-}
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_engine_native_PandaEngine_nativePlaylistSelectionValues(
     mut env: JNIEnv,

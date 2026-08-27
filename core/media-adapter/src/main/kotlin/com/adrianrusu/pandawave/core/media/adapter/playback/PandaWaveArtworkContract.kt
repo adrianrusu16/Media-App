@@ -13,17 +13,34 @@ import java.util.Locale
  * Rewrites Canopy HTTP artwork into exported `content://` URIs so AAOS media
  * hosts can open album art. In-app Coil keeps using the original HTTP URL.
  *
- * String helpers are unit-testable on the JVM; Android [Uri] is only created
- * at the Media3 boundary.
+ * Prefers `content://…/id/{id}/{hash}` when PandaEngine supplies artwork
+ * identity; otherwise wraps the remote URL as `content://…/remote?source=`.
  */
 internal object PandaWaveArtworkContract {
     const val PATH_REMOTE = "remote"
+    const val PATH_ID = "id"
     const val QUERY_SOURCE = "source"
+    const val QUERY_WIDTH = "w"
+    const val QUERY_HEIGHT = "h"
 
     fun authority(packageName: String): String = "$packageName.artwork"
 
-    fun mediaHostUriString(packageName: String, artworkUri: String?): String? {
-        val raw = artworkUri?.trim()?.takeIf(String::isNotEmpty) ?: return null
+    fun mediaHostUriString(
+        packageName: String,
+        artworkUri: String?,
+        artworkId: String? = null,
+        artworkVersion: String? = null
+    ): String? {
+        val id = artworkId?.trim()?.takeIf(String::isNotEmpty)
+        val hash = artworkVersion?.trim()?.takeIf(String::isNotEmpty)
+        val remote = artworkUri?.trim()?.takeIf(String::isNotEmpty)
+        if (id != null && hash != null) {
+            remote?.toJavaUriOrNull()?.takeIf(::isAllowedRemoteSource)?.let { source ->
+                PandaArtworkRegistry.register(id, hash, source.toASCIIString())
+            }
+            return "$SCHEME_CONTENT://${authority(packageName)}/$PATH_ID/${encodePath(id)}/${encodePath(hash)}"
+        }
+        val raw = remote ?: return null
         val parsed = raw.toJavaUriOrNull() ?: return raw
         return when (parsed.scheme?.lowercase(Locale.US)) {
             SCHEME_HTTP, SCHEME_HTTPS -> {
@@ -43,13 +60,23 @@ internal object PandaWaveArtworkContract {
         }
     }
 
-    fun mediaHostUri(packageName: String, artworkUri: String?): Uri? =
-        mediaHostUriString(packageName, artworkUri)?.toArtworkUriOrNull()
+    fun mediaHostUri(
+        packageName: String,
+        artworkUri: String?,
+        artworkId: String? = null,
+        artworkVersion: String? = null
+    ): Uri? = mediaHostUriString(packageName, artworkUri, artworkId, artworkVersion)?.toArtworkUriOrNull()
 
     fun remoteSourceString(uri: String): String? {
         val parsed = uri.toJavaUriOrNull() ?: return null
         if (parsed.host.isNullOrBlank()) return null
         val path = parsed.path?.trim('/') ?: return null
+        val segments = path.split('/')
+        if (segments.size >= 3 && segments[0] == PATH_ID) {
+            val id = decodePath(segments[1])
+            val hash = decodePath(segments[2])
+            return PandaArtworkRegistry.remoteUri(id, hash)
+        }
         if (path != PATH_REMOTE) return null
         val source = queryParameter(parsed.rawQuery, QUERY_SOURCE)?.toJavaUriOrNull() ?: return null
         return source.takeIf(::isAllowedRemoteSource)?.toASCIIString()
@@ -65,20 +92,45 @@ internal object PandaWaveArtworkContract {
     }
 }
 
-internal fun interface ArtworkUriProjector {
-    fun project(artworkUri: String?): Uri?
+internal interface ArtworkUriProjector {
+    fun project(artworkUri: String?, artworkId: String? = null, artworkVersion: String? = null): Uri?
 }
 
 internal object PassthroughArtworkUriProjector : ArtworkUriProjector {
-    override fun project(artworkUri: String?): Uri? = artworkUri?.toArtworkUriOrNull()
+    override fun project(artworkUri: String?, artworkId: String?, artworkVersion: String?): Uri? =
+        artworkUri?.toArtworkUriOrNull()
 }
 
 internal class MediaHostArtworkUriProjector(
     private val packageName: String,
     private val uriParser: (String) -> Uri? = { value -> value.toArtworkUriOrNull() }
 ) : ArtworkUriProjector {
-    override fun project(artworkUri: String?): Uri? =
-        PandaWaveArtworkContract.mediaHostUriString(packageName, artworkUri)?.let(uriParser)
+    override fun project(artworkUri: String?, artworkId: String?, artworkVersion: String?): Uri? =
+        PandaWaveArtworkContract.mediaHostUriString(
+            packageName = packageName,
+            artworkUri = artworkUri,
+            artworkId = artworkId,
+            artworkVersion = artworkVersion
+        )?.let(uriParser)
+}
+
+internal object PandaArtworkRegistry {
+    private val lock = Any()
+    private val remotes = object : LinkedHashMap<String, String>(MAX_ENTRIES, 0.75F, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?): Boolean = size > MAX_ENTRIES
+    }
+
+    fun register(id: String, hash: String, remoteUri: String) {
+        synchronized(lock) {
+            remotes[key(id, hash)] = remoteUri
+        }
+    }
+
+    fun remoteUri(id: String, hash: String): String? = synchronized(lock) {
+        remotes[key(id, hash)]
+    }
+
+    private fun key(id: String, hash: String): String = "$id/$hash"
 }
 
 internal fun String.toArtworkUriOrNull(): Uri? = try {
@@ -95,12 +147,12 @@ internal fun String.toJavaUriOrNull(): URI? = try {
 
 private fun queryParameter(rawQuery: String?, name: String): String? {
     if (rawQuery.isNullOrEmpty()) return null
-    return rawQuery.split('&').firstNotNullOfOrNull { pair ->
+    return rawQuery.split('&').firstOrNull { pair ->
         val separator = pair.indexOf('=')
-        if (separator < 0) return@firstNotNullOfOrNull null
-        val key = decodeQueryValue(pair.substring(0, separator))
-        if (key != name) return@firstNotNullOfOrNull null
-        decodeQueryValue(pair.substring(separator + 1))
+        if (separator < 0) return@firstOrNull false
+        decodeQueryValue(pair.substring(0, separator)) == name
+    }?.let { pair ->
+        decodeQueryValue(pair.substring(pair.indexOf('=') + 1))
     }
 }
 
@@ -110,8 +162,13 @@ private fun encodeQueryValue(value: String): String =
 private fun decodeQueryValue(value: String): String =
     URLDecoder.decode(value.replace("+", "%20"), StandardCharsets.UTF_8)
 
+private fun encodePath(value: String): String = encodeQueryValue(value)
+
+private fun decodePath(value: String): String = decodeQueryValue(value)
+
 private const val SCHEME_HTTP = "http"
 private const val SCHEME_HTTPS = "https"
 private const val SCHEME_CONTENT = "content"
 private const val SCHEME_ANDROID_RESOURCE = "android.resource"
 private const val SCHEME_FILE = "file"
+private const val MAX_ENTRIES = 256

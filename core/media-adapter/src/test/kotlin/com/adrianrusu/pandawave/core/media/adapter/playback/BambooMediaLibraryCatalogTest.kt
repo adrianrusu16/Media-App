@@ -14,6 +14,7 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryItem
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryPage
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.pandawave.core.rust.bridge.engine.EngineDispatchResult
@@ -126,9 +127,9 @@ class BambooMediaLibraryCatalogTest {
 
         assertEquals(
             listOf(
-                "pandawave.library.saved",
-                "pandawave.library.downloads",
-                "pandawave.library.recent"
+                PandaMediaLibraryIds.SAVED,
+                PandaMediaLibraryIds.DOWNLOADS,
+                PandaMediaLibraryIds.HISTORY
             ),
             children.map { it.mediaId }
         )
@@ -195,17 +196,9 @@ class BambooMediaLibraryCatalogTest {
             source = EngineBambooCatalogSource(engineGateway = engineGateway)
         )
 
-        val rootChildren = catalog.children(LibraryItems.ROOT_MEDIA_ID, page = 0, pageSize = 10)
+        catalog.children("engine.parent", page = 0, pageSize = 10)
         catalog.search("Rust", page = 0, pageSize = 10)
 
-        assertEquals(
-            listOf(
-                "pandawave.library.saved",
-                "pandawave.library.downloads",
-                "pandawave.library.recent"
-            ),
-            rootChildren.map { item -> item.mediaId }
-        )
         assertEquals(
             listOf(EngineCommand.TYPE_BROWSE, EngineCommand.TYPE_SEARCH),
             engineGateway.commands.map(EngineCommand::type)
@@ -254,7 +247,10 @@ class BambooMediaLibraryCatalogTest {
         val searchResults = catalog.search("Bamboo", page = 0, pageSize = 10)
 
         assertEquals(listOf("fresh-album"), browseChildren.map { item -> item.mediaId })
-        assertEquals(listOf("fresh-track"), searchResults.map { item -> item.mediaId })
+        assertEquals(
+            listOf("fresh-track"),
+            searchResults.map { item -> PandaMediaSelectionId.engineMediaId(item.mediaId) }
+        )
         assertEquals(
             listOf(EngineCommand.TYPE_BROWSE, EngineCommand.TYPE_SEARCH),
             engineGateway.commands.map(EngineCommand::type)
@@ -302,7 +298,10 @@ class BambooMediaLibraryCatalogTest {
         )
         assertFalse(browseChildren.single().mediaMetadata.isPlayable == true)
         assertTrue(browseChildren.single().mediaMetadata.isBrowsable == true)
-        assertEquals(listOf("track-1"), searchResults.map { item -> item.mediaId })
+        assertEquals(
+            listOf("track-1"),
+            searchResults.map { item -> PandaMediaSelectionId.engineMediaId(item.mediaId) }
+        )
         assertEquals("Bamboo Radio", searchResults.single().mediaMetadata.title.toString())
         assertEquals("PandaWave - Canopy Sessions", searchResults.single().mediaMetadata.subtitle.toString())
         assertEquals("PandaWave", searchResults.single().mediaMetadata.artist)
@@ -339,7 +338,10 @@ class BambooMediaLibraryCatalogTest {
 
         val children = catalog.children("engine.parent", page = 0, pageSize = 10)
 
-        assertEquals(listOf("track-1"), children.map { item -> item.mediaId })
+        assertEquals(
+            listOf("track-1"),
+            children.map { item -> PandaMediaSelectionId.engineMediaId(item.mediaId) }
+        )
         assertEquals(1, parsedArtwork.size)
         assertTrue(parsedArtwork.single().startsWith("content://com.adrianrusu.pandawave.artwork/remote?"))
         assertEquals(
@@ -391,8 +393,8 @@ class BambooMediaLibraryCatalogTest {
         val first = catalog.children(LibraryItems.HISTORY_MEDIA_ID, page = 0, pageSize = 1)
         val second = catalog.children(LibraryItems.HISTORY_MEDIA_ID, page = 1, pageSize = 1)
 
-        assertEquals(listOf("track-1"), first.map { it.mediaId })
-        assertEquals(listOf("track-2"), second.map { it.mediaId })
+        assertEquals(listOf("track-1"), first.map { PandaMediaSelectionId.engineMediaId(it.mediaId) })
+        assertEquals(listOf("track-2"), second.map { PandaMediaSelectionId.engineMediaId(it.mediaId) })
         assertEquals(
             listOf(EngineCommand.TYPE_LIST_HISTORY, EngineCommand.TYPE_LOAD_NEXT_HISTORY_PAGE),
             engineGateway.commands.map(EngineCommand::type)
@@ -422,7 +424,7 @@ class BambooMediaLibraryCatalogTest {
 
         val children = catalog.children(LibraryItems.HISTORY_MEDIA_ID, page = 0, pageSize = 10)
 
-        assertEquals(listOf("track-playable"), children.map { it.mediaId })
+        assertEquals(listOf("track-playable"), children.map { PandaMediaSelectionId.engineMediaId(it.mediaId) })
         assertTrue(children.single().mediaMetadata.isPlayable == true)
     }
 
@@ -455,8 +457,8 @@ class BambooMediaLibraryCatalogTest {
         )
         val secondPage = catalog.children(LibraryItems.HISTORY_MEDIA_ID, page = 1, pageSize = 1)
 
-        assertEquals(listOf("track-old"), firstPage.map { it.mediaId })
-        assertEquals(listOf("track-new-2"), secondPage.map { it.mediaId })
+        assertEquals(listOf("track-old"), firstPage.map { PandaMediaSelectionId.engineMediaId(it.mediaId) })
+        assertEquals(listOf("track-new-2"), secondPage.map { PandaMediaSelectionId.engineMediaId(it.mediaId) })
         assertEquals(
             listOf(
                 EngineCommand.TYPE_LIST_HISTORY,
@@ -465,6 +467,76 @@ class BambooMediaLibraryCatalogTest {
             ),
             engineGateway.commands.map(EngineCommand::type)
         )
+    }
+
+    @Test
+    fun `engine source lists history without requiring a signed-in account`() {
+        val engineGateway = CatalogRecordingEngineGateway(
+            snapshot = EngineSnapshot.idle(nowMillis = 1L).copy(
+                historyGeneration = 3L,
+                historyEntriesCount = 1
+            ),
+            historyResults = listOf(historyItem(historyId = "history-anon", mediaId = "track-anon"))
+        )
+        val catalog = BambooMediaLibraryCatalog(
+            source = EngineBambooCatalogSource(engineGateway = engineGateway)
+        )
+
+        val children = catalog.children(LibraryItems.HISTORY_MEDIA_ID, page = 0, pageSize = 10)
+
+        assertEquals(listOf("track-anon"), children.map { PandaMediaSelectionId.engineMediaId(it.mediaId) })
+        assertEquals(listOf(EngineCommand.TYPE_LIST_HISTORY), engineGateway.commands.map(EngineCommand::type))
+    }
+
+    @Test
+    fun `unknown items are not invented as playable`() {
+        val catalog = BambooMediaLibraryCatalog(source = EmptyCatalogSource)
+
+        assertEquals(null, catalog.item("totally-unknown"))
+    }
+
+    @Test
+    fun `recent root hint is a playable history folder not the browse tree`() {
+        val engineGateway = CatalogRecordingEngineGateway(
+            snapshot = EngineSnapshot.idle(nowMillis = 1L).copy(historyGeneration = 1L, historyEntriesCount = 1),
+            historyResults = listOf(historyItem(historyId = "history-1", mediaId = "track-1"))
+        )
+        val catalog = BambooMediaLibraryCatalog(
+            source = EngineBambooCatalogSource(engineGateway = engineGateway)
+        )
+
+        val root = catalog.root(PandaLibraryBrowseHints(isRecent = true))
+        val children = catalog.children(
+            parentId = root.mediaId,
+            page = 0,
+            pageSize = 10,
+            hints = PandaLibraryBrowseHints(isRecent = true, ignoreHostPagination = true)
+        )
+
+        assertEquals(PandaMediaLibraryIds.PLATFORM_RECENT, root.mediaId)
+        assertEquals(listOf("track-1"), children.map { PandaMediaSelectionId.engineMediaId(it.mediaId) })
+        assertTrue(children.single().mediaMetadata.isPlayable == true)
+    }
+
+    @Test
+    fun `engine root children are synthetic panda wave nodes`() {
+        val catalog = BambooMediaLibraryCatalog(
+            source = EngineBambooCatalogSource(engineGateway = CatalogRecordingEngineGateway())
+        )
+
+        val children = catalog.children(LibraryItems.ROOT_MEDIA_ID, page = 0, pageSize = 10)
+
+        assertEquals(
+            listOf(
+                PandaMediaLibraryIds.SAVED,
+                PandaMediaLibraryIds.DOWNLOADS,
+                PandaMediaLibraryIds.HISTORY,
+                PandaMediaLibraryIds.LIBRARY
+            ),
+            children.map { it.mediaId }
+        )
+        assertTrue(children.all { item -> item.mediaMetadata.isBrowsable == true })
+        assertTrue(children.none { item -> item.mediaMetadata.isPlayable == true })
     }
 }
 
@@ -494,9 +566,9 @@ private class FixedCatalogSource(private val parentId: String, private val child
 
 private object PlaceholderBambooCatalogSource : BambooCatalogSource {
     private val root = listOf(
-        BambooCatalogNode("pandawave.library.saved", "Saved music", isBrowsable = true, isPlayable = false),
-        BambooCatalogNode("pandawave.library.downloads", "Downloads", isBrowsable = true, isPlayable = false),
-        BambooCatalogNode("pandawave.library.recent", "Recently played", isBrowsable = true, isPlayable = false)
+        BambooCatalogNode(PandaMediaLibraryIds.SAVED, "Saved music", isBrowsable = true, isPlayable = false),
+        BambooCatalogNode(PandaMediaLibraryIds.DOWNLOADS, "Downloads", isBrowsable = true, isPlayable = false),
+        BambooCatalogNode(PandaMediaLibraryIds.HISTORY, "Recently played", isBrowsable = true, isPlayable = false)
     )
 
     override fun browse(parentId: String, offset: Int, limit: Int): CatalogPage = if (parentId ==
@@ -590,10 +662,17 @@ private class CatalogRecordingEngineGateway(
 
     override fun snapshot(): EngineSnapshot = currentSnapshot
 
-    override fun browseResult(index: Int): EngineCatalogItem? = visibleBrowse().getOrNull(index)
+    override fun browseResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
+        visibleBrowse().drop(offset.coerceAtLeast(0)).take(limit.coerceAtLeast(0))
 
-    override fun searchResult(index: Int): EngineCatalogItem? = visibleSearch().getOrNull(index)
-    override fun historyEntry(index: Int): EngineHistoryItem? = historyResults.getOrNull(historyOffset + index)
+    override fun searchResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
+        visibleSearch().drop(offset.coerceAtLeast(0)).take(limit.coerceAtLeast(0))
+
+    override fun historyPage(offset: Int, limit: Int, generation: Long): EngineHistoryPage =
+        EngineHistoryPage(
+            generation,
+            historyResults.drop(historyOffset + offset.coerceAtLeast(0)).take(limit.coerceAtLeast(0))
+        )
 
     override fun dispatch(command: EngineCommand): EngineDispatchResult {
         commands += command
@@ -652,9 +731,4 @@ private class CatalogRecordingEngineGateway(
     private fun visibleBrowse(): List<EngineCatalogItem> = if (browseDispatched) liveBrowse else staleBrowseResults
 
     private fun visibleSearch(): List<EngineCatalogItem> = if (searchDispatched) liveSearch else staleSearchResults
-}
-
-private fun <T> List<T>.paged(offset: Int, limit: Int): List<T> = when {
-    offset < 0 || limit < 1 || offset >= size -> emptyList()
-    else -> subList(offset, minOf(offset + limit, size))
 }

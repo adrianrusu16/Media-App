@@ -6,39 +6,32 @@ import android.os.Bundle
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.LibraryResult
+import androidx.media3.session.MediaConstants
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
 import com.adrianrusu.pandawave.core.common.trace.PandaTrace
-import com.adrianrusu.pandawave.core.playback.BambooControlState
-import com.adrianrusu.pandawave.core.playback.BambooPlaybackControls
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackIntent
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackState
+import com.adrianrusu.pandawave.core.playback.PandaPlaybackContext
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import java.util.concurrent.Callable
 import java.util.concurrent.Executor
 
-/**
- * Media3 session callback for platform controllers.
- *
- * Library contents flow through a catalog source so PandaEngine can become the
- * backing provider without changing the Media3 session contract.
- */
 @UnstableApi
 internal class BambooMediaLibrarySessionCallback(
-    private val controlsEnabled: () -> Boolean,
     private val catalog: BambooMediaLibraryCatalog,
     private val playbackBridge: Media3PlaybackEngineBridge,
+    private val queue: Media3QueueProjection,
     private val sessionPackageName: String,
     private val catalogExecutor: Executor,
     private val resumptionStore: MediaSessionPlaybackResumptionStore? = null,
     private val playbackState: () -> BambooPlaybackState = { BambooPlaybackState() },
-    private val openNowPlaying: () -> Unit = {},
-    private val controls: () -> BambooPlaybackControls = { controlsFor(controlsEnabled()) }
+    private val openNowPlaying: () -> Unit = {}
 ) : MediaLibrarySession.Callback {
     override fun onConnect(
         session: MediaSession,
@@ -59,8 +52,8 @@ internal class BambooMediaLibrarySessionCallback(
             .setAvailableSessionCommands(availableSessionCommands())
             .setAvailablePlayerCommands(
                 BambooMediaSessionCommandPolicy.availablePlayerCommands(
-                    playerCommands = session.player.availableCommands,
-                    controls = controls()
+                    controls = playbackState().controls,
+                    hasSeekableTimeline = queue.hasSeekableTimeline()
                 )
             )
             .build()
@@ -71,12 +64,8 @@ internal class BambooMediaLibrarySessionCallback(
         browser: MediaSession.ControllerInfo,
         params: MediaLibraryService.LibraryParams?
     ): ListenableFuture<LibraryResult<MediaItem>> = PandaTrace.section("PW.Media3.Callback.getRoot") {
-        Futures.immediateFuture(
-            LibraryResult.ofItem(
-                catalog.root(),
-                params
-            )
-        )
+        val hints = browseHints(params, session, browser)
+        Futures.immediateFuture(LibraryResult.ofItem(catalog.root(hints), params))
     }
 
     override fun onGetItem(
@@ -100,15 +89,19 @@ internal class BambooMediaLibrarySessionCallback(
         pageSize: Int,
         params: MediaLibraryService.LibraryParams?
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = asyncCatalog("PW.Media3.Callback.getChildren") {
+        val hints = browseHints(params, session, browser)
         LibraryResult.ofItemList(
-            catalog.children(
-                parentId = parentId,
-                page = page,
-                pageSize = pageSize
-            ),
+            catalog.children(parentId = parentId, page = page, pageSize = pageSize, hints = hints),
             params
         )
     }
+
+    override fun onSubscribe(
+        session: MediaLibrarySession,
+        browser: MediaSession.ControllerInfo,
+        parentId: String,
+        params: MediaLibraryService.LibraryParams?
+    ): ListenableFuture<LibraryResult<Void>> = Futures.immediateFuture(LibraryResult.ofVoid())
 
     override fun onSearch(
         session: MediaLibrarySession,
@@ -116,8 +109,13 @@ internal class BambooMediaLibrarySessionCallback(
         query: String,
         params: MediaLibraryService.LibraryParams?
     ): ListenableFuture<LibraryResult<Void>> = asyncCatalog("PW.Media3.Callback.search") {
-        val page = catalog.searchPage(query, page = 0, pageSize = DEFAULT_SEARCH_PAGE_SIZE)
-        val resultCount = if (page.hasNextPage) Int.MAX_VALUE else page.totalCount
+        val hints = browseHints(params, session, browser)
+        val page = catalog.searchPage(query, page = 0, pageSize = DEFAULT_SEARCH_PAGE_SIZE, hints = hints)
+        val resultCount = when {
+            hints.ignoreHostPagination -> page.totalCount
+            page.hasNextPage -> Int.MAX_VALUE
+            else -> page.totalCount
+        }
         session.notifySearchResultChanged(browser, query, resultCount, params)
         LibraryResult.ofVoid()
     }
@@ -131,7 +129,12 @@ internal class BambooMediaLibrarySessionCallback(
         params: MediaLibraryService.LibraryParams?
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = asyncCatalog("PW.Media3.Callback.getSearchResult") {
         LibraryResult.ofItemList(
-            catalog.search(query = query, page = page, pageSize = pageSize),
+            catalog.search(
+                query = query,
+                page = page,
+                pageSize = pageSize,
+                hints = browseHints(params, session, browser)
+            ),
             params
         )
     }
@@ -141,9 +144,7 @@ internal class BambooMediaLibrarySessionCallback(
         controller: MediaSession.ControllerInfo,
         mediaItems: MutableList<MediaItem>
     ): ListenableFuture<MutableList<MediaItem>> = PandaTrace.section("PW.Media3.Callback.addMediaItems") {
-        Futures.immediateFuture(
-            dispatchPlayback(mediaItems, startIndex = 0).toMutableList()
-        )
+        Futures.immediateFuture(dispatchPlayback(mediaItems, startIndex = 0).toMutableList())
     }
 
     override fun onSetMediaItems(
@@ -176,29 +177,23 @@ internal class BambooMediaLibrarySessionCallback(
     ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
         val stored = resumptionStore?.load()
         if (stored == null || stored.mediaIds.isEmpty()) {
-            return Futures.immediateFuture(
-                MediaSession.MediaItemsWithStartPosition(emptyList(), 0, 0L)
-            )
+            return Futures.immediateFuture(MediaSession.MediaItemsWithStartPosition(emptyList(), 0, 0L))
         }
-        val items = stored.mediaIds.map { mediaId ->
-            catalog.item(mediaId) ?: BambooMediaLibraryPlaybackSelection.playableMetadataItem(mediaId)
+        val items = stored.mediaIds.mapNotNull { mediaId -> catalog.item(mediaId) }
+        if (items.isEmpty()) {
+            return Futures.immediateFuture(MediaSession.MediaItemsWithStartPosition(emptyList(), 0, 0L))
         }
+        val startIndex = stored.startIndex.coerceIn(0, items.lastIndex)
         val current = playbackState()
-        val positionMillis = if (current.mediaId == stored.mediaIds.getOrNull(stored.startIndex)) {
+        val positionMillis = if (current.mediaId == PandaMediaSelectionId.engineMediaId(items[startIndex].mediaId)) {
             current.positionMillis.coerceAtLeast(0L)
         } else {
             stored.positionMillis
         }
         if (isForPlayback) {
-            dispatchPlayback(
-                items = items,
-                startIndex = stored.startIndex,
-                persist = false
-            )
+            dispatchPlayback(items = items, startIndex = startIndex, persist = false)
         }
-        return Futures.immediateFuture(
-            MediaSession.MediaItemsWithStartPosition(items, stored.startIndex, positionMillis)
-        )
+        return Futures.immediateFuture(MediaSession.MediaItemsWithStartPosition(items, startIndex, positionMillis))
     }
 
     override fun onCustomCommand(
@@ -216,32 +211,92 @@ internal class BambooMediaLibrarySessionCallback(
 
     private fun dispatchPlayback(items: List<MediaItem>, startIndex: Int, persist: Boolean = true): List<MediaItem> {
         val resolved = BambooMediaLibraryPlaybackSelection.withoutLocalConfiguration(items)
-        val mediaIds = BambooMediaLibraryPlaybackSelection.mediaIds(resolved)
-        val intent = BambooMediaLibraryPlaybackSelection.playbackIntent(mediaIds, startIndex)
-        when (intent) {
-            is BambooPlaybackIntent.PlayMedia -> playbackBridge.dispatchCatalogPlay(intent.mediaId)
+        when (val request = BambooMediaLibraryPlaybackSelection.classify(resolved, startIndex)) {
+            is Media3PlaybackRequest.Selection -> dispatchSelection(request.items, request.startIndex)
 
-            is BambooPlaybackIntent.PlayQueue -> playbackBridge.dispatchCatalogPlayQueue(
-                mediaIds = intent.mediaIds,
-                startIndex = intent.startIndex
+            is Media3PlaybackRequest.Search -> dispatchSearchPlayback(request.query)
+
+            is Media3PlaybackRequest.Uri -> playbackBridge.dispatchPlayFromContext(
+                BambooMediaLibraryPlaybackSelection.fromUri(request.uri)
             )
 
-            else -> Unit
+            Media3PlaybackRequest.EmptyVoice -> dispatchEmptyVoice()
         }
+        val mediaIds = BambooMediaLibraryPlaybackSelection.mediaIds(resolved)
         if (persist && mediaIds.isNotEmpty()) {
             resumptionStore?.save(
                 mediaIds = mediaIds,
-                startIndex = startIndex.coerceIn(0, mediaIds.lastIndex),
+                startIndex = startIndex.coerceIn(0, mediaIds.lastIndex.coerceAtLeast(0)),
                 positionMillis = 0L
             )
         }
         return resolved
     }
 
+    private fun dispatchSelection(items: List<MediaItem>, startIndex: Int) {
+        val mediaIds = BambooMediaLibraryPlaybackSelection.mediaIds(items)
+        val intent = BambooMediaLibraryPlaybackSelection.playbackIntent(mediaIds, startIndex) ?: return
+        seedQueue(items, startIndex)
+        playbackBridge.dispatchPlayFromContext(intent)
+    }
+
+    private fun dispatchSearchPlayback(query: String) {
+        val results = catalog.search(
+            query = query,
+            page = 0,
+            pageSize = AAOS_MATERIALIZED_LIMIT,
+            hints = PandaLibraryBrowseHints(ignoreHostPagination = true)
+        )
+        if (results.isEmpty()) return
+        dispatchSelection(results, startIndex = 0)
+    }
+
+    private fun dispatchEmptyVoice() {
+        val recent = catalog.children(
+            parentId = PandaMediaLibraryIds.PLATFORM_RECENT,
+            page = 0,
+            pageSize = AAOS_MATERIALIZED_LIMIT,
+            hints = PandaLibraryBrowseHints(isRecent = true, ignoreHostPagination = true)
+        )
+        val playable = recent.ifEmpty {
+            catalog.children(
+                parentId = PandaMediaLibraryIds.PLATFORM_SUGGESTED,
+                page = 0,
+                pageSize = AAOS_MATERIALIZED_LIMIT,
+                hints = PandaLibraryBrowseHints(isSuggested = true, ignoreHostPagination = true)
+            )
+        }
+        if (playable.isEmpty()) {
+            playbackBridge.dispatchPlayFromContext(
+                BambooPlaybackIntent.PlayFromContext(
+                    context = PandaPlaybackContext.VoiceDefault,
+                    selectedMediaId = ""
+                )
+            )
+            return
+        }
+        dispatchSelection(playable, startIndex = 0)
+    }
+
+    private fun seedQueue(items: List<MediaItem>, startIndex: Int) {
+        queue.replace(
+            nextItems = items.map { item ->
+                Media3QueueItem(
+                    queueItemId = item.mediaId,
+                    mediaId = PandaMediaSelectionId.engineMediaId(item.mediaId),
+                    title = item.mediaMetadata.title?.toString() ?: item.mediaId,
+                    artist = item.mediaMetadata.artist?.toString(),
+                    album = item.mediaMetadata.albumTitle?.toString(),
+                    artworkUri = item.mediaMetadata.artworkUri?.toString(),
+                    durationMs = item.mediaMetadata.durationMs?.takeIf { value -> value > 0L }
+                )
+            },
+            currentIndex = startIndex.coerceIn(0, (items.size - 1).coerceAtLeast(0))
+        )
+    }
+
     private fun <T> asyncCatalog(traceName: String, block: () -> T): ListenableFuture<T> = Futures.submit(
-        Callable {
-            PandaTrace.section(traceName, block)
-        },
+        Callable { PandaTrace.section(traceName, block) },
         catalogExecutor
     )
 
@@ -249,6 +304,27 @@ internal class BambooMediaLibrarySessionCallback(
         MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS.buildUpon()
             .add(SessionCommand(PandaWaveMediaSessionContract.COMMAND_OPEN_NOW_PLAYING, Bundle.EMPTY))
             .build()
+}
+
+internal fun browseHints(
+    params: MediaLibraryService.LibraryParams?,
+    session: MediaLibrarySession,
+    browser: MediaSession.ControllerInfo
+): PandaLibraryBrowseHints {
+    val extras = params?.extras
+    val limit = extras?.takeIf { bundle -> bundle.containsKey(MediaConstants.EXTRAS_KEY_ROOT_CHILDREN_LIMIT) }
+        ?.getInt(MediaConstants.EXTRAS_KEY_ROOT_CHILDREN_LIMIT)
+        ?.takeIf { value -> value > 0 }
+    val browsableOnly = extras?.getBoolean(MediaConstants.EXTRA_KEY_ROOT_CHILDREN_BROWSABLE_ONLY) == true
+    val automotive = session.isAutomotiveController(browser) || session.isAutoCompanionController(browser)
+    return PandaLibraryBrowseHints(
+        isRecent = params?.isRecent == true,
+        isSuggested = params?.isSuggested == true,
+        isOffline = params?.isOffline == true,
+        childrenLimit = limit,
+        browsableOnly = browsableOnly,
+        ignoreHostPagination = automotive
+    )
 }
 
 internal fun nowPlayingLaunchIntent(context: Context): Intent? =
@@ -260,10 +336,5 @@ internal fun nowPlayingLaunchIntent(context: Context): Intent? =
         )
         putExtra(PandaWaveMediaSessionContract.EXTRA_OPEN_NOW_PLAYING, true)
     }
-
-private fun controlsFor(enabled: Boolean): BambooPlaybackControls {
-    val control = if (enabled) BambooControlState.enabled() else BambooControlState.hidden()
-    return BambooPlaybackControls(control, control, control, showPlayIcon = true)
-}
 
 private const val DEFAULT_SEARCH_PAGE_SIZE = 50

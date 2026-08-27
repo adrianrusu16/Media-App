@@ -485,6 +485,24 @@ class Media3PlaybackEngineBridge(
         return true
     }
 
+    fun dispatchPlayFromContext(intent: BambooPlaybackIntent.PlayFromContext): Boolean {
+        if (intent.selectedMediaId.isBlank() && intent.mediaIds.isEmpty()) {
+            return false
+        }
+        PandaLog.i(PandaLog.Tag.MEDIA) {
+            "play_requested source=catalog command=PlayFromContext trackId=${intent.selectedMediaId}"
+        }
+        telemetryLogger.debug(
+            name = Media3PlaybackTelemetryEvents.CATALOG_COMMAND_DISPATCHED,
+            attributes = mapOf(
+                BambooPlaybackTelemetryAttributes.INTENT to intent.telemetryName,
+                Media3PlaybackTelemetryAttributes.MEDIA_ID_PRESENT to intent.selectedMediaId.isNotBlank().toString()
+            )
+        )
+        playbackRepository.dispatch(intent)
+        return true
+    }
+
     override fun close() {
         isPlaying = false
         hasLoggedFirstAudio = false

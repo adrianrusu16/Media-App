@@ -1,4 +1,6 @@
-use crate::engine::core::PrefetchedOperation;
+use std::sync::Arc;
+
+use crate::engine::core::{PrefetchedHistoryPage, PrefetchedHistorySettings, PrefetchedOperation};
 use crate::model::command::{EngineCommand, EngineCommandType};
 use tracing::info;
 
@@ -9,7 +11,8 @@ use super::super::operation::{
 };
 use super::super::protocol::{ActorOutcomeStatus, CancellationReason};
 use super::{
-    EngineActorState, OutcomeParts, account_identity, history_identity, playlist_identity,
+    EngineActorState, OutcomeParts, account_identity, history_identity, library_identity,
+    playlist_identity,
 };
 
 impl EngineActorState {
@@ -85,7 +88,86 @@ impl EngineActorState {
                 Some(self.allocate_operation(
                     command_id,
                     OperationGeneration::History(generation),
-                    EngineOperationRequest::HistorySettings { identity },
+                    EngineOperationRequest::HistorySettings {
+                        identity,
+                        pending_anonymous: self.engine.actor_pending_anonymous_history(),
+                    },
+                ))
+            }
+            EngineCommandType::UpdateHistorySettings { enabled } => {
+                let identity = history_identity(&self.auth_provider.get())?;
+                self.engine.actor_history_port()?;
+                let generation = self.bump_history_generation();
+                Some(self.allocate_operation(
+                    command_id,
+                    OperationGeneration::History(generation),
+                    EngineOperationRequest::HistorySettingsUpdate {
+                        identity,
+                        enabled: *enabled,
+                    },
+                ))
+            }
+            EngineCommandType::ListHistory { page } => {
+                let identity = history_identity(&self.auth_provider.get())?;
+                self.engine.actor_history_port()?;
+                let generation = self.bump_history_generation();
+                Some(self.allocate_operation(
+                    command_id,
+                    OperationGeneration::History(generation),
+                    EngineOperationRequest::HistoryPage {
+                        identity,
+                        page: self.engine.actor_bounded_history_page(page.clone()),
+                        pending_anonymous: self.engine.actor_pending_anonymous_history(),
+                        settings_enabled: self.engine.actor_history_settings_enabled(),
+                    },
+                ))
+            }
+            EngineCommandType::LoadNextHistoryPage => {
+                let identity = history_identity(&self.auth_provider.get())?;
+                self.engine.actor_history_port()?;
+                let (continuation_identity, page_size, page_token) =
+                    self.engine.actor_history_continuation()?;
+                if identity != continuation_identity {
+                    return None;
+                }
+                Some(self.allocate_operation(
+                    command_id,
+                    OperationGeneration::History(self.generations.history),
+                    EngineOperationRequest::HistoryPage {
+                        identity,
+                        page: crate::EnginePageRequest {
+                            page_size,
+                            page_token: Some(page_token),
+                        },
+                        pending_anonymous: Vec::new(),
+                        settings_enabled: self.engine.actor_history_settings_enabled(),
+                    },
+                ))
+            }
+            EngineCommandType::DeleteHistoryEntry { history_id } => {
+                if history_id.trim().is_empty() {
+                    return None;
+                }
+                let identity = history_identity(&self.auth_provider.get())?;
+                self.engine.actor_history_port()?;
+                let generation = self.bump_history_generation();
+                Some(self.allocate_operation(
+                    command_id,
+                    OperationGeneration::History(generation),
+                    EngineOperationRequest::HistoryDelete {
+                        identity,
+                        history_id: history_id.clone(),
+                    },
+                ))
+            }
+            EngineCommandType::ClearHistory => {
+                let identity = history_identity(&self.auth_provider.get())?;
+                self.engine.actor_history_port()?;
+                let generation = self.bump_history_generation();
+                Some(self.allocate_operation(
+                    command_id,
+                    OperationGeneration::History(generation),
+                    EngineOperationRequest::HistoryClear { identity },
                 ))
             }
             EngineCommandType::PlayMediaById { media_id } => {
@@ -101,8 +183,111 @@ impl EngineActorState {
                     },
                 ))
             }
+            EngineCommandType::ListSavedTracks { page } => {
+                self.prepare_library_page(command_id, page.clone(), true, true)
+            }
+            EngineCommandType::ListLikedTracks { page } => {
+                self.prepare_library_page(command_id, page.clone(), false, true)
+            }
+            EngineCommandType::LoadNextSavedTracksPage => {
+                self.prepare_library_continuation(command_id, true)
+            }
+            EngineCommandType::LoadNextLikedTracksPage => {
+                self.prepare_library_continuation(command_id, false)
+            }
+            EngineCommandType::SaveTrack { track_id } => self.prepare_library_mutation(
+                command_id,
+                track_id,
+                crate::EngineLibraryMutation::Save,
+            ),
+            EngineCommandType::RemoveSavedTrack { track_id } => self.prepare_library_mutation(
+                command_id,
+                track_id,
+                crate::EngineLibraryMutation::RemoveSaved,
+            ),
+            EngineCommandType::LikeTrack { track_id } => self.prepare_library_mutation(
+                command_id,
+                track_id,
+                crate::EngineLibraryMutation::Like,
+            ),
+            EngineCommandType::UnlikeTrack { track_id } => self.prepare_library_mutation(
+                command_id,
+                track_id,
+                crate::EngineLibraryMutation::Unlike,
+            ),
             _ => None,
         }
+    }
+
+    fn prepare_library_page(
+        &mut self,
+        command_id: CommandId,
+        page: crate::EnginePageRequest,
+        saved: bool,
+        bump: bool,
+    ) -> Option<EngineOperation> {
+        let identity = library_identity(&self.auth_provider.get())?;
+        self.engine.actor_library_port()?;
+        let generation = if bump {
+            self.bump_library_generation()
+        } else {
+            self.generations.library
+        };
+        Some(self.allocate_operation(
+            command_id,
+            OperationGeneration::Library(generation),
+            EngineOperationRequest::LibraryPage {
+                identity,
+                page,
+                saved,
+            },
+        ))
+    }
+
+    fn prepare_library_continuation(
+        &mut self,
+        command_id: CommandId,
+        saved: bool,
+    ) -> Option<EngineOperation> {
+        let identity = library_identity(&self.auth_provider.get())?;
+        self.engine.actor_library_port()?;
+        let (continuation_identity, page_size, page_token) =
+            self.engine.actor_library_continuation(saved)?;
+        if identity != continuation_identity {
+            return None;
+        }
+        self.prepare_library_page(
+            command_id,
+            crate::EnginePageRequest {
+                page_size,
+                page_token: Some(page_token),
+            },
+            saved,
+            false,
+        )
+    }
+
+    fn prepare_library_mutation(
+        &mut self,
+        command_id: CommandId,
+        track_id: &str,
+        mutation: crate::EngineLibraryMutation,
+    ) -> Option<EngineOperation> {
+        if track_id.trim().is_empty() {
+            return None;
+        }
+        let identity = library_identity(&self.auth_provider.get())?;
+        self.engine.actor_library_port()?;
+        let generation = self.bump_library_generation();
+        Some(self.allocate_operation(
+            command_id,
+            OperationGeneration::Library(generation),
+            EngineOperationRequest::LibraryMutation {
+                identity,
+                track_id: track_id.to_owned(),
+                mutation,
+            },
+        ))
     }
 
     pub(super) fn allocate_operation(
@@ -173,15 +358,100 @@ impl EngineActorState {
                     let _ = completion_tx.send(operation.completion(result)).await;
                 });
             }
-            EngineOperationRequest::HistorySettings { identity } => {
+            EngineOperationRequest::HistorySettings {
+                identity,
+                pending_anonymous,
+            } => {
+                let Some(port) = self.engine.actor_history_port() else {
+                    return false;
+                };
+                tokio::spawn(async move {
+                    let result = match port.get_settings(&identity).await {
+                        Ok(settings) => {
+                            let reconciliation = if settings.enabled {
+                                reconcile_anonymous_entries(
+                                    port,
+                                    &identity,
+                                    pending_anonymous,
+                                    Some(true),
+                                )
+                                .await
+                            } else {
+                                crate::HistoryReconciliation::default()
+                            };
+                            Ok(EngineOperationResult::HistorySettings {
+                                settings,
+                                reconciliation,
+                            })
+                        }
+                        Err(error) => Err(error),
+                    };
+                    let _ = completion_tx.send(operation.completion(result)).await;
+                });
+            }
+            EngineOperationRequest::HistorySettingsUpdate { identity, enabled } => {
                 let Some(port) = self.engine.actor_history_port() else {
                     return false;
                 };
                 tokio::spawn(async move {
                     let result = port
-                        .get_settings(&identity)
+                        .update_settings(&identity, enabled)
                         .await
-                        .map(EngineOperationResult::HistorySettings);
+                        .map(EngineOperationResult::HistorySettingsUpdate);
+                    let _ = completion_tx.send(operation.completion(result)).await;
+                });
+            }
+            EngineOperationRequest::HistoryPage {
+                identity,
+                page,
+                pending_anonymous,
+                settings_enabled,
+            } => {
+                let Some(port) = self.engine.actor_history_port() else {
+                    return false;
+                };
+                tokio::spawn(async move {
+                    let reconciliation = reconcile_anonymous_entries(
+                        Arc::clone(&port),
+                        &identity,
+                        pending_anonymous,
+                        settings_enabled,
+                    )
+                    .await;
+                    let result = port.list(&identity, page).await.map(|paged| {
+                        EngineOperationResult::HistoryPage {
+                            items: paged.items,
+                            next_page_token: paged.next_page_token,
+                            reconciliation,
+                        }
+                    });
+                    let _ = completion_tx.send(operation.completion(result)).await;
+                });
+            }
+            EngineOperationRequest::HistoryDelete {
+                identity,
+                history_id,
+            } => {
+                let Some(port) = self.engine.actor_history_port() else {
+                    return false;
+                };
+                tokio::spawn(async move {
+                    let result = port
+                        .delete_entry(&identity, &history_id)
+                        .await
+                        .map(|()| EngineOperationResult::HistoryDeleted);
+                    let _ = completion_tx.send(operation.completion(result)).await;
+                });
+            }
+            EngineOperationRequest::HistoryClear { identity } => {
+                let Some(port) = self.engine.actor_history_port() else {
+                    return false;
+                };
+                tokio::spawn(async move {
+                    let result = port
+                        .clear(&identity)
+                        .await
+                        .map(EngineOperationResult::HistoryCleared);
                     let _ = completion_tx.send(operation.completion(result)).await;
                 });
             }
@@ -194,6 +464,57 @@ impl EngineActorState {
                         .resolve_playback(&media_id)
                         .await
                         .map(EngineOperationResult::PlaybackResolved);
+                    let _ = completion_tx.send(operation.completion(result)).await;
+                });
+            }
+            EngineOperationRequest::LibraryPage {
+                identity,
+                page,
+                saved,
+            } => {
+                let Some(port) = self.engine.actor_library_port() else {
+                    return false;
+                };
+                tokio::spawn(async move {
+                    let listed = if saved {
+                        port.list_saved(&identity, page).await
+                    } else {
+                        port.list_liked(&identity, page).await
+                    };
+                    let result = listed.map(|paged| EngineOperationResult::LibraryPage {
+                        items: paged.items,
+                        next_page_token: paged.next_page_token,
+                    });
+                    let _ = completion_tx.send(operation.completion(result)).await;
+                });
+            }
+            EngineOperationRequest::LibraryMutation {
+                identity,
+                track_id,
+                mutation,
+            } => {
+                let Some(port) = self.engine.actor_library_port() else {
+                    return false;
+                };
+                tokio::spawn(async move {
+                    let result = match mutation {
+                        crate::EngineLibraryMutation::Save => port
+                            .save(&identity, &track_id)
+                            .await
+                            .map(|item| EngineOperationResult::LibraryMutation(Some(item))),
+                        crate::EngineLibraryMutation::RemoveSaved => port
+                            .remove_saved(&identity, &track_id)
+                            .await
+                            .map(|()| EngineOperationResult::LibraryMutation(None)),
+                        crate::EngineLibraryMutation::Like => port
+                            .like(&identity, &track_id)
+                            .await
+                            .map(|item| EngineOperationResult::LibraryMutation(Some(item))),
+                        crate::EngineLibraryMutation::Unlike => port
+                            .unlike(&identity, &track_id)
+                            .await
+                            .map(|()| EngineOperationResult::LibraryMutation(None)),
+                    };
                     let _ = completion_tx.send(operation.completion(result)).await;
                 });
             }
@@ -270,6 +591,58 @@ impl EngineActorState {
     }
 }
 
+async fn reconcile_anonymous_entries(
+    port: Arc<dyn crate::HistoryPort>,
+    identity: &crate::EngineHistoryIdentity,
+    pending: Vec<crate::EngineHistoryEntry>,
+    known_enabled: Option<bool>,
+) -> crate::HistoryReconciliation {
+    if pending.is_empty() {
+        return crate::HistoryReconciliation::default();
+    }
+    let enabled = match known_enabled {
+        Some(enabled) => enabled,
+        None => match port.get_settings(identity).await {
+            Ok(settings) => settings.enabled,
+            Err(error) => {
+                return crate::HistoryReconciliation {
+                    error: Some(error),
+                    ..crate::HistoryReconciliation::default()
+                };
+            }
+        },
+    };
+    if !enabled {
+        return crate::HistoryReconciliation {
+            clear_anonymous: true,
+            ..crate::HistoryReconciliation::default()
+        };
+    }
+    let mut promoted_entry_ids = Vec::new();
+    for entry in pending {
+        let Some(record) = entry.to_playback_record() else {
+            promoted_entry_ids.push(entry.id);
+            continue;
+        };
+        match port.record(identity, record).await {
+            Ok(true) => promoted_entry_ids.push(entry.id),
+            Ok(false) => {}
+            Err(error) => {
+                return crate::HistoryReconciliation {
+                    promoted_entry_ids,
+                    clear_anonymous: false,
+                    error: Some(error),
+                };
+            }
+        }
+    }
+    crate::HistoryReconciliation {
+        promoted_entry_ids,
+        clear_anonymous: false,
+        error: None,
+    }
+}
+
 /// Maps a worker result onto the prefetch slot the matching inline site reads.
 fn prefetched_from(
     request: &EngineOperationRequest,
@@ -310,7 +683,63 @@ fn prefetched_from(
         }
         EngineOperationRequest::HistorySettings { .. } => {
             PrefetchedOperation::HistorySettings(match result {
-                Ok(EngineOperationResult::HistorySettings(settings)) => Ok(settings),
+                Ok(EngineOperationResult::HistorySettings {
+                    settings,
+                    reconciliation,
+                }) => PrefetchedHistorySettings {
+                    settings: Ok(settings),
+                    reconciliation,
+                },
+                Ok(_) => PrefetchedHistorySettings {
+                    settings: Err(mismatched_result()),
+                    reconciliation: crate::HistoryReconciliation::default(),
+                },
+                Err(error) => PrefetchedHistorySettings {
+                    settings: Err(error),
+                    reconciliation: crate::HistoryReconciliation::default(),
+                },
+            })
+        }
+        EngineOperationRequest::HistorySettingsUpdate { .. } => {
+            PrefetchedOperation::HistorySettingsUpdate(match result {
+                Ok(EngineOperationResult::HistorySettingsUpdate(update)) => Ok(update),
+                Ok(_) => Err(mismatched_result()),
+                Err(error) => Err(error),
+            })
+        }
+        EngineOperationRequest::HistoryPage { .. } => {
+            PrefetchedOperation::HistoryPage(match result {
+                Ok(EngineOperationResult::HistoryPage {
+                    items,
+                    next_page_token,
+                    reconciliation,
+                }) => PrefetchedHistoryPage {
+                    page: Ok(crate::EnginePagedResult {
+                        items,
+                        next_page_token,
+                    }),
+                    reconciliation,
+                },
+                Ok(_) => PrefetchedHistoryPage {
+                    page: Err(mismatched_result()),
+                    reconciliation: crate::HistoryReconciliation::default(),
+                },
+                Err(error) => PrefetchedHistoryPage {
+                    page: Err(error),
+                    reconciliation: crate::HistoryReconciliation::default(),
+                },
+            })
+        }
+        EngineOperationRequest::HistoryDelete { .. } => {
+            PrefetchedOperation::HistoryDelete(match result {
+                Ok(EngineOperationResult::HistoryDeleted) => Ok(()),
+                Ok(_) => Err(mismatched_result()),
+                Err(error) => Err(error),
+            })
+        }
+        EngineOperationRequest::HistoryClear { .. } => {
+            PrefetchedOperation::HistoryClear(match result {
+                Ok(EngineOperationResult::HistoryCleared(deleted)) => Ok(deleted),
                 Ok(_) => Err(mismatched_result()),
                 Err(error) => Err(error),
             })
@@ -318,6 +747,26 @@ fn prefetched_from(
         EngineOperationRequest::PlaybackResolution { .. } => {
             PrefetchedOperation::Playback(match result {
                 Ok(EngineOperationResult::PlaybackResolved(source)) => Ok(source),
+                Ok(_) => Err(mismatched_result()),
+                Err(error) => Err(error),
+            })
+        }
+        EngineOperationRequest::LibraryPage { .. } => {
+            PrefetchedOperation::LibraryPage(match result {
+                Ok(EngineOperationResult::LibraryPage {
+                    items,
+                    next_page_token,
+                }) => Ok(crate::EnginePagedResult {
+                    items,
+                    next_page_token,
+                }),
+                Ok(_) => Err(mismatched_result()),
+                Err(error) => Err(error),
+            })
+        }
+        EngineOperationRequest::LibraryMutation { .. } => {
+            PrefetchedOperation::LibraryMutation(match result {
+                Ok(EngineOperationResult::LibraryMutation(item)) => Ok(item),
                 Ok(_) => Err(mismatched_result()),
                 Err(error) => Err(error),
             })

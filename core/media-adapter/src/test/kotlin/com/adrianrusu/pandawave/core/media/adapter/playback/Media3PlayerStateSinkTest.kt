@@ -88,7 +88,7 @@ class Media3PlayerStateSinkTest {
 
         sink.project(initialProjection.copy(playWhenReady = false))
 
-        assertEquals(listOf("setPlayWhenReady:false"), player.calls)
+        assertEquals(emptyList<String>(), player.calls)
     }
 
     @Test
@@ -117,7 +117,7 @@ class Media3PlayerStateSinkTest {
     }
 
     @Test
-    fun `metadata projection updates the current item without reloading the source`() {
+    fun `metadata projection does not mutate the exoplayer sink`() {
         val mediaItem = mediaItem()
         val player = RecordingProjectionPlayer(
             currentMediaItem = mediaItem,
@@ -146,8 +146,8 @@ class Media3PlayerStateSinkTest {
             )
         )
 
-        assertEquals(listOf("replaceMediaItem:track-1:Canopy Drift"), player.calls)
-        assertEquals("Canopy Drift", player.currentMediaItem?.mediaMetadata?.title.toString())
+        assertEquals(emptyList<String>(), player.calls)
+        assertEquals("track-1", player.currentMediaItem?.mediaId)
     }
 }
 

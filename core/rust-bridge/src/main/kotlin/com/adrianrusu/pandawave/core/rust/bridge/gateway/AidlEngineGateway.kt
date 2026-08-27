@@ -10,9 +10,7 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistReconciliation
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistTrackItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.pandawave.core.rust.bridge.engine.EngineDispatchResult
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
@@ -90,13 +88,8 @@ class AidlEngineGateway(
         }
     }
 
-    override fun browseResult(index: Int): EngineCatalogItem? = withRemoteService(null) { it.browseResult(index) }
     override fun browseResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
         withRemoteService(emptyList()) { it.browseResultsPage(offset, limit) }
-    override fun discoveryResult(index: Int): EngineCatalogItem? = withRemoteService(null) { it.discoveryResult(index) }
-    override fun forYouResult(index: Int): EngineCatalogItem? = withRemoteService(null) { it.forYouResult(index) }
-    override fun recommendationResult(index: Int): EngineCatalogItem? =
-        withRemoteService(null) { it.recommendationResult(index) }
     override fun discoveryResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
         withRemoteService(emptyList()) { it.discoveryResultsPage(offset, limit) }
     override fun forYouResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
@@ -106,28 +99,20 @@ class AidlEngineGateway(
     override fun profilePreferenceValue(key: String): String? =
         withRemoteService(null) { it.profilePreferenceValue(key) }
 
-    override fun searchResult(index: Int): EngineCatalogItem? = withRemoteService(null) { it.searchResult(index) }
     override fun searchResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
         withRemoteService(emptyList()) { it.searchResultsPage(offset, limit) }
-    override fun historyEntry(index: Int) = withRemoteService(null) { it.historyEntry(index) }
     override fun historyPage(offset: Int, limit: Int, generation: Long) =
         withRemoteService(super<EngineGateway>.historyPage(offset, limit, generation)) {
             it.historyPage(offset, limit, generation)
         }
-    override fun savedTrack(index: Int) = withRemoteService(null) { it.savedTrack(index) }
     override fun savedTracksPage(offset: Int, limit: Int) =
         withRemoteService(emptyList()) { it.savedTracksPage(offset, limit) }
-    override fun likedTrack(index: Int) = withRemoteService(null) { it.likedTrack(index) }
     override fun likedTracksPage(offset: Int, limit: Int) =
         withRemoteService(emptyList()) { it.likedTracksPage(offset, limit) }
-    override fun pendingLibraryTrackId(index: Int) = withRemoteService(null) { it.pendingLibraryTrackId(index) }
     override fun pendingLibraryTrackIdsPage(offset: Int, limit: Int): List<String> =
         withRemoteService(emptyList()) { it.pendingLibraryTrackIdsPage(offset, limit) }
-    override fun playlist(index: Int): EnginePlaylistItem? = withRemoteService(null) { it.playlist(index) }
     override fun playlistsPage(offset: Int, limit: Int) =
         withRemoteService(emptyList()) { it.playlistsPage(offset, limit) }
-    override fun playlistTrack(index: Int): EnginePlaylistTrackItem? =
-        withRemoteService(null) { it.playlistTrack(index) }
     override fun playlistTracksPage(offset: Int, limit: Int) =
         withRemoteService(emptyList()) { it.playlistTracksPage(offset, limit) }
     override fun selectedPlaylistId(): String? = withRemoteService(null) { it.selectedPlaylistId() }

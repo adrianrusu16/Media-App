@@ -115,10 +115,7 @@ fun BambooArtwork(
 }
 
 @Composable
-internal fun BambooArtworkLogoPlate(
-    accentColor: Color,
-    modifier: Modifier = Modifier
-) {
+internal fun BambooArtworkLogoPlate(accentColor: Color, modifier: Modifier = Modifier) {
     val tokens = LocalPandaWaveDesignTokens.current
 
     Surface(

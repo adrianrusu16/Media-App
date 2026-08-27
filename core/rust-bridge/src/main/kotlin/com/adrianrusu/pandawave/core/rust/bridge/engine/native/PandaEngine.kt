@@ -9,7 +9,6 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryPage
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineLibraryItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
@@ -154,23 +153,10 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     private fun Array<String>?.toAuthOperationResult(): EngineAuthOperationResult =
         PandaEngineNativeAuthOperationMapper.toDomain(this)
 
-    override fun browseResult(index: Int): EngineCatalogItem? =
-        PandaEngineNativeCatalogItemMapper.toDomain(nativeBrowseResultValues(nativeHandle, index))
-
     override fun browseResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
         PandaEngineNativeCatalogItemMapper.toPage(
             nativeSnapshotPageValues(nativeHandle, PAGE_BROWSE, offset, limit)
         )
-
-    override fun discoveryResult(index: Int): EngineCatalogItem? = nativeDiscoveryResultValues(nativeHandle, index)
-        .let(PandaEngineNativeCatalogItemMapper::toDomain)
-
-    override fun forYouResult(index: Int): EngineCatalogItem? = nativeForYouResultValues(nativeHandle, index)
-        .let(PandaEngineNativeCatalogItemMapper::toDomain)
-
-    override fun recommendationResult(index: Int): EngineCatalogItem? =
-        nativeRecommendationResultValues(nativeHandle, index)
-            .let(PandaEngineNativeCatalogItemMapper::toDomain)
 
     override fun discoveryResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
         PandaEngineNativeCatalogItemMapper.toPage(
@@ -189,12 +175,6 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
 
     override fun profilePreferenceValue(key: String): String? = nativeProfilePreferenceValue(nativeHandle, key.trim())
 
-    override fun savedTrack(index: Int): EngineLibraryItem? =
-        PandaEngineNativeLibraryItemMapper.toDomain(nativeSavedTrackValues(nativeHandle, index))
-
-    override fun likedTrack(index: Int): EngineLibraryItem? =
-        PandaEngineNativeLibraryItemMapper.toDomain(nativeLikedTrackValues(nativeHandle, index))
-
     override fun savedTracksPage(offset: Int, limit: Int): List<EngineLibraryItem> =
         PandaEngineNativeLibraryItemMapper.toPage(
             nativeSnapshotPageValues(nativeHandle, PAGE_SAVED, offset, limit)
@@ -205,14 +185,9 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             nativeSnapshotPageValues(nativeHandle, PAGE_LIKED, offset, limit)
         )
 
-    override fun pendingLibraryTrackId(index: Int): String? = nativePendingLibraryTrackId(nativeHandle, index)
-
     override fun pendingLibraryTrackIdsPage(offset: Int, limit: Int): List<String> =
         nativeSnapshotPageValues(nativeHandle, PAGE_PENDING_IDS, offset, limit).orEmpty().toList()
 
-    override fun playlist(index: Int): EnginePlaylistItem? = playlistItem(nativePlaylistValues(nativeHandle, index))
-    override fun playlistTrack(index: Int): EnginePlaylistTrackItem? =
-        playlistTrackItem(nativePlaylistTrackValues(nativeHandle, index))
     override fun playlistsPage(offset: Int, limit: Int): List<EnginePlaylistItem> =
         playlistItems(nativeSnapshotPageValues(nativeHandle, PAGE_PLAYLISTS, offset, limit))
     override fun playlistTracksPage(offset: Int, limit: Int): List<EnginePlaylistTrackItem> =
@@ -223,16 +198,10 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     override fun playlistReconciliation(): EnginePlaylistReconciliation? =
         playlistReconciliationItem(nativePlaylistSelectionValues(nativeHandle))
 
-    override fun searchResult(index: Int): EngineCatalogItem? =
-        PandaEngineNativeCatalogItemMapper.toDomain(nativeSearchResultValues(nativeHandle, index))
-
     override fun searchResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
         PandaEngineNativeCatalogItemMapper.toPage(
             nativeSnapshotPageValues(nativeHandle, PAGE_SEARCH, offset, limit)
         )
-
-    override fun historyEntry(index: Int): EngineHistoryItem? =
-        PandaEngineNativeHistoryItemMapper.toDomain(nativeHistoryEntryValues(nativeHandle, index))
 
     override fun historyPage(offset: Int, limit: Int, generation: Long): EngineHistoryPage =
         PandaTrace.section("PW.Engine.Native.historyPage") {
@@ -422,15 +391,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     private external fun nativeProfileValues(handle: Long): Array<String>?
     private external fun nativeProtectedAccountValues(handle: Long): Array<String>?
     private external fun nativeDeviceSessionValues(handle: Long, index: Int): Array<String>?
-    private external fun nativeSavedTrackValues(handle: Long, index: Int): Array<String>?
-    private external fun nativeBrowseResultValues(handle: Long, index: Int): Array<String>?
-    private external fun nativeSearchResultValues(handle: Long, index: Int): Array<String>?
-    private external fun nativeDiscoveryResultValues(handle: Long, index: Int): Array<String>?
-    private external fun nativeForYouResultValues(handle: Long, index: Int): Array<String>?
-    private external fun nativeRecommendationResultValues(handle: Long, index: Int): Array<String>?
     private external fun nativeProfilePreferenceValue(handle: Long, key: String): String?
-    private external fun nativeLikedTrackValues(handle: Long, index: Int): Array<String>?
-    private external fun nativeHistoryEntryValues(handle: Long, index: Int): Array<String>?
     private external fun nativeHistoryPageValues(
         handle: Long,
         offset: Int,
@@ -438,9 +399,6 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         generation: Long
     ): Array<String>?
     private external fun nativeSnapshotPageValues(handle: Long, kind: Int, offset: Int, limit: Int): Array<String>?
-    private external fun nativePendingLibraryTrackId(handle: Long, index: Int): String?
-    private external fun nativePlaylistValues(handle: Long, index: Int): Array<String>?
-    private external fun nativePlaylistTrackValues(handle: Long, index: Int): Array<String>?
     private external fun nativePlaylistSelectionValues(handle: Long): Array<String>?
 
     private external fun nativeEffectCount(handle: Long): Int
@@ -541,30 +499,6 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
 
     private fun queryNativeMetadata(): NativeEngineMetadata = PandaTrace.section("PW.Engine.Native.metadataBatch") {
         metadataItem(nativeMetadataValues(nativeHandle))
-    }
-
-    private fun resultItem(
-        id: String?,
-        title: String?,
-        artist: String?,
-        album: String?,
-        artworkUri: String?,
-        sourceUri: String?,
-        mimeType: String?,
-        itemType: Int
-    ): EngineCatalogItem? = when {
-        id.isNullOrBlank() || title.isNullOrBlank() -> null
-
-        else -> EngineCatalogItem(
-            mediaId = id,
-            title = title,
-            artist = artist.takeUnless { value -> value.isNullOrBlank() },
-            album = album.takeUnless { value -> value.isNullOrBlank() },
-            artworkUri = artworkUri.takeUnless { value -> value.isNullOrBlank() },
-            sourceUri = sourceUri.takeUnless { value -> value.isNullOrBlank() },
-            mimeType = mimeType.takeUnless { value -> value.isNullOrBlank() },
-            itemType = itemType
-        )
     }
 
     private fun effects(): List<EngineEffect> = PandaTrace.section("PW.Engine.Native.effects") {

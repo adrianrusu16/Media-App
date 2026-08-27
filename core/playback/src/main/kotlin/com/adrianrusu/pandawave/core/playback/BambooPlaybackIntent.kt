@@ -12,6 +12,12 @@ sealed interface BambooPlaybackIntent {
     data class SetVolume(val volume: Float) : BambooPlaybackIntent
     data class PlayMedia(val mediaId: String) : BambooPlaybackIntent
     data class PlayQueue(val mediaIds: List<String>, val startIndex: Int) : BambooPlaybackIntent
+    data class PlayFromContext(
+        val context: PandaPlaybackContext,
+        val selectedMediaId: String,
+        val occurrenceId: String? = null,
+        val mediaIds: List<String> = emptyList()
+    ) : BambooPlaybackIntent
     data class SearchCatalog(val query: String) : BambooPlaybackIntent
     data class BrowseCatalog(val parentId: String) : BambooPlaybackIntent
     data class LoadNextCatalogPage(val operationId: String) : BambooPlaybackIntent

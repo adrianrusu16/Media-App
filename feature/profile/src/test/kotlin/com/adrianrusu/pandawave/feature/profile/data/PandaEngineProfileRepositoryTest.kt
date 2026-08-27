@@ -4,7 +4,6 @@ import com.adrianrusu.pandawave.core.model.theme.PandaWaveThemePreference
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAccount
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthSession
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthState
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
@@ -275,9 +274,6 @@ private class RecordingEngineGateway(
     val commands = mutableListOf<EngineCommand>()
 
     override fun snapshot(): EngineSnapshot = current
-    override fun browseResult(index: Int): EngineCatalogItem? = null
-    override fun searchResult(index: Int): EngineCatalogItem? = null
-
     override fun dispatch(command: EngineCommand): EngineDispatchResult {
         commands += command
         return EngineDispatchResult(

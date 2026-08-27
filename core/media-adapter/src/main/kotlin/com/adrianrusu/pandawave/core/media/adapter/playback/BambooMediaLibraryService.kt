@@ -6,12 +6,14 @@ import android.os.Looper
 import android.widget.Toast
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSourceBitmapLoader
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.CacheBitmapLoader
+import androidx.media3.session.CommandButton
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
 import com.adrianrusu.pandawave.core.audio.visualizer.MutableAudioSessionRepository
@@ -20,6 +22,7 @@ import com.adrianrusu.pandawave.core.media.adapter.playback.focus.BambooAudioFoc
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
 import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineGateway
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
+import com.google.common.collect.ImmutableList
 import dagger.hilt.android.AndroidEntryPoint
 import java.util.concurrent.Executors
 import javax.inject.Inject
@@ -47,6 +50,7 @@ class BambooMediaLibraryService : MediaLibraryService() {
     lateinit var audioSessionRepository: MutableAudioSessionRepository
 
     private var player: ExoPlayer? = null
+    private var sessionPlayer: PandaMediaSessionPlayer? = null
     private var session: MediaLibrarySession? = null
     private var engineBridge: Media3PlaybackEngineBridge? = null
     private var stateProjector: BambooMediaSessionStateProjector? = null
@@ -55,7 +59,15 @@ class BambooMediaLibraryService : MediaLibraryService() {
     private var audioSessionObserver: ExoPlayerAudioSessionObserver? = null
     private var catalogExecutor: java.util.concurrent.ExecutorService? = null
     private var resumptionStore: MediaSessionPlaybackResumptionStore? = null
+    private var generationSubscription: AutoCloseable? = null
+    private var lastGenerations: CatalogGenerations = CatalogGenerations()
+    private val queue = Media3QueueProjection()
     private val mainThreadHandler = Handler(Looper.getMainLooper())
+    private val exoRuntimeListener = object : Player.Listener {
+        override fun onEvents(player: Player, events: Player.Events) {
+            sessionPlayer?.invalidatePlaybackState()
+        }
+    }
 
     override fun onCreate() {
         PandaTrace.section("PW.Media3.Service.onCreate") {
@@ -66,161 +78,211 @@ class BambooMediaLibraryService : MediaLibraryService() {
     private fun ensureSession(): MediaLibrarySession {
         session?.let { return it }
         return PandaTrace.section("PW.Media3.Service.ensureSession") {
-            val exoPlayer = newPlayer()
-            val exoPlayerAudioSessionObserver = ExoPlayerAudioSessionObserver(
-                player = exoPlayer,
-                repository = audioSessionRepository
-            ).also(ExoPlayerAudioSessionObserver::start)
-            lateinit var playbackEngineBridge: Media3PlaybackEngineBridge
-            val focusHandler = BambooAudioFocusHandler(
-                context = this,
-                onFocusChange = { change -> playbackEngineBridge.dispatchAudioFocusChange(change) }
-            )
-            val effectExecutor = Media3EngineEffectExecutor(
-                player = { PlayerMedia3EffectPlayer(checkNotNull(player)) },
-                audioFocusController = focusHandler,
-                telemetryLogger = telemetryLogger,
-                currentProjection = {
-                    playbackRepository.state.value.toMediaSessionStateProjection(
-                        artworkUris = MediaHostArtworkUriProjector(packageName)
-                    )
-                },
-                recreatePlayer = ::recreatePlayerForDecoderFailure,
-                notifyUser = ::showPlaybackFailure,
-                onAudioFocusRequestResult = { result ->
-                    playbackEngineBridge.dispatchAudioFocusRequestResult(result)
-                }
-            )
-            playbackEngineBridge = Media3PlaybackEngineBridge(
-                playbackRepository = playbackRepository,
-                telemetryLogger = telemetryLogger,
-                effectExecutor = effectExecutor,
-                playbackMetricsProvider = PlaybackCompletionMetricsProvider {
-                    val currentPlayer = checkNotNull(player)
-                    PlaybackCompletionMetrics(
-                        positionMillis = currentPlayer.currentPosition,
-                        durationMillis = currentPlayer.duration
-                    )
-                },
-                playbackInstanceIdProvider = {
-                    player?.currentMediaItem?.localConfiguration?.tag as? Long
-                },
-                playerSnapshotProvider = {
-                    player?.let { currentPlayer ->
-                        Media3PlayerSnapshot(
-                            positionMillis = currentPlayer.currentPosition,
-                            playWhenReady = currentPlayer.playWhenReady,
-                            playbackState = currentPlayer.playbackState
-                        )
-                    }
-                },
-                checkpointScheduler = PlaybackCheckpointScheduler { delayMillis, action ->
-                    val runnable = Runnable(action)
-                    mainThreadHandler.postDelayed(runnable, delayMillis)
-                    AutoCloseable { mainThreadHandler.removeCallbacks(runnable) }
-                }
-            )
-            // The player owns the initial value; keep shared playback state in sync before projection starts.
-            playbackEngineBridge.dispatchVolume(exoPlayer.volume)
-            val sessionPlayer = BambooMediaSessionPlayer(
-                delegate = exoPlayer,
-                playbackEngineBridge = playbackEngineBridge,
-                controlsEnabled = { playbackRepository.state.value.canDispatchEngineCommands },
-                controls = { playbackRepository.state.value.controls }
-            )
-            val catalogDispatcher = this.catalogExecutor ?: Executors.newSingleThreadExecutor { runnable ->
-                Thread(runnable, "pw-media-catalog").apply { isDaemon = true }
-            }.also { this.catalogExecutor = it }
-            val playbackResumptionStore = this.resumptionStore ?: MediaSessionPlaybackResumptionStore(
-                getSharedPreferences(RESUMPTION_PREFERENCES, MODE_PRIVATE)
-            ).also { this.resumptionStore = it }
-            val artworkUris = MediaHostArtworkUriProjector(packageName)
-            val catalogSource = EngineBambooCatalogSource(engineGateway = engineGateway)
-            val sessionBuilder = MediaLibrarySession.Builder(
-                this,
-                sessionPlayer,
-                sessionCallback(
-                    catalogSource = catalogSource,
-                    playbackEngineBridge = playbackEngineBridge,
-                    catalogExecutor = catalogDispatcher,
-                    resumptionStore = playbackResumptionStore,
-                    artworkUris = artworkUris
-                )
-            ).setId(SESSION_ID)
-                .setBitmapLoader(CacheBitmapLoader(DataSourceBitmapLoader(this)))
-            sessionActivity()?.let(sessionBuilder::setSessionActivity)
-            val mediaLibrarySession = sessionBuilder.build()
-            val playbackStateProjector = BambooMediaSessionStateProjector(
-                playbackRepository = playbackRepository,
-                sink = Media3PlayerStateSink(exoPlayer),
-                playbackEngineBridge = playbackEngineBridge,
-                artworkUris = artworkUris
-            )
-            val mediaCommandAvailabilityProjector = BambooMediaSessionCommandAvailabilityProjector(
-                playbackRepository = playbackRepository,
-                sink = Media3SessionCommandAvailabilitySink(
-                    sessionProvider = { session }
-                )
-            )
-
-            player = exoPlayer
-            engineBridge = playbackEngineBridge
-            session = mediaLibrarySession
-            stateProjector = playbackStateProjector
-            commandAvailabilityProjector = mediaCommandAvailabilityProjector
-            audioFocusHandler = focusHandler
-            audioSessionObserver = exoPlayerAudioSessionObserver
-
-            playbackEngineBridge.bootstrap()
-            playbackStateProjector.start()
-            mediaCommandAvailabilityProjector.start()
-            exoPlayer.addListener(playbackEngineBridge)
-            mediaLibrarySession
+            createSession()
         }
     }
 
-    /**
-     * A fatal decoder error leaves Media3 in an unusable idle state. Swap the
-     * session player in place so controllers keep the same MediaLibrarySession,
-     * then let the explicit engine effect load the already-resolved source.
-     */
+    private fun createSession(): MediaLibrarySession {
+        val exoPlayer = newPlayer()
+        player = exoPlayer
+        val exoPlayerAudioSessionObserver = ExoPlayerAudioSessionObserver(
+            player = exoPlayer,
+            repository = audioSessionRepository
+        ).also(ExoPlayerAudioSessionObserver::start)
+        lateinit var playbackEngineBridge: Media3PlaybackEngineBridge
+        val focusHandler = BambooAudioFocusHandler(
+            context = this,
+            onFocusChange = { change -> playbackEngineBridge.dispatchAudioFocusChange(change) }
+        )
+        val artworkUris = MediaHostArtworkUriProjector(packageName)
+        val effectExecutor = Media3EngineEffectExecutor(
+            player = { PlayerMedia3EffectPlayer(checkNotNull(player)) },
+            audioFocusController = focusHandler,
+            telemetryLogger = telemetryLogger,
+            currentProjection = {
+                playbackRepository.state.value.toMediaSessionStateProjection(artworkUris = artworkUris)
+            },
+            recreatePlayer = ::recreatePlayerForDecoderFailure,
+            notifyUser = ::showPlaybackFailure,
+            onAudioFocusRequestResult = { result ->
+                playbackEngineBridge.dispatchAudioFocusRequestResult(result)
+            }
+        )
+        playbackEngineBridge = createEngineBridge(effectExecutor)
+        playbackEngineBridge.dispatchVolume(exoPlayer.volume)
+        val pandaPlayer = createSessionPlayer(playbackEngineBridge, artworkUris)
+        val catalogDispatcher = this.catalogExecutor ?: Executors.newSingleThreadExecutor { runnable ->
+            Thread(runnable, "pw-media-catalog").apply { isDaemon = true }
+        }.also { this.catalogExecutor = it }
+        val playbackResumptionStore = this.resumptionStore ?: MediaSessionPlaybackResumptionStore(
+            getSharedPreferences(RESUMPTION_PREFERENCES, MODE_PRIVATE)
+        ).also { this.resumptionStore = it }
+        val catalogSource = EngineBambooCatalogSource(engineGateway = engineGateway)
+        val sessionBuilder = MediaLibrarySession.Builder(
+            this,
+            pandaPlayer,
+            sessionCallback(
+                catalogSource = catalogSource,
+                playbackEngineBridge = playbackEngineBridge,
+                catalogExecutor = catalogDispatcher,
+                resumptionStore = playbackResumptionStore,
+                artworkUris = artworkUris
+            )
+        ).setId(SESSION_ID)
+            .setBitmapLoader(CacheBitmapLoader(DataSourceBitmapLoader(this)))
+        sessionActivity()?.let(sessionBuilder::setSessionActivity)
+        val mediaLibrarySession = sessionBuilder.build()
+        applyMediaButtonPreferences(mediaLibrarySession)
+        bindSession(
+            exoPlayer = exoPlayer,
+            pandaPlayer = pandaPlayer,
+            playbackEngineBridge = playbackEngineBridge,
+            mediaLibrarySession = mediaLibrarySession,
+            artworkUris = artworkUris,
+            focusHandler = focusHandler,
+            exoPlayerAudioSessionObserver = exoPlayerAudioSessionObserver
+        )
+        return mediaLibrarySession
+    }
+
+    private fun createEngineBridge(effectExecutor: Media3EngineEffectExecutor) = Media3PlaybackEngineBridge(
+        playbackRepository = playbackRepository,
+        telemetryLogger = telemetryLogger,
+        effectExecutor = effectExecutor,
+        playbackMetricsProvider = PlaybackCompletionMetricsProvider {
+            val currentPlayer = checkNotNull(player)
+            PlaybackCompletionMetrics(
+                positionMillis = currentPlayer.currentPosition,
+                durationMillis = currentPlayer.duration
+            )
+        },
+        playbackInstanceIdProvider = {
+            player?.currentMediaItem?.localConfiguration?.tag as? Long
+        },
+        playerSnapshotProvider = {
+            player?.let { currentPlayer ->
+                Media3PlayerSnapshot(
+                    positionMillis = currentPlayer.currentPosition,
+                    playWhenReady = currentPlayer.playWhenReady,
+                    playbackState = currentPlayer.playbackState
+                )
+            }
+        },
+        checkpointScheduler = PlaybackCheckpointScheduler { delayMillis, action ->
+            val runnable = Runnable(action)
+            mainThreadHandler.postDelayed(runnable, delayMillis)
+            AutoCloseable { mainThreadHandler.removeCallbacks(runnable) }
+        }
+    )
+
+    private fun createSessionPlayer(
+        playbackEngineBridge: Media3PlaybackEngineBridge,
+        artworkUris: ArtworkUriProjector
+    ): PandaMediaSessionPlayer = PandaMediaSessionPlayer(
+        looper = Looper.getMainLooper(),
+        playbackEngineBridge = playbackEngineBridge,
+        model = {
+            PandaMediaSessionPlayerState.from(
+                playback = playbackRepository.state.value,
+                queue = queue,
+                exo = player?.let(::exoRuntimeState) ?: PandaExoRuntimeState(),
+                artworkUris = artworkUris
+            )
+        },
+        seekToQueueIndex = { index, positionMs ->
+            val items = queue.snapshot()
+            BambooMediaLibraryPlaybackSelection.playbackIntent(
+                mediaIds = items.map { item -> item.queueItemId },
+                startIndex = index
+            )?.let(playbackEngineBridge::dispatchPlayFromContext)
+            if (positionMs > 0L) playbackEngineBridge.dispatchSeek(positionMs)
+        }
+    )
+
+    private fun bindSession(
+        exoPlayer: ExoPlayer,
+        pandaPlayer: PandaMediaSessionPlayer,
+        playbackEngineBridge: Media3PlaybackEngineBridge,
+        mediaLibrarySession: MediaLibrarySession,
+        artworkUris: ArtworkUriProjector,
+        focusHandler: BambooAudioFocusHandler,
+        exoPlayerAudioSessionObserver: ExoPlayerAudioSessionObserver
+    ) {
+        val playbackStateProjector = BambooMediaSessionStateProjector(
+            playbackRepository = playbackRepository,
+            sink = Media3PlayerStateSink(exoPlayer) { pandaPlayer.invalidatePlaybackState() },
+            playbackEngineBridge = playbackEngineBridge,
+            artworkUris = artworkUris
+        )
+        val mediaCommandAvailabilityProjector = BambooMediaSessionCommandAvailabilityProjector(
+            playbackRepository = playbackRepository,
+            sink = Media3SessionCommandAvailabilitySink(
+                sessionProvider = { session },
+                hasSeekableTimeline = queue::hasSeekableTimeline
+            )
+        )
+        player = exoPlayer
+        sessionPlayer = pandaPlayer
+        engineBridge = playbackEngineBridge
+        session = mediaLibrarySession
+        stateProjector = playbackStateProjector
+        commandAvailabilityProjector = mediaCommandAvailabilityProjector
+        audioFocusHandler = focusHandler
+        audioSessionObserver = exoPlayerAudioSessionObserver
+        playbackEngineBridge.bootstrap()
+        playbackStateProjector.start()
+        mediaCommandAvailabilityProjector.start()
+        exoPlayer.addListener(playbackEngineBridge)
+        exoPlayer.addListener(exoRuntimeListener)
+        observeCatalogGenerations(mediaLibrarySession)
+    }
+
+    private fun observeCatalogGenerations(mediaLibrarySession: MediaLibrarySession) {
+        generationSubscription?.close()
+        lastGenerations = engineGateway.snapshot().toCatalogGenerations()
+        generationSubscription = engineGateway.observeSnapshots { snapshot ->
+            val next = snapshot.toCatalogGenerations()
+            val changed = PandaMediaLibraryInvalidation.changedParents(lastGenerations, next)
+            lastGenerations = next
+            if (changed.isEmpty()) return@observeSnapshots
+            mainThreadHandler.post {
+                changed.forEach { parentId ->
+                    mediaLibrarySession.notifyChildrenChanged(parentId, Int.MAX_VALUE, null)
+                }
+            }
+        }
+    }
+
     private fun recreatePlayerForDecoderFailure() {
         val bridge = engineBridge ?: return
         val previousPlayer = player ?: return
-        val mediaLibrarySession = session ?: return
-
+        val pandaPlayer = sessionPlayer ?: return
         PandaTrace.section("PW.Media3.Service.recreatePlayer") {
             previousPlayer.removeListener(bridge)
+            previousPlayer.removeListener(exoRuntimeListener)
             audioSessionObserver?.stop()
             audioSessionObserver = null
             stateProjector?.close()
             stateProjector = null
             previousPlayer.release()
-
             val exoPlayer = newPlayer()
             val observer = ExoPlayerAudioSessionObserver(
                 player = exoPlayer,
                 repository = audioSessionRepository
             ).also(ExoPlayerAudioSessionObserver::start)
-            val sessionPlayer = BambooMediaSessionPlayer(
-                delegate = exoPlayer,
-                playbackEngineBridge = bridge,
-                controlsEnabled = { playbackRepository.state.value.canDispatchEngineCommands },
-                controls = { playbackRepository.state.value.controls }
-            )
-            mediaLibrarySession.setPlayer(sessionPlayer)
             val projector = BambooMediaSessionStateProjector(
                 playbackRepository = playbackRepository,
-                sink = Media3PlayerStateSink(exoPlayer),
+                sink = Media3PlayerStateSink(exoPlayer) { pandaPlayer.invalidatePlaybackState() },
                 playbackEngineBridge = bridge,
                 artworkUris = MediaHostArtworkUriProjector(packageName)
             )
-
             player = exoPlayer
             audioSessionObserver = observer
             stateProjector = projector
             exoPlayer.addListener(bridge)
+            exoPlayer.addListener(exoRuntimeListener)
             projector.start()
+            pandaPlayer.invalidatePlaybackState()
         }
     }
 
@@ -231,10 +293,9 @@ class BambooMediaLibraryService : MediaLibraryService() {
         resumptionStore: MediaSessionPlaybackResumptionStore,
         artworkUris: ArtworkUriProjector
     ) = BambooMediaLibrarySessionCallback(
-        controlsEnabled = { playbackRepository.state.value.canDispatchEngineCommands },
-        controls = { playbackRepository.state.value.controls },
         catalog = BambooMediaLibraryCatalog(source = catalogSource, artworkUris = artworkUris),
         playbackBridge = playbackEngineBridge,
+        queue = queue,
         sessionPackageName = packageName,
         catalogExecutor = catalogExecutor,
         resumptionStore = resumptionStore,
@@ -256,16 +317,28 @@ class BambooMediaLibraryService : MediaLibraryService() {
         )
     }
 
+    private fun applyMediaButtonPreferences(mediaLibrarySession: MediaLibrarySession) {
+        mediaLibrarySession.setMediaButtonPreferences(
+            ImmutableList.of(
+                commandButton(CommandButton.ICON_PREVIOUS, Player.COMMAND_SEEK_TO_PREVIOUS),
+                commandButton(CommandButton.ICON_PLAY, Player.COMMAND_PLAY_PAUSE),
+                commandButton(CommandButton.ICON_NEXT, Player.COMMAND_SEEK_TO_NEXT)
+            )
+        )
+    }
+
+    private fun commandButton(icon: Int, command: Int): CommandButton = CommandButton.Builder(icon)
+        .setPlayerCommand(command)
+        .build()
+
     private fun newPlayer(): ExoPlayer = PandaTrace.section("PW.Media3.Player.create") {
         ExoPlayer.Builder(this)
-            // Try an alternate platform decoder before full player recreation.
             .setRenderersFactory(DefaultRenderersFactory(this).setEnableDecoderFallback(true))
             .setAudioAttributes(
                 AudioAttributes.Builder()
                     .setUsage(C.USAGE_MEDIA)
                     .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
                     .build(),
-                /* handleAudioFocus= */
                 false
             )
             .setLoadControl(
@@ -294,6 +367,8 @@ class BambooMediaLibraryService : MediaLibraryService() {
 
     override fun onDestroy() {
         PandaTrace.section("PW.Media3.Service.onDestroy") {
+            generationSubscription?.close()
+            generationSubscription = null
             audioFocusHandler?.stop()
             audioFocusHandler = null
             commandAvailabilityProjector?.close()
@@ -302,11 +377,13 @@ class BambooMediaLibraryService : MediaLibraryService() {
             stateProjector = null
             engineBridge?.let { bridge ->
                 player?.removeListener(bridge)
+                player?.removeListener(exoRuntimeListener)
                 bridge.close()
             }
             engineBridge = null
             session?.release()
             session = null
+            sessionPlayer = null
             audioSessionObserver?.stop()
             audioSessionObserver = null
             player?.release()
@@ -315,10 +392,17 @@ class BambooMediaLibraryService : MediaLibraryService() {
             catalogExecutor = null
             resumptionStore = null
         }
-
         super.onDestroy()
     }
 }
+
+private fun exoRuntimeState(player: ExoPlayer): PandaExoRuntimeState = PandaExoRuntimeState(
+    playbackState = player.playbackState,
+    currentMediaId = player.currentMediaItem?.mediaId,
+    positionMs = player.currentPosition,
+    durationMs = player.duration,
+    bufferedPositionMs = player.bufferedPosition
+)
 
 private const val HTTP_MAX_BUFFER_MS = 120_000
 private const val HTTP_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 10_000

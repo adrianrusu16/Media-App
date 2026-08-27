@@ -14,11 +14,11 @@ data class EngineDispatchResult(
     constructor(parcel: Parcel) : this(
         snapshot = parcel.readParcelable(
             EngineSnapshot::class.java.classLoader,
-            EngineSnapshot::class.java,
+            EngineSnapshot::class.java
         ) ?: EngineSnapshot.idle(nowMillis = 0L),
         event = parcel.readParcelable(
             EngineEvent::class.java.classLoader,
-            EngineEvent::class.java,
+            EngineEvent::class.java
         ) ?: EngineEvent(EngineEvent.TYPE_GATEWAY_UNAVAILABLE, null),
         effects = mutableListOf<EngineEffect>().also { values ->
             parcel.readTypedList(values, EngineEffect.CREATOR)

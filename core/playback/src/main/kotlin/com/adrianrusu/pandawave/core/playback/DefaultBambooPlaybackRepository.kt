@@ -144,27 +144,11 @@ class DefaultBambooPlaybackRepository(
 
             is BambooPlaybackIntent.SetVolume -> error("Volume intents are handled before engine dispatch")
 
-            is BambooPlaybackIntent.PlayMedia -> {
-                PandaLog.i(PandaLog.Tag.MEDIA) {
-                    "play_requested command=PlayMediaById trackId=${intent.mediaId}"
-                }
-                dispatchEngineCommand(
-                    commandType = EngineCommand.TYPE_PLAY_MEDIA_BY_ID,
-                    payload = EngineCommandPayloads.mediaId(intent.mediaId),
-                    sourceIntent = intent
-                )
-            }
+            is BambooPlaybackIntent.PlayMedia -> dispatchPlayMedia(intent.mediaId, intent)
 
-            is BambooPlaybackIntent.PlayQueue -> {
-                PandaLog.i(PandaLog.Tag.MEDIA) {
-                    "play_requested command=PlayQueue count=${intent.mediaIds.size} startIndex=${intent.startIndex}"
-                }
-                dispatchEngineCommand(
-                    commandType = EngineCommand.TYPE_PLAY_QUEUE,
-                    payload = EngineCommandPayloads.playQueue(intent.mediaIds, intent.startIndex),
-                    sourceIntent = intent
-                )
-            }
+            is BambooPlaybackIntent.PlayQueue -> dispatchPlayQueue(intent.mediaIds, intent.startIndex, intent)
+
+            is BambooPlaybackIntent.PlayFromContext -> dispatchPlayFromContext(intent)
 
             is BambooPlaybackIntent.SearchCatalog -> dispatchEngineCommand(
                 commandType = EngineCommand.TYPE_SEARCH,
@@ -314,6 +298,46 @@ class DefaultBambooPlaybackRepository(
         }
 
         updateState { current -> current.copy(volume = normalizedVolume) }
+    }
+
+    private fun dispatchPlayFromContext(intent: BambooPlaybackIntent.PlayFromContext) {
+        val mediaIds = intent.mediaIds.map(String::trim).filter(String::isNotBlank)
+        val selected = intent.selectedMediaId.trim()
+        val startIndex = when {
+            mediaIds.isEmpty() -> 0
+            selected.isNotBlank() -> mediaIds.indexOf(selected).takeIf { index -> index >= 0 } ?: 0
+            else -> 0
+        }
+        PandaLog.i(PandaLog.Tag.MEDIA) {
+            "play_requested command=PlayFromContext context=${intent.context::class.simpleName} " +
+                "trackId=$selected occurrence=${intent.occurrenceId} count=${mediaIds.size} startIndex=$startIndex"
+        }
+        when {
+            mediaIds.size > 1 -> dispatchPlayQueue(mediaIds, startIndex, intent)
+            mediaIds.size == 1 -> dispatchPlayMedia(mediaIds.single(), intent)
+            selected.isNotBlank() -> dispatchPlayMedia(selected, intent)
+            else -> Unit
+        }
+    }
+
+    private fun dispatchPlayMedia(mediaId: String, sourceIntent: BambooPlaybackIntent) {
+        PandaLog.i(PandaLog.Tag.MEDIA) { "play_requested command=PlayMediaById trackId=$mediaId" }
+        dispatchEngineCommand(
+            commandType = EngineCommand.TYPE_PLAY_MEDIA_BY_ID,
+            payload = EngineCommandPayloads.mediaId(mediaId),
+            sourceIntent = sourceIntent
+        )
+    }
+
+    private fun dispatchPlayQueue(mediaIds: List<String>, startIndex: Int, sourceIntent: BambooPlaybackIntent) {
+        PandaLog.i(PandaLog.Tag.MEDIA) {
+            "play_requested command=PlayQueue count=${mediaIds.size} startIndex=$startIndex"
+        }
+        dispatchEngineCommand(
+            commandType = EngineCommand.TYPE_PLAY_QUEUE,
+            payload = EngineCommandPayloads.playQueue(mediaIds, startIndex),
+            sourceIntent = sourceIntent
+        )
     }
 
     private fun dispatchEngineCommand(

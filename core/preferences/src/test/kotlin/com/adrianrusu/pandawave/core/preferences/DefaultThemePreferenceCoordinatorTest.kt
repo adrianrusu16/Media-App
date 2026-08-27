@@ -4,7 +4,6 @@ import com.adrianrusu.pandawave.core.model.theme.PandaWaveThemePreference
 import com.adrianrusu.pandawave.core.model.theme.ThemePreferenceRepository
 import com.adrianrusu.pandawave.core.model.theme.ThemePreferenceState
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthState
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
@@ -164,10 +163,6 @@ private class RecordingEngineGateway(initialSnapshot: EngineSnapshot = EngineSna
     private var currentSnapshot = initialSnapshot
 
     override fun snapshot(): EngineSnapshot = currentSnapshot
-
-    override fun browseResult(index: Int): EngineCatalogItem? = null
-
-    override fun searchResult(index: Int): EngineCatalogItem? = null
 
     override fun dispatch(command: EngineCommand): EngineDispatchResult {
         commands += command

@@ -3,7 +3,6 @@ package com.adrianrusu.pandawave.feature.library.data
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAccount
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthSession
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthState
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
@@ -410,20 +409,10 @@ private class RecordingLibraryGateway(
     private val listeners = mutableListOf<(EngineSnapshot) -> Unit>()
     val commands = mutableListOf<EngineCommand>()
     val libraryLoads = mutableListOf<LibraryLoad>()
-    var historyEntryReads = 0
-        private set
     var historyPageReads = 0
         private set
 
     override fun snapshot(): EngineSnapshot = current
-    override fun browseResult(index: Int): EngineCatalogItem? = null
-    override fun searchResult(index: Int): EngineCatalogItem? = null
-    override fun savedTrack(index: Int): EngineLibraryItem? = saved.getOrNull(index)
-    override fun likedTrack(index: Int): EngineLibraryItem? = liked.getOrNull(index)
-    override fun historyEntry(index: Int): EngineHistoryItem? {
-        historyEntryReads += 1
-        return history.getOrNull(historyOffset + index)
-    }
     override fun savedTracksPage(offset: Int, limit: Int): List<EngineLibraryItem> =
         saved.drop(offset.coerceAtLeast(0)).take(limit.coerceAtLeast(0))
     override fun likedTracksPage(offset: Int, limit: Int): List<EngineLibraryItem> =
@@ -441,9 +430,8 @@ private class RecordingLibraryGateway(
         playlists.drop(offset.coerceAtLeast(0)).take(limit.coerceAtLeast(0))
     override fun playlistTracksPage(offset: Int, limit: Int): List<EnginePlaylistTrackItem> =
         playlistTracks.drop(offset.coerceAtLeast(0)).take(limit.coerceAtLeast(0))
-    override fun pendingLibraryTrackId(index: Int): String? = pending.getOrNull(index)
-    override fun playlist(index: Int): EnginePlaylistItem? = playlists.getOrNull(index)
-    override fun playlistTrack(index: Int): EnginePlaylistTrackItem? = playlistTracks.getOrNull(index)
+    override fun pendingLibraryTrackIdsPage(offset: Int, limit: Int): List<String> =
+        pending.drop(offset.coerceAtLeast(0)).take(limit.coerceAtLeast(0))
     override fun selectedPlaylistId(): String? = selectedPlaylistId
     override fun playlistReconciliation(): EnginePlaylistReconciliation? = reconciliation
 

@@ -8,6 +8,22 @@ import kotlin.test.assertTrue
 
 class PandaWaveArtworkContractTest {
     @Test
+    fun `engine artwork identity is published as a content id hash uri`() {
+        val rewritten = PandaWaveArtworkContract.mediaHostUriString(
+            packageName = "com.adrianrusu.pandawave",
+            artworkUri = "https://cdn.pandawave.test/artwork/art-1/hash-1",
+            artworkId = "art-1",
+            artworkVersion = "hash-1"
+        )
+
+        assertTrue(rewritten!!.startsWith("content://com.adrianrusu.pandawave.artwork/id/"))
+        assertEquals(
+            "https://cdn.pandawave.test/artwork/art-1/hash-1",
+            PandaWaveArtworkContract.remoteSourceString(rewritten)
+        )
+    }
+
+    @Test
     fun `http artwork is rewritten to the exported content provider`() {
         val rewritten = PandaWaveArtworkContract.mediaHostUriString(
             packageName = "com.adrianrusu.pandawave",

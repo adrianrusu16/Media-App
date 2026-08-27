@@ -70,9 +70,7 @@ impl Engine {
 
         if event.event_type == EnginePlatformEventType::PlaybackPositionCheckpoint {
             if self.snapshot.playback_state == PlaybackState::Ended {
-                debug!(
-                    "Ignoring playback position checkpoint after the current item finished"
-                );
+                debug!("Ignoring playback position checkpoint after the current item finished");
                 return EngineOutcome {
                     snapshot: self.snapshot.clone(),
                     event: EngineEvent::platform_event_applied(Some(
@@ -614,7 +612,11 @@ fn snap_finished_progress(
 ) -> crate::EngineSnapshot {
     let reported_duration_millis = payload
         .and_then(|value| serde_json::from_str::<serde_json::Value>(value).ok())
-        .and_then(|value| value.get("duration_ms").and_then(|duration| duration.as_u64()))
+        .and_then(|value| {
+            value
+                .get("duration_ms")
+                .and_then(|duration| duration.as_u64())
+        })
         .filter(|duration| *duration > 0);
     let finished_duration_millis = reported_duration_millis.or(snapshot.duration_millis);
     let Some(duration_millis) = finished_duration_millis else {

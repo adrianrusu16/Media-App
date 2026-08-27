@@ -6,6 +6,7 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommandPayloads
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryItem
+import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryPage
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
 
@@ -30,56 +31,22 @@ internal class FakePandaEngine(private val clock: () -> Long = System::currentTi
 
     override fun effect(index: Int): EngineEffect? = currentEffects.getOrNull(index)
 
-    override fun browseResult(index: Int): EngineCatalogItem? = when {
-        index in 0 until currentSnapshot.browseResultsCount -> EngineCatalogItem(
-            mediaId = "browse-$index",
-            title = "Browse result $index",
-            artist = "PandaWave",
-            artworkUri = "content://pandawave/catalog/browse-$index",
-            sourceUri = PandaWaveAudioSourceContract.sourceUriForTrack("browse-$index"),
-            mimeType = DEFAULT_AUDIO_MIME_TYPE,
-            itemType = EngineCatalogItem.TYPE_ALBUM,
-            artworkId = "browse-art-$index",
-            artworkVersion = "browse-hash-$index"
+    override fun browseResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
+        snapshotPage(offset, limit, currentSnapshot.browseResultsCount, ::browseItem)
+
+    override fun searchResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
+        snapshotPage(offset, limit, currentSnapshot.searchResultsCount, ::searchItem)
+
+    override fun historyPage(offset: Int, limit: Int, generation: Long): EngineHistoryPage {
+        val snapshot = currentSnapshot
+        return EngineHistoryPage(
+            generation = snapshot.historyGeneration,
+            items = if (snapshot.historyGeneration == generation) {
+                snapshotPage(offset, limit, snapshot.historyEntriesCount, ::historyItem)
+            } else {
+                emptyList()
+            }
         )
-
-        else -> null
-    }
-
-    override fun searchResult(index: Int): EngineCatalogItem? = when {
-        index in 0 until currentSnapshot.searchResultsCount -> EngineCatalogItem(
-            mediaId = "search-$index",
-            title = "Search result $index",
-            artist = "PandaWave",
-            album = "Canopy Sessions",
-            artworkUri = "content://pandawave/catalog/search-$index",
-            sourceUri = PandaWaveAudioSourceContract.sourceUriForTrack("search-$index"),
-            mimeType = DEFAULT_AUDIO_MIME_TYPE,
-            itemType = EngineCatalogItem.TYPE_TRACK,
-            artworkId = "search-art-$index",
-            artworkVersion = "search-hash-$index"
-        )
-
-        else -> null
-    }
-
-    override fun historyEntry(index: Int): EngineHistoryItem? = when {
-        index in 0 until currentSnapshot.historyEntriesCount -> EngineHistoryItem(
-            historyId = "history-$index",
-            mediaId = "history-track-$index",
-            title = "Played track $index",
-            artist = "PandaWave",
-            album = "Recently played",
-            artworkUri = "content://pandawave/history/history-track-$index",
-            playedAtEpochMillis = clock() - index * 60_000L,
-            listenedDurationMillis = 180_000L,
-            completionRatio = 1F,
-            playable = true,
-            artworkId = "history-art-$index",
-            artworkVersion = "history-hash-$index"
-        )
-
-        else -> null
     }
 
     override fun dispatch(command: EngineCommand): EngineDispatchResult {
@@ -177,6 +144,55 @@ internal class FakePandaEngine(private val clock: () -> Long = System::currentTi
             durationMillis = source.expectedDurationMillis ?: snapshot.durationMillis
         )
     }
+
+    private fun browseItem(index: Int): EngineCatalogItem = EngineCatalogItem(
+        mediaId = "browse-$index",
+        title = "Browse result $index",
+        artist = "PandaWave",
+        artworkUri = "content://pandawave/catalog/browse-$index",
+        sourceUri = PandaWaveAudioSourceContract.sourceUriForTrack("browse-$index"),
+        mimeType = DEFAULT_AUDIO_MIME_TYPE,
+        itemType = EngineCatalogItem.TYPE_ALBUM,
+        artworkId = "browse-art-$index",
+        artworkVersion = "browse-hash-$index"
+    )
+
+    private fun searchItem(index: Int): EngineCatalogItem = EngineCatalogItem(
+        mediaId = "search-$index",
+        title = "Search result $index",
+        artist = "PandaWave",
+        album = "Canopy Sessions",
+        artworkUri = "content://pandawave/catalog/search-$index",
+        sourceUri = PandaWaveAudioSourceContract.sourceUriForTrack("search-$index"),
+        mimeType = DEFAULT_AUDIO_MIME_TYPE,
+        itemType = EngineCatalogItem.TYPE_TRACK,
+        artworkId = "search-art-$index",
+        artworkVersion = "search-hash-$index"
+    )
+
+    private fun historyItem(index: Int): EngineHistoryItem = EngineHistoryItem(
+        historyId = "history-$index",
+        mediaId = "history-track-$index",
+        title = "Played track $index",
+        artist = "PandaWave",
+        album = "Recently played",
+        artworkUri = "content://pandawave/history/history-track-$index",
+        playedAtEpochMillis = clock() - index * 60_000L,
+        listenedDurationMillis = 180_000L,
+        completionRatio = 1F,
+        playable = true,
+        artworkId = "history-art-$index",
+        artworkVersion = "history-hash-$index"
+    )
+
+    private fun <T> snapshotPage(offset: Int, limit: Int, count: Int, itemAt: (Int) -> T): List<T> {
+        val start = offset.coerceAtLeast(0)
+        val endExclusive = (start + limit.coerceIn(0, MAX_FAKE_ENGINE_PAGE_QUERY_SIZE))
+            .coerceAtMost(count.coerceAtLeast(0))
+        if (start >= endExclusive) return emptyList()
+        return (start until endExclusive).map(itemAt)
+    }
 }
 
 internal const val DEFAULT_AUDIO_MIME_TYPE = "audio/mpeg"
+private const val MAX_FAKE_ENGINE_PAGE_QUERY_SIZE = 50

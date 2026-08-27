@@ -4,7 +4,6 @@ import com.adrianrusu.pandawave.core.automotive.driving.AutomotiveDrivingState
 import com.adrianrusu.pandawave.core.automotive.driving.AutomotiveDrivingStateObserver
 import com.adrianrusu.pandawave.core.automotive.ux.AutomotiveUxRestrictionObserver
 import com.adrianrusu.pandawave.core.automotive.ux.AutomotiveUxRestrictions
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommandPayloads
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
@@ -410,6 +409,35 @@ class DefaultBambooPlaybackRepositoryTest {
     }
 
     @Test
+    fun `play from context with siblings becomes an engine play queue`() {
+        val engine = RecordingEngineGateway(initialSnapshot = EngineSnapshot.idle(nowMillis = 1L))
+        val repository = DefaultBambooPlaybackRepository(
+            engine = engine,
+            uxRestrictionObserver = FakeUxRestrictionObserver(
+                restrictions = AutomotiveUxRestrictions.unrestricted(
+                    AutomotiveUxRestrictions.Source.NotAutomotive
+                )
+            ),
+            telemetryLogger = testTelemetryLogger()
+        )
+
+        repository.start()
+        repository.dispatch(
+            BambooPlaybackIntent.PlayFromContext(
+                context = PandaPlaybackContext.ForYou,
+                selectedMediaId = "b",
+                mediaIds = listOf("a", "b", "c")
+            )
+        )
+
+        assertEquals(
+            STARTUP_COMMAND_TYPES + listOf(EngineCommand.TYPE_PLAY_QUEUE),
+            engine.commands.map { it.type }
+        )
+        assertEquals(EngineCommandPayloads.playQueue(listOf("a", "b", "c"), startIndex = 1), engine.commands[2].payload)
+    }
+
+    @Test
     fun `engine events update connection state and gate commands`() {
         val engine = RecordingEngineGateway(initialSnapshot = EngineSnapshot.idle(nowMillis = 1L))
         val repository = DefaultBambooPlaybackRepository(
@@ -644,10 +672,6 @@ private class RecordingEngineGateway(
     val platformEvents = mutableListOf<EnginePlatformEvent>()
 
     override fun snapshot(): EngineSnapshot = currentSnapshot
-
-    override fun browseResult(index: Int): EngineCatalogItem? = null
-
-    override fun searchResult(index: Int): EngineCatalogItem? = null
 
     override fun dispatch(command: EngineCommand): EngineDispatchResult {
         commands += command

@@ -11,7 +11,6 @@ import com.adrianrusu.pandawave.core.preferences.AmbientModePreferenceRepository
 import com.adrianrusu.pandawave.core.preferences.AmbientModePreferenceState
 import com.adrianrusu.pandawave.core.preferences.AmbientModePreferences
 import com.adrianrusu.pandawave.core.preferences.ThemePreferenceCoordinator
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
@@ -68,8 +67,6 @@ private class HistoryRecordingEngineGateway : EngineGateway {
     private val listeners = mutableListOf<(EngineSnapshot) -> Unit>()
 
     override fun snapshot() = current
-    override fun browseResult(index: Int): EngineCatalogItem? = null
-    override fun searchResult(index: Int): EngineCatalogItem? = null
     override fun dispatch(command: EngineCommand): EngineDispatchResult {
         commands += command
         if (command.type == EngineCommand.TYPE_LIST_HISTORY) {

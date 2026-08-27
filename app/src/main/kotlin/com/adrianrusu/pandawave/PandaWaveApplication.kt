@@ -17,7 +17,9 @@ import java.io.File
 import javax.inject.Inject
 
 @HiltAndroidApp
-class PandaWaveApplication : Application(), SingletonImageLoader.Factory {
+class PandaWaveApplication :
+    Application(),
+    SingletonImageLoader.Factory {
     @Inject
     lateinit var themePreferenceCoordinator: ThemePreferenceCoordinator
 
@@ -39,10 +41,9 @@ class PandaWaveApplication : Application(), SingletonImageLoader.Factory {
         }
     }
 
-    override fun newImageLoader(context: Context): ImageLoader =
-        ImageLoader.Builder(context)
-            .eventListener(ArtworkCoilEventListener)
-            .build()
+    override fun newImageLoader(context: Context): ImageLoader = ImageLoader.Builder(context)
+        .eventListener(ArtworkCoilEventListener)
+        .build()
 
     private companion object {
         const val AUDIO_CACHE_DIRECTORY = "pandawave/audio"

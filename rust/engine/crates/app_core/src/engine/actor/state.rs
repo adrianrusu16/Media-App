@@ -18,8 +18,8 @@ use crate::model::snapshot::EngineSnapshot;
 
 use super::handle::{CommandMessage, EngineActorHandle, EngineInput, LifecycleMessage};
 use super::ids::{
-    AccountGeneration, CommandId, HistoryGeneration, MessageSequence, OperationId,
-    PlaybackInstanceId, PlaylistGeneration, SearchGeneration, SnapshotRevision,
+    AccountGeneration, CommandId, HistoryGeneration, LibraryGeneration, MessageSequence,
+    OperationId, PlaybackInstanceId, PlaylistGeneration, SearchGeneration, SnapshotRevision,
 };
 use super::operation::{
     DomainGenerations, EngineOperation, EngineOperationCompletion, EngineOperationRequest,
@@ -286,13 +286,7 @@ impl EngineActorState {
                 command_id = command_id.get(),
                 command_type = command.command_type.as_wire(),
                 operation_id = operation.operation_id.get(),
-                request = match &operation.request {
-                    EngineOperationRequest::AccountProjection { .. } => "account_projection",
-                    EngineOperationRequest::SearchPage { .. } => "search_page",
-                    EngineOperationRequest::PlaylistPage { .. } => "playlist_page",
-                    EngineOperationRequest::HistorySettings { .. } => "history_settings",
-                    EngineOperationRequest::PlaybackResolution { .. } => "playback_resolution",
-                },
+                request = operation.request.telemetry_name(),
                 media_id = match &operation.request {
                     EngineOperationRequest::PlaybackResolution { media_id } =>
                         Some(media_id.as_str()),
@@ -559,6 +553,8 @@ impl EngineActorState {
             AccountGeneration::new(self.generations.account.get().saturating_add(1));
         self.generations.history =
             HistoryGeneration::new(self.generations.history.get().saturating_add(1));
+        self.generations.library =
+            LibraryGeneration::new(self.generations.library.get().saturating_add(1));
         self.generations.playlist =
             PlaylistGeneration::new(self.generations.playlist.get().saturating_add(1));
         self.generations.search =
@@ -583,6 +579,12 @@ impl EngineActorState {
         self.generations.history =
             HistoryGeneration::new(self.generations.history.get().saturating_add(1));
         self.generations.history
+    }
+
+    fn bump_library_generation(&mut self) -> LibraryGeneration {
+        self.generations.library =
+            LibraryGeneration::new(self.generations.library.get().saturating_add(1));
+        self.generations.library
     }
 
     fn bump_playback_generation(&mut self) -> PlaybackInstanceId {
@@ -722,7 +724,21 @@ fn playlist_identity(auth_state: &AuthState) -> Option<crate::EnginePlaylistIden
     crate::EnginePlaylistIdentity::new(identity.account_id, identity.session_id).ok()
 }
 
+fn current_session_ids(auth_state: &AuthState) -> Option<(String, String)> {
+    match auth_state {
+        AuthState::Authenticated { account, session } if session.current => {
+            Some((account.id.clone(), session.id.clone()))
+        }
+        _ => None,
+    }
+}
+
 fn history_identity(auth_state: &AuthState) -> Option<crate::EngineHistoryIdentity> {
-    let identity = account_identity(auth_state)?;
-    crate::EngineHistoryIdentity::new(identity.account_id, identity.session_id).ok()
+    let (account_id, session_id) = current_session_ids(auth_state)?;
+    crate::EngineHistoryIdentity::new(account_id, session_id).ok()
+}
+
+fn library_identity(auth_state: &AuthState) -> Option<crate::EngineLibraryIdentity> {
+    let (account_id, session_id) = current_session_ids(auth_state)?;
+    crate::EngineLibraryIdentity::new(account_id, session_id).ok()
 }

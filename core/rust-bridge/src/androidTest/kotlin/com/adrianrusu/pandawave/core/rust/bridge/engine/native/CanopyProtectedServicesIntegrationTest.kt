@@ -87,7 +87,9 @@ class CanopyProtectedServicesIntegrationTest {
                         EngineCommandPayloads.discoveryFeed(pageSize = 1)
                     )
                     assertTrue(discovery.discoveryResultsCount > 0)
-                    val firstDiscoveryId = requireNotNull(primary.discoveryResult(0)).mediaId
+                    val firstDiscoveryId = requireNotNull(
+                        primary.discoveryResultsPage(0, 1).firstOrNull()
+                    ).mediaId
                     assertTrue("Discovery page size 1 must expose a continuation", discovery.hasDiscoveryNextPage)
                     discovery = dispatchSuccess(
                         primary,
@@ -96,7 +98,9 @@ class CanopyProtectedServicesIntegrationTest {
                     )
                     assertTrue(discovery.discoveryResultsCount > 1)
                     val trackId = firstDiscoveryId
-                    val secondTrackId = requireNotNull(primary.discoveryResult(1)).mediaId
+                    val secondTrackId = requireNotNull(
+                        primary.discoveryResultsPage(1, 1).firstOrNull()
+                    ).mediaId
 
                     dispatchSuccess(
                         primary,
@@ -134,7 +138,9 @@ class CanopyProtectedServicesIntegrationTest {
                         EngineCommand.TYPE_LOAD_NEXT_HISTORY_PAGE
                     )
                     assertEquals(firstHistoryPageCount, historyEntries.historyEntriesCount)
-                    assertNotNull(primary.historyEntry(0))
+                    assertNotNull(
+                        primary.historyPage(0, 1, historyEntries.historyGeneration).items.firstOrNull()
+                    )
                     dispatchSuccess(
                         primary,
                         EngineCommand.TYPE_UPDATE_HISTORY_SETTINGS,
@@ -158,7 +164,7 @@ class CanopyProtectedServicesIntegrationTest {
                         EngineCommandPayloads.libraryPage(1)
                     )
                     assertTrue(saved.savedTracksCount > 0)
-                    assertEquals(trackId, primary.savedTrack(0)?.mediaId)
+                    assertEquals(trackId, primary.savedTracksPage(0, 1).firstOrNull()?.mediaId)
                     if (saved.hasSavedTracksNextPage) {
                         dispatchSuccess(primary, EngineCommand.TYPE_LOAD_NEXT_SAVED_TRACKS_PAGE)
                     }
@@ -179,7 +185,7 @@ class CanopyProtectedServicesIntegrationTest {
                         EngineCommandPayloads.libraryPage(1)
                     )
                     assertTrue(liked.likedTracksCount > 0)
-                    assertEquals(trackId, primary.likedTrack(0)?.mediaId)
+                    assertEquals(trackId, primary.likedTracksPage(0, 1).firstOrNull()?.mediaId)
                     if (liked.hasLikedTracksNextPage) {
                         dispatchSuccess(primary, EngineCommand.TYPE_LOAD_NEXT_LIKED_TRACKS_PAGE)
                     }
@@ -203,8 +209,7 @@ class CanopyProtectedServicesIntegrationTest {
                     if (playlists.hasPlaylistsNextPage) {
                         playlists = dispatchSuccess(primary, EngineCommand.TYPE_LOAD_NEXT_PLAYLISTS_PAGE)
                     }
-                    val playlist = (0 until playlists.playlistsCount)
-                        .mapNotNull(primary::playlist)
+                    val playlist = primary.playlistsPage(0, playlists.playlistsCount)
                         .first { item -> item.name == playlistName }
                     val updatedPlaylistName = "$playlistName updated"
                     dispatchSuccess(
@@ -222,14 +227,12 @@ class CanopyProtectedServicesIntegrationTest {
                         EngineCommand.TYPE_LIST_PLAYLISTS,
                         EngineCommandPayloads.playlistPage(1, playlist.id)
                     )
-                    val updatedPlaylist = (0 until targetedPlaylist.playlistsCount)
-                        .mapNotNull(primary::playlist)
+                    val updatedPlaylist = primary.playlistsPage(0, targetedPlaylist.playlistsCount)
                         .first { item -> item.id == playlist.id }
                     assertEquals(updatedPlaylistName, updatedPlaylist.name)
                     playlists = listPlaylistsUntil(primary) { item -> item.id == playlist.id }
                     assertTrue(
-                        (0 until playlists.playlistsCount)
-                            .mapNotNull(primary::playlist)
+                        primary.playlistsPage(0, playlists.playlistsCount)
                             .any { item -> item.id == playlist.id }
                     )
                     dispatchSuccess(
@@ -248,8 +251,7 @@ class CanopyProtectedServicesIntegrationTest {
                         EngineCommandPayloads.playlistPage(50, playlist.id)
                     )
                     assertTrue(tracks.playlistTracksCount > 0)
-                    val memberships = (0 until tracks.playlistTracksCount)
-                        .mapNotNull(primary::playlistTrack)
+                    val memberships = primary.playlistTracksPage(0, tracks.playlistTracksCount)
                         .map { item -> item.membershipId }
                     assertTrue(memberships.size >= 2)
                     val refreshedPlaylists = dispatchSuccess(
@@ -257,8 +259,7 @@ class CanopyProtectedServicesIntegrationTest {
                         EngineCommand.TYPE_LIST_PLAYLISTS,
                         EngineCommandPayloads.playlistPage(50)
                     )
-                    val revision = (0 until refreshedPlaylists.playlistsCount)
-                        .mapNotNull(primary::playlist)
+                    val revision = primary.playlistsPage(0, refreshedPlaylists.playlistsCount)
                         .first { item -> item.id == playlist.id }
                         .revision
                     dispatchSuccess(
@@ -354,7 +355,7 @@ class CanopyProtectedServicesIntegrationTest {
             EngineCommandPayloads.playlistPage(10)
         )
         repeat(20) {
-            if ((0 until snapshot.playlistsCount).mapNotNull(engine::playlist).any(predicate)) return snapshot
+            if (engine.playlistsPage(0, snapshot.playlistsCount).any(predicate)) return snapshot
             if (!snapshot.hasPlaylistsNextPage) return snapshot
             snapshot = dispatchSuccess(engine, EngineCommand.TYPE_LOAD_NEXT_PLAYLISTS_PAGE)
         }

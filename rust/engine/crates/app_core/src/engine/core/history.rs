@@ -47,34 +47,48 @@ impl Engine {
     }
 
     async fn load_history_settings(&mut self, snapshot: &mut EngineSnapshot) {
-        let Some(identity) = AuthIdentity::from_state(&snapshot.auth_state) else {
-            self.history_projection_owner = Some(HistoryProjectionOwner::Anonymous);
-            snapshot.history_settings = Some(crate::EngineHistorySettings {
-                enabled: self.anonymous_history.enabled,
-            });
-            snapshot.history_state.availability = crate::EngineHistoryAvailability::Available;
-            return;
+        let identity = match Self::history_owner_identity(snapshot) {
+            Ok(Some(identity)) => identity,
+            Ok(None) => {
+                self.history_projection_owner = Some(HistoryProjectionOwner::Anonymous);
+                snapshot.history_settings = Some(crate::EngineHistorySettings {
+                    enabled: self.anonymous_history.enabled,
+                });
+                snapshot.history_state.availability = crate::EngineHistoryAvailability::Available;
+                return;
+            }
+            Err(error) => {
+                snapshot.last_error = Some(error);
+                return;
+            }
         };
         let result = match self.history_port.clone() {
             Some(port) => {
-                let result = match self.take_prefetched_history_settings() {
-                    Some(prefetched) => prefetched,
-                    None => port.get_settings(&identity.history_identity()).await,
+                let (result, reconciliation) = match self.take_prefetched_history_settings() {
+                    Some(prefetched) => (prefetched.settings, Some(prefetched.reconciliation)),
+                    None => (port.get_settings(&identity.history_identity()).await, None),
                 };
                 self.history_result_for_current_identity(snapshot, &identity, result)
-                    .map(|settings| (identity, port, settings))
+                    .map(|settings| (identity, port, settings, reconciliation))
             }
             None => Err(Self::history_service_unconfigured()),
         };
         match result {
-            Ok((identity, port, settings)) => {
+            Ok((identity, port, settings, reconciliation)) => {
                 self.history_projection_owner =
                     Some(HistoryProjectionOwner::Authenticated(identity.clone()));
                 snapshot.history_settings = Some(settings);
                 snapshot.history_state.availability = crate::EngineHistoryAvailability::Available;
                 if settings.enabled {
-                    self.reconcile_anonymous_history(&identity, port, snapshot)
-                        .await;
+                    match reconciliation {
+                        Some(reconciliation) => {
+                            self.apply_history_reconciliation(snapshot, reconciliation);
+                        }
+                        None => {
+                            self.reconcile_anonymous_history(&identity, port, snapshot)
+                                .await;
+                        }
+                    }
                 } else {
                     self.clear_anonymous_history_for_authenticated_disabled(snapshot);
                 }
@@ -99,9 +113,13 @@ impl Engine {
         };
         let result = match self.history_port.clone() {
             Some(port) => {
-                let result = port
-                    .update_settings(&identity.history_identity(), enabled)
-                    .await;
+                let result = match self.take_prefetched_history_settings_update() {
+                    Some(prefetched) => prefetched,
+                    None => {
+                        port.update_settings(&identity.history_identity(), enabled)
+                            .await
+                    }
+                };
                 self.history_result_for_current_identity(snapshot, &identity, result)
                     .map(|update| (identity, update))
             }
@@ -156,13 +174,20 @@ impl Engine {
             return;
         };
         let result = match self.history_port.clone() {
-            Some(port) => {
-                self.reconcile_anonymous_history(&identity, port.clone(), snapshot)
-                    .await;
-                let result = port.list(&identity.history_identity(), page.clone()).await;
-                self.history_result_for_current_identity(snapshot, &identity, result)
-                    .map(|page_result| (identity, page_result))
-            }
+            Some(port) => match self.take_prefetched_history_page() {
+                Some(prefetched) => {
+                    self.apply_history_reconciliation(snapshot, prefetched.reconciliation);
+                    self.history_result_for_current_identity(snapshot, &identity, prefetched.page)
+                        .map(|page_result| (identity, page_result))
+                }
+                None => {
+                    self.reconcile_anonymous_history(&identity, port.clone(), snapshot)
+                        .await;
+                    let result = port.list(&identity.history_identity(), page.clone()).await;
+                    self.history_result_for_current_identity(snapshot, &identity, result)
+                        .map(|page_result| (identity, page_result))
+                }
+            },
             None => Err(Self::history_service_unconfigured()),
         };
         match result {
@@ -197,15 +222,22 @@ impl Engine {
                 Some(token),
                 Some(port),
             ) if operation.owner == HistoryProjectionOwner::Authenticated(identity.clone()) => {
-                let result = port
-                    .list(
-                        &identity.history_identity(),
-                        crate::EnginePageRequest {
-                            page_size: Self::bounded_history_page_size(operation.page_size),
-                            page_token: Some(token),
-                        },
-                    )
-                    .await;
+                let result = match self.take_prefetched_history_page() {
+                    Some(prefetched) => {
+                        self.apply_history_reconciliation(snapshot, prefetched.reconciliation);
+                        prefetched.page
+                    }
+                    None => {
+                        port.list(
+                            &identity.history_identity(),
+                            crate::EnginePageRequest {
+                                page_size: Self::bounded_history_page_size(operation.page_size),
+                                page_token: Some(token),
+                            },
+                        )
+                        .await
+                    }
+                };
                 self.history_result_for_current_identity(snapshot, &identity, result)
             }
             (HistoryProjectionOwner::Anonymous, Some(operation), Some(token), _)
@@ -248,9 +280,13 @@ impl Engine {
         }
         let result = match Self::history_context(snapshot, self.history_port.clone()) {
             Ok((identity, port)) => {
-                let result = port
-                    .delete_entry(&identity.history_identity(), history_id)
-                    .await;
+                let result = match self.take_prefetched_history_delete() {
+                    Some(prefetched) => prefetched,
+                    None => {
+                        port.delete_entry(&identity.history_identity(), history_id)
+                            .await
+                    }
+                };
                 self.history_result_for_current_identity(snapshot, &identity, result)
             }
             Err(error) => Err(error),
@@ -280,7 +316,10 @@ impl Engine {
         }
         let result = match Self::history_context(snapshot, self.history_port.clone()) {
             Ok((identity, port)) => {
-                let result = port.clear(&identity.history_identity()).await;
+                let result = match self.take_prefetched_history_clear() {
+                    Some(prefetched) => prefetched,
+                    None => port.clear(&identity.history_identity()).await,
+                };
                 self.history_result_for_current_identity(snapshot, &identity, result)
             }
             Err(error) => Err(error),
@@ -764,9 +803,72 @@ impl Engine {
     fn record_from_history_entry(
         entry: &crate::EngineHistoryEntry,
     ) -> Option<crate::EnginePlaybackRecord> {
-        let track_id = entry.track.as_ref()?.id.clone();
-        crate::EnginePlaybackRecord::new(track_id, entry.duration_millis, entry.completion_ratio)
-            .ok()
+        entry.to_playback_record()
+    }
+
+    fn apply_history_reconciliation(
+        &mut self,
+        snapshot: &mut EngineSnapshot,
+        reconciliation: crate::HistoryReconciliation,
+    ) {
+        if reconciliation.clear_anonymous {
+            self.clear_anonymous_history_for_authenticated_disabled(snapshot);
+        } else if !reconciliation.promoted_entry_ids.is_empty() {
+            self.anonymous_history
+                .entries
+                .retain(|entry| !reconciliation.promoted_entry_ids.contains(&entry.id));
+            self.invalidate_history_pages(snapshot);
+        }
+        if let Some(error) = reconciliation.error {
+            snapshot.last_error = Some(error);
+        }
+    }
+
+    pub(crate) fn actor_pending_anonymous_history(&self) -> Vec<crate::EngineHistoryEntry> {
+        if self.anonymous_history_reconciliation_in_flight || self.anonymous_history.is_empty() {
+            return Vec::new();
+        }
+        self.anonymous_history
+            .entries
+            .iter()
+            .cloned()
+            .rev()
+            .collect()
+    }
+
+    pub(crate) fn actor_history_settings_enabled(&self) -> Option<bool> {
+        self.snapshot
+            .history_settings
+            .map(|settings| settings.enabled)
+    }
+
+    pub(crate) fn actor_bounded_history_page(
+        &self,
+        page: crate::EnginePageRequest,
+    ) -> crate::EnginePageRequest {
+        Self::bounded_history_page_request(page)
+    }
+
+    pub(crate) fn actor_history_continuation(
+        &self,
+    ) -> Option<(crate::EngineHistoryIdentity, u32, crate::EnginePageToken)> {
+        match (
+            &self.history_operation,
+            self.snapshot.history_next_page_token.clone(),
+        ) {
+            (
+                Some(HistoryOperation {
+                    owner: HistoryProjectionOwner::Authenticated(identity),
+                    page_size,
+                }),
+                Some(token),
+            ) => Some((
+                identity.history_identity(),
+                Self::bounded_history_page_size(*page_size),
+                token,
+            )),
+            _ => None,
+        }
     }
 
     fn clear_anonymous_history_for_authenticated_disabled(
@@ -859,10 +961,22 @@ impl Engine {
         snapshot: &EngineSnapshot,
         port: Option<Arc<dyn crate::HistoryPort>>,
     ) -> Result<(AuthIdentity, Arc<dyn crate::HistoryPort>), EngineError> {
-        let identity = AuthIdentity::from_state(&snapshot.auth_state)
-            .ok_or_else(Self::history_login_required)?;
+        let identity =
+            Self::history_owner_identity(snapshot)?.ok_or_else(Self::history_login_required)?;
         let port = port.ok_or_else(Self::history_service_unconfigured)?;
         Ok((identity, port))
+    }
+
+    fn history_owner_identity(
+        snapshot: &EngineSnapshot,
+    ) -> Result<Option<AuthIdentity>, EngineError> {
+        match AuthIdentity::from_state(&snapshot.auth_state) {
+            Some(identity) => Ok(Some(identity)),
+            None if matches!(snapshot.auth_state, crate::AuthState::Authenticated { .. }) => {
+                Err(Self::history_login_required())
+            }
+            None => Ok(None),
+        }
     }
 
     fn history_result_for_current_identity<T>(

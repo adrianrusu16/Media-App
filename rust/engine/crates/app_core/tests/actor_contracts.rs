@@ -13,9 +13,10 @@ use panda_engine_core::{
     Account, AccountPort, AuthSession, AuthState, AuthStateProvider, Engine, EngineAccountIdentity,
     EngineCommand, EngineCommandType, EngineCreatePlaylist, EngineEffect, EngineError,
     EngineHistoryEntry, EngineHistoryIdentity, EngineHistorySettings, EngineHistorySettingsUpdate,
-    EnginePageRequest, EnginePageToken, EnginePagedResult, EnginePlaybackRecord,
-    EnginePlaybackSource, EnginePlaylist, EnginePlaylistIdentity, EnginePlaylistTrack,
-    EngineUpdatePlaylist, HistoryPort, MediaItem, MediaRepository, Middleware, MiddlewarePipeline,
+    EngineLibraryIdentity, EngineLibraryRelationshipKind, EngineLibraryTrack, EnginePageRequest,
+    EnginePageToken, EnginePagedResult, EnginePlaybackRecord, EnginePlaybackSource, EnginePlaylist,
+    EnginePlaylistIdentity, EnginePlaylistTrack, EngineUpdatePlaylist, HistoryPort,
+    HistoryReconciliation, LibraryPort, MediaItem, MediaRepository, Middleware, MiddlewarePipeline,
     PlaybackPort, PlaylistPort, ThemePreference,
 };
 use tokio::sync::Notify;
@@ -751,10 +752,7 @@ async fn history_replacement_applies_current_and_rejects_stale_completion() {
 
     actor
         .handle
-        .try_complete_operation(complete(
-            &old_operation,
-            EngineOperationResult::HistorySettings(EngineHistorySettings { enabled: false }),
-        ))
+        .try_complete_operation(complete(&old_operation, history_settings_result(false)))
         .unwrap();
     let stale = next_outcome(&mut actor.events).await;
     assert_eq!(stale.command_id, old_command);
@@ -773,10 +771,7 @@ async fn history_replacement_applies_current_and_rejects_stale_completion() {
 
     actor
         .handle
-        .try_complete_operation(complete(
-            &current_operation,
-            EngineOperationResult::HistorySettings(EngineHistorySettings { enabled: true }),
-        ))
+        .try_complete_operation(complete(&current_operation, history_settings_result(true)))
         .unwrap();
     let current = next_outcome(&mut actor.events).await;
     assert_eq!(current.command_id, current_command);
@@ -784,6 +779,116 @@ async fn history_replacement_applies_current_and_rejects_stale_completion() {
     assert_eq!(
         actor.handle.latest_snapshot().snapshot.history_settings,
         Some(EngineHistorySettings { enabled: true })
+    );
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn history_list_replacement_applies_current_and_rejects_stale_completion() {
+    let mut actor = spawn_actor(split_engine(&[]), ActorConfig::default());
+    apply_auth_state(&mut actor, auth_state("account-1", "session-1")).await;
+    let old_command = actor
+        .handle
+        .try_submit(EngineCommand::list_history(20), 10)
+        .unwrap();
+    let (old_operation, _) = next_operation(&mut actor.events).await;
+    let current_command = actor
+        .handle
+        .try_submit(EngineCommand::list_history(20), 20)
+        .unwrap();
+    let (current_operation, _) = next_operation(&mut actor.events).await;
+    let before_stale = actor.handle.latest_snapshot();
+
+    actor
+        .handle
+        .try_complete_operation(complete(&old_operation, history_page_result("old")))
+        .unwrap();
+    let stale = next_outcome(&mut actor.events).await;
+    assert_eq!(stale.command_id, old_command);
+    assert_eq!(
+        stale.status,
+        ActorOutcomeStatus::Cancelled(CancellationReason::Superseded)
+    );
+    assert_eq!(
+        actor.handle.latest_snapshot().revision,
+        before_stale.revision
+    );
+    assert_eq!(
+        actor.handle.latest_snapshot().snapshot.history_entries,
+        before_stale.snapshot.history_entries
+    );
+
+    actor
+        .handle
+        .try_complete_operation(complete(&current_operation, history_page_result("current")))
+        .unwrap();
+    let current = next_outcome(&mut actor.events).await;
+    assert_eq!(current.command_id, current_command);
+    assert_eq!(current.status, ActorOutcomeStatus::Completed);
+    assert_eq!(
+        actor
+            .handle
+            .latest_snapshot()
+            .snapshot
+            .history_entries
+            .iter()
+            .map(|entry| entry.id.as_str())
+            .collect::<Vec<_>>(),
+        ["current"]
+    );
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn library_replacement_applies_current_and_rejects_stale_completion() {
+    let mut actor = spawn_actor(split_engine(&[]), ActorConfig::default());
+    apply_auth_state(&mut actor, auth_state("account-1", "session-1")).await;
+    let old_command = actor
+        .handle
+        .try_submit(EngineCommand::list_saved_tracks(20), 10)
+        .unwrap();
+    let (old_operation, _) = next_operation(&mut actor.events).await;
+    let current_command = actor
+        .handle
+        .try_submit(EngineCommand::list_saved_tracks(20), 20)
+        .unwrap();
+    let (current_operation, _) = next_operation(&mut actor.events).await;
+    let before_stale = actor.handle.latest_snapshot();
+
+    actor
+        .handle
+        .try_complete_operation(complete(&old_operation, library_page_result("old")))
+        .unwrap();
+    let stale = next_outcome(&mut actor.events).await;
+    assert_eq!(stale.command_id, old_command);
+    assert_eq!(
+        stale.status,
+        ActorOutcomeStatus::Cancelled(CancellationReason::Superseded)
+    );
+    assert_eq!(
+        actor.handle.latest_snapshot().revision,
+        before_stale.revision
+    );
+    assert_eq!(
+        actor.handle.latest_snapshot().snapshot.saved_tracks,
+        before_stale.snapshot.saved_tracks
+    );
+
+    actor
+        .handle
+        .try_complete_operation(complete(&current_operation, library_page_result("current")))
+        .unwrap();
+    let current = next_outcome(&mut actor.events).await;
+    assert_eq!(current.command_id, current_command);
+    assert_eq!(current.status, ActorOutcomeStatus::Completed);
+    assert_eq!(
+        actor
+            .handle
+            .latest_snapshot()
+            .snapshot
+            .saved_tracks
+            .iter()
+            .map(|item| item.track.id.as_str())
+            .collect::<Vec<_>>(),
+        ["current"]
     );
 }
 
@@ -1101,10 +1206,7 @@ async fn async_outcomes_follow_terminal_readiness_not_command_acceptance_order()
 
     actor
         .handle
-        .try_complete_operation(complete(
-            &first_operation,
-            EngineOperationResult::HistorySettings(EngineHistorySettings { enabled: true }),
-        ))
+        .try_complete_operation(complete(&first_operation, history_settings_result(true)))
         .unwrap();
     let first_outcome = next_outcome(&mut actor.events).await;
     assert_eq!(first_outcome.command_id, first);
@@ -1322,6 +1424,44 @@ fn search_result(
         items,
         next_page_token: next_page_token
             .map(|token| EnginePageToken::new(token.into()).expect("valid page token")),
+    }
+}
+
+fn history_settings_result(enabled: bool) -> EngineOperationResult {
+    EngineOperationResult::HistorySettings {
+        settings: EngineHistorySettings { enabled },
+        reconciliation: HistoryReconciliation::default(),
+    }
+}
+
+fn history_page_result(id: &str) -> EngineOperationResult {
+    EngineOperationResult::HistoryPage {
+        items: vec![EngineHistoryEntry {
+            id: id.into(),
+            played_at_epoch_millis: Some(1),
+            duration_millis: 1_000,
+            completion_ratio: 1.0,
+            track: None,
+        }],
+        next_page_token: None,
+        reconciliation: HistoryReconciliation::default(),
+    }
+}
+
+fn library_page_result(id: &str) -> EngineOperationResult {
+    EngineOperationResult::LibraryPage {
+        items: vec![
+            EngineLibraryTrack::new(
+                EngineLibraryRelationshipKind::Saved,
+                id,
+                format!("Title {id}"),
+                "artist-1",
+                "Artist",
+                1,
+            )
+            .expect("valid library track"),
+        ],
+        next_page_token: None,
     }
 }
 
@@ -1585,27 +1725,67 @@ impl HistoryPort for PendingHistoryPort {
         _: &EngineHistoryIdentity,
         _: bool,
     ) -> Result<EngineHistorySettingsUpdate, EngineError> {
-        unreachable!()
+        std::future::pending().await
     }
     async fn record(
         &self,
         _: &EngineHistoryIdentity,
         _: EnginePlaybackRecord,
     ) -> Result<bool, EngineError> {
-        unreachable!()
+        std::future::pending().await
     }
     async fn list(
         &self,
         _: &EngineHistoryIdentity,
         _: EnginePageRequest,
     ) -> Result<EnginePagedResult<EngineHistoryEntry>, EngineError> {
-        unreachable!()
+        std::future::pending().await
     }
     async fn delete_entry(&self, _: &EngineHistoryIdentity, _: &str) -> Result<(), EngineError> {
-        unreachable!()
+        std::future::pending().await
     }
     async fn clear(&self, _: &EngineHistoryIdentity) -> Result<u64, EngineError> {
-        unreachable!()
+        std::future::pending().await
+    }
+}
+
+struct PendingLibraryPort;
+
+#[async_trait]
+impl LibraryPort for PendingLibraryPort {
+    async fn save(
+        &self,
+        _: &EngineLibraryIdentity,
+        _: &str,
+    ) -> Result<EngineLibraryTrack, EngineError> {
+        std::future::pending().await
+    }
+    async fn remove_saved(&self, _: &EngineLibraryIdentity, _: &str) -> Result<(), EngineError> {
+        std::future::pending().await
+    }
+    async fn list_saved(
+        &self,
+        _: &EngineLibraryIdentity,
+        _: EnginePageRequest,
+    ) -> Result<EnginePagedResult<EngineLibraryTrack>, EngineError> {
+        std::future::pending().await
+    }
+    async fn like(
+        &self,
+        _: &EngineLibraryIdentity,
+        _: &str,
+    ) -> Result<EngineLibraryTrack, EngineError> {
+        std::future::pending().await
+    }
+    async fn unlike(&self, _: &EngineLibraryIdentity, _: &str) -> Result<(), EngineError> {
+        std::future::pending().await
+    }
+    async fn list_liked(
+        &self,
+        _: &EngineLibraryIdentity,
+        _: EnginePageRequest,
+    ) -> Result<EnginePagedResult<EngineLibraryTrack>, EngineError> {
+        std::future::pending().await
     }
 }
 
@@ -1651,6 +1831,7 @@ fn split_engine(media_ids: &[&str]) -> Engine {
     engine.set_playlist_port(Arc::new(PendingPlaylistPort));
     engine.set_playback_port(Arc::new(PendingPlaybackPort));
     engine.set_history_port(Arc::new(PendingHistoryPort));
+    engine.set_library_port(Arc::new(PendingLibraryPort));
     engine
 }
 

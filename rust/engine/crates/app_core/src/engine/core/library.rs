@@ -1,5 +1,5 @@
 use super::*;
-use crate::{EngineErrorType, EngineLibraryTrack};
+use crate::{EngineErrorType, EngineLibraryMutation, EngineLibraryTrack};
 
 impl Engine {
     pub(super) async fn dispatch_library_command(
@@ -65,19 +65,19 @@ impl Engine {
                 }
             }
             EngineCommandType::SaveTrack { track_id } => {
-                self.mutate_library(snapshot, track_id, LibraryMutation::Save)
+                self.mutate_library(snapshot, track_id, EngineLibraryMutation::Save)
                     .await;
             }
             EngineCommandType::RemoveSavedTrack { track_id } => {
-                self.mutate_library(snapshot, track_id, LibraryMutation::RemoveSaved)
+                self.mutate_library(snapshot, track_id, EngineLibraryMutation::RemoveSaved)
                     .await;
             }
             EngineCommandType::LikeTrack { track_id } => {
-                self.mutate_library(snapshot, track_id, LibraryMutation::Like)
+                self.mutate_library(snapshot, track_id, EngineLibraryMutation::Like)
                     .await;
             }
             EngineCommandType::UnlikeTrack { track_id } => {
-                self.mutate_library(snapshot, track_id, LibraryMutation::Unlike)
+                self.mutate_library(snapshot, track_id, EngineLibraryMutation::Unlike)
                     .await;
             }
             _ => unreachable!("library dispatcher received a non-library command"),
@@ -91,10 +91,10 @@ impl Engine {
         saved: bool,
     ) -> Result<(AuthIdentity, crate::EnginePagedResult<EngineLibraryTrack>), EngineError> {
         let (identity, port) = Self::library_context(snapshot, self.library_port.clone())?;
-        let result = if saved {
-            port.list_saved(&identity.library_identity(), page).await
-        } else {
-            port.list_liked(&identity.library_identity(), page).await
+        let result = match self.take_prefetched_library_page() {
+            Some(prefetched) => prefetched,
+            None if saved => port.list_saved(&identity.library_identity(), page).await,
+            None => port.list_liked(&identity.library_identity(), page).await,
         };
         self.library_result_for_current_identity(snapshot, &identity, result)
             .map(|result| (identity, result))
@@ -145,10 +145,10 @@ impl Engine {
             page_size: operation.page_size,
             page_token: Some(token),
         };
-        let result = if saved {
-            port.list_saved(&identity.library_identity(), page).await
-        } else {
-            port.list_liked(&identity.library_identity(), page).await
+        let result = match self.take_prefetched_library_page() {
+            Some(prefetched) => prefetched,
+            None if saved => port.list_saved(&identity.library_identity(), page).await,
+            None => port.list_liked(&identity.library_identity(), page).await,
         };
         self.library_result_for_current_identity(snapshot, &identity, result)
     }
@@ -157,7 +157,7 @@ impl Engine {
         &mut self,
         snapshot: &mut EngineSnapshot,
         track_id: &str,
-        mutation: LibraryMutation,
+        mutation: EngineLibraryMutation,
     ) {
         if track_id.trim().is_empty() {
             snapshot.last_error = Some(EngineError::new(
@@ -184,34 +184,37 @@ impl Engine {
             snapshot.library_pending_track_ids.push(track_id.to_owned());
         }
         match mutation {
-            LibraryMutation::RemoveSaved => snapshot
+            EngineLibraryMutation::RemoveSaved => snapshot
                 .saved_tracks
                 .retain(|item| item.track.id != track_id),
-            LibraryMutation::Unlike => snapshot
+            EngineLibraryMutation::Unlike => snapshot
                 .liked_tracks
                 .retain(|item| item.track.id != track_id),
-            LibraryMutation::Save | LibraryMutation::Like => {}
+            EngineLibraryMutation::Save | EngineLibraryMutation::Like => {}
         }
         self.library_projection_identity = Some(identity.clone());
         self.publish_intermediate_snapshot(snapshot.clone());
 
-        let result = match mutation {
-            LibraryMutation::Save => port
-                .save(&identity.library_identity(), track_id)
-                .await
-                .map(Some),
-            LibraryMutation::RemoveSaved => port
-                .remove_saved(&identity.library_identity(), track_id)
-                .await
-                .map(|()| None),
-            LibraryMutation::Like => port
-                .like(&identity.library_identity(), track_id)
-                .await
-                .map(Some),
-            LibraryMutation::Unlike => port
-                .unlike(&identity.library_identity(), track_id)
-                .await
-                .map(|()| None),
+        let result = match self.take_prefetched_library_mutation() {
+            Some(prefetched) => prefetched,
+            None => match mutation {
+                EngineLibraryMutation::Save => port
+                    .save(&identity.library_identity(), track_id)
+                    .await
+                    .map(Some),
+                EngineLibraryMutation::RemoveSaved => port
+                    .remove_saved(&identity.library_identity(), track_id)
+                    .await
+                    .map(|()| None),
+                EngineLibraryMutation::Like => port
+                    .like(&identity.library_identity(), track_id)
+                    .await
+                    .map(Some),
+                EngineLibraryMutation::Unlike => port
+                    .unlike(&identity.library_identity(), track_id)
+                    .await
+                    .map(|()| None),
+            },
         };
         let result = self.library_result_for_current_identity(snapshot, &identity, result);
         snapshot
@@ -219,9 +222,11 @@ impl Engine {
             .retain(|id| id != track_id);
         match result {
             Ok(Some(item)) => match mutation {
-                LibraryMutation::Save => upsert(&mut snapshot.saved_tracks, item),
-                LibraryMutation::Like => upsert(&mut snapshot.liked_tracks, item),
-                LibraryMutation::RemoveSaved | LibraryMutation::Unlike => unreachable!(),
+                EngineLibraryMutation::Save => upsert(&mut snapshot.saved_tracks, item),
+                EngineLibraryMutation::Like => upsert(&mut snapshot.liked_tracks, item),
+                EngineLibraryMutation::RemoveSaved | EngineLibraryMutation::Unlike => {
+                    unreachable!()
+                }
             },
             Ok(None) => {}
             Err(error) => {
@@ -281,14 +286,27 @@ impl Engine {
             false,
         )
     }
-}
 
-#[derive(Clone, Copy)]
-enum LibraryMutation {
-    Save,
-    RemoveSaved,
-    Like,
-    Unlike,
+    pub(crate) fn actor_library_continuation(
+        &self,
+        saved: bool,
+    ) -> Option<(crate::EngineLibraryIdentity, u32, crate::EnginePageToken)> {
+        let operation = if saved {
+            self.saved_library_operation.as_ref()
+        } else {
+            self.liked_library_operation.as_ref()
+        }?;
+        let token = if saved {
+            self.snapshot.saved_tracks_next_page_token.clone()
+        } else {
+            self.snapshot.liked_tracks_next_page_token.clone()
+        }?;
+        Some((
+            operation.auth_identity.library_identity(),
+            operation.page_size,
+            token,
+        ))
+    }
 }
 
 fn upsert(items: &mut Vec<EngineLibraryTrack>, item: EngineLibraryTrack) {

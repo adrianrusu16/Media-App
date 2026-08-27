@@ -10,8 +10,8 @@ mod tests;
 
 pub use handle::EngineActorHandle;
 pub use ids::{
-    AccountGeneration, CommandId, HistoryGeneration, MessageSequence, OperationId,
-    PlaybackInstanceId, PlaylistGeneration, SearchGeneration, SnapshotRevision,
+    AccountGeneration, CommandId, HistoryGeneration, LibraryGeneration, MessageSequence,
+    OperationId, PlaybackInstanceId, PlaylistGeneration, SearchGeneration, SnapshotRevision,
 };
 pub use operation::{
     DomainGenerations, EngineOperation, EngineOperationCompletion, EngineOperationRequest,

@@ -3,7 +3,6 @@ package com.adrianrusu.pandawave.core.rust.bridge.gateway
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryPage
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineLibraryItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
@@ -19,39 +18,24 @@ import com.adrianrusu.pandawave.core.rust.bridge.engine.EngineDispatchResult
 interface EngineGateway {
     fun snapshot(): EngineSnapshot
 
-    fun browseResult(index: Int): EngineCatalogItem?
-    fun browseResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> = boundedPage(offset, limit, ::browseResult)
-    fun discoveryResult(index: Int): EngineCatalogItem? = null
-    fun forYouResult(index: Int): EngineCatalogItem? = null
-    fun recommendationResult(index: Int): EngineCatalogItem? = null
-    fun discoveryResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
-        boundedPage(offset, limit, ::discoveryResult)
-    fun forYouResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> = boundedPage(offset, limit, ::forYouResult)
-    fun recommendationResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
-        boundedPage(offset, limit, ::recommendationResult)
+    fun browseResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> = emptyList()
+    fun discoveryResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> = emptyList()
+    fun forYouResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> = emptyList()
+    fun recommendationResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> = emptyList()
     fun profilePreferenceValue(key: String): String? = null
 
-    fun searchResult(index: Int): EngineCatalogItem?
-    fun searchResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> = boundedPage(offset, limit, ::searchResult)
+    fun searchResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> = emptyList()
 
-    fun historyEntry(index: Int): EngineHistoryItem? = null
     fun historyPage(offset: Int, limit: Int, generation: Long): EngineHistoryPage =
-        EngineHistoryPage(generation, boundedPage(offset, limit, ::historyEntry))
+        EngineHistoryPage(generation, emptyList())
 
-    fun savedTrack(index: Int): EngineLibraryItem? = null
-    fun savedTracksPage(offset: Int, limit: Int): List<EngineLibraryItem> = boundedPage(offset, limit, ::savedTrack)
+    fun savedTracksPage(offset: Int, limit: Int): List<EngineLibraryItem> = emptyList()
 
-    fun likedTrack(index: Int): EngineLibraryItem? = null
-    fun likedTracksPage(offset: Int, limit: Int): List<EngineLibraryItem> = boundedPage(offset, limit, ::likedTrack)
+    fun likedTracksPage(offset: Int, limit: Int): List<EngineLibraryItem> = emptyList()
 
-    fun pendingLibraryTrackId(index: Int): String? = null
-    fun pendingLibraryTrackIdsPage(offset: Int, limit: Int): List<String> =
-        boundedPage(offset, limit, ::pendingLibraryTrackId)
-    fun playlist(index: Int): EnginePlaylistItem? = null
-    fun playlistsPage(offset: Int, limit: Int): List<EnginePlaylistItem> = boundedPage(offset, limit, ::playlist)
-    fun playlistTrack(index: Int): EnginePlaylistTrackItem? = null
-    fun playlistTracksPage(offset: Int, limit: Int): List<EnginePlaylistTrackItem> =
-        boundedPage(offset, limit, ::playlistTrack)
+    fun pendingLibraryTrackIdsPage(offset: Int, limit: Int): List<String> = emptyList()
+    fun playlistsPage(offset: Int, limit: Int): List<EnginePlaylistItem> = emptyList()
+    fun playlistTracksPage(offset: Int, limit: Int): List<EnginePlaylistTrackItem> = emptyList()
     fun selectedPlaylistId(): String? = null
     fun playlistReconciliation(): EnginePlaylistReconciliation? = null
 
@@ -62,12 +46,4 @@ interface EngineGateway {
     fun observeSnapshots(listener: (EngineSnapshot) -> Unit): AutoCloseable
 
     fun observeEngineEvents(listener: (EngineEvent) -> Unit): AutoCloseable
-}
-
-private const val MAX_ENGINE_GATEWAY_PAGE_QUERY_SIZE = 50
-
-private fun <T> boundedPage(offset: Int, limit: Int, itemAt: (Int) -> T?): List<T> {
-    val start = offset.coerceAtLeast(0)
-    val count = limit.coerceIn(0, MAX_ENGINE_GATEWAY_PAGE_QUERY_SIZE)
-    return List(count) { index -> itemAt(start + index) }.filterNotNull()
 }

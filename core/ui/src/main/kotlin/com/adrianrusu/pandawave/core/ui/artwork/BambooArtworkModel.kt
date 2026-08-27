@@ -4,11 +4,7 @@ import androidx.compose.runtime.Immutable
 import com.adrianrusu.pandawave.core.common.log.PandaLog
 
 @Immutable
-data class BambooArtworkModel(
-    val id: String,
-    val version: String,
-    val uri: String
-) {
+data class BambooArtworkModel(val id: String, val version: String, val uri: String) {
     fun cacheKey(): String = "$id:$version"
 }
 

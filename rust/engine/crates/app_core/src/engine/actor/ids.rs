@@ -71,6 +71,16 @@ monotonic_id!(
 );
 
 monotonic_id!(
+    /// Generation invalidated by a superseding library read or mutation.
+    ///
+    /// ```compile_fail
+    /// use panda_engine_core::engine::actor::{HistoryGeneration, LibraryGeneration};
+    /// let library: LibraryGeneration = HistoryGeneration::new(1);
+    /// ```
+    LibraryGeneration
+);
+
+monotonic_id!(
     /// Identity of one logical playback source-resolution attempt.
     PlaybackInstanceId
 );

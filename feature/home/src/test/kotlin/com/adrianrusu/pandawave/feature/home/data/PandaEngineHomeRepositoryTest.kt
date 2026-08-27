@@ -166,11 +166,6 @@ private class RecordingHomeGateway(
     val commands = mutableListOf<EngineCommand>()
 
     override fun snapshot(): EngineSnapshot = current
-    override fun browseResult(index: Int): EngineCatalogItem? = null
-    override fun searchResult(index: Int): EngineCatalogItem? = null
-    override fun forYouResult(index: Int): EngineCatalogItem? = forYou.getOrNull(index)
-    override fun recommendationResult(index: Int): EngineCatalogItem? = recommendations.getOrNull(index)
-    override fun discoveryResult(index: Int): EngineCatalogItem? = discovery.getOrNull(index)
     override fun forYouResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
         forYou.drop(offset.coerceAtLeast(0)).take(limit.coerceAtLeast(0))
     override fun recommendationResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =

@@ -86,10 +86,11 @@ pub use crate::model::history::{
     EngineHistoryAvailability, EngineHistoryEntry, EngineHistoryIdentity, EngineHistoryPage,
     EngineHistoryPageKey, EngineHistoryRefreshState, EngineHistorySettings,
     EngineHistorySettingsUpdate, EngineHistoryState, EnginePlaybackRecord, HistoryPort,
-    normalize_completion_ratio,
+    HistoryReconciliation, normalize_completion_ratio,
 };
 pub use crate::model::library::{
-    EngineLibraryIdentity, EngineLibraryRelationshipKind, EngineLibraryTrack, LibraryPort,
+    EngineLibraryIdentity, EngineLibraryMutation, EngineLibraryRelationshipKind,
+    EngineLibraryTrack, LibraryPort,
 };
 pub use crate::model::page::{EnginePageRequest, EnginePageToken, EnginePagedResult};
 pub use crate::model::platform_event::{EnginePlatformEvent, EnginePlatformEventType};

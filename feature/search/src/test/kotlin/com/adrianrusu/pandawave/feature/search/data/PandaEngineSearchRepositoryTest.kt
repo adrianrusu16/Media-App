@@ -4,13 +4,7 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommandPayloads
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryItem
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryPage
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineLibraryItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistItem
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistReconciliation
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistTrackItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.pandawave.core.rust.bridge.engine.EngineDispatchResult
 import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineGateway
@@ -122,19 +116,8 @@ private class RecordingSearchGateway(
     val commands = mutableListOf<EngineCommand>()
 
     override fun snapshot(): EngineSnapshot = current
-    override fun browseResult(index: Int): EngineCatalogItem? = null
-    override fun searchResult(index: Int): EngineCatalogItem? = results.getOrNull(index)
     override fun searchResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
         results.drop(offset.coerceAtLeast(0)).take(limit.coerceAtLeast(0))
-    override fun historyEntry(index: Int): EngineHistoryItem? = null
-    override fun historyPage(offset: Int, limit: Int, generation: Long): EngineHistoryPage =
-        EngineHistoryPage(generation, emptyList())
-    override fun savedTrack(index: Int): EngineLibraryItem? = null
-    override fun likedTrack(index: Int): EngineLibraryItem? = null
-    override fun pendingLibraryTrackId(index: Int): String? = null
-    override fun playlist(index: Int): EnginePlaylistItem? = null
-    override fun playlistTrack(index: Int): EnginePlaylistTrackItem? = null
-    override fun playlistReconciliation(): EnginePlaylistReconciliation? = null
 
     override fun dispatch(command: EngineCommand): EngineDispatchResult {
         commands += command

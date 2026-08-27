@@ -1,6 +1,6 @@
 use super::ids::{
-    AccountGeneration, CommandId, HistoryGeneration, OperationId, PlaybackInstanceId,
-    PlaylistGeneration, SearchGeneration,
+    AccountGeneration, CommandId, HistoryGeneration, LibraryGeneration, OperationId,
+    PlaybackInstanceId, PlaylistGeneration, SearchGeneration,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -9,11 +9,12 @@ pub enum OperationGeneration {
     Search(SearchGeneration),
     Playlist(PlaylistGeneration),
     History(HistoryGeneration),
+    Library(LibraryGeneration),
     Playback(PlaybackInstanceId),
 }
 
 /// Immutable request data for work performed outside the state-owning actor.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum EngineOperationRequest {
     AccountProjection {
         identity: crate::EngineAccountIdentity,
@@ -29,15 +30,62 @@ pub enum EngineOperationRequest {
     },
     HistorySettings {
         identity: crate::EngineHistoryIdentity,
+        pending_anonymous: Vec<crate::EngineHistoryEntry>,
+    },
+    HistorySettingsUpdate {
+        identity: crate::EngineHistoryIdentity,
+        enabled: bool,
+    },
+    HistoryPage {
+        identity: crate::EngineHistoryIdentity,
+        page: crate::EnginePageRequest,
+        pending_anonymous: Vec<crate::EngineHistoryEntry>,
+        settings_enabled: Option<bool>,
+    },
+    HistoryDelete {
+        identity: crate::EngineHistoryIdentity,
+        history_id: String,
+    },
+    HistoryClear {
+        identity: crate::EngineHistoryIdentity,
     },
     PlaybackResolution {
         media_id: String,
     },
+    LibraryPage {
+        identity: crate::EngineLibraryIdentity,
+        page: crate::EnginePageRequest,
+        saved: bool,
+    },
+    LibraryMutation {
+        identity: crate::EngineLibraryIdentity,
+        track_id: String,
+        mutation: crate::EngineLibraryMutation,
+    },
+}
+
+impl EngineOperationRequest {
+    pub(crate) fn telemetry_name(&self) -> &'static str {
+        match self {
+            Self::AccountProjection { .. } => "account_projection",
+            Self::SearchPage { .. } => "search_page",
+            Self::PlaylistPage { .. } => "playlist_page",
+            Self::HistorySettings { .. } => "history_settings",
+            Self::HistorySettingsUpdate { .. } => "history_settings_update",
+            Self::HistoryPage { .. } => "history_page",
+            Self::HistoryDelete { .. } => "history_delete",
+            Self::HistoryClear { .. } => "history_clear",
+            Self::PlaybackResolution { .. } => "playback_resolution",
+            Self::LibraryPage { saved: true, .. } => "library_saved_page",
+            Self::LibraryPage { saved: false, .. } => "library_liked_page",
+            Self::LibraryMutation { .. } => "library_mutation",
+        }
+    }
 }
 
 /// Internal asynchronous work envelope. A worker receives this immutable value
 /// rather than `Engine` or any engine lock.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct EngineOperation {
     pub operation_id: OperationId,
     pub command_id: CommandId,
@@ -57,8 +105,24 @@ pub enum EngineOperationResult {
         playlists: Vec<crate::EnginePlaylist>,
         next_page_token: Option<crate::EnginePageToken>,
     },
-    HistorySettings(crate::EngineHistorySettings),
+    HistorySettings {
+        settings: crate::EngineHistorySettings,
+        reconciliation: crate::HistoryReconciliation,
+    },
+    HistorySettingsUpdate(crate::EngineHistorySettingsUpdate),
+    HistoryPage {
+        items: Vec<crate::EngineHistoryEntry>,
+        next_page_token: Option<crate::EnginePageToken>,
+        reconciliation: crate::HistoryReconciliation,
+    },
+    HistoryDeleted,
+    HistoryCleared(u64),
     PlaybackResolved(crate::EnginePlaybackSource),
+    LibraryPage {
+        items: Vec<crate::EngineLibraryTrack>,
+        next_page_token: Option<crate::EnginePageToken>,
+    },
+    LibraryMutation(Option<crate::EngineLibraryTrack>),
 }
 
 /// Typed completion returned through the reliable completion ingress. The
@@ -94,6 +158,7 @@ pub struct DomainGenerations {
     pub search: SearchGeneration,
     pub playlist: PlaylistGeneration,
     pub history: HistoryGeneration,
+    pub library: LibraryGeneration,
     pub playback: PlaybackInstanceId,
 }
 
@@ -104,6 +169,7 @@ impl DomainGenerations {
             OperationGeneration::Search(generation) => self.search == generation,
             OperationGeneration::Playlist(generation) => self.playlist == generation,
             OperationGeneration::History(generation) => self.history == generation,
+            OperationGeneration::Library(generation) => self.library == generation,
             OperationGeneration::Playback(generation) => self.playback == generation,
         }
     }

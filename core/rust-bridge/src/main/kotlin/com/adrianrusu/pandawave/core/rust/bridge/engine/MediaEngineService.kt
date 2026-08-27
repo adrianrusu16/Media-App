@@ -14,12 +14,9 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineHistoryPage
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistReconciliation
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlaylistTrackItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineSnapshot
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.IEngineListener
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.IMediaEngineService
@@ -29,8 +26,7 @@ import java.io.File
 
 class MediaEngineService : Service() {
     private val listeners = RemoteCallbackList<IEngineListener>()
-    private val snapshotFanout = QueuedCallbackFanout<EngineSnapshot>()
-    private val eventFanout = QueuedCallbackFanout<EngineEvent>()
+    private val listenerFanout = QueuedCallbackFanout<EngineListenerNotify>()
 
     @Volatile
     private var engine: RustEngine? = null
@@ -97,12 +93,8 @@ class MediaEngineService : Service() {
             engine?.snapshot() ?: unavailableSnapshot
         }
 
-        override fun getBrowseResult(index: Int): EngineCatalogItem? = engine?.browseResult(index)
         override fun getBrowseResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
             engine?.browseResultsPage(offset, limit).orEmpty()
-        override fun getDiscoveryResult(index: Int): EngineCatalogItem? = engine?.discoveryResult(index)
-        override fun getForYouResult(index: Int): EngineCatalogItem? = engine?.forYouResult(index)
-        override fun getRecommendationResult(index: Int): EngineCatalogItem? = engine?.recommendationResult(index)
         override fun getDiscoveryResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
             engine?.discoveryResultsPage(offset, limit).orEmpty()
         override fun getForYouResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
@@ -111,25 +103,18 @@ class MediaEngineService : Service() {
             engine?.recommendationResultsPage(offset, limit).orEmpty()
         override fun getProfilePreferenceValue(key: String): String? = engine?.profilePreferenceValue(key)
 
-        override fun getSearchResult(index: Int): EngineCatalogItem? = engine?.searchResult(index)
         override fun getSearchResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
             engine?.searchResultsPage(offset, limit).orEmpty()
-        override fun getHistoryEntry(index: Int): EngineHistoryItem? = engine?.historyEntry(index)
         override fun getHistoryPage(offset: Int, limit: Int, generation: Long): EngineHistoryPage =
             PandaTrace.section("PW.Engine.Service.historyPage") {
                 engine?.historyPage(offset, limit, generation)
                     ?: EngineHistoryPage(generation, emptyList())
             }
-        override fun getSavedTrack(index: Int) = engine?.savedTrack(index)
         override fun getSavedTracksPage(offset: Int, limit: Int) = engine?.savedTracksPage(offset, limit).orEmpty()
-        override fun getLikedTrack(index: Int) = engine?.likedTrack(index)
         override fun getLikedTracksPage(offset: Int, limit: Int) = engine?.likedTracksPage(offset, limit).orEmpty()
-        override fun getPendingLibraryTrackId(index: Int) = engine?.pendingLibraryTrackId(index)
         override fun getPendingLibraryTrackIdsPage(offset: Int, limit: Int): List<String> =
             engine?.pendingLibraryTrackIdsPage(offset, limit).orEmpty()
-        override fun getPlaylist(index: Int): EnginePlaylistItem? = engine?.playlist(index)
         override fun getPlaylistsPage(offset: Int, limit: Int) = engine?.playlistsPage(offset, limit).orEmpty()
-        override fun getPlaylistTrack(index: Int): EnginePlaylistTrackItem? = engine?.playlistTrack(index)
         override fun getPlaylistTracksPage(offset: Int, limit: Int) =
             engine?.playlistTracksPage(offset, limit).orEmpty()
         override fun getSelectedPlaylistId(): String? = engine?.selectedPlaylistId()
@@ -196,32 +181,32 @@ class MediaEngineService : Service() {
     }
 
     private fun notifySnapshotChanged(snapshot: EngineSnapshot) {
-        snapshotFanout.emit(snapshot) { current ->
-            PandaTrace.section("PW.Engine.Service.notifySnapshot") {
-                val count = listeners.beginBroadcast()
-                try {
-                    for (index in 0 until count) {
-                        listeners.getBroadcastItem(index).onSnapshotChanged(current)
-                    }
-                } finally {
-                    listeners.finishBroadcast()
-                }
+        listenerFanout.emit(EngineListenerNotify.Snapshot(snapshot), ::deliverListenerNotify)
+    }
+
+    private fun notifyEngineEvent(event: EngineEvent) {
+        listenerFanout.emit(EngineListenerNotify.Event(event), ::deliverListenerNotify)
+    }
+
+    private fun deliverListenerNotify(notify: EngineListenerNotify) {
+        when (notify) {
+            is EngineListenerNotify.Snapshot -> PandaTrace.section("PW.Engine.Service.notifySnapshot") {
+                broadcastListeners { listener -> listener.onSnapshotChanged(notify.snapshot) }
+            }
+            is EngineListenerNotify.Event -> PandaTrace.section("PW.Engine.Service.notifyEvent") {
+                broadcastListeners { listener -> listener.onEngineEvent(notify.event) }
             }
         }
     }
 
-    private fun notifyEngineEvent(event: EngineEvent) {
-        eventFanout.emit(event) { current ->
-            PandaTrace.section("PW.Engine.Service.notifyEvent") {
-                val count = listeners.beginBroadcast()
-                try {
-                    for (index in 0 until count) {
-                        listeners.getBroadcastItem(index).onEngineEvent(current)
-                    }
-                } finally {
-                    listeners.finishBroadcast()
-                }
+    private inline fun broadcastListeners(action: (IEngineListener) -> Unit) {
+        val count = listeners.beginBroadcast()
+        try {
+            for (index in 0 until count) {
+                action(listeners.getBroadcastItem(index))
             }
+        } finally {
+            listeners.finishBroadcast()
         }
     }
 
@@ -271,6 +256,11 @@ class MediaEngineService : Service() {
 
     private companion object {
         const val SESSION_FILE_RELATIVE_PATH = "panda-engine/session.bin"
+    }
+
+    private sealed interface EngineListenerNotify {
+        data class Snapshot(val snapshot: EngineSnapshot) : EngineListenerNotify
+        data class Event(val event: EngineEvent) : EngineListenerNotify
     }
 }
 

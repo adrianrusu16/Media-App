@@ -9,7 +9,11 @@ data class BambooCatalogNode(
     val isPlayable: Boolean,
     val artist: String? = null,
     val album: String? = null,
-    val catalogItemType: Int? = null
+    val catalogItemType: Int? = null,
+    val artworkId: String? = null,
+    val artworkVersion: String? = null,
+    val durationMillis: Long? = null,
+    val engineMediaId: String? = null
 ) {
     init {
         require(mediaId.isNotBlank()) {

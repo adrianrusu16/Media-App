@@ -7,43 +7,56 @@ import com.adrianrusu.pandawave.core.playback.BambooPlaybackControls
 
 @UnstableApi
 internal object BambooMediaSessionCommandPolicy {
+    fun availablePlayerCommands(
+        controls: BambooPlaybackControls,
+        hasSeekableTimeline: Boolean = false
+    ): Player.Commands = Player.Commands.Builder()
+        .apply {
+            availableCommandTypes(controls, hasSeekableTimeline).forEach { command ->
+                add(command)
+            }
+        }
+        .build()
+
     fun availablePlayerCommands(playerCommands: Player.Commands, controls: BambooPlaybackControls): Player.Commands =
         Player.Commands.Builder()
             .apply {
                 availableCommandTypes(
-                    supportedCommandTypes = ProjectedCommandTypes.filter(playerCommands::contains).toSet(),
+                    supportedCommandTypes = commandTypes(playerCommands),
                     controls = controls
-                ).forEach { command ->
-                    add(command)
-                }
+                ).forEach { command -> add(command) }
             }
             .build()
 
-    /** Compatibility helper for callers that only have a global readiness bit. */
     fun availablePlayerCommands(playerCommands: Player.Commands, controlsEnabled: Boolean): Player.Commands =
         availablePlayerCommands(playerCommands, controlsFor(controlsEnabled))
 
-    fun availableCommandTypes(supportedCommandTypes: Set<Int>, controls: BambooPlaybackControls): Set<Int> = buildSet {
-        MetadataCommandTypes.forEach { command ->
-            if (command in supportedCommandTypes) {
-                add(command)
+    fun availableCommandTypes(controls: BambooPlaybackControls, hasSeekableTimeline: Boolean = false): Set<Int> =
+        buildSet {
+            addAll(AlwaysReadableCommandTypes)
+            if (controls.playPause.isEnabled) {
+                addAll(CurrentItemCommandTypes)
+                addAll(MediaSelectionCommandTypes)
+            }
+            if (controls.skipPrevious.isEnabled) addAll(PreviousCommandTypes)
+            if (controls.skipNext.isEnabled) addAll(NextCommandTypes)
+            if (hasSeekableTimeline && controls.playPause.isEnabled) {
+                add(Player.COMMAND_SEEK_TO_MEDIA_ITEM)
             }
         }
 
-        fun addSupported(commands: List<Int>) {
-            commands.forEach { command ->
-                if (command in supportedCommandTypes) add(command)
-            }
-        }
+    fun availableCommandTypes(supportedCommandTypes: Set<Int>, controls: BambooPlaybackControls): Set<Int> =
+        availableCommandTypes(controls = controls, hasSeekableTimeline = false)
+            .intersect(supportedCommandTypes)
 
-        if (controls.playPause.isEnabled) addSupported(PlayPauseCommandTypes)
-        if (controls.skipPrevious.isEnabled) addSupported(PreviousCommandTypes)
-        if (controls.skipNext.isEnabled) addSupported(NextCommandTypes)
-    }
-
-    /** Compatibility helper for existing non-playback projections. */
     fun availableCommandTypes(supportedCommandTypes: Set<Int>, controlsEnabled: Boolean): Set<Int> =
         availableCommandTypes(supportedCommandTypes, controlsFor(controlsEnabled))
+
+    private fun commandTypes(commands: Player.Commands): Set<Int> = buildSet {
+        for (command in ProjectedCommandTypes) {
+            if (commands.contains(command)) add(command)
+        }
+    }
 
     private fun controlsFor(enabled: Boolean): BambooPlaybackControls {
         val control = if (enabled) BambooControlState.enabled() else BambooControlState.hidden()
@@ -56,20 +69,21 @@ internal object BambooMediaSessionCommandPolicy {
     }
 }
 
-private val MetadataCommandTypes = listOf(
+private val AlwaysReadableCommandTypes = listOf(
     Player.COMMAND_GET_CURRENT_MEDIA_ITEM,
     Player.COMMAND_GET_METADATA,
     Player.COMMAND_GET_VOLUME,
     Player.COMMAND_SET_VOLUME
 )
 
-private val PlayPauseCommandTypes = listOf(
+private val CurrentItemCommandTypes = listOf(
     Player.COMMAND_PLAY_PAUSE,
     Player.COMMAND_STOP,
     Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM,
-    Player.COMMAND_SET_SPEED_AND_PITCH,
-    Player.COMMAND_SET_MEDIA_ITEM
+    Player.COMMAND_SET_SPEED_AND_PITCH
 )
+
+private val MediaSelectionCommandTypes = listOf(Player.COMMAND_SET_MEDIA_ITEM)
 
 private val PreviousCommandTypes = listOf(
     Player.COMMAND_SEEK_TO_PREVIOUS,
@@ -82,4 +96,9 @@ private val NextCommandTypes = listOf(
 )
 
 private val ProjectedCommandTypes =
-    MetadataCommandTypes + PlayPauseCommandTypes + PreviousCommandTypes + NextCommandTypes
+    AlwaysReadableCommandTypes +
+        CurrentItemCommandTypes +
+        MediaSelectionCommandTypes +
+        PreviousCommandTypes +
+        NextCommandTypes +
+        listOf(Player.COMMAND_SEEK_TO_MEDIA_ITEM)

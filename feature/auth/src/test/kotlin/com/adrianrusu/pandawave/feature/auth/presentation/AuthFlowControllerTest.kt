@@ -4,7 +4,6 @@ import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAccount
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthOperationResult
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthSession
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineAuthState
-import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCatalogItem
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineCommand
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEvent
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EnginePlatformEvent
@@ -299,10 +298,6 @@ private class RecordingAuthEngineGateway(
     }
 
     override fun snapshot(): EngineSnapshot = snapshot
-
-    override fun browseResult(index: Int): EngineCatalogItem? = null
-
-    override fun searchResult(index: Int): EngineCatalogItem? = null
 
     override fun dispatch(command: EngineCommand): EngineDispatchResult = error("Not used")
 
