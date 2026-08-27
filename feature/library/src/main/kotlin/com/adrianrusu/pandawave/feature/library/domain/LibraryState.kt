@@ -9,7 +9,9 @@ data class LibraryTrack(
     val durationMillis: Long,
     val explicit: Boolean,
     val artworkId: String?,
-    val relationshipAtEpochMillis: Long
+    val relationshipAtEpochMillis: Long,
+    val artworkUri: String? = null,
+    val artworkVersion: String? = null
 )
 
 data class LibraryPlaylist(val id: String, val name: String, val description: String?, val revision: Long)
@@ -23,7 +25,9 @@ data class LibraryHistoryEntry(
     val playedAtEpochMillis: Long?,
     val listenedDurationMillis: Long,
     val completionRatio: Float,
-    val playable: Boolean
+    val playable: Boolean,
+    val artworkId: String? = null,
+    val artworkVersion: String? = null
 )
 
 data class PlaylistConflict(

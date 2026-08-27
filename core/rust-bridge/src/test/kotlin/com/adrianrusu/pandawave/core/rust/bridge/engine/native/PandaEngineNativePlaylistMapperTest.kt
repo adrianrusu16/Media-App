@@ -29,7 +29,10 @@ class PandaEngineNativePlaylistMapperTest {
         assertNull(PandaEngine.playlistItem(arrayOf("p1", "Mix", "", "18446744073709551615", "100", "200", "0")))
         assertNull(
             PandaEngine.playlistTrackItem(
-                arrayOf("m1", "p1", "t1", "Title", "a1", "Artist", "", "100", "0", "", "4294967295", "200")
+                arrayOf(
+                    "m1", "p1", "t1", "Title", "a1", "Artist", "", "100", "0", "",
+                    "4294967295", "200", "", ""
+                )
             )
         )
         assertNull(

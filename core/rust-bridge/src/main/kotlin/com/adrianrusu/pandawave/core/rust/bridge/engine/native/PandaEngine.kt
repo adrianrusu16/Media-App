@@ -581,7 +581,14 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     }
 
     private fun metadataItem(values: Array<String>?): NativeEngineMetadata {
-        if (values == null || values.size != METADATA_VALUE_COUNT) return NativeEngineMetadata.empty()
+        if (values == null) return NativeEngineMetadata.empty()
+        if (values.size != METADATA_VALUE_COUNT) {
+            PandaLog.e(PandaLog.Tag.MEDIA) {
+                "metadata_stride_mismatch expected=$METADATA_VALUE_COUNT actual=${values.size} " +
+                    "(Kotlin/native FFI field counts diverge — rebuild libpanda_engine_ffi.so)"
+            }
+            return NativeEngineMetadata.empty()
+        }
         return NativeEngineMetadata(
             mediaId = values[0].ifBlank { null },
             title = values[1].ifBlank { null },
@@ -590,7 +597,9 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             artworkUri = values[4].ifBlank { null },
             sourceUri = values[5].ifBlank { null },
             mimeType = values[6].ifBlank { null },
-            userId = values[7].ifBlank { null }
+            userId = values[7].ifBlank { null },
+            artworkId = values[8].ifBlank { null },
+            artworkVersion = values[9].ifBlank { null }
         )
     }
 
@@ -631,8 +640,9 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
     }
 
     companion object {
-        private const val METADATA_VALUE_COUNT = 8
+        private const val METADATA_VALUE_COUNT = 10
         private const val EFFECT_VALUE_COUNT = 6
+        private const val PLAYLIST_TRACK_VALUE_COUNT = 14
         private const val MAX_ENGINE_PAGE_QUERY_SIZE = 50
         private const val PAGE_BROWSE = 0
         private const val PAGE_SEARCH = 1
@@ -864,7 +874,7 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             }
 
         internal fun playlistTrackItem(values: Array<String>?): EnginePlaylistTrackItem? {
-            if (values == null || values.size != 12) return null
+            if (values == null || values.size != PLAYLIST_TRACK_VALUE_COUNT) return null
             val duration = values[7].toNonNegativeLongOrNull() ?: return null
             val explicit = when (values[8]) {
                 "0" -> false
@@ -875,14 +885,26 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
                 ?: return null
             val addedAt = values[11].toNonNegativeLongOrNull() ?: return null
             return EnginePlaylistTrackItem(
-                values[0], values[1], values[2], values[3], values[4], values[5],
-                values[6].ifEmpty { null }, duration, explicit, values[9].ifEmpty { null }, position, addedAt
+                membershipId = values[0],
+                playlistId = values[1],
+                mediaId = values[2],
+                title = values[3],
+                artistId = values[4],
+                artist = values[5],
+                album = values[6].ifEmpty { null },
+                durationMillis = duration,
+                explicit = explicit,
+                artworkUri = values[9].ifEmpty { null },
+                position = position,
+                addedAtEpochMillis = addedAt,
+                artworkId = values[12].ifEmpty { null },
+                artworkVersion = values[13].ifEmpty { null }
             )
         }
 
         internal fun playlistTrackItems(values: Array<String>?): List<EnginePlaylistTrackItem> =
-            PandaEngineNativePackedPage.toItems(values, 12) { packed, offset ->
-                playlistTrackItem(packed.copyOfRange(offset, offset + 12))
+            PandaEngineNativePackedPage.toItems(values, PLAYLIST_TRACK_VALUE_COUNT) { packed, offset ->
+                playlistTrackItem(packed.copyOfRange(offset, offset + PLAYLIST_TRACK_VALUE_COUNT))
             }
 
         internal fun playlistReconciliationItem(values: Array<String>?): EnginePlaylistReconciliation? {

@@ -89,13 +89,17 @@ where
 }
 
 fn project_track(track: EngineTrack) -> MediaItem {
+    let (artwork_id, artwork_content_hash, thumbnail_url) =
+        crate::project_artwork_identity(track.artwork);
     MediaItem {
         id: track.id,
         title: track.title,
         artist: track.artist.name,
         album: track.album.map(|album| album.title),
         duration_millis: Some(track.duration_millis),
-        thumbnail_url: track.artwork.and_then(|artwork| artwork.uri),
+        thumbnail_url,
+        artwork_id,
+        artwork_content_hash,
         ..Default::default()
     }
 }
@@ -173,6 +177,13 @@ mod tests {
         assert_eq!(
             repository.get_by_id("search-track").unwrap().title,
             "A Song"
+        );
+        let projected = repository.get_by_id("search-track").unwrap();
+        assert_eq!(projected.artwork_id.as_deref(), Some("art-1"));
+        assert_eq!(projected.artwork_content_hash.as_deref(), Some("hash-1"));
+        assert_eq!(
+            projected.thumbnail_url.as_deref(),
+            Some("https://example.com/artwork/art-1/hash-1")
         );
     }
 }

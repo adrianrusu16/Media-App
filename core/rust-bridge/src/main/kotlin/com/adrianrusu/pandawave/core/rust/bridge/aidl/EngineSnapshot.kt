@@ -58,7 +58,9 @@ data class EngineSnapshot(
     val forYouResultsCount: Int = 0,
     val recommendationsResultsCount: Int = 0,
     val backendAvailability: EngineBackendAvailability = EngineBackendAvailability.connecting(),
-    val lastProgressTickEpochMillis: Long = 0L
+    val lastProgressTickEpochMillis: Long = 0L,
+    val artworkId: String? = null,
+    val artworkVersion: String? = null
 ) : Parcelable {
     constructor(parcel: Parcel) : this(
         playbackState = parcel.readString().orEmpty(),
@@ -132,7 +134,9 @@ data class EngineSnapshot(
             status = parcel.readString() ?: EngineBackendAvailability.CONNECTING,
             reason = parcel.readString()
         ),
-        lastProgressTickEpochMillis = parcel.readLong()
+        lastProgressTickEpochMillis = parcel.readLong(),
+        artworkId = parcel.readString(),
+        artworkVersion = parcel.readString()
     )
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
@@ -199,6 +203,8 @@ data class EngineSnapshot(
         parcel.writeString(backendAvailability.status)
         parcel.writeString(backendAvailability.reason)
         parcel.writeLong(lastProgressTickEpochMillis)
+        parcel.writeString(artworkId)
+        parcel.writeString(artworkVersion)
     }
 
     override fun describeContents(): Int = 0

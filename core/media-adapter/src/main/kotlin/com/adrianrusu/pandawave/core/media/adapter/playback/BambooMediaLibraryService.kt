@@ -1,5 +1,3 @@
-@file:OptIn(UnstableApi::class)
-
 package com.adrianrusu.pandawave.core.media.adapter.playback
 
 import android.app.PendingIntent
@@ -8,7 +6,6 @@ import android.os.Looper
 import android.widget.Toast
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
-import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer

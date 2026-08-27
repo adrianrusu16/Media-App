@@ -23,11 +23,13 @@ internal object PandaEngineNativeLibraryItemMapper {
                 album = values[offset + 5].ifEmpty { null },
                 durationMillis = values[offset + 6].toLong(),
                 explicit = values[offset + 7] == "1",
-                artworkId = values[offset + 8].ifEmpty { null },
-                relationshipAtEpochMillis = values[offset + 9].toLong()
+                artworkUri = values[offset + 8].ifEmpty { null },
+                relationshipAtEpochMillis = values[offset + 9].toLong(),
+                artworkId = values[offset + 10].ifEmpty { null },
+                artworkVersion = values[offset + 11].ifEmpty { null }
             )
         }.getOrNull()
     }
 
-    private const val VALUE_COUNT = 10
+    private const val VALUE_COUNT = 12
 }

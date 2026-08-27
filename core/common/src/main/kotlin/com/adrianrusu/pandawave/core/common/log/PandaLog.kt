@@ -26,6 +26,7 @@ object PandaLog {
         const val PLAYER = "PandaWave:Player"
         const val APP_SHELL = "PandaWave:AppShell"
         const val HISTORY = "PandaWave:History"
+        const val ARTWORK = "PandaWave:Artwork"
     }
 
     @Volatile
@@ -120,7 +121,7 @@ internal object PandaLogRedactor {
             url.substring(0, queryIndex) + "?[REDACTED]"
         }
         val withoutEmails = EMAIL_REGEX.replace(withoutQueries, "[REDACTED]")
-        return SENSITIVE_ASSIGNMENT_REGEX.replace(withoutEmails, "$1[REDACTED]")
+        return SENSITIVE_ASSIGNMENT_REGEX.replace(withoutEmails, "$1=[REDACTED]")
     }
 }
 

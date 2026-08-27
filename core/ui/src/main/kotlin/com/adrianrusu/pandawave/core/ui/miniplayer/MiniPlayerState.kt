@@ -1,5 +1,6 @@
 package com.adrianrusu.pandawave.core.ui.miniplayer
 
+import com.adrianrusu.pandawave.core.ui.artwork.BambooArtworkModel
 import com.adrianrusu.pandawave.core.ui.playback.MAX_PROGRESS_INTERPOLATION_GAP_MILLIS
 import kotlin.math.max
 import kotlin.math.min
@@ -8,7 +9,8 @@ data class MiniPlayerState(
     val title: String,
     val subtitle: String,
     val isPlaying: Boolean,
-    val progressAnchor: MiniPlayerProgressAnchor = MiniPlayerProgressAnchor()
+    val progressAnchor: MiniPlayerProgressAnchor = MiniPlayerProgressAnchor(),
+    val artwork: BambooArtworkModel? = null
 ) {
     fun progressAt(nowMillis: Long): MiniPlayerProgress = MiniPlayerProgressProjector.fromAnchor(
         anchor = progressAnchor,

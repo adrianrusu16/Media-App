@@ -6,6 +6,7 @@ import com.adrianrusu.pandawave.appshell.domain.AppShellState
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackIntent
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackState
+import com.adrianrusu.pandawave.core.ui.artwork.toBambooArtworkModel
 import com.adrianrusu.pandawave.core.ui.miniplayer.MiniPlayerProgressAnchor
 import com.adrianrusu.pandawave.core.ui.miniplayer.MiniPlayerState
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -57,5 +58,10 @@ private fun BambooPlaybackState.toMiniPlayerState(): MiniPlayerState = MiniPlaye
         updatedAtEpochMillis = updatedAtEpochMillis,
         playbackSpeed = playbackSpeed,
         isPlaying = isPlaying
+    ),
+    artwork = toBambooArtworkModel(
+        id = artworkId,
+        version = artworkVersion,
+        uri = artworkUri
     )
 )

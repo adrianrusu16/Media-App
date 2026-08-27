@@ -20,6 +20,20 @@ pub(super) const PAGE_KIND_PLAYLISTS: i32 = 7;
 pub(super) const PAGE_KIND_PLAYLIST_TRACKS: i32 = 8;
 pub(super) const PAGE_KIND_PENDING_IDS: i32 = 9;
 pub(super) const PAGE_KIND_DEVICE_SESSIONS: i32 = 10;
+
+fn artwork_identity_strings(
+    artwork: Option<&panda_engine_core::EngineArtwork>,
+) -> (String, String, String) {
+    match artwork {
+        Some(artwork) => (
+            artwork.id.clone(),
+            artwork.content_hash.clone(),
+            artwork.uri.clone().unwrap_or_default(),
+        ),
+        None => (String::new(), String::new(), String::new()),
+    }
+}
+
 pub(super) fn jni_string_to_c_string(env: &mut JNIEnv, value: JObject) -> Option<CString> {
     if value.is_null() {
         return None;
@@ -129,7 +143,8 @@ pub(super) fn strings_to_jobject_array(env: &mut JNIEnv, values: Vec<String>) ->
 pub(super) fn library_track_to_strings(
     item: &panda_engine_core::EngineLibraryTrack,
 ) -> Vec<String> {
-    vec![
+    let (artwork_id, artwork_hash, artwork_uri) = artwork_identity_strings(item.track.artwork.as_ref());
+    let packed = vec![
         item.relationship_id.clone(),
         item.track.id.clone(),
         item.track.title.clone(),
@@ -142,17 +157,20 @@ pub(super) fn library_track_to_strings(
             .unwrap_or_default(),
         item.track.duration_millis.to_string(),
         if item.track.explicit { "1" } else { "0" }.into(),
-        item.track
-            .artwork
-            .as_ref()
-            .and_then(|artwork| artwork.uri.clone())
-            .unwrap_or_default(),
+        artwork_uri,
         item.relationship_at_epoch_millis.to_string(),
-    ]
+        artwork_id,
+        artwork_hash,
+    ];
+    debug_assert_eq!(packed.len(), LIBRARY_TRACK_VALUE_COUNT);
+    packed
 }
 
-pub(super) const HISTORY_ENTRY_VALUE_COUNT: usize = 10;
-pub(super) const CATALOG_ITEM_VALUE_COUNT: usize = 8;
+pub(super) const HISTORY_ENTRY_VALUE_COUNT: usize = 12;
+pub(super) const CATALOG_ITEM_VALUE_COUNT: usize = 10;
+pub(super) const LIBRARY_TRACK_VALUE_COUNT: usize = 12;
+pub(super) const PLAYLIST_TRACK_VALUE_COUNT: usize = 14;
+pub(super) const METADATA_VALUE_COUNT: usize = 10;
 pub(super) const DEVICE_SESSION_VALUE_COUNT: usize = 6;
 pub(super) const MAX_ENGINE_PAGE_QUERY_SIZE: usize = 50;
 
@@ -187,6 +205,8 @@ pub(super) fn catalog_item_to_strings(item: &panda_engine_core::MediaItem) -> Ve
         item.source_uri.clone().unwrap_or_default(),
         item.mime_type.clone().unwrap_or_default(),
         media_item_type_to_ffi(&item.item_type).to_string(),
+        item.artwork_id.clone().unwrap_or_default(),
+        item.artwork_content_hash.clone().unwrap_or_default(),
     ];
     debug_assert_eq!(packed.len(), CATALOG_ITEM_VALUE_COUNT);
     packed
@@ -207,7 +227,8 @@ pub(super) fn playlist_to_strings(item: &panda_engine_core::EnginePlaylist) -> V
 pub(super) fn playlist_track_to_strings(
     item: &panda_engine_core::EnginePlaylistTrack,
 ) -> Vec<String> {
-    vec![
+    let (artwork_id, artwork_hash, artwork_uri) = artwork_identity_strings(item.track.artwork.as_ref());
+    let packed = vec![
         item.membership_id.clone(),
         item.playlist_id.clone(),
         item.track.id.clone(),
@@ -221,14 +242,14 @@ pub(super) fn playlist_track_to_strings(
             .unwrap_or_default(),
         item.track.duration_millis.to_string(),
         (item.track.explicit as u8).to_string(),
-        item.track
-            .artwork
-            .as_ref()
-            .and_then(|artwork| artwork.uri.clone())
-            .unwrap_or_default(),
+        artwork_uri,
         item.position.to_string(),
         item.added_at_epoch_millis.to_string(),
-    ]
+        artwork_id,
+        artwork_hash,
+    ];
+    debug_assert_eq!(packed.len(), PLAYLIST_TRACK_VALUE_COUNT);
+    packed
 }
 
 pub(super) fn snapshot_page_to_strings(
@@ -312,6 +333,8 @@ pub(super) fn history_entry_to_strings(
     item: &panda_engine_core::EngineHistoryEntry,
 ) -> Vec<String> {
     let track = item.track.as_ref();
+    let (artwork_id, artwork_hash, artwork_uri) =
+        artwork_identity_strings(track.and_then(|track| track.artwork.as_ref()));
     vec![
         item.id.clone(),
         track.map(|track| track.id.clone()).unwrap_or_default(),
@@ -325,20 +348,15 @@ pub(super) fn history_entry_to_strings(
             .and_then(|track| track.album.as_ref())
             .map(|album| album.title.clone())
             .unwrap_or_default(),
-        track
-            .and_then(|track| {
-                track
-                    .artwork
-                    .as_ref()
-                    .and_then(|artwork| artwork.uri.clone())
-            })
-            .unwrap_or_default(),
+        artwork_uri,
         item.played_at_epoch_millis
             .map(|value| value.to_string())
             .unwrap_or_default(),
         item.duration_millis.to_string(),
         item.completion_ratio.to_string(),
         if track.is_some() { "1" } else { "0" }.into(),
+        artwork_id,
+        artwork_hash,
     ]
 }
 
@@ -369,7 +387,7 @@ pub(super) fn history_page_to_strings(
 }
 
 pub(super) fn metadata_to_strings(snapshot: &panda_engine_core::EngineSnapshot) -> Vec<String> {
-    vec![
+    let packed = vec![
         snapshot.media_id.clone().unwrap_or_default(),
         snapshot.title.clone().unwrap_or_default(),
         snapshot.artist.clone().unwrap_or_default(),
@@ -382,7 +400,11 @@ pub(super) fn metadata_to_strings(snapshot: &panda_engine_core::EngineSnapshot) 
             .as_ref()
             .map(|session| session.user_id.clone())
             .unwrap_or_default(),
-    ]
+        snapshot.artwork_id.clone().unwrap_or_default(),
+        snapshot.artwork_content_hash.clone().unwrap_or_default(),
+    ];
+    debug_assert_eq!(packed.len(), METADATA_VALUE_COUNT);
+    packed
 }
 
 pub(super) fn effect_to_strings(effect: &panda_engine_core::EngineEffect) -> Vec<String> {
@@ -819,6 +841,50 @@ mod tests {
         );
     }
     #[test]
+    fn packing_appends_artwork_identity_without_reordering_uri_slots() {
+        let catalog = panda_engine_core::MediaItem {
+            id: "track-1".into(),
+            title: "Song".into(),
+            artist: "Artist".into(),
+            album: Some("Album".into()),
+            thumbnail_url: Some("https://example.com/artwork/art-1/hash-1".into()),
+            artwork_id: Some("art-1".into()),
+            artwork_content_hash: Some("hash-1".into()),
+            source_uri: Some("canopy://track-1".into()),
+            mime_type: Some("audio/mpeg".into()),
+            ..Default::default()
+        };
+        let catalog_packed = catalog_item_to_strings(&catalog);
+        assert_eq!(catalog_packed.len(), CATALOG_ITEM_VALUE_COUNT);
+        assert_eq!(catalog_packed[4], "https://example.com/artwork/art-1/hash-1");
+        assert_eq!(catalog_packed[8], "art-1");
+        assert_eq!(catalog_packed[9], "hash-1");
+
+        let history = history_entry("history-1", Some("track-1"));
+        let history_packed = history_entry_to_strings(&history);
+        assert_eq!(history_packed.len(), HISTORY_ENTRY_VALUE_COUNT);
+        assert_eq!(history_packed[5], "https://example.com/artwork/art-1/hash-1");
+        assert_eq!(history_packed[10], "art-1");
+        assert_eq!(history_packed[11], "hash-1");
+
+        let mut snapshot = panda_engine_core::EngineSnapshot::idle(1);
+        snapshot.media_id = Some("track-1".into());
+        snapshot.title = Some("Song".into());
+        snapshot.artist = Some("Artist".into());
+        snapshot.album = Some("Album".into());
+        snapshot.thumbnail_url = Some("https://example.com/artwork/art-1/hash-1".into());
+        snapshot.artwork_id = Some("art-1".into());
+        snapshot.artwork_content_hash = Some("hash-1".into());
+        snapshot.source_uri = Some("canopy://track-1".into());
+        snapshot.mime_type = Some("audio/mpeg".into());
+        let metadata = metadata_to_strings(&snapshot);
+        assert_eq!(metadata.len(), METADATA_VALUE_COUNT);
+        assert_eq!(metadata[4], "https://example.com/artwork/art-1/hash-1");
+        assert_eq!(metadata[8], "art-1");
+        assert_eq!(metadata[9], "hash-1");
+    }
+
+    #[test]
     fn profile_values_preserve_absent_display_name_distinct_from_empty_text() {
         let base = panda_engine_core::EngineProfile {
             id: "profile-1".into(),
@@ -857,11 +923,11 @@ mod tests {
         assert_eq!(packed[0], "4");
         assert_eq!(packed.len(), 1 + 2 * HISTORY_ENTRY_VALUE_COUNT);
         assert_eq!(
-            &packed[1..11],
+            &packed[1..1 + HISTORY_ENTRY_VALUE_COUNT],
             history_entry_to_strings(&snapshot.history_entries[1])
         );
         assert_eq!(
-            &packed[11..],
+            &packed[1 + HISTORY_ENTRY_VALUE_COUNT..],
             history_entry_to_strings(&snapshot.history_entries[2])
         );
     }

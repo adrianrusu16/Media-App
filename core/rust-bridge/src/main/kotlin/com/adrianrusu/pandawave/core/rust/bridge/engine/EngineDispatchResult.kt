@@ -12,10 +12,14 @@ data class EngineDispatchResult(
     val effects: List<EngineEffect> = emptyList()
 ) : Parcelable {
     constructor(parcel: Parcel) : this(
-        snapshot = parcel.readParcelable(EngineSnapshot::class.java.classLoader)
-            ?: EngineSnapshot.idle(nowMillis = 0L),
-        event = parcel.readParcelable(EngineEvent::class.java.classLoader)
-            ?: EngineEvent(EngineEvent.TYPE_GATEWAY_UNAVAILABLE, null),
+        snapshot = parcel.readParcelable(
+            EngineSnapshot::class.java.classLoader,
+            EngineSnapshot::class.java,
+        ) ?: EngineSnapshot.idle(nowMillis = 0L),
+        event = parcel.readParcelable(
+            EngineEvent::class.java.classLoader,
+            EngineEvent::class.java,
+        ) ?: EngineEvent(EngineEvent.TYPE_GATEWAY_UNAVAILABLE, null),
         effects = mutableListOf<EngineEffect>().also { values ->
             parcel.readTypedList(values, EngineEffect.CREATOR)
         }

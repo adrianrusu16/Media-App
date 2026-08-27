@@ -55,7 +55,7 @@ internal class BambooMediaLibrarySessionCallback(
             return MediaSession.ConnectionResult.reject()
         }
 
-        return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
+        return MediaSession.ConnectionResult.AcceptedResultBuilder(session, controller)
             .setAvailableSessionCommands(availableSessionCommands())
             .setAvailablePlayerCommands(
                 BambooMediaSessionCommandPolicy.availablePlayerCommands(

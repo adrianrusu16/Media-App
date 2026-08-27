@@ -7,6 +7,8 @@ data class BambooPlaybackState(
     val album: String? = null,
     val durationMillis: Long? = null,
     val artworkUri: String? = null,
+    val artworkId: String? = null,
+    val artworkVersion: String? = null,
     val sourceUri: String? = null,
     val mimeType: String? = null,
     val playbackExpiresAtEpochMillis: Long? = null,

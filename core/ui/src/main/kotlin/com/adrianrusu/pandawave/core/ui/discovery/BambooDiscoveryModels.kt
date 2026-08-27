@@ -1,11 +1,16 @@
 package com.adrianrusu.pandawave.core.ui.discovery
 
+import com.adrianrusu.pandawave.core.ui.artwork.BambooArtworkFallback
+import com.adrianrusu.pandawave.core.ui.artwork.BambooArtworkModel
+
 data class BambooMediaItem(
     val id: String,
     val title: String,
     val subtitle: String,
     val description: String,
-    val action: BambooMediaAction
+    val action: BambooMediaAction,
+    val artwork: BambooArtworkModel? = null,
+    val artworkFallback: BambooArtworkFallback = BambooArtworkFallback.Track
 )
 
 enum class BambooMediaAction {

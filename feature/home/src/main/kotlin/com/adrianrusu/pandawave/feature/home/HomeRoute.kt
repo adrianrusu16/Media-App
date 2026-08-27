@@ -17,6 +17,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.adrianrusu.pandawave.core.designsystem.tokens.LocalPandaWaveDesignTokens
 import com.adrianrusu.pandawave.core.designsystem.tokens.mediaCarouselSpacing
 import com.adrianrusu.pandawave.core.designsystem.tokens.mediaSectionSpacing
+import com.adrianrusu.pandawave.core.ui.artwork.BambooArtworkFallback
+import com.adrianrusu.pandawave.core.ui.artwork.toBambooArtworkModel
 import com.adrianrusu.pandawave.core.ui.discovery.BambooMediaAction
 import com.adrianrusu.pandawave.core.ui.discovery.BambooMediaHeroCard
 import com.adrianrusu.pandawave.core.ui.discovery.BambooMediaItem
@@ -24,7 +26,6 @@ import com.adrianrusu.pandawave.core.ui.discovery.BambooMediaTile
 import com.adrianrusu.pandawave.core.ui.discovery.BambooSectionHeader
 import com.adrianrusu.pandawave.core.ui.focus.BambooFocusableLazyRow
 import com.adrianrusu.pandawave.core.ui.focus.BambooRotaryColumn
-import com.adrianrusu.pandawave.core.ui.icons.PandaWaveIcons
 import com.adrianrusu.pandawave.feature.home.domain.HomeState
 import com.adrianrusu.pandawave.feature.home.domain.HomeTrack
 import com.adrianrusu.pandawave.feature.home.presentation.HomeViewModel
@@ -117,7 +118,13 @@ private fun HomeFeedSection(
                     title = track.title,
                     subtitle = track.artist,
                     description = track.album ?: track.artist,
-                    action = BambooMediaAction.Play
+                    action = BambooMediaAction.Play,
+                    artwork = toBambooArtworkModel(
+                        id = track.artworkId,
+                        version = track.artworkVersion,
+                        uri = track.artworkUri
+                    ),
+                    artworkFallback = BambooArtworkFallback.Track
                 )
                 val onClick = {
                     onPlay(track.id, section, track.title)
@@ -127,7 +134,6 @@ private fun HomeFeedSection(
                     BambooMediaHeroCard(
                         modifier = Modifier.testTag("$testTag-${track.id}"),
                         item = item,
-                        icon = PandaWaveIcons.Equalizer,
                         accentColor = Color(tokens.colors.primary),
                         onClick = onClick
                     )
@@ -135,7 +141,6 @@ private fun HomeFeedSection(
                     BambooMediaTile(
                         modifier = Modifier.testTag("$testTag-${track.id}"),
                         item = item,
-                        icon = PandaWaveIcons.MusicLibrary,
                         accentColor = Color(tokens.colors.secondary),
                         onClick = onClick
                     )

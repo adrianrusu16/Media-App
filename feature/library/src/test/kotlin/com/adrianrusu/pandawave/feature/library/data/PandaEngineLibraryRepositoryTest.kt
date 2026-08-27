@@ -222,7 +222,8 @@ class PandaEngineLibraryRepositoryTest {
                 EnginePlaylistTrackItem(
                     membershipId = "membership-1", playlistId = "playlist-1", mediaId = "track-1",
                     title = "Track", artistId = "artist-1", artist = "Artist", album = "Album",
-                    durationMillis = 120_000, explicit = false, artworkId = "artwork-1", position = 0,
+                    durationMillis = 120_000, explicit = false, artworkUri = null,
+                    artworkId = "artwork-1", position = 0,
                     addedAtEpochMillis = 1_500
                 )
             ),

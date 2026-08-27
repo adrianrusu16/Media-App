@@ -23,22 +23,26 @@ internal object PandaEngineNativeCatalogItemMapper {
                     title = values[offset + TITLE_INDEX],
                     artist = values[offset + ARTIST_INDEX].ifBlank { null },
                     album = values[offset + ALBUM_INDEX].ifBlank { null },
-                    artworkUri = values[offset + ARTWORK_INDEX].ifBlank { null },
+                    artworkUri = values[offset + ARTWORK_URI_INDEX].ifBlank { null },
                     sourceUri = values[offset + SOURCE_INDEX].ifBlank { null },
                     mimeType = values[offset + MIME_INDEX].ifBlank { null },
-                    itemType = itemType
+                    itemType = itemType,
+                    artworkId = values[offset + ARTWORK_ID_INDEX].ifBlank { null },
+                    artworkVersion = values[offset + ARTWORK_VERSION_INDEX].ifBlank { null }
                 )
             }.getOrNull()
         }
     }
 
-    private const val VALUE_COUNT = 8
+    private const val VALUE_COUNT = 10
     private const val ID_INDEX = 0
     private const val TITLE_INDEX = 1
     private const val ARTIST_INDEX = 2
     private const val ALBUM_INDEX = 3
-    private const val ARTWORK_INDEX = 4
+    private const val ARTWORK_URI_INDEX = 4
     private const val SOURCE_INDEX = 5
     private const val MIME_INDEX = 6
     private const val ITEM_TYPE_INDEX = 7
+    private const val ARTWORK_ID_INDEX = 8
+    private const val ARTWORK_VERSION_INDEX = 9
 }

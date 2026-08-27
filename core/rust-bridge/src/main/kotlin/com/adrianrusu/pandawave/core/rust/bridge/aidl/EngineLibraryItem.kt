@@ -12,8 +12,10 @@ data class EngineLibraryItem(
     val album: String? = null,
     val durationMillis: Long = 0L,
     val explicit: Boolean = false,
+    val artworkUri: String? = null,
+    val relationshipAtEpochMillis: Long,
     val artworkId: String? = null,
-    val relationshipAtEpochMillis: Long
+    val artworkVersion: String? = null
 ) : Parcelable {
     init {
         require(relationshipId.isNotBlank() && mediaId.isNotBlank() && title.isNotBlank())
@@ -29,8 +31,10 @@ data class EngineLibraryItem(
         album = parcel.readString(),
         durationMillis = parcel.readLong(),
         explicit = parcel.readInt() != 0,
+        artworkUri = parcel.readString(),
+        relationshipAtEpochMillis = parcel.readLong(),
         artworkId = parcel.readString(),
-        relationshipAtEpochMillis = parcel.readLong()
+        artworkVersion = parcel.readString()
     )
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
@@ -42,8 +46,10 @@ data class EngineLibraryItem(
         parcel.writeString(album)
         parcel.writeLong(durationMillis)
         parcel.writeInt(if (explicit) 1 else 0)
-        parcel.writeString(artworkId)
+        parcel.writeString(artworkUri)
         parcel.writeLong(relationshipAtEpochMillis)
+        parcel.writeString(artworkId)
+        parcel.writeString(artworkVersion)
     }
 
     override fun describeContents(): Int = 0

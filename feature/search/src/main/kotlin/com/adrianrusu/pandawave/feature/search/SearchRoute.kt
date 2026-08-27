@@ -29,6 +29,8 @@ import com.adrianrusu.pandawave.core.designsystem.tokens.mediaSectionSpacing
 import com.adrianrusu.pandawave.core.designsystem.tokens.sm
 import com.adrianrusu.pandawave.core.ui.discovery.BambooCategoryCard
 import com.adrianrusu.pandawave.core.ui.discovery.BambooCategoryItem
+import com.adrianrusu.pandawave.core.ui.artwork.BambooArtworkFallback
+import com.adrianrusu.pandawave.core.ui.artwork.toBambooArtworkModel
 import com.adrianrusu.pandawave.core.ui.discovery.BambooMediaAction
 import com.adrianrusu.pandawave.core.ui.discovery.BambooMediaItem
 import com.adrianrusu.pandawave.core.ui.discovery.BambooMediaListRow
@@ -180,7 +182,6 @@ fun SearchRoute(
                 BambooMediaListRow(
                     modifier = Modifier.testTag("search-result-${track.mediaId}"),
                     item = track.toMediaItem(),
-                    icon = PandaWaveIcons.MusicLibrary,
                     accentColor = Color(tokens.colors.secondary),
                     onClick = {
                         onPlay(track.mediaId, track.title)
@@ -231,5 +232,11 @@ private fun SearchTrack.toMediaItem() = BambooMediaItem(
     title = title,
     subtitle = artist.ifBlank { "" },
     description = album.orEmpty(),
-    action = BambooMediaAction.Play
+    action = BambooMediaAction.Play,
+    artwork = toBambooArtworkModel(
+        id = artworkId,
+        version = artworkVersion,
+        uri = artworkUri
+    ),
+    artworkFallback = BambooArtworkFallback.Track
 )

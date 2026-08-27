@@ -464,6 +464,14 @@ impl Engine {
                             info!(
                                 feed = feed.as_wire(),
                                 count = items.len(),
+                                artwork_id_count = items
+                                    .iter()
+                                    .filter(|item| item.artwork_id.is_some())
+                                    .count(),
+                                artwork_uri_count = items
+                                    .iter()
+                                    .filter(|item| item.thumbnail_url.is_some())
+                                    .count(),
                                 titles = catalog_titles(&items),
                                 "engine.feed.loaded"
                             );
@@ -559,6 +567,19 @@ impl Engine {
                                     let mut accumulated_items = operation.items;
                                     accumulated_items.extend(
                                         result.items.into_iter().map(project_discovery_track),
+                                    );
+                                    info!(
+                                        feed = "discovery",
+                                        count = accumulated_items.len(),
+                                        artwork_id_count = accumulated_items
+                                            .iter()
+                                            .filter(|item| item.artwork_id.is_some())
+                                            .count(),
+                                        artwork_uri_count = accumulated_items
+                                            .iter()
+                                            .filter(|item| item.thumbnail_url.is_some())
+                                            .count(),
+                                        "engine.feed.next_page.loaded"
                                     );
                                     next_snapshot = next_snapshot
                                         .with_discovery_results(accumulated_items.clone())

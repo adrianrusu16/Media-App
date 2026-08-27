@@ -18,7 +18,8 @@ class PandaLogTest {
             PandaLog.Tag.MEDIA,
             PandaLog.Tag.PLAYER,
             PandaLog.Tag.APP_SHELL,
-            PandaLog.Tag.HISTORY
+            PandaLog.Tag.HISTORY,
+            PandaLog.Tag.ARTWORK
         )
         assertTrue(tags.all { it.length <= 23 })
         assertTrue(tags.all { it.startsWith("PandaWave:") })

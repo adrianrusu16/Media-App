@@ -23,4 +23,12 @@ data class SearchState(
     val generation: Long = 0L
 )
 
-data class SearchTrack(val mediaId: String, val title: String, val artist: String, val album: String?)
+data class SearchTrack(
+    val mediaId: String,
+    val title: String,
+    val artist: String,
+    val album: String?,
+    val artworkId: String? = null,
+    val artworkVersion: String? = null,
+    val artworkUri: String? = null
+)

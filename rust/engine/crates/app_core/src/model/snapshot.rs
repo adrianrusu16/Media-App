@@ -47,6 +47,12 @@ pub struct EngineSnapshot {
     pub duration_millis: Option<u64>,
     /// Thumbnail/artwork URL for the current media item.
     pub thumbnail_url: Option<String>,
+    /// Opaque Canopy artwork id for the current media item.
+    #[serde(default)]
+    pub artwork_id: Option<String>,
+    /// Artwork content hash (version key) for the current media item.
+    #[serde(default)]
+    pub artwork_content_hash: Option<String>,
     /// URI for the current playable media source.
     pub source_uri: Option<String>,
     /// MIME type for the current playable media source.
@@ -255,6 +261,8 @@ impl EngineSnapshot {
             || self.album.as_deref() != media.album.as_deref()
             || self.duration_millis != media.duration_millis
             || self.thumbnail_url.as_deref() != media.thumbnail_url.as_deref()
+            || self.artwork_id.as_deref() != media.artwork_id.as_deref()
+            || self.artwork_content_hash.as_deref() != media.artwork_content_hash.as_deref()
             || self.source_uri.as_deref() != media.source_uri.as_deref()
             || self.mime_type.as_deref() != media.mime_type.as_deref();
 
@@ -267,6 +275,8 @@ impl EngineSnapshot {
         self.album = media.album;
         self.duration_millis = media.duration_millis;
         self.thumbnail_url = media.thumbnail_url;
+        self.artwork_id = media.artwork_id;
+        self.artwork_content_hash = media.artwork_content_hash;
         self.source_uri = media.source_uri;
         self.mime_type = media.mime_type;
         self

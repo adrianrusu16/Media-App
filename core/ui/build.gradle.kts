@@ -10,6 +10,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":core:common"))
     implementation(project(":core:designsystem"))
     implementation(project(":core:model"))
 
@@ -20,6 +21,8 @@ dependencies {
     implementation(libs.androidx.compose.runtime)
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.ui.tooling.preview)
+    implementation(libs.coil.compose)
+    implementation(libs.coil.network.okhttp)
 
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.kotlin.test.junit5)

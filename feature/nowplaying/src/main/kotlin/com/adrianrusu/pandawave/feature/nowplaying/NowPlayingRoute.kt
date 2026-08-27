@@ -2,7 +2,6 @@ package com.adrianrusu.pandawave.feature.nowplaying
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,7 +38,6 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -48,7 +46,6 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.adrianrusu.pandawave.core.common.log.PandaLog
-import com.adrianrusu.pandawave.core.designsystem.R as DesignSystemR
 import com.adrianrusu.pandawave.core.designsystem.tokens.LocalPandaWaveDesignTokens
 import com.adrianrusu.pandawave.core.designsystem.tokens.cardResting
 import com.adrianrusu.pandawave.core.designsystem.tokens.iconMedium
@@ -74,6 +71,9 @@ import com.adrianrusu.pandawave.core.designsystem.tokens.volumeControlMaxWidth
 import com.adrianrusu.pandawave.core.designsystem.tokens.xs
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackProgress
 import com.adrianrusu.pandawave.core.ui.audio.visualizer.BambooVoiceIndicator
+import com.adrianrusu.pandawave.core.ui.artwork.BambooArtwork
+import com.adrianrusu.pandawave.core.ui.artwork.BambooArtworkFallback
+import com.adrianrusu.pandawave.core.ui.artwork.toBambooArtworkModel
 import com.adrianrusu.pandawave.core.ui.focus.BambooRotaryColumn
 import com.adrianrusu.pandawave.core.ui.focus.bambooBringIntoViewOnFocus
 import com.adrianrusu.pandawave.core.ui.icons.PandaWaveIcons
@@ -224,10 +224,20 @@ private fun NowPlayingAmbientRoute(
         state.artist
     }
 
+    val artwork = if (isSleeping) {
+        null
+    } else {
+        toBambooArtworkModel(
+            id = state.artworkId,
+            version = state.artworkVersion,
+            uri = state.artworkUri
+        )
+    }
+
     NowPlayingAmbientScreen(
         modifier = modifier,
         amplitudes = amplitudes,
-        artworkUri = state.artworkUri.takeUnless { isSleeping },
+        artwork = artwork,
         title = title,
         artist = artist,
         onShowPlaybackControls = viewModel::onUserInteraction
@@ -289,6 +299,11 @@ private fun NowPlayingInteractiveScreen(
                 detailLabel = uiModel.detailLabel,
                 availabilityLabel = uiModel.availabilityLabel,
                 showAvailability = !uiModel.controlsEnabled,
+                artwork = toBambooArtworkModel(
+                    id = state.artworkId,
+                    version = state.artworkVersion,
+                    uri = state.artworkUri
+                ),
                 artworkHeight = if (isCompact) {
                     tokens.layout.nowPlayingArtworkCompact
                 } else {
@@ -327,6 +342,7 @@ private fun NowPlayingArtworkPanel(
     detailLabel: String,
     availabilityLabel: String,
     showAvailability: Boolean,
+    artwork: com.adrianrusu.pandawave.core.ui.artwork.BambooArtworkModel?,
     artworkHeight: androidx.compose.ui.unit.Dp,
     isCompact: Boolean
 ) {
@@ -353,16 +369,11 @@ private fun NowPlayingArtworkPanel(
                 shape = MaterialTheme.shapes.medium
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Image(
-                        painter = painterResource(id = DesignSystemR.drawable.pandawave_ic_logo),
+                    BambooArtwork(
+                        artwork = artwork,
+                        fallback = BambooArtworkFallback.Track,
                         contentDescription = null,
-                        modifier = Modifier.size(
-                            tokens.sizing.touchTargetLg * if (isCompact) {
-                                COMPACT_LOGO_TOUCH_TARGET_MULTIPLIER
-                            } else {
-                                STANDARD_LOGO_TOUCH_TARGET_MULTIPLIER
-                            }
-                        )
+                        modifier = Modifier.fillMaxSize()
                     )
                     Surface(
                         modifier = Modifier
@@ -772,8 +783,6 @@ private const val MILLIS_PER_SECOND = 1_000L
 private const val SECONDS_PER_MINUTE = 60L
 private const val MIN_PROGRESS_FRACTION = 0F
 private const val MAX_PROGRESS_FRACTION = 1F
-private const val COMPACT_LOGO_TOUCH_TARGET_MULTIPLIER = 2
-private const val STANDARD_LOGO_TOUCH_TARGET_MULTIPLIER = 3
 private const val ARTWORK_TEXT_PANEL_ALPHA = 0.84F
 private const val PROGRESS_ACTIVE_ALPHA = 0.58F
 private const val AMBIENT_TRANSITION_LABEL = "ambient-now-playing-transition"

@@ -1,6 +1,5 @@
 package com.adrianrusu.pandawave.core.ui.miniplayer
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -28,14 +27,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
-import com.adrianrusu.pandawave.core.designsystem.R as DesignSystemR
 import com.adrianrusu.pandawave.core.designsystem.tokens.LocalPandaWaveDesignTokens
 import com.adrianrusu.pandawave.core.designsystem.tokens.cardResting
-import com.adrianrusu.pandawave.core.designsystem.tokens.iconLarge
 import com.adrianrusu.pandawave.core.designsystem.tokens.lg
 import com.adrianrusu.pandawave.core.designsystem.tokens.md
 import com.adrianrusu.pandawave.core.designsystem.tokens.miniPlayerArtworkSize
@@ -44,9 +40,10 @@ import com.adrianrusu.pandawave.core.designsystem.tokens.miniPlayerInternalSpaci
 import com.adrianrusu.pandawave.core.designsystem.tokens.miniPlayerTransportButtonSize
 import com.adrianrusu.pandawave.core.designsystem.tokens.progressTrackHeight
 import com.adrianrusu.pandawave.core.designsystem.tokens.sm
-import com.adrianrusu.pandawave.core.designsystem.tokens.touchTargetLg
 import com.adrianrusu.pandawave.core.designsystem.tokens.xs
 import com.adrianrusu.pandawave.core.ui.R
+import com.adrianrusu.pandawave.core.ui.artwork.BambooArtwork
+import com.adrianrusu.pandawave.core.ui.artwork.BambooArtworkFallback
 import com.adrianrusu.pandawave.core.ui.focus.bambooBringIntoViewOnFocus
 import com.adrianrusu.pandawave.core.ui.focus.bambooFocusIndicator
 import com.adrianrusu.pandawave.core.ui.icons.PandaWaveIcons
@@ -92,7 +89,7 @@ fun BambooMiniPlayer(
                 horizontalArrangement = Arrangement.spacedBy(tokens.spacing.lg),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                MiniPlayerArtwork()
+                MiniPlayerArtwork(artwork = state.artwork)
 
                 Column(
                     modifier = Modifier
@@ -168,23 +165,14 @@ fun BambooMiniPlayer(
 }
 
 @Composable
-private fun MiniPlayerArtwork() {
+private fun MiniPlayerArtwork(artwork: com.adrianrusu.pandawave.core.ui.artwork.BambooArtworkModel?) {
     val tokens = LocalPandaWaveDesignTokens.current
-    Surface(
-        modifier = Modifier.size(tokens.components.miniPlayerArtworkSize),
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        shape = MaterialTheme.shapes.medium
-    ) {
-        Box(
-            contentAlignment = Alignment.Center
-        ) {
-            Image(
-                painter = painterResource(id = DesignSystemR.drawable.pandawave_ic_logo),
-                contentDescription = null,
-                modifier = Modifier.size(tokens.components.iconLarge)
-            )
-        }
-    }
+    BambooArtwork(
+        artwork = artwork,
+        fallback = BambooArtworkFallback.Track,
+        contentDescription = null,
+        modifier = Modifier.size(tokens.components.miniPlayerArtworkSize)
+    )
 }
 
 @Composable

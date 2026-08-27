@@ -82,6 +82,8 @@ class NativeEngineMetadataCacheTest {
         artworkUri = "content://pandawave/art/media-id",
         sourceUri = "https://cdn.pandawave.test/audio/media-id.mp3",
         mimeType = "audio/mpeg",
-        userId = "user-id"
+        userId = "user-id",
+        artworkId = "art-media-id",
+        artworkVersion = "hash-media-id"
     )
 }

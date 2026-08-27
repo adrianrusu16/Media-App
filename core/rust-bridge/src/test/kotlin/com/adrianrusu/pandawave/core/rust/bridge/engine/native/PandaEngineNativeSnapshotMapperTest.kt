@@ -244,10 +244,16 @@ class PandaEngineNativeSnapshotMapperTest {
     @Test
     fun `saved and liked item payloads round trip without credentials`() {
         val saved = PandaEngineNativeLibraryItemMapper.toDomain(
-            arrayOf("saved-1", "track-1", "Saved", "artist-1", "Artist", "Album", "120000", "1", "art-1", "1000")
+            arrayOf(
+                "saved-1", "track-1", "Saved", "artist-1", "Artist", "Album", "120000", "1",
+                "https://example.com/art-1", "1000", "art-1", "hash-1"
+            )
         )
         val liked = PandaEngineNativeLibraryItemMapper.toDomain(
-            arrayOf("liked-1", "track-2", "Liked", "artist-2", "Other", "", "240000", "0", "", "2000")
+            arrayOf(
+                "liked-1", "track-2", "Liked", "artist-2", "Other", "", "240000", "0",
+                "", "2000", "", ""
+            )
         )
 
         assertEquals("saved-1", saved?.relationshipId)
@@ -256,11 +262,16 @@ class PandaEngineNativeSnapshotMapperTest {
         assertEquals("Album", saved?.album)
         assertEquals(120_000L, saved?.durationMillis)
         assertTrue(saved?.explicit == true)
+        assertEquals("https://example.com/art-1", saved?.artworkUri)
+        assertEquals("art-1", saved?.artworkId)
+        assertEquals("hash-1", saved?.artworkVersion)
         assertEquals("liked-1", liked?.relationshipId)
         assertEquals("track-2", liked?.mediaId)
         assertEquals(null, liked?.album)
         assertFalse(liked?.explicit == true)
         assertEquals(null, liked?.artworkId)
+        assertEquals(null, liked?.artworkUri)
+        assertEquals(null, liked?.artworkVersion)
 
         val publicSurface = com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineLibraryItem::class.java
             .declaredFields.joinToString(" ") { it.name }.lowercase()
@@ -271,10 +282,16 @@ class PandaEngineNativeSnapshotMapperTest {
     @Test
     fun `history item payloads expose bounded service neutral rows`() {
         val item = PandaEngineNativeHistoryItemMapper.toDomain(
-            arrayOf("history-1", "track-1", "Played Track", "Artist", "Album", "art-1", "1234", "90000", "0.75", "1")
+            arrayOf(
+                "history-1", "track-1", "Played Track", "Artist", "Album", "art-1",
+                "1234", "90000", "0.75", "1", "art-id-1", "hash-1"
+            )
         )
         val unavailable = PandaEngineNativeHistoryItemMapper.toDomain(
-            arrayOf("history-2", "", "Unavailable track", "", "", "", "", "1000", "1", "0")
+            arrayOf(
+                "history-2", "", "Unavailable track", "", "", "",
+                "", "1000", "1", "0", "", ""
+            )
         )
 
         assertEquals("history-1", item?.historyId)
@@ -283,6 +300,8 @@ class PandaEngineNativeSnapshotMapperTest {
         assertEquals("Artist", item?.artist)
         assertEquals("Album", item?.album)
         assertEquals("art-1", item?.artworkUri)
+        assertEquals("art-id-1", item?.artworkId)
+        assertEquals("hash-1", item?.artworkVersion)
         assertEquals(1_234L, item?.playedAtEpochMillis)
         assertEquals(90_000L, item?.listenedDurationMillis)
         assertEquals(0.75F, item?.completionRatio)
@@ -293,8 +312,10 @@ class PandaEngineNativeSnapshotMapperTest {
         val packedPage = PandaEngineNativeHistoryItemMapper.toPage(
             arrayOf(
                 "4",
-                "history-1", "track-1", "Played Track", "Artist", "Album", "art-1", "1234", "90000", "0.75", "1",
-                "history-2", "", "Unavailable track", "", "", "", "", "1000", "1", "0"
+                "history-1", "track-1", "Played Track", "Artist", "Album", "art-1",
+                "1234", "90000", "0.75", "1", "art-id-1", "hash-1",
+                "history-2", "", "Unavailable track", "", "", "",
+                "", "1000", "1", "0", "", ""
             ),
             requestedGeneration = 4L
         )
@@ -328,7 +349,7 @@ class PandaEngineNativeSnapshotMapperTest {
     @Test
     fun `catalog item payloads map optional fields and item type atomically`() {
         val item = PandaEngineNativeCatalogItemMapper.toDomain(
-            arrayOf("track-1", "Catalog Track", "Artist", "", "", "canopy://track-1", "", "2")
+            arrayOf("track-1", "Catalog Track", "Artist", "", "", "canopy://track-1", "", "2", "", "")
         )
 
         assertEquals("track-1", item?.mediaId)
@@ -336,17 +357,22 @@ class PandaEngineNativeSnapshotMapperTest {
         assertEquals("Artist", item?.artist)
         assertEquals(null, item?.album)
         assertEquals(null, item?.artworkUri)
+        assertEquals(null, item?.artworkId)
+        assertEquals(null, item?.artworkVersion)
         assertEquals("canopy://track-1", item?.sourceUri)
         assertEquals(EngineCatalogItem.TYPE_ALBUM, item?.itemType)
 
         val page = PandaEngineNativeCatalogItemMapper.toPage(
             arrayOf(
-                "track-1", "Catalog Track", "Artist", "", "", "canopy://track-1", "", "2",
-                "track-2", "Second", "Other", "Album", "art", "canopy://track-2", "audio/mpeg", "0"
+                "track-1", "Catalog Track", "Artist", "", "", "canopy://track-1", "", "2", "", "",
+                "track-2", "Second", "Other", "Album", "art", "canopy://track-2", "audio/mpeg", "0",
+                "art-id-2", "hash-2"
             )
         )
         assertEquals(listOf("track-1", "track-2"), page.map { it.mediaId })
         assertEquals(EngineCatalogItem.TYPE_TRACK, page[1].itemType)
+        assertEquals("art-id-2", page[1].artworkId)
+        assertEquals("hash-2", page[1].artworkVersion)
         assertEquals(emptyList<EngineCatalogItem>(), PandaEngineNativeCatalogItemMapper.toPage(arrayOf("track-1")))
         assertEquals(emptyList<EngineCatalogItem>(), PandaEngineNativeCatalogItemMapper.toPage(null))
     }
@@ -355,8 +381,10 @@ class PandaEngineNativeSnapshotMapperTest {
     fun `library item pages unpack repeating field groups`() {
         val page = PandaEngineNativeLibraryItemMapper.toPage(
             arrayOf(
-                "rel-1", "track-1", "Saved", "artist-1", "Artist", "Album", "180000", "1", "art-1", "10",
-                "rel-2", "track-2", "Liked", "artist-2", "Other", "", "90000", "0", "", "20"
+                "rel-1", "track-1", "Saved", "artist-1", "Artist", "Album", "180000", "1",
+                "art-1", "10", "art-id-1", "hash-1",
+                "rel-2", "track-2", "Liked", "artist-2", "Other", "", "90000", "0",
+                "", "20", "", ""
             )
         )
         assertEquals(listOf("rel-1", "rel-2"), page.map { it.relationshipId })
@@ -364,6 +392,9 @@ class PandaEngineNativeSnapshotMapperTest {
         assertEquals(null, page[1].album)
         assertTrue(page[0].explicit)
         assertFalse(page[1].explicit)
+        assertEquals("art-1", page[0].artworkUri)
+        assertEquals("art-id-1", page[0].artworkId)
+        assertEquals("hash-1", page[0].artworkVersion)
         assertEquals(emptyList<EngineLibraryItem>(), PandaEngineNativeLibraryItemMapper.toPage(arrayOf("rel-1")))
     }
 

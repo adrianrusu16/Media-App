@@ -63,6 +63,7 @@ import com.adrianrusu.pandawave.core.designsystem.tokens.waveformHeight
 import com.adrianrusu.pandawave.core.designsystem.tokens.xl
 import com.adrianrusu.pandawave.core.designsystem.tokens.xs
 import com.adrianrusu.pandawave.core.ui.R
+import com.adrianrusu.pandawave.core.ui.artwork.BambooArtwork
 import com.adrianrusu.pandawave.core.ui.focus.BambooFocusableLazyRow
 import com.adrianrusu.pandawave.core.ui.focus.bambooBringIntoViewOnFocus
 import com.adrianrusu.pandawave.core.ui.focus.bambooFocusIndicator
@@ -99,7 +100,6 @@ fun BambooSectionHeader(title: String, modifier: Modifier = Modifier, subtitle: 
 @Composable
 fun BambooMediaHeroCard(
     item: BambooMediaItem,
-    icon: ImageVector,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     accentColor: Color = Color.Unspecified
@@ -132,9 +132,10 @@ fun BambooMediaHeroCard(
                 .padding(tokens.spacing.lg),
             verticalArrangement = Arrangement.spacedBy(tokens.spacing.lg)
         ) {
-            BambooArtworkPlate(
-                icon = icon,
-                accentColor = resolvedAccent,
+            BambooArtwork(
+                artwork = item.artwork,
+                fallback = item.artworkFallback,
+                contentDescription = null,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(tokens.components.mediaTileHeroArtworkHeight)
@@ -172,7 +173,6 @@ fun BambooMediaHeroCard(
 @Composable
 fun BambooMediaTile(
     item: BambooMediaItem,
-    icon: ImageVector,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     accentColor: Color = Color.Unspecified
@@ -203,9 +203,10 @@ fun BambooMediaTile(
             modifier = Modifier.padding(tokens.spacing.md),
             verticalArrangement = Arrangement.spacedBy(tokens.spacing.md)
         ) {
-            BambooArtworkPlate(
-                icon = icon,
-                accentColor = resolvedAccent,
+            BambooArtwork(
+                artwork = item.artwork,
+                fallback = item.artworkFallback,
+                contentDescription = null,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(tokens.components.mediaTileCompactArtworkHeight)
@@ -221,7 +222,6 @@ fun BambooMediaTile(
 @Composable
 fun BambooMediaListRow(
     item: BambooMediaItem,
-    icon: ImageVector,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     accentColor: Color = Color.Unspecified
@@ -250,9 +250,10 @@ fun BambooMediaListRow(
             horizontalArrangement = Arrangement.spacedBy(tokens.spacing.md),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            BambooArtworkPlate(
-                icon = icon,
-                accentColor = resolvedAccent,
+            BambooArtwork(
+                artwork = item.artwork,
+                fallback = item.artworkFallback,
+                contentDescription = null,
                 modifier = Modifier.size(tokens.components.mediaRowArtworkSize)
             )
             BambooMediaCopy(
@@ -433,29 +434,6 @@ fun BambooWaveform(modifier: Modifier = Modifier, active: Boolean = true) {
                     .height(tokens.components.waveformHeight * fraction)
                     .clip(CircleShape)
                     .background(color)
-            )
-        }
-    }
-}
-
-@Composable
-private fun BambooArtworkPlate(icon: ImageVector, accentColor: Color, modifier: Modifier = Modifier) {
-    val tokens = LocalPandaWaveDesignTokens.current
-
-    Surface(
-        modifier = modifier,
-        color = accentColor.copy(alpha = ENABLED_ACCENT_ALPHA),
-        contentColor = accentColor,
-        shape = MaterialTheme.shapes.small
-    ) {
-        Box(
-            modifier = Modifier.fillMaxWidth(),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                modifier = Modifier.size(tokens.sizing.touchTargetLg),
-                imageVector = icon,
-                contentDescription = null
             )
         }
     }

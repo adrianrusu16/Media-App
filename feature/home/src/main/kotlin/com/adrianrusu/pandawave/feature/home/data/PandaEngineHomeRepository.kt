@@ -165,7 +165,15 @@ class PandaEngineHomeRepository(private val engineGateway: EngineGateway, privat
         }
     }
 
-    private fun EngineCatalogItem.toHomeTrack() = HomeTrack(mediaId, title, artist.orEmpty(), album)
+    private fun EngineCatalogItem.toHomeTrack() = HomeTrack(
+        id = mediaId,
+        title = title,
+        artist = artist.orEmpty(),
+        album = album,
+        artworkId = artworkId,
+        artworkVersion = artworkVersion,
+        artworkUri = artworkUri
+    )
 
     private fun clearCaches() {
         forYouCache.clear()
@@ -218,7 +226,13 @@ private class ProjectionCache<T>(private val section: String) {
             }
         }
         PandaLog.i(PandaLog.Tag.HOME) {
+            val withArtwork = page.count {
+                !it.artworkId.isNullOrBlank() &&
+                    !it.artworkVersion.isNullOrBlank() &&
+                    !it.artworkUri.isNullOrBlank()
+            }
             "feed.page_read section=$section offset=0 limit=$count count=${page.size} " +
+                "artwork=$withArtwork/${page.size} " +
                 "titles=${PandaLog.titles(page.map(EngineCatalogItem::title))} force=$force"
         }
         items = page.map(mapper)

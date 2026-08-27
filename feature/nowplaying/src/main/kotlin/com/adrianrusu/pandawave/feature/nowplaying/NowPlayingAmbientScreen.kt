@@ -11,35 +11,31 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.style.TextOverflow
-import coil3.compose.AsyncImage
-import com.adrianrusu.pandawave.core.designsystem.R as DesignSystemR
 import com.adrianrusu.pandawave.core.designsystem.tokens.LocalPandaWaveDesignTokens
 import com.adrianrusu.pandawave.core.designsystem.tokens.ambientArtworkMaxSize
 import com.adrianrusu.pandawave.core.designsystem.tokens.ambientArtworkMinSize
 import com.adrianrusu.pandawave.core.designsystem.tokens.ambientVisualizerHeight
-import com.adrianrusu.pandawave.core.designsystem.tokens.lg
 import com.adrianrusu.pandawave.core.designsystem.tokens.md
 import com.adrianrusu.pandawave.core.designsystem.tokens.xl
+import com.adrianrusu.pandawave.core.ui.artwork.BambooArtwork
+import com.adrianrusu.pandawave.core.ui.artwork.BambooArtworkFallback
+import com.adrianrusu.pandawave.core.ui.artwork.BambooArtworkModel
 import com.adrianrusu.pandawave.core.ui.audio.visualizer.BambooAmbientVisualizer
 
 @Composable
 fun NowPlayingAmbientScreen(
     modifier: Modifier = Modifier,
     amplitudes: FloatArray,
-    artworkUri: String?,
+    artwork: BambooArtworkModel?,
     title: String,
     artist: String,
     onShowPlaybackControls: () -> Unit
@@ -73,16 +69,11 @@ fun NowPlayingAmbientScreen(
             horizontalArrangement = Arrangement.spacedBy(tokens.spacing.xl),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            AsyncImage(
-                model = artworkUri,
+            BambooArtwork(
+                artwork = artwork,
+                fallback = BambooArtworkFallback.Track,
                 contentDescription = null,
-                placeholder = painterResource(DesignSystemR.drawable.pandawave_ic_logo),
-                error = painterResource(DesignSystemR.drawable.pandawave_ic_logo),
-                fallback = painterResource(DesignSystemR.drawable.pandawave_ic_logo),
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(artworkSize)
-                    .clip(RoundedCornerShape(tokens.spacing.lg))
+                modifier = Modifier.size(artworkSize)
             )
             Column(
                 modifier = Modifier.weight(1f),

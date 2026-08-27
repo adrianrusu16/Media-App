@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -28,6 +29,10 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.adrianrusu.pandawave.core.designsystem.tokens.mediaRowArtworkSize
+import com.adrianrusu.pandawave.core.ui.artwork.BambooArtwork
+import com.adrianrusu.pandawave.core.ui.artwork.BambooArtworkFallback
+import com.adrianrusu.pandawave.core.ui.artwork.toBambooArtworkModel
 import com.adrianrusu.pandawave.core.designsystem.tokens.LocalPandaWaveDesignTokens
 import com.adrianrusu.pandawave.core.designsystem.tokens.cardResting
 import com.adrianrusu.pandawave.core.designsystem.tokens.md
@@ -501,6 +506,16 @@ private fun PlaylistTrackRow(
             horizontalArrangement = Arrangement.spacedBy(tokens.spacing.sm),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            BambooArtwork(
+                artwork = toBambooArtworkModel(
+                    id = track.artworkId,
+                    version = track.artworkVersion,
+                    uri = track.artworkUri
+                ),
+                fallback = BambooArtworkFallback.Track,
+                contentDescription = null,
+                modifier = Modifier.size(tokens.components.mediaRowArtworkSize)
+            )
             Text(track.title, modifier = Modifier.weight(1f), style = tokens.typography.sectionTitle)
             OutlinedButton(
                 onClick = { onRemovePlaylistTrack(playlist.id, track.mediaId) },
@@ -576,40 +591,56 @@ private fun LibraryTrackRow(
         tonalElevation = tokens.elevation.cardResting,
         shape = MaterialTheme.shapes.small
     ) {
-        Column(
+        Row(
             modifier = Modifier.padding(tokens.spacing.md),
-            verticalArrangement = Arrangement.spacedBy(tokens.spacing.sm)
+            horizontalArrangement = Arrangement.spacedBy(tokens.spacing.md),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(track.title, style = tokens.typography.sectionTitle)
-            Text(
-                listOfNotNull(track.artist, track.album).joinToString(" · "),
-                style = tokens.typography.body
+            BambooArtwork(
+                artwork = toBambooArtworkModel(
+                    id = track.artworkId,
+                    version = track.artworkVersion,
+                    uri = track.artworkUri
+                ),
+                fallback = BambooArtworkFallback.Track,
+                contentDescription = null,
+                modifier = Modifier.size(tokens.components.mediaRowArtworkSize)
             )
-            if (pending) {
-                Text(
-                    stringResource(R.string.pandawave_library_pending),
-                    modifier = Modifier.testTag("library-pending-${track.mediaId}"),
-                    color = Color(tokens.colors.primary)
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(tokens.spacing.sm)
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(tokens.spacing.sm)
             ) {
-                if (tab == LibraryTab.SAVED) {
-                    OutlinedButton(
-                        onClick = { onRemoveSaved(track.mediaId) },
-                        enabled = !pending,
-                        modifier = Modifier.weight(1f).testTag("library-remove-${track.mediaId}")
-                    ) { Text(stringResource(R.string.pandawave_library_remove_saved)) }
-                    LibraryLikeButton(track.mediaId, liked, pending, onLike, onUnlike, Modifier.weight(1f))
-                } else {
-                    OutlinedButton(
-                        onClick = { onUnlike(track.mediaId) },
-                        enabled = !pending,
-                        modifier = Modifier.weight(1f).testTag("library-unlike-${track.mediaId}")
-                    ) { Text(stringResource(R.string.pandawave_library_unlike)) }
-                    LibrarySaveButton(track.mediaId, saved, pending, onSave, onRemoveSaved, Modifier.weight(1f))
+                Text(track.title, style = tokens.typography.sectionTitle)
+                Text(
+                    listOfNotNull(track.artist, track.album).joinToString(" · "),
+                    style = tokens.typography.body
+                )
+                if (pending) {
+                    Text(
+                        stringResource(R.string.pandawave_library_pending),
+                        modifier = Modifier.testTag("library-pending-${track.mediaId}"),
+                        color = Color(tokens.colors.primary)
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(tokens.spacing.sm)
+                ) {
+                    if (tab == LibraryTab.SAVED) {
+                        OutlinedButton(
+                            onClick = { onRemoveSaved(track.mediaId) },
+                            enabled = !pending,
+                            modifier = Modifier.weight(1f).testTag("library-remove-${track.mediaId}")
+                        ) { Text(stringResource(R.string.pandawave_library_remove_saved)) }
+                        LibraryLikeButton(track.mediaId, liked, pending, onLike, onUnlike, Modifier.weight(1f))
+                    } else {
+                        OutlinedButton(
+                            onClick = { onUnlike(track.mediaId) },
+                            enabled = !pending,
+                            modifier = Modifier.weight(1f).testTag("library-unlike-${track.mediaId}")
+                        ) { Text(stringResource(R.string.pandawave_library_unlike)) }
+                        LibrarySaveButton(track.mediaId, saved, pending, onSave, onRemoveSaved, Modifier.weight(1f))
+                    }
                 }
             }
         }
@@ -634,15 +665,31 @@ private fun LibraryHistoryRow(entry: LibraryHistoryEntry, onPlay: (String) -> Un
         tonalElevation = tokens.elevation.cardResting,
         shape = MaterialTheme.shapes.small
     ) {
-        Column(
+        Row(
             modifier = Modifier.padding(tokens.spacing.md),
-            verticalArrangement = Arrangement.spacedBy(tokens.spacing.sm)
+            horizontalArrangement = Arrangement.spacedBy(tokens.spacing.md),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(entry.title, style = tokens.typography.sectionTitle)
-            Text(
-                listOfNotNull(entry.artist, entry.album).joinToString(" · "),
-                style = tokens.typography.body
+            BambooArtwork(
+                artwork = toBambooArtworkModel(
+                    id = entry.artworkId,
+                    version = entry.artworkVersion,
+                    uri = entry.artworkUri
+                ),
+                fallback = BambooArtworkFallback.Track,
+                contentDescription = null,
+                modifier = Modifier.size(tokens.components.mediaRowArtworkSize)
             )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(tokens.spacing.sm)
+            ) {
+                Text(entry.title, style = tokens.typography.sectionTitle)
+                Text(
+                    listOfNotNull(entry.artist, entry.album).joinToString(" · "),
+                    style = tokens.typography.body
+                )
+            }
         }
     }
 }

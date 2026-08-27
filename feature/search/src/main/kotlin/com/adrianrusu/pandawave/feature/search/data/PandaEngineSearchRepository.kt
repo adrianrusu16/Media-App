@@ -133,7 +133,13 @@ class PandaEngineSearchRepository @Inject constructor(private val engineGateway:
             generation = generation
         )
         PandaLog.i(PandaLog.Tag.SEARCH) {
+            val withArtwork = results.count {
+                !it.artworkId.isNullOrBlank() &&
+                    !it.artworkVersion.isNullOrBlank() &&
+                    !it.artworkUri.isNullOrBlank()
+            }
             "search.shown generation=$generation count=${results.size}/$total " +
+                "artwork=$withArtwork/${results.size} " +
                 "titles=${PandaLog.titles(results.map(SearchTrack::title))} busy=${snapshot.isBusy}"
         }
     }
@@ -166,7 +172,10 @@ private fun EngineCatalogItem.toSearchTrack() = SearchTrack(
     mediaId = mediaId,
     title = title,
     artist = artist.orEmpty(),
-    album = album
+    album = album,
+    artworkId = artworkId,
+    artworkVersion = artworkVersion,
+    artworkUri = artworkUri
 )
 
 private const val SEARCH_PAGE_QUERY_SIZE = 50

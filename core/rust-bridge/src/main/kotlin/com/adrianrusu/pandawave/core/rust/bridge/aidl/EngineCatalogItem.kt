@@ -11,7 +11,9 @@ data class EngineCatalogItem(
     val artworkUri: String? = null,
     val sourceUri: String? = null,
     val mimeType: String? = null,
-    val itemType: Int = TYPE_TRACK
+    val itemType: Int = TYPE_TRACK,
+    val artworkId: String? = null,
+    val artworkVersion: String? = null
 ) : Parcelable {
     init {
         require(mediaId.isNotBlank()) {
@@ -33,7 +35,9 @@ data class EngineCatalogItem(
         artworkUri = parcel.readString(),
         sourceUri = parcel.readString(),
         mimeType = parcel.readString(),
-        itemType = parcel.readInt()
+        itemType = parcel.readInt(),
+        artworkId = parcel.readString(),
+        artworkVersion = parcel.readString()
     )
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
@@ -45,6 +49,8 @@ data class EngineCatalogItem(
         parcel.writeString(sourceUri)
         parcel.writeString(mimeType)
         parcel.writeInt(itemType)
+        parcel.writeString(artworkId)
+        parcel.writeString(artworkVersion)
     }
 
     override fun describeContents(): Int = 0

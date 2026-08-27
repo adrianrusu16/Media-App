@@ -220,13 +220,17 @@ struct PlaybackRecoveryState {
 }
 
 fn project_discovery_track(track: crate::EngineTrack) -> crate::MediaItem {
+    let (artwork_id, artwork_content_hash, thumbnail_url) =
+        crate::project_artwork_identity(track.artwork);
     crate::MediaItem {
         id: track.id,
         title: track.title,
         artist: track.artist.name,
         album: track.album.map(|album| album.title),
         duration_millis: Some(track.duration_millis),
-        thumbnail_url: track.artwork.and_then(|artwork| artwork.uri),
+        thumbnail_url,
+        artwork_id,
+        artwork_content_hash,
         ..Default::default()
     }
 }

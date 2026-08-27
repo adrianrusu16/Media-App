@@ -36,7 +36,7 @@ internal object PandaEngineNativeHistoryItemMapper {
                 title = values[offset + TITLE_INDEX],
                 artist = values[offset + ARTIST_INDEX].ifEmpty { null },
                 album = values[offset + ALBUM_INDEX].ifEmpty { null },
-                artworkUri = values[offset + ARTWORK_INDEX].ifEmpty { null },
+                artworkUri = values[offset + ARTWORK_URI_INDEX].ifEmpty { null },
                 playedAtEpochMillis = values[offset + PLAYED_AT_INDEX].takeIf(String::isNotEmpty)?.toLong(),
                 listenedDurationMillis = values[offset + DURATION_INDEX].toLong(),
                 completionRatio = values[offset + COMPLETION_INDEX].toFloat(),
@@ -44,7 +44,9 @@ internal object PandaEngineNativeHistoryItemMapper {
                     "1" -> true
                     "0" -> false
                     else -> error("invalid playable flag")
-                }
+                },
+                artworkId = values[offset + ARTWORK_ID_INDEX].ifEmpty { null },
+                artworkVersion = values[offset + ARTWORK_VERSION_INDEX].ifEmpty { null }
             )
         }.getOrNull()
     }
@@ -55,10 +57,12 @@ internal object PandaEngineNativeHistoryItemMapper {
     private const val TITLE_INDEX = 2
     private const val ARTIST_INDEX = 3
     private const val ALBUM_INDEX = 4
-    private const val ARTWORK_INDEX = 5
+    private const val ARTWORK_URI_INDEX = 5
     private const val PLAYED_AT_INDEX = 6
     private const val DURATION_INDEX = 7
     private const val COMPLETION_INDEX = 8
     private const val PLAYABLE_INDEX = 9
-    private const val VALUE_COUNT = 10
+    private const val ARTWORK_ID_INDEX = 10
+    private const val ARTWORK_VERSION_INDEX = 11
+    private const val VALUE_COUNT = 12
 }

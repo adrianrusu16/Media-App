@@ -13,7 +13,9 @@ data class EngineHistoryItem(
     val playedAtEpochMillis: Long?,
     val listenedDurationMillis: Long,
     val completionRatio: Float,
-    val playable: Boolean
+    val playable: Boolean,
+    val artworkId: String? = null,
+    val artworkVersion: String? = null
 ) : Parcelable {
     init {
         require(historyId.isNotBlank()) { "Engine history item historyId must not be blank." }
@@ -31,7 +33,9 @@ data class EngineHistoryItem(
         playedAtEpochMillis = parcel.readNullableLong(),
         listenedDurationMillis = parcel.readLong(),
         completionRatio = parcel.readFloat(),
-        playable = parcel.readBooleanValue()
+        playable = parcel.readBooleanValue(),
+        artworkId = parcel.readString(),
+        artworkVersion = parcel.readString()
     )
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
@@ -45,6 +49,8 @@ data class EngineHistoryItem(
         parcel.writeLong(listenedDurationMillis)
         parcel.writeFloat(completionRatio)
         parcel.writeBooleanValue(playable)
+        parcel.writeString(artworkId)
+        parcel.writeString(artworkVersion)
     }
 
     override fun describeContents(): Int = 0

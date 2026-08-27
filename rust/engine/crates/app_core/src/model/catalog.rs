@@ -52,3 +52,19 @@ pub fn canopy_artwork_http_uri(media_origin: &Url, id: &str, content_hash: &str)
         .ok()
         .map(|url| url.to_string())
 }
+
+/// Projects [`EngineArtwork`] into `(artwork_id, artwork_content_hash, thumbnail_url)`.
+///
+/// Empty id/hash strings become `None`. Absent artwork yields all `None`.
+pub fn project_artwork_identity(
+    artwork: Option<EngineArtwork>,
+) -> (Option<String>, Option<String>, Option<String>) {
+    match artwork {
+        Some(artwork) => (
+            Some(artwork.id).filter(|value| !value.is_empty()),
+            Some(artwork.content_hash).filter(|value| !value.is_empty()),
+            artwork.uri,
+        ),
+        None => (None, None, None),
+    }
+}

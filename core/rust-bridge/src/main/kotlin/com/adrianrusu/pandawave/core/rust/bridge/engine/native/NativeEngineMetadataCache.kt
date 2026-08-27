@@ -43,7 +43,9 @@ internal data class NativeEngineMetadata(
     val artworkUri: String?,
     val sourceUri: String?,
     val mimeType: String?,
-    val userId: String?
+    val userId: String?,
+    val artworkId: String? = null,
+    val artworkVersion: String? = null
 ) {
     companion object {
         fun empty(): NativeEngineMetadata = NativeEngineMetadata(
@@ -54,7 +56,9 @@ internal data class NativeEngineMetadata(
             artworkUri = null,
             sourceUri = null,
             mimeType = null,
-            userId = null
+            userId = null,
+            artworkId = null,
+            artworkVersion = null
         )
     }
 }
@@ -79,5 +83,7 @@ private fun EngineSnapshot.withMetadata(metadata: NativeEngineMetadata): EngineS
     artworkUri = metadata.artworkUri,
     sourceUri = metadata.sourceUri,
     mimeType = metadata.mimeType,
-    userId = metadata.userId
+    userId = metadata.userId,
+    artworkId = metadata.artworkId,
+    artworkVersion = metadata.artworkVersion
 )

@@ -75,6 +75,7 @@ pub use crate::model::backend::{
 };
 pub use crate::model::catalog::{
     EngineAlbum, EngineArtist, EngineArtwork, EngineTrack, canopy_artwork_http_uri,
+    project_artwork_identity,
 };
 pub use crate::model::command::{EngineCommand, EngineCommandType};
 pub use crate::model::discovery::{DiscoveryFeed, DiscoveryPort, EngineDiscoveryIdentity};

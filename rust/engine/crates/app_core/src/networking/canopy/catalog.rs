@@ -18,6 +18,7 @@ use super::sdk::resources::{
     SearchRequest, SearchResponse, Track, TrackSummary,
 };
 use super::session::SessionCoordinator;
+use tracing::warn;
 
 /// Canonical unary Canopy catalog adapter.
 #[derive(Clone)]
@@ -217,11 +218,26 @@ pub(super) fn map_artwork_ref(
     artwork: ArtworkRef,
     media_origin: Option<&Url>,
 ) -> Option<EngineArtwork> {
-    if artwork.id.is_empty() {
+    let has_id = !artwork.id.is_empty();
+    let has_hash = !artwork.content_hash.is_empty();
+    if !has_id || !has_hash {
+        warn!(
+            has_id,
+            has_hash,
+            artwork_id = artwork.id.as_str(),
+            "engine.artwork.dropped reason=incomplete_ref"
+        );
         return None;
     }
     let uri = media_origin
         .and_then(|origin| canopy_artwork_http_uri(origin, &artwork.id, &artwork.content_hash));
+    if uri.is_none() {
+        warn!(
+            artwork_id = artwork.id.as_str(),
+            has_media_origin = media_origin.is_some(),
+            "engine.artwork.uri_missing reason=no_media_origin_or_join_failed"
+        );
+    }
     Some(EngineArtwork {
         id: artwork.id,
         content_hash: artwork.content_hash,
@@ -361,7 +377,7 @@ mod tests {
     }
 
     #[test]
-    fn does_not_build_uri_when_content_hash_missing() {
+    fn drops_artwork_when_content_hash_missing() {
         let mut summary = track_summary_fixture();
         summary.artwork = Some(ArtworkRef {
             id: "art-1".into(),
@@ -370,10 +386,7 @@ mod tests {
         let origin = Url::parse("http://10.0.2.2:8080/").unwrap();
 
         let mapped = map_track_summary(summary, Vec::new(), Some(&origin)).unwrap();
-        let artwork = mapped.artwork.unwrap();
 
-        assert_eq!(artwork.id, "art-1");
-        assert!(artwork.content_hash.is_empty());
-        assert_eq!(artwork.uri, None);
+        assert!(mapped.artwork.is_none());
     }
 }

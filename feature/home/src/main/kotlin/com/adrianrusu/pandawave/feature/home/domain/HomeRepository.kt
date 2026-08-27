@@ -17,4 +17,12 @@ data class HomeState(
     val isLoading: Boolean = false
 )
 
-data class HomeTrack(val id: String, val title: String, val artist: String, val album: String?)
+data class HomeTrack(
+    val id: String,
+    val title: String,
+    val artist: String,
+    val album: String?,
+    val artworkId: String? = null,
+    val artworkVersion: String? = null,
+    val artworkUri: String? = null
+)

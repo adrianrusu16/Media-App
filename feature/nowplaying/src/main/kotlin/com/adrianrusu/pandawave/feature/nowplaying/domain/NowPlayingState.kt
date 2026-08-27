@@ -11,6 +11,8 @@ import com.adrianrusu.pandawave.core.playback.BambooPlaybackProgressProjector
 data class NowPlayingState(
     val mediaId: String? = null,
     val artworkUri: String? = null,
+    val artworkId: String? = null,
+    val artworkVersion: String? = null,
     val title: String = "",
     val artist: String = "",
     val playbackState: NowPlayingPlaybackState = NowPlayingPlaybackState.Idle,

@@ -218,15 +218,17 @@ class PandaEngineLibraryRepository @Inject constructor(
                     pageAt = engineGateway::playlistTracksPage,
                     mapper = { item ->
                         LibraryTrack(
-                            item.membershipId,
-                            item.mediaId,
-                            item.title,
-                            item.artist,
-                            item.album,
-                            item.durationMillis,
-                            item.explicit,
-                            item.artworkId,
-                            item.addedAtEpochMillis
+                            relationshipId = item.membershipId,
+                            mediaId = item.mediaId,
+                            title = item.title,
+                            artist = item.artist,
+                            album = item.album,
+                            durationMillis = item.durationMillis,
+                            explicit = item.explicit,
+                            artworkId = item.artworkId,
+                            relationshipAtEpochMillis = item.addedAtEpochMillis,
+                            artworkUri = item.artworkUri,
+                            artworkVersion = item.artworkVersion
                         )
                     }
                 )
@@ -320,8 +322,14 @@ class PandaEngineLibraryRepository @Inject constructor(
                 else -> historyEntries
             }
             PandaLog.i(PandaLog.Tag.HISTORY) {
+                val withArtwork = historyEntries.count {
+                    !it.artworkId.isNullOrBlank() &&
+                        !it.artworkVersion.isNullOrBlank() &&
+                        !it.artworkUri.isNullOrBlank()
+                }
                 "received source=${command.type} generation=${snapshot.historyGeneration} " +
-                    "count=${historyEntries.size} titles=${PandaLog.titles(historyEntries.map { it.title })}"
+                    "count=${historyEntries.size} artwork=$withArtwork/${historyEntries.size} " +
+                    "titles=${PandaLog.titles(historyEntries.map { it.title })}"
             }
             return null
         }
@@ -336,8 +344,14 @@ class PandaEngineLibraryRepository @Inject constructor(
             }
             historyCacheKey = nextKey
             PandaLog.i(PandaLog.Tag.HISTORY) {
+                val withArtwork = historyEntries.count {
+                    !it.artworkId.isNullOrBlank() &&
+                        !it.artworkVersion.isNullOrBlank() &&
+                        !it.artworkUri.isNullOrBlank()
+                }
                 "received source=snapshot generation=${snapshot.historyGeneration} " +
-                    "count=${historyEntries.size} titles=${PandaLog.titles(historyEntries.map { it.title })}"
+                    "count=${historyEntries.size} artwork=$withArtwork/${historyEntries.size} " +
+                    "titles=${PandaLog.titles(historyEntries.map { it.title })}"
             }
             return null
         }
@@ -437,7 +451,9 @@ class PandaEngineLibraryRepository @Inject constructor(
         durationMillis = durationMillis,
         explicit = explicit,
         artworkId = artworkId,
-        relationshipAtEpochMillis = relationshipAtEpochMillis
+        relationshipAtEpochMillis = relationshipAtEpochMillis,
+        artworkUri = artworkUri,
+        artworkVersion = artworkVersion
     )
 
     private fun EngineHistoryItem.toLibraryHistoryEntry() = LibraryHistoryEntry(
@@ -450,7 +466,9 @@ class PandaEngineLibraryRepository @Inject constructor(
         playedAtEpochMillis = playedAtEpochMillis,
         listenedDurationMillis = listenedDurationMillis,
         completionRatio = completionRatio,
-        playable = playable
+        playable = playable,
+        artworkId = artworkId,
+        artworkVersion = artworkVersion
     )
 
     private data class LibraryIdentity(val accountId: String, val sessionId: String)

@@ -161,6 +161,8 @@ dependencies {
     implementation(libs.hilt.android)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.material)
+    implementation(libs.coil.compose)
+    implementation(libs.coil.network.okhttp)
     implementation(libs.androidx.profileinstaller)
     ksp(libs.hilt.compiler)
     testImplementation(platform(libs.junit.bom))

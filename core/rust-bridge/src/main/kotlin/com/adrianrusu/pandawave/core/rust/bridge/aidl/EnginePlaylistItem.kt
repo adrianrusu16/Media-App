@@ -52,9 +52,11 @@ data class EnginePlaylistTrackItem(
     val album: String?,
     val durationMillis: Long,
     val explicit: Boolean,
-    val artworkId: String?,
+    val artworkUri: String?,
     val position: Int,
-    val addedAtEpochMillis: Long
+    val addedAtEpochMillis: Long,
+    val artworkId: String? = null,
+    val artworkVersion: String? = null
 ) : Parcelable {
     constructor(parcel: Parcel) : this(
         membershipId = parcel.readString().orEmpty(),
@@ -66,9 +68,11 @@ data class EnginePlaylistTrackItem(
         album = parcel.readString(),
         durationMillis = parcel.readLong(),
         explicit = parcel.readInt() != 0,
-        artworkId = parcel.readString(),
+        artworkUri = parcel.readString(),
         position = parcel.readInt(),
-        addedAtEpochMillis = parcel.readLong()
+        addedAtEpochMillis = parcel.readLong(),
+        artworkId = parcel.readString(),
+        artworkVersion = parcel.readString()
     )
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
@@ -81,9 +85,11 @@ data class EnginePlaylistTrackItem(
         parcel.writeString(album)
         parcel.writeLong(durationMillis)
         parcel.writeInt(if (explicit) 1 else 0)
-        parcel.writeString(artworkId)
+        parcel.writeString(artworkUri)
         parcel.writeInt(position)
         parcel.writeLong(addedAtEpochMillis)
+        parcel.writeString(artworkId)
+        parcel.writeString(artworkVersion)
     }
 
     override fun describeContents(): Int = 0

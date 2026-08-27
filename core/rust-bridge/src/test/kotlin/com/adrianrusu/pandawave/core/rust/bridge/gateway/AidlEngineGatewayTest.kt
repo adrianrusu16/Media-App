@@ -115,6 +115,7 @@ class AidlEngineGatewayTest {
             album = "Album",
             durationMillis = 120_000,
             explicit = false,
+            artworkUri = null,
             artworkId = "artwork-1",
             position = 0,
             addedAtEpochMillis = 1_500
