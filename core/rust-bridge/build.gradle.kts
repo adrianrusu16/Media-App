@@ -1,6 +1,9 @@
 import com.adrianrusu.pandawave.buildlogic.BuildPandaEngineAndroidTask
 import com.adrianrusu.pandawave.buildlogic.PandaEngineCargoMutex
+import org.gradle.api.file.Directory
+import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.Sync
+import org.gradle.api.tasks.TaskProvider
 
 plugins {
     id("pandawave.android.library")
@@ -11,7 +14,10 @@ data class PandaEngineAndroidTarget(val abi: String, val rustTarget: String, val
 val pandaEngineAndroidApi = 33
 val pandaEngineLibraryName = "libpanda_engine_ffi.so"
 val pandaEngineAndroidNdkVersion = providers.gradleProperty("pandaEngine.androidNdkVersion").get()
-val pandaEngineGeneratedJniLibsDir = layout.buildDirectory.dir("generated/panda-engine/jniLibs")
+val pandaEngineGeneratedDebugJniLibsDir =
+    layout.buildDirectory.dir("generated/panda-engine/debug/jniLibs")
+val pandaEngineGeneratedReleaseJniLibsDir =
+    layout.buildDirectory.dir("generated/panda-engine/release/jniLibs")
 val cargoExecutableProvider = providers.environmentVariable("CARGO").orElse("cargo")
 val rustcExecutableProvider = providers.environmentVariable("RUSTC").orElse("rustc")
 val pandaEngineBuildNative =
@@ -46,6 +52,26 @@ val pandaEngineAndroidTargets =
                 linkerPrefix = "x86_64-linux-android"
             )
     )
+val pandaEngineTargetsByAbi = pandaEngineAndroidTargets.values.associateBy { it.abi }
+val pandaEngineTaskSuffixByAbi =
+    pandaEngineAndroidTargets.entries.associate { (suffix, target) -> target.abi to suffix }
+
+fun parseAbiList(propertyName: String, defaultValue: String): List<String> {
+    val raw = providers.gradleProperty(propertyName).orElse(defaultValue).get()
+    val abis = raw.split(',').map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+    require(abis.isNotEmpty()) { "$propertyName must list at least one ABI." }
+    abis.forEach { abi ->
+        require(pandaEngineTargetsByAbi.containsKey(abi)) {
+            "Unknown ABI '$abi' in $propertyName. Supported: " +
+                pandaEngineTargetsByAbi.keys.sorted().joinToString()
+        }
+    }
+    return abis
+}
+
+val pandaEngineDebugAbis = parseAbiList("pandaEngine.debugAbis", "x86_64")
+val pandaEngineReleaseAbis =
+    parseAbiList("pandaEngine.releaseAbis", "arm64-v8a,armeabi-v7a,x86,x86_64")
 
 android {
     ndkVersion = pandaEngineAndroidNdkVersion
@@ -56,8 +82,15 @@ android {
 
     if (pandaEngineBuildNative.get()) {
         sourceSets {
-            getByName("main") {
-                jniLibs.directories.add(pandaEngineGeneratedJniLibsDir.get().asFile.absolutePath)
+            getByName("debug") {
+                jniLibs.directories.add(
+                    pandaEngineGeneratedDebugJniLibsDir.get().asFile.absolutePath
+                )
+            }
+            getByName("release") {
+                jniLibs.directories.add(
+                    pandaEngineGeneratedReleaseJniLibsDir.get().asFile.absolutePath
+                )
             }
         }
     }
@@ -69,14 +102,31 @@ val pandaEngineCargoMutex =
         maxParallelUsages.set(1)
     }
 
-val buildPandaEngineAndroidTargetTasks =
-    pandaEngineAndroidTargets.map { (taskSuffix, target) ->
-        tasks.register<BuildPandaEngineAndroidTask>("buildPandaEngineAndroid$taskSuffix") {
+fun pandaEngineRustSources() =
+    fileTree(rootProject.layout.projectDirectory.dir("rust/engine")) {
+        include("Cargo.toml")
+        include("Cargo.lock")
+        include("crates/**")
+    }
+
+fun registerPandaEngineNativeBuildTasks(
+    variantLabel: String,
+    requestedCargoProfile: String,
+    abis: List<String>
+): List<TaskProvider<BuildPandaEngineAndroidTask>> =
+    abis.map { abi ->
+        val target = pandaEngineTargetsByAbi.getValue(abi)
+        val taskSuffix = pandaEngineTaskSuffixByAbi.getValue(abi)
+        tasks.register<BuildPandaEngineAndroidTask>(
+            "buildPandaEngineAndroid$variantLabel$taskSuffix"
+        ) {
             group = "build"
-            description = "Builds $pandaEngineLibraryName for ${target.abi}."
+            description =
+                "Builds $pandaEngineLibraryName for ${target.abi} using Cargo profile $requestedCargoProfile."
             usesService(pandaEngineCargoMutex)
             cargoExecutable.set(cargoExecutableProvider)
             rustcExecutable.set(rustcExecutableProvider)
+            cargoProfile.set(requestedCargoProfile)
             rustTarget.set(target.rustTarget)
             androidAbi.set(target.abi)
             androidNdkVersion.set(pandaEngineAndroidNdkVersion)
@@ -91,38 +141,44 @@ val buildPandaEngineAndroidTargetTasks =
             if (localProperties.asFile.isFile) {
                 localPropertiesFile.set(localProperties)
             }
-            rustSources.from(
-                fileTree(rootProject.layout.projectDirectory.dir("rust/engine")) {
-                    include("Cargo.toml")
-                    include("Cargo.lock")
-                    include("crates/**")
-                }
-            )
+            rustSources.from(pandaEngineRustSources())
             outputLibrary.set(
                 rootProject.layout.projectDirectory.file(
-                    "rust/engine/target/${target.rustTarget}/release/$pandaEngineLibraryName"
+                    "rust/engine/target/${target.rustTarget}/$requestedCargoProfile/$pandaEngineLibraryName"
                 )
             )
         }
     }
 
+val buildPandaEngineAndroidDebugTargetTasks =
+    registerPandaEngineNativeBuildTasks("Debug", "android-dev", pandaEngineDebugAbis)
+val buildPandaEngineAndroidReleaseTargetTasks =
+    registerPandaEngineNativeBuildTasks("Release", "release", pandaEngineReleaseAbis)
+
 tasks.register("buildPandaEngineAndroid") {
     group = "build"
-    description = "Builds PandaEngine native libraries for all supported Android ABIs."
-    dependsOn(buildPandaEngineAndroidTargetTasks)
+    description = "Builds PandaEngine native libraries for all configured release Android ABIs."
+    dependsOn(buildPandaEngineAndroidReleaseTargetTasks)
 }
 
-val syncPandaEngineAndroidJniLibs =
-    tasks.register<Sync>("syncPandaEngineAndroidJniLibs") {
+fun registerPandaEngineJniSync(
+    taskName: String,
+    taskDescription: String,
+    nativeTasks: List<TaskProvider<BuildPandaEngineAndroidTask>>,
+    abis: List<String>,
+    requestedCargoProfile: String,
+    destination: Provider<Directory>
+): TaskProvider<Sync> =
+    tasks.register<Sync>(taskName) {
         group = "build"
-        description = "Copies built PandaEngine native libraries into generated Android jniLibs."
-        dependsOn(buildPandaEngineAndroidTargetTasks)
-        into(pandaEngineGeneratedJniLibsDir)
-
-        pandaEngineAndroidTargets.values.forEach { target ->
+        description = taskDescription
+        dependsOn(nativeTasks)
+        into(destination)
+        abis.forEach { abi ->
+            val target = pandaEngineTargetsByAbi.getValue(abi)
             from(
                 rootProject.layout.projectDirectory.file(
-                    "rust/engine/target/${target.rustTarget}/release/$pandaEngineLibraryName"
+                    "rust/engine/target/${target.rustTarget}/$requestedCargoProfile/$pandaEngineLibraryName"
                 )
             ) {
                 into(target.abi)
@@ -130,9 +186,34 @@ val syncPandaEngineAndroidJniLibs =
         }
     }
 
+val syncPandaEngineDebugJniLibs =
+    registerPandaEngineJniSync(
+        taskName = "syncPandaEngineDebugJniLibs",
+        taskDescription =
+            "Copies debug PandaEngine native libraries into generated Android jniLibs.",
+        nativeTasks = buildPandaEngineAndroidDebugTargetTasks,
+        abis = pandaEngineDebugAbis,
+        requestedCargoProfile = "android-dev",
+        destination = pandaEngineGeneratedDebugJniLibsDir
+    )
+
+val syncPandaEngineReleaseJniLibs =
+    registerPandaEngineJniSync(
+        taskName = "syncPandaEngineReleaseJniLibs",
+        taskDescription =
+            "Copies release PandaEngine native libraries into generated Android jniLibs.",
+        nativeTasks = buildPandaEngineAndroidReleaseTargetTasks,
+        abis = pandaEngineReleaseAbis,
+        requestedCargoProfile = "release",
+        destination = pandaEngineGeneratedReleaseJniLibsDir
+    )
+
 if (pandaEngineBuildNative.get()) {
-    tasks.named("preBuild") {
-        dependsOn(syncPandaEngineAndroidJniLibs)
+    tasks.matching { it.name == "preDebugBuild" }.configureEach {
+        dependsOn(syncPandaEngineDebugJniLibs)
+    }
+    tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+        dependsOn(syncPandaEngineReleaseJniLibs)
     }
 }
 
