@@ -30,6 +30,9 @@ abstract class BuildPandaEngineAndroidTask extends DefaultTask {
     abstract Property<String> getRustcExecutable()
 
     @Input
+    abstract Property<String> getCargoProfile()
+
+    @Input
     abstract Property<String> getRustTarget()
 
     @Input
@@ -80,6 +83,7 @@ abstract class BuildPandaEngineAndroidTask extends DefaultTask {
     @Inject
     BuildPandaEngineAndroidTask(ExecOperations execOperations) {
         this.execOperations = execOperations
+        cargoProfile.convention("release")
     }
 
     @TaskAction
@@ -118,7 +122,8 @@ abstract class BuildPandaEngineAndroidTask extends DefaultTask {
                 "build",
                 "-p",
                 "panda_engine_ffi",
-                "--release",
+                "--profile",
+                cargoProfile.get(),
                 "--target",
                 rustTarget.get()
             )
