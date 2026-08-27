@@ -74,10 +74,16 @@ val pandaEngineReleaseAbis =
     parseAbiList("pandaEngine.releaseAbis", "arm64-v8a,armeabi-v7a,x86,x86_64")
 
 android {
-    ndkVersion = pandaEngineAndroidNdkVersion
+    if (pandaEngineBuildNative.get()) {
+        ndkVersion = pandaEngineAndroidNdkVersion
+    }
 
     defaultConfig {
         consumerProguardFiles("consumer-rules.pro")
+    }
+
+    buildFeatures {
+        aidl = true
     }
 
     if (pandaEngineBuildNative.get()) {
@@ -166,7 +172,6 @@ fun registerPandaEngineJniSync(
     taskDescription: String,
     nativeTasks: List<TaskProvider<BuildPandaEngineAndroidTask>>,
     abis: List<String>,
-    requestedCargoProfile: String,
     destination: Provider<Directory>
 ): TaskProvider<Sync> =
     tasks.register<Sync>(taskName) {
@@ -174,14 +179,9 @@ fun registerPandaEngineJniSync(
         description = taskDescription
         dependsOn(nativeTasks)
         into(destination)
-        abis.forEach { abi ->
-            val target = pandaEngineTargetsByAbi.getValue(abi)
-            from(
-                rootProject.layout.projectDirectory.file(
-                    "rust/engine/target/${target.rustTarget}/$requestedCargoProfile/$pandaEngineLibraryName"
-                )
-            ) {
-                into(target.abi)
+        nativeTasks.forEachIndexed { index, nativeTask ->
+            from(nativeTask.flatMap { it.outputLibrary }) {
+                into(abis[index])
             }
         }
     }
@@ -193,7 +193,6 @@ val syncPandaEngineDebugJniLibs =
             "Copies debug PandaEngine native libraries into generated Android jniLibs.",
         nativeTasks = buildPandaEngineAndroidDebugTargetTasks,
         abis = pandaEngineDebugAbis,
-        requestedCargoProfile = "android-dev",
         destination = pandaEngineGeneratedDebugJniLibsDir
     )
 
@@ -204,7 +203,6 @@ val syncPandaEngineReleaseJniLibs =
             "Copies release PandaEngine native libraries into generated Android jniLibs.",
         nativeTasks = buildPandaEngineAndroidReleaseTargetTasks,
         abis = pandaEngineReleaseAbis,
-        requestedCargoProfile = "release",
         destination = pandaEngineGeneratedReleaseJniLibsDir
     )
 
