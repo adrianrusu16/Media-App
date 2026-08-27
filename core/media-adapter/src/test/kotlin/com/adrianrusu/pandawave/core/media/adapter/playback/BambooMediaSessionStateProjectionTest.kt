@@ -17,13 +17,14 @@ class BambooMediaSessionStateProjectionTest {
     @Test
     fun `playing state maps to playable media item`() {
         val parsedUris = mutableListOf<String>()
+        val parsedArtwork = mutableListOf<String>()
         val projection = BambooPlaybackState(
             mediaId = "track-1",
             title = "Bamboo Drive",
             artist = "PandaWave",
             album = "Canopy Sessions",
             durationMillis = 222_000L,
-            artworkUri = "content://pandawave/art/track-1",
+            artworkUri = "https://cdn.pandawave.test/artwork/art-1/hash-1",
             sourceUri = "https://cdn.pandawave.test/audio/track-1.mp3",
             mimeType = "audio/mpeg",
             playbackStatus = BambooPlaybackStatus.Playing,
@@ -31,6 +32,10 @@ class BambooMediaSessionStateProjectionTest {
         ).toMediaSessionStateProjection(
             uriParser = BambooUriParser { value ->
                 parsedUris += value
+                null
+            },
+            artworkUris = MediaHostArtworkUriProjector("com.adrianrusu.pandawave") { value ->
+                parsedArtwork += value
                 null
             }
         )
@@ -40,12 +45,11 @@ class BambooMediaSessionStateProjectionTest {
         assertEquals("PandaWave", projection.mediaItem.mediaMetadata.artist)
         assertEquals("Canopy Sessions", projection.mediaItem.mediaMetadata.albumTitle)
         assertEquals(222_000L, projection.mediaItem.mediaMetadata.durationMs)
+        assertEquals(listOf("https://cdn.pandawave.test/audio/track-1.mp3"), parsedUris)
+        assertEquals(1, parsedArtwork.size)
         assertEquals(
-            listOf(
-                "https://cdn.pandawave.test/audio/track-1.mp3",
-                "content://pandawave/art/track-1"
-            ),
-            parsedUris
+            "https://cdn.pandawave.test/artwork/art-1/hash-1",
+            PandaWaveArtworkContract.remoteSourceString(parsedArtwork.single())
         )
         assertEquals(false, projection.mediaItem.mediaMetadata.isBrowsable)
         assertEquals(true, projection.mediaItem.mediaMetadata.isPlayable)

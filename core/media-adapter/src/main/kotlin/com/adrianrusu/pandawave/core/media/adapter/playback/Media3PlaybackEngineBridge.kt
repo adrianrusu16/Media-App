@@ -219,6 +219,9 @@ class Media3PlaybackEngineBridge(
             scheduleNextCheckpoint()
         } else {
             val snapshot = playerSnapshotProvider()
+            if (snapshot?.playbackState == Player.STATE_ENDED) {
+                return
+            }
             // A seek reports isPlaying=false while playWhenReady stays true.
             // Checkpointing the pre-seek sample rewinds engine/UI progress.
             if (snapshot?.playWhenReady == true) {
@@ -299,9 +302,11 @@ class Media3PlaybackEngineBridge(
     private fun reportPlaybackCompletion() {
         val playbackState = playbackRepository.state.value
         val trackId = playbackState.mediaId?.trim()?.takeIf(String::isNotBlank) ?: return
-        val metrics = playbackMetricsProvider.currentMetrics() ?: return
-        val durationMillis = metrics.durationMillis.takeIf { it >= 0L } ?: return
-        val positionMillis = metrics.positionMillis.takeIf { it >= 0L } ?: return
+        val metrics = playbackMetricsProvider.currentMetrics()
+        val durationMillis = metrics?.durationMillis?.takeIf { duration -> duration > 0L }
+            ?: playbackState.durationMillis?.takeIf { duration -> duration > 0L }
+            ?: return
+        val positionMillis = metrics?.positionMillis?.takeIf { position -> position >= 0L } ?: 0L
         val completionRatio = if (durationMillis == 0L) {
             0.0
         } else {
@@ -491,7 +496,11 @@ class Media3PlaybackEngineBridge(
     }
 }
 
-data class Media3PlayerSnapshot(val positionMillis: Long, val playWhenReady: Boolean)
+data class Media3PlayerSnapshot(
+    val positionMillis: Long,
+    val playWhenReady: Boolean,
+    val playbackState: Int = Player.STATE_READY
+)
 
 private fun androidx.media3.common.PlaybackException.toEngineFailureKind(): String = when (errorCode) {
     androidx.media3.common.PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS,

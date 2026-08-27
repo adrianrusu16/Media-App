@@ -316,6 +316,39 @@ class BambooMediaLibraryCatalogTest {
     }
 
     @Test
+    fun `http artwork is rewritten to an exported media-host content uri`() {
+        val engineGateway = CatalogRecordingEngineGateway(
+            snapshot = EngineSnapshot.idle(nowMillis = 1L),
+            browseResults = listOf(
+                EngineCatalogItem(
+                    mediaId = "track-1",
+                    title = "Bamboo Radio",
+                    artworkUri = "https://cdn.pandawave.test/artwork/art-1/hash-1",
+                    itemType = EngineCatalogItem.TYPE_TRACK
+                )
+            )
+        )
+        val parsedArtwork = mutableListOf<String>()
+        val catalog = BambooMediaLibraryCatalog(
+            source = EngineBambooCatalogSource(engineGateway = engineGateway),
+            artworkUris = MediaHostArtworkUriProjector("com.adrianrusu.pandawave") { value ->
+                parsedArtwork += value
+                null
+            }
+        )
+
+        val children = catalog.children("engine.parent", page = 0, pageSize = 10)
+
+        assertEquals(listOf("track-1"), children.map { item -> item.mediaId })
+        assertEquals(1, parsedArtwork.size)
+        assertTrue(parsedArtwork.single().startsWith("content://com.adrianrusu.pandawave.artwork/remote?"))
+        assertEquals(
+            "https://cdn.pandawave.test/artwork/art-1/hash-1",
+            PandaWaveArtworkContract.remoteSourceString(parsedArtwork.single())
+        )
+    }
+
+    @Test
     fun `engine source appends bounded history pages without exposing page keys`() {
         val engineGateway = CatalogRecordingEngineGateway(
             snapshot = EngineSnapshot.idle(nowMillis = 1L).copy(

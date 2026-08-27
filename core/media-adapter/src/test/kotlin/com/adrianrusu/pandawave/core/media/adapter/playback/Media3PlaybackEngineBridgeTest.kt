@@ -168,6 +168,44 @@ class Media3PlaybackEngineBridgeTest {
     }
 
     @Test
+    fun `ended playback does not checkpoint the last sample after completion`() {
+        val repository = RecordingPlaybackRepository()
+        val telemetrySink = RecordingTelemetrySink()
+        val bridge = Media3PlaybackEngineBridge(
+            playbackRepository = repository,
+            telemetryLogger = testTelemetryLogger(telemetrySink),
+            playbackMetricsProvider = PlaybackCompletionMetricsProvider {
+                PlaybackCompletionMetrics(positionMillis = 196_000L, durationMillis = 200_000L)
+            },
+            playbackInstanceIdProvider = { 42L },
+            playerSnapshotProvider = {
+                Media3PlayerSnapshot(
+                    positionMillis = 196_000L,
+                    playWhenReady = true,
+                    playbackState = Player.STATE_ENDED
+                )
+            }
+        )
+        repository.setState(
+            BambooPlaybackState(mediaId = "track-1", durationMillis = 200_000L, positionMillis = 196_000L)
+        )
+
+        bridge.onIsPlayingChanged(true)
+        repository.intents.clear()
+        telemetrySink.events.clear()
+        bridge.onIsPlayingChanged(false)
+
+        assertTrue(
+            repository.intents
+                .filterIsInstance<BambooPlaybackIntent.PlatformEvent>()
+                .none { event -> event.type == EnginePlatformEvent.TYPE_PLAYBACK_POSITION_CHECKPOINT }
+        )
+        assertTrue(
+            telemetrySink.events.none { it.name == Media3PlaybackTelemetryEvents.POSITION_CHECKPOINT_SKIPPED }
+        )
+    }
+
+    @Test
     fun `bootstrap starts playback repository`() {
         val repository = RecordingPlaybackRepository()
         val bridge = Media3PlaybackEngineBridge(repository, testTelemetryLogger())
@@ -446,6 +484,10 @@ private class RecordingPlaybackRepository : BambooPlaybackRepository {
 
     override fun close() {
         closeCount += 1
+    }
+
+    fun setState(state: BambooPlaybackState) {
+        mutableState.value = state
     }
 }
 

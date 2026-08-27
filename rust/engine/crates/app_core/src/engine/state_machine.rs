@@ -35,6 +35,7 @@ impl StateMachine {
 
             // State: Ended
             (PlaybackState::Ended, EngineCommandType::Play) => PlaybackState::Buffering,
+            (PlaybackState::Ended, EngineCommandType::SkipPrevious) => PlaybackState::Buffering,
 
             // Default: preserve current state for unrecognized transitions
             (current, _) => current,
@@ -252,6 +253,17 @@ mod tests {
             StateMachine::next_state_from_platform_event(
                 PlaybackState::Playing,
                 &EnginePlatformEventType::AudioFocusChanged
+            )
+        );
+    }
+
+    #[test]
+    fn test_ended_skip_previous_buffers_to_restart() {
+        assert_eq!(
+            PlaybackState::Buffering,
+            StateMachine::next_state_from_command(
+                PlaybackState::Ended,
+                &EngineCommandType::SkipPrevious
             )
         );
     }

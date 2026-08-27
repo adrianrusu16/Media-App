@@ -189,8 +189,7 @@ private fun NowPlayingScreen(
             NowPlayingAmbientRoute(
                 modifier = modifier,
                 viewModel = viewModel,
-                state = state,
-                mode = mode
+                state = state
             )
         } else {
             NowPlayingInteractiveScreen(
@@ -208,31 +207,24 @@ private fun NowPlayingScreen(
 private fun NowPlayingAmbientRoute(
     modifier: Modifier,
     viewModel: NowPlayingViewModel,
-    state: NowPlayingState,
-    mode: NowPlayingMode
+    state: NowPlayingState
 ) {
     val amplitudes by viewModel.amplitudes.collectAsStateWithLifecycle()
-    val isSleeping = mode == NowPlayingMode.SleepingAmbient
-    val title = if (isSleeping || state.title.isBlank()) {
+    val title = state.title.ifBlank {
         stringResource(R.string.pandawave_now_playing_idle_title)
-    } else {
-        state.title
     }
-    val artist = if (isSleeping || state.artist.isBlank()) {
-        stringResource(R.string.pandawave_now_playing_idle_subtitle)
-    } else {
-        state.artist
+    val artist = state.artist.ifBlank {
+        if (state.title.isBlank()) {
+            stringResource(R.string.pandawave_now_playing_idle_subtitle)
+        } else {
+            ""
+        }
     }
-
-    val artwork = if (isSleeping) {
-        null
-    } else {
-        toBambooArtworkModel(
-            id = state.artworkId,
-            version = state.artworkVersion,
-            uri = state.artworkUri
-        )
-    }
+    val artwork = toBambooArtworkModel(
+        id = state.artworkId,
+        version = state.artworkVersion,
+        uri = state.artworkUri
+    )
 
     NowPlayingAmbientScreen(
         modifier = modifier,
@@ -255,12 +247,14 @@ private fun NowPlayingInteractiveScreen(
     val tokens = LocalPandaWaveDesignTokens.current
     val fallbackTitle = when (state.playbackState) {
         NowPlayingPlaybackState.Playing -> stringResource(R.string.pandawave_now_playing_playing_title)
-        NowPlayingPlaybackState.Paused -> stringResource(R.string.pandawave_now_playing_paused_title)
+        NowPlayingPlaybackState.Paused,
+        NowPlayingPlaybackState.Ended -> stringResource(R.string.pandawave_now_playing_paused_title)
         NowPlayingPlaybackState.Idle -> stringResource(R.string.pandawave_now_playing_idle_title)
     }
     val fallbackDetail = when (state.playbackState) {
         NowPlayingPlaybackState.Playing -> stringResource(R.string.pandawave_now_playing_playing_subtitle)
-        NowPlayingPlaybackState.Paused -> stringResource(R.string.pandawave_now_playing_paused_subtitle)
+        NowPlayingPlaybackState.Paused,
+        NowPlayingPlaybackState.Ended -> stringResource(R.string.pandawave_now_playing_paused_subtitle)
         NowPlayingPlaybackState.Idle -> stringResource(R.string.pandawave_now_playing_idle_subtitle)
     }
     val uiModel = state.toNowPlayingUiModel(

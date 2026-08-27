@@ -6,9 +6,12 @@ import android.os.Looper
 import android.widget.Toast
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DataSourceBitmapLoader
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.session.CacheBitmapLoader
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
 import com.adrianrusu.pandawave.core.audio.visualizer.MutableAudioSessionRepository
@@ -28,6 +31,7 @@ import javax.inject.Inject
  * The service owns Android platform objects only. Catalog, user, and playback
  * decisions flow through Bamboo playback state before crossing into PandaEngine.
  */
+@UnstableApi
 @AndroidEntryPoint
 class BambooMediaLibraryService : MediaLibraryService() {
     @Inject
@@ -76,7 +80,11 @@ class BambooMediaLibraryService : MediaLibraryService() {
                 player = { PlayerMedia3EffectPlayer(checkNotNull(player)) },
                 audioFocusController = focusHandler,
                 telemetryLogger = telemetryLogger,
-                currentProjection = { playbackRepository.state.value.toMediaSessionStateProjection() },
+                currentProjection = {
+                    playbackRepository.state.value.toMediaSessionStateProjection(
+                        artworkUris = MediaHostArtworkUriProjector(packageName)
+                    )
+                },
                 recreatePlayer = ::recreatePlayerForDecoderFailure,
                 notifyUser = ::showPlaybackFailure,
                 onAudioFocusRequestResult = { result ->
@@ -101,7 +109,8 @@ class BambooMediaLibraryService : MediaLibraryService() {
                     player?.let { currentPlayer ->
                         Media3PlayerSnapshot(
                             positionMillis = currentPlayer.currentPosition,
-                            playWhenReady = currentPlayer.playWhenReady
+                            playWhenReady = currentPlayer.playWhenReady,
+                            playbackState = currentPlayer.playbackState
                         )
                     }
                 },
@@ -125,6 +134,7 @@ class BambooMediaLibraryService : MediaLibraryService() {
             val playbackResumptionStore = this.resumptionStore ?: MediaSessionPlaybackResumptionStore(
                 getSharedPreferences(RESUMPTION_PREFERENCES, MODE_PRIVATE)
             ).also { this.resumptionStore = it }
+            val artworkUris = MediaHostArtworkUriProjector(packageName)
             val catalogSource = EngineBambooCatalogSource(engineGateway = engineGateway)
             val sessionBuilder = MediaLibrarySession.Builder(
                 this,
@@ -133,15 +143,18 @@ class BambooMediaLibraryService : MediaLibraryService() {
                     catalogSource = catalogSource,
                     playbackEngineBridge = playbackEngineBridge,
                     catalogExecutor = catalogDispatcher,
-                    resumptionStore = playbackResumptionStore
+                    resumptionStore = playbackResumptionStore,
+                    artworkUris = artworkUris
                 )
             ).setId(SESSION_ID)
+                .setBitmapLoader(CacheBitmapLoader(DataSourceBitmapLoader(this)))
             sessionActivity()?.let(sessionBuilder::setSessionActivity)
             val mediaLibrarySession = sessionBuilder.build()
             val playbackStateProjector = BambooMediaSessionStateProjector(
                 playbackRepository = playbackRepository,
                 sink = Media3PlayerStateSink(exoPlayer),
-                playbackEngineBridge = playbackEngineBridge
+                playbackEngineBridge = playbackEngineBridge,
+                artworkUris = artworkUris
             )
             val mediaCommandAvailabilityProjector = BambooMediaSessionCommandAvailabilityProjector(
                 playbackRepository = playbackRepository,
@@ -199,7 +212,8 @@ class BambooMediaLibraryService : MediaLibraryService() {
             val projector = BambooMediaSessionStateProjector(
                 playbackRepository = playbackRepository,
                 sink = Media3PlayerStateSink(exoPlayer),
-                playbackEngineBridge = bridge
+                playbackEngineBridge = bridge,
+                artworkUris = MediaHostArtworkUriProjector(packageName)
             )
 
             player = exoPlayer
@@ -214,11 +228,12 @@ class BambooMediaLibraryService : MediaLibraryService() {
         catalogSource: EngineBambooCatalogSource,
         playbackEngineBridge: Media3PlaybackEngineBridge,
         catalogExecutor: java.util.concurrent.Executor,
-        resumptionStore: MediaSessionPlaybackResumptionStore
+        resumptionStore: MediaSessionPlaybackResumptionStore,
+        artworkUris: ArtworkUriProjector
     ) = BambooMediaLibrarySessionCallback(
         controlsEnabled = { playbackRepository.state.value.canDispatchEngineCommands },
         controls = { playbackRepository.state.value.controls },
-        catalog = BambooMediaLibraryCatalog(source = catalogSource),
+        catalog = BambooMediaLibraryCatalog(source = catalogSource, artworkUris = artworkUris),
         playbackBridge = playbackEngineBridge,
         sessionPackageName = packageName,
         catalogExecutor = catalogExecutor,

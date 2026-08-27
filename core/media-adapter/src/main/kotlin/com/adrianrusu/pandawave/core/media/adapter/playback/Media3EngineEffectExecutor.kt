@@ -103,6 +103,9 @@ internal class Media3EngineEffectExecutor(
         if (player.playbackState == Player.STATE_IDLE) {
             player.prepare()
         }
+        if (player.playbackState == Player.STATE_ENDED) {
+            player.seekTo(MIN_POSITION_MILLIS)
+        }
 
         player.play()
     }
@@ -159,7 +162,11 @@ internal class Media3EngineEffectExecutor(
 
     private fun seek(effect: EngineEffect) {
         val positionMillis = effect.positionMillis ?: return logMissingPayload(effect)
-        player().seekTo(positionMillis.coerceAtLeast(MIN_POSITION_MILLIS))
+        val player = player()
+        if (player.playbackState == Player.STATE_IDLE) {
+            player.prepare()
+        }
+        player.seekTo(positionMillis.coerceAtLeast(MIN_POSITION_MILLIS))
     }
 
     private fun setSpeed(effect: EngineEffect) {

@@ -1,7 +1,5 @@
 package com.adrianrusu.pandawave.core.media.adapter.playback
 
-import android.net.Uri
-import androidx.core.net.toUri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import com.adrianrusu.pandawave.core.common.trace.PandaTrace
@@ -275,7 +273,10 @@ internal class EngineBambooCatalogSource(private val engineGateway: EngineGatewa
     }
 }
 
-internal class BambooMediaLibraryCatalog(private val source: BambooCatalogSource) {
+internal class BambooMediaLibraryCatalog(
+    private val source: BambooCatalogSource,
+    private val artworkUris: ArtworkUriProjector = PassthroughArtworkUriProjector
+) {
     fun root(): MediaItem = LibraryItems.Root
 
     fun children(parentId: String, page: Int, pageSize: Int): List<MediaItem> =
@@ -284,7 +285,7 @@ internal class BambooMediaLibraryCatalog(private val source: BambooCatalogSource
                 parentId = parentId,
                 page = page,
                 pageSize = pageSize
-            ).map { node -> node.toMediaItem() }
+            ).map { node -> node.toMediaItem(artworkUris) }
         }
 
     fun browse(parentId: String, page: Int, pageSize: Int): CatalogPage = source.browse(
@@ -299,7 +300,7 @@ internal class BambooMediaLibraryCatalog(private val source: BambooCatalogSource
                 query = query,
                 offset = pageOffset(page, pageSize),
                 limit = pageSize
-            ).items.map { node -> node.toMediaItem() }
+            ).items.map { node -> node.toMediaItem(artworkUris) }
         }
 
     fun searchPage(query: String, page: Int, pageSize: Int): CatalogPage = source.search(
@@ -311,7 +312,7 @@ internal class BambooMediaLibraryCatalog(private val source: BambooCatalogSource
     fun item(mediaId: String): MediaItem? = when (mediaId) {
         LibraryItems.ROOT_MEDIA_ID -> LibraryItems.Root
 
-        else -> source.item(mediaId)?.toMediaItem()
+        else -> source.item(mediaId)?.toMediaItem(artworkUris)
             ?: BambooMediaLibraryPlaybackSelection.playableMetadataItem(mediaId)
                 .takeIf { mediaId.isNotBlank() }
     }
@@ -428,7 +429,7 @@ private fun EngineSnapshot.historyCacheKey(): HistoryCacheKey? {
     return HistoryCacheKey(accountId, sessionId, historyGeneration)
 }
 
-private fun BambooCatalogNode.toMediaItem(): MediaItem = MediaItem.Builder()
+private fun BambooCatalogNode.toMediaItem(artworkUris: ArtworkUriProjector): MediaItem = MediaItem.Builder()
     .setMediaId(mediaId)
     .setMediaMetadata(
         MediaMetadata.Builder()
@@ -436,7 +437,7 @@ private fun BambooCatalogNode.toMediaItem(): MediaItem = MediaItem.Builder()
             .setSubtitle(subtitle)
             .setArtist(artist)
             .setAlbumTitle(album)
-            .setArtworkUri(artworkUri?.toAndroidUriOrNull())
+            .setArtworkUri(artworkUris.project(artworkUri))
             .setIsBrowsable(isBrowsable)
             .setIsPlayable(isPlayable)
             .setMediaType(catalogItemType.toMediaMetadataType(isBrowsable = isBrowsable, isPlayable = isPlayable))
@@ -462,12 +463,6 @@ private fun Int?.toMediaMetadataType(isBrowsable: Boolean, isPlayable: Boolean):
         isPlayable -> MediaMetadata.MEDIA_TYPE_MUSIC
         else -> MediaMetadata.MEDIA_TYPE_FOLDER_MIXED
     }
-}
-
-private fun String.toAndroidUriOrNull(): Uri? = try {
-    this.toUri()
-} catch (_: RuntimeException) {
-    null
 }
 
 private fun catalogRequestSize(limit: Int): Int = limit.coerceIn(1, MAX_CATALOG_PAGE_SIZE)

@@ -133,6 +133,26 @@ class Media3EngineEffectExecutorTest {
     }
 
     @Test
+    fun `play effect seeks to the start before resuming an ended player`() {
+        val player = RecordingEffectPlayer(playbackState = Player.STATE_ENDED)
+        val executor = effectExecutor(player = player)
+
+        executor.execute(listOf(EngineEffect(type = EngineEffect.TYPE_PLAY)))
+
+        assertEquals(listOf("seekTo:0", "play"), player.calls)
+    }
+
+    @Test
+    fun `seek effect prepares an idle player before seeking`() {
+        val player = RecordingEffectPlayer(playbackState = Player.STATE_IDLE)
+        val executor = effectExecutor(player = player)
+
+        executor.execute(listOf(EngineEffect(type = EngineEffect.TYPE_SEEK, positionMillis = 0L)))
+
+        assertEquals(listOf("prepare", "seekTo:0"), player.calls)
+    }
+
+    @Test
     fun `pause stop seek and speed effects control player`() {
         val player = RecordingEffectPlayer(playbackState = Player.STATE_READY)
         val executor = effectExecutor(player = player)

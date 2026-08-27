@@ -42,7 +42,8 @@ internal fun interface BambooUriParser {
 private val DefaultUriParser = BambooUriParser { value -> value.toUri() }
 
 internal fun BambooPlaybackState.toMediaSessionStateProjection(
-    uriParser: BambooUriParser = DefaultUriParser
+    uriParser: BambooUriParser = DefaultUriParser,
+    artworkUris: ArtworkUriProjector = ArtworkUriProjector { artworkUri -> artworkUri?.let(uriParser::parse) }
 ): BambooMediaSessionStateProjection {
     val mediaItemBuilder = MediaItem.Builder()
         .setMediaId(mediaId ?: FALLBACK_MEDIA_ID)
@@ -58,7 +59,7 @@ internal fun BambooPlaybackState.toMediaSessionStateProjection(
                     .setArtist(artist)
                     .setAlbumTitle(album)
                     .setDurationMs(durationMillis)
-                    .setArtworkUri(artworkUri?.let(uriParser::parse))
+                    .setArtworkUri(artworkUris.project(artworkUri))
                     .setIsBrowsable(false)
                     .setIsPlayable(true)
                     .build()

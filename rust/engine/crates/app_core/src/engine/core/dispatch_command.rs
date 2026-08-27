@@ -161,9 +161,17 @@ impl Engine {
                     }
                 } else if self.queue.has_current() {
                     // Restarting is a seek, not a new source load. It preserves
-                    // the current selection and desired play/pause intent.
-                    next_snapshot.position_millis = 0;
+                    // the current selection. An Ended item must also Play again:
+                    // Media3 ignores seek while idle unless playback resumes.
+                    next_snapshot = next_snapshot
+                        .with_position(0)
+                        .with_progress_tick(now_epoch_millis);
+                    self.pending_seek_target_millis = Some(0);
                     effects.push(EngineEffect::Seek(0));
+                    if prev_playback_state == PlaybackState::Ended {
+                        self.recovery.desired_play_when_ready = true;
+                        should_reassert_playback = true;
+                    }
                 } else {
                     next_snapshot = self.snapshot.clone();
                 }
@@ -172,13 +180,16 @@ impl Engine {
                 if next_snapshot.session.is_some() {
                     should_reassert_playback = matches!(
                         prev_playback_state,
-                        PlaybackState::Buffering | PlaybackState::Recovering
+                        PlaybackState::Buffering | PlaybackState::Recovering | PlaybackState::Ended
                     );
                     if prev_playback_state == PlaybackState::Ended {
                         // A completed item is still the current queue item.
                         // Restart it locally rather than resolving another
                         // short-lived source capability.
-                        next_snapshot.position_millis = 0;
+                        next_snapshot = next_snapshot
+                            .with_position(0)
+                            .with_progress_tick(now_epoch_millis);
+                        self.pending_seek_target_millis = Some(0);
                         effects.push(EngineEffect::Seek(0));
                     } else if self.snapshot.media_id.is_none() {
                         let selected_media = self
@@ -1203,7 +1214,7 @@ impl Engine {
                     effects.push(EngineEffect::AbandonAudioFocus);
                 }
                 PlaybackState::Ended => {
-                    effects.push(EngineEffect::Stop);
+                    effects.push(EngineEffect::Pause);
                     effects.push(EngineEffect::AbandonAudioFocus);
                 }
                 _ => {}

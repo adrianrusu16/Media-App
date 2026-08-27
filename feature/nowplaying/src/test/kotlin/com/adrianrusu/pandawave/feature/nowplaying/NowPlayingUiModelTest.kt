@@ -69,6 +69,20 @@ class NowPlayingUiModelTest {
     }
 
     @Test
+    fun `ended playback keeps the current title instead of idle copy`() {
+        val model = NowPlayingState(
+            title = "The Emptiness Machine",
+            artist = "Linkin Park",
+            playbackState = NowPlayingPlaybackState.Ended,
+            engineConnection = BambooEngineConnectionUiState.Ready
+        ).toTestUiModel()
+
+        assertEquals("The Emptiness Machine", model.title)
+        assertEquals("Linkin Park", model.detailLabel)
+        assertEquals(NowPlayingPrimaryControlIcon.PandaPaw, model.primaryControlIcon)
+    }
+
+    @Test
     fun `volume is clamped to zero to one hundred`() {
         assertEquals(0F, NowPlayingVolumeUiModel.from(-20F).value)
         assertEquals(100F, NowPlayingVolumeUiModel.from(120F).value)

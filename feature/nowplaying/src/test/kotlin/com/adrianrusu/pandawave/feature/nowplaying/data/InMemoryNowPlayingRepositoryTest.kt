@@ -62,6 +62,28 @@ class InMemoryNowPlayingRepositoryTest {
     }
 
     @Test
+    fun `ended playback keeps now playing metadata`() {
+        val playback = RecordingPlaybackRepository(
+            initialState = BambooPlaybackState(
+                mediaId = "track-1",
+                title = "The Emptiness Machine",
+                artist = "Linkin Park",
+                playbackStatus = BambooPlaybackStatus.Ended,
+                engineConnection = BambooEngineConnectionUiState.Ready,
+                durationMillis = 200_000L,
+                positionMillis = 200_000L
+            )
+        )
+        val repository = InMemoryNowPlayingRepository(playbackRepository = playback)
+
+        repository.start()
+
+        assertEquals("The Emptiness Machine", repository.state.value.title)
+        assertEquals("Linkin Park", repository.state.value.artist)
+        assertEquals(NowPlayingPlaybackState.Ended, repository.state.value.playbackState)
+    }
+
+    @Test
     fun `now playing intents forward to shared playback repository`() {
         val playback = RecordingPlaybackRepository()
         val repository = InMemoryNowPlayingRepository(playbackRepository = playback)

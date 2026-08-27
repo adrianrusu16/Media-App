@@ -8,7 +8,8 @@ import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
 internal class BambooMediaSessionStateProjector(
     private val playbackRepository: BambooPlaybackRepository,
     private val sink: BambooMediaSessionStateSink,
-    private val playbackEngineBridge: Media3PlaybackEngineBridge
+    private val playbackEngineBridge: Media3PlaybackEngineBridge,
+    private val artworkUris: ArtworkUriProjector = PassthroughArtworkUriProjector
 ) : AutoCloseable {
     private var subscription: AutoCloseable? = null
     private var lastProjection: BambooMediaSessionStateProjection? = null
@@ -19,7 +20,7 @@ internal class BambooMediaSessionStateProjector(
         }
 
         subscription = playbackRepository.observe { playbackState ->
-            val projection = playbackState.toMediaSessionStateProjection()
+            val projection = playbackState.toMediaSessionStateProjection(artworkUris = artworkUris)
 
             if (lastProjection?.hasSameMediaSessionState(projection) == true) {
                 return@observe

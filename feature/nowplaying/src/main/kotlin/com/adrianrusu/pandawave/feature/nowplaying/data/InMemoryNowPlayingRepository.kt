@@ -79,7 +79,7 @@ private fun BambooPlaybackStatus.toNowPlayingPlaybackState(): NowPlayingPlayback
     BambooPlaybackStatus.Playing -> NowPlayingPlaybackState.Playing
     BambooPlaybackStatus.Paused -> NowPlayingPlaybackState.Paused
     BambooPlaybackStatus.Recovering -> NowPlayingPlaybackState.Playing
-    BambooPlaybackStatus.Ended -> NowPlayingPlaybackState.Idle
+    BambooPlaybackStatus.Ended -> NowPlayingPlaybackState.Ended
     BambooPlaybackStatus.Idle -> NowPlayingPlaybackState.Idle
 }
 

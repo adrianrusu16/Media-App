@@ -69,6 +69,18 @@ impl Engine {
         }
 
         if event.event_type == EnginePlatformEventType::PlaybackPositionCheckpoint {
+            if self.snapshot.playback_state == PlaybackState::Ended {
+                debug!(
+                    "Ignoring playback position checkpoint after the current item finished"
+                );
+                return EngineOutcome {
+                    snapshot: self.snapshot.clone(),
+                    event: EngineEvent::platform_event_applied(Some(
+                        EnginePlatformEventType::PLAYBACK_POSITION_CHECKPOINT_WIRE.to_owned(),
+                    )),
+                    effects: Vec::new(),
+                };
+            }
             let Some(observation) = observation.as_ref() else {
                 warn!("Ignoring malformed playback position checkpoint");
                 return EngineOutcome {
@@ -326,6 +338,7 @@ impl Engine {
                 .clone()
                 .with_playback_state(PlaybackState::Ended, now_epoch_millis)
                 .with_error(None);
+            next_snapshot = snap_finished_progress(next_snapshot, event.payload.as_deref());
             self.record_playback_completion(event.payload.as_deref(), &mut next_snapshot)
                 .await;
             self.snapshot = next_snapshot;
@@ -334,10 +347,10 @@ impl Engine {
                 event: EngineEvent::platform_event_applied(Some(
                     EnginePlatformEventType::PLAYBACK_COMPLETED_WIRE.to_owned(),
                 )),
-                // Completion does not advance the queue.  The player has already
-                // stopped at its terminal position; stopping explicitly releases
-                // platform resources and focus while exposing a stable Ended state.
-                effects: vec![EngineEffect::Stop, EngineEffect::AbandonAudioFocus],
+                // Keep the loaded item so skip-back / play can restart immediately.
+                // Pause clears playWhenReady; Stop would drop the player to idle
+                // and make seek-to-start a no-op.
+                effects: vec![EngineEffect::Pause, EngineEffect::AbandonAudioFocus],
             };
             let middleware = Arc::clone(&self.middleware);
             middleware.after_dispatch(self, &mut outcome);
@@ -593,4 +606,25 @@ impl Engine {
 
         outcome
     }
+}
+
+fn snap_finished_progress(
+    snapshot: crate::EngineSnapshot,
+    payload: Option<&str>,
+) -> crate::EngineSnapshot {
+    let reported_duration_millis = payload
+        .and_then(|value| serde_json::from_str::<serde_json::Value>(value).ok())
+        .and_then(|value| value.get("duration_ms").and_then(|duration| duration.as_u64()))
+        .filter(|duration| *duration > 0);
+    let finished_duration_millis = reported_duration_millis.or(snapshot.duration_millis);
+    let Some(duration_millis) = finished_duration_millis else {
+        return snapshot;
+    };
+    let progress_tick = snapshot
+        .updated_at_epoch_millis
+        .max(snapshot.last_progress_tick_epoch_millis);
+    snapshot
+        .with_duration(Some(duration_millis))
+        .with_position(duration_millis)
+        .with_progress_tick(progress_tick)
 }
