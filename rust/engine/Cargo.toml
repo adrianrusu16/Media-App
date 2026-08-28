@@ -9,10 +9,3 @@ resolver = "3"
 edition = "2024"
 license = "Proprietary"
 publish = false
-
-[profile.android-dev]
-inherits = "dev"
-opt-level = 1
-debug = 1
-lto = false
-incremental = true

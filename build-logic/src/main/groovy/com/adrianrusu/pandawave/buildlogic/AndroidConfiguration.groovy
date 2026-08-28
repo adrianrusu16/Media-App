@@ -29,7 +29,7 @@ class AndroidConfiguration {
         }
 
         android.buildFeatures {
-            aidl = false
+            aidl = true
         }
     }
 
