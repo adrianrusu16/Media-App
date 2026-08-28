@@ -7,11 +7,7 @@ import androidx.media3.common.Player
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackState
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackStatus
 
-internal data class PandaTimelineItem(
-    val uid: String,
-    val mediaItem: MediaItem,
-    val durationMs: Long
-)
+internal data class PandaTimelineItem(val uid: String, val mediaItem: MediaItem, val durationMs: Long)
 
 internal data class PandaExoRuntimeState(
     val playbackState: Int = Player.STATE_IDLE,
@@ -81,11 +77,7 @@ internal object PandaMediaSessionPlayerState {
         )
     }
 
-    private fun playbackState(
-        playback: BambooPlaybackState,
-        exo: PandaExoRuntimeState,
-        hasTimeline: Boolean
-    ): Int {
+    private fun playbackState(playback: BambooPlaybackState, exo: PandaExoRuntimeState, hasTimeline: Boolean): Int {
         if (playback.playbackStatus == BambooPlaybackStatus.Ended) return Player.STATE_ENDED
         if (!hasTimeline && playback.mediaId.isNullOrBlank()) return Player.STATE_IDLE
         val currentId = playback.mediaId
@@ -105,25 +97,24 @@ internal object PandaMediaSessionPlayerState {
     }
 }
 
-private fun Media3QueueItem.toTimelineItem(artworkUris: ArtworkUriProjector): PandaTimelineItem =
-    PandaTimelineItem(
-        uid = queueItemId,
-        mediaItem = MediaItem.Builder()
-            .setMediaId(queueItemId)
-            .setMediaMetadata(
-                MediaMetadata.Builder()
-                    .setTitle(title)
-                    .setArtist(artist)
-                    .setAlbumTitle(album)
-                    .setDurationMs(durationMs)
-                    .setArtworkUri(artworkUris.project(artworkUri))
-                    .setIsBrowsable(false)
-                    .setIsPlayable(true)
-                    .build()
-            )
-            .build(),
-        durationMs = durationMs ?: C.TIME_UNSET
-    )
+private fun Media3QueueItem.toTimelineItem(artworkUris: ArtworkUriProjector): PandaTimelineItem = PandaTimelineItem(
+    uid = queueItemId,
+    mediaItem = MediaItem.Builder()
+        .setMediaId(queueItemId)
+        .setMediaMetadata(
+            MediaMetadata.Builder()
+                .setTitle(title)
+                .setArtist(artist)
+                .setAlbumTitle(album)
+                .setDurationMs(durationMs)
+                .setArtworkUri(artworkUris.project(artworkUri))
+                .setIsBrowsable(false)
+                .setIsPlayable(true)
+                .build()
+        )
+        .build(),
+    durationMs = durationMs ?: C.TIME_UNSET
+)
 
 private fun currentMediaItem(
     playback: BambooPlaybackState,

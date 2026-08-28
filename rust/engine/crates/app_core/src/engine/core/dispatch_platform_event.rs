@@ -529,14 +529,13 @@ impl Engine {
             next_snapshot = next_snapshot.with_progress_tick(now_epoch_millis);
         }
 
-        if event.event_type == EnginePlatformEventType::MediaLoaded {
-            if let Some(duration_millis) = observation
+        if event.event_type == EnginePlatformEventType::MediaLoaded
+            && let Some(duration_millis) = observation
                 .as_ref()
                 .and_then(|value| value.duration_ms)
                 .filter(|duration| *duration > 0)
-            {
-                next_snapshot = next_snapshot.with_duration(Some(duration_millis));
-            }
+        {
+            next_snapshot = next_snapshot.with_duration(Some(duration_millis));
         }
 
         if next_playback_state == PlaybackState::Error {

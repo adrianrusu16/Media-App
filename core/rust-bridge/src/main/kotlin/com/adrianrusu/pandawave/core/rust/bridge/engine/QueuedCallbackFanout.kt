@@ -34,8 +34,5 @@ internal class QueuedCallbackFanout<T> {
         }
     }
 
-    private class Pending<V>(
-        val value: V,
-        val deliver: (V) -> Unit
-    )
+    private class Pending<V>(val value: V, val deliver: (V) -> Unit)
 }

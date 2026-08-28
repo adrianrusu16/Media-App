@@ -269,7 +269,9 @@ internal fun EngineCatalogItem.toCatalogNode(parentId: String? = null, index: In
     val platformId = when {
         itemType.isPlayableCatalogType() && parentId != null ->
             PandaMediaSelectionId.occurrence(parentId, index, engineId)
+
         itemType.isPlayableCatalogType() -> PandaMediaSelectionId.track(engineId)
+
         else -> engineId
     }
     return BambooCatalogNode(

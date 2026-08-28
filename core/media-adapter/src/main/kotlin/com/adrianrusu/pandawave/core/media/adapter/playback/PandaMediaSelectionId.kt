@@ -100,26 +100,28 @@ internal object PandaMediaSelectionId {
         }
     }
 
-    fun engineMediaId(platformId: String): String =
-        parse(platformId)?.mediaId ?: platformId.trim()
+    fun engineMediaId(platformId: String): String = parse(platformId)?.mediaId ?: platformId.trim()
 
     private fun encode(kind: String, parts: List<String>): String {
         val encoded = parts.joinToString(separator = ":") { part -> encodePart(part) }
         return "$PREFIX$kind:$encoded"
     }
 
-    private fun contextForParent(parentId: String): PandaPlaybackContext = when (PandaMediaLibraryIds.canonicalize(parentId)) {
-        PandaMediaLibraryIds.HISTORY, PandaMediaLibraryIds.PLATFORM_RECENT -> PandaPlaybackContext.History
-        PandaMediaLibraryIds.SAVED -> PandaPlaybackContext.Saved
-        PandaMediaLibraryIds.DOWNLOADS, PandaMediaLibraryIds.PLATFORM_OFFLINE -> PandaPlaybackContext.Downloads
-        PandaMediaLibraryIds.PLATFORM_SUGGESTED,
-        PandaMediaLibraryIds.PLATFORM_OFFLINE_SUGGESTED -> PandaPlaybackContext.ForYou
-        else -> PandaPlaybackContext.Browse(parentId)
-    }
+    private fun contextForParent(parentId: String): PandaPlaybackContext =
+        when (PandaMediaLibraryIds.canonicalize(parentId)) {
+            PandaMediaLibraryIds.HISTORY, PandaMediaLibraryIds.PLATFORM_RECENT -> PandaPlaybackContext.History
 
-    private fun encodePart(value: String): String =
-        URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20")
+            PandaMediaLibraryIds.SAVED -> PandaPlaybackContext.Saved
 
-    private fun decodePart(value: String): String =
-        URLDecoder.decode(value.replace("+", "%20"), StandardCharsets.UTF_8)
+            PandaMediaLibraryIds.DOWNLOADS, PandaMediaLibraryIds.PLATFORM_OFFLINE -> PandaPlaybackContext.Downloads
+
+            PandaMediaLibraryIds.PLATFORM_SUGGESTED,
+            PandaMediaLibraryIds.PLATFORM_OFFLINE_SUGGESTED -> PandaPlaybackContext.ForYou
+
+            else -> PandaPlaybackContext.Browse(parentId)
+        }
+
+    private fun encodePart(value: String): String = URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20")
+
+    private fun decodePart(value: String): String = URLDecoder.decode(value.replace("+", "%20"), StandardCharsets.UTF_8)
 }

@@ -1018,11 +1018,10 @@ private class RecordingEngineService(
     override fun likedTracksPage(offset: Int, limit: Int): List<EngineLibraryItem> =
         liked.drop(offset.coerceAtLeast(0)).take(limit.coerceAtLeast(0))
 
-    override fun historyPage(offset: Int, limit: Int, generation: Long) =
-        EngineHistoryPage(
-            generation,
-            history.drop(offset.coerceAtLeast(0)).take(limit.coerceAtLeast(0))
-        )
+    override fun historyPage(offset: Int, limit: Int, generation: Long) = EngineHistoryPage(
+        generation,
+        history.drop(offset.coerceAtLeast(0)).take(limit.coerceAtLeast(0))
+    )
 
     override fun pendingLibraryTrackIdsPage(offset: Int, limit: Int): List<String> =
         pending.drop(offset.coerceAtLeast(0)).take(limit.coerceAtLeast(0))

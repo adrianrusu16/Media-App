@@ -193,6 +193,7 @@ class MediaEngineService : Service() {
             is EngineListenerNotify.Snapshot -> PandaTrace.section("PW.Engine.Service.notifySnapshot") {
                 broadcastListeners { listener -> listener.onSnapshotChanged(notify.snapshot) }
             }
+
             is EngineListenerNotify.Event -> PandaTrace.section("PW.Engine.Service.notifyEvent") {
                 broadcastListeners { listener -> listener.onEngineEvent(notify.event) }
             }

@@ -12,18 +12,18 @@ env:
   # Cargo's buf credential-provider requires an auth scheme. Store the raw BSR
   # token in BUF_TOKEN; this prefix is a no-op when the secret is unset.
   CARGO_REGISTRIES_BUF_TOKEN: "${{ secrets.BUF_TOKEN && format('Bearer {0}', secrets.BUF_TOKEN) || '' }}"
+  PANDA_ENGINE_ANDROID_NDK_VERSION: 30.0.14904198
+  RUST_TOOLCHAIN: "1.97.1"
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  android:
-    name: Android validation
+  android-fast:
+    name: Android fast validation
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    env:
-      PANDA_ENGINE_ANDROID_NDK_VERSION: 30.0.14904198
 
     steps:
       - name: Checkout
@@ -41,14 +41,7 @@ jobs:
       - name: Install Android SDK packages
         run: |
           yes | sdkmanager --licenses
-          sdkmanager "platform-tools" "platforms;android-36.1" "ndk;$PANDA_ENGINE_ANDROID_NDK_VERSION"
-
-      - name: Set up Rust for Android
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          # Pin to 1.97.1 (edition 2024). Do not use unpinned stable.
-          toolchain: 1.97.1
-          targets: aarch64-linux-android, armv7-linux-androideabi, i686-linux-android, x86_64-linux-android
+          sdkmanager "platform-tools" "platforms;android-36.1"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
@@ -99,14 +92,124 @@ jobs:
             exit "$visibility_status"
           fi
 
-      - name: Quality, assemble, and test
+      - name: Quality, lint, and test
         run: >
           ./gradlew
-          --no-configuration-cache
           qualityCheck
           :app:lintRelease
           test
+          -PpandaEngine.buildNative=false
+          -Ppandawave.verificationAppLinkHost=ci.pandawave.dev
+          --console=plain
+
+  android-debug:
+    name: Android debug native
+    needs: android-fast
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: |
+          yes | sdkmanager --licenses
+          sdkmanager "platform-tools" "platforms;android-36.1" "ndk;$PANDA_ENGINE_ANDROID_NDK_VERSION"
+
+      - name: Set up Rust for Android
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          targets: x86_64-linux-android
+
+      - name: Cache Android debug Cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/engine/target
+          key: cargo-android-debug-x86_64-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-ndk-${{ env.PANDA_ENGINE_ANDROID_NDK_VERSION }}-${{ hashFiles('rust/engine/Cargo.lock', 'rust/engine/Cargo.toml') }}-${{ hashFiles('rust/engine/crates/**') }}
+          restore-keys: |
+            cargo-android-debug-x86_64-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-ndk-${{ env.PANDA_ENGINE_ANDROID_NDK_VERSION }}-
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
+
+      - name: Assemble debug with one ABI
+        run: >
+          ./gradlew
           :app:assembleDebug
+          -PpandaEngine.debugAbis=x86_64
+          --console=plain
+
+  android-release:
+    name: Android release validation
+    needs: android-fast
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.ref == 'refs/heads/master' ||
+      startsWith(github.ref, 'refs/heads/release')
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: |
+          yes | sdkmanager --licenses
+          sdkmanager "platform-tools" "platforms;android-36.1" "ndk;$PANDA_ENGINE_ANDROID_NDK_VERSION"
+
+      - name: Set up Rust for Android
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          targets: aarch64-linux-android, armv7-linux-androideabi, i686-linux-android, x86_64-linux-android
+
+      - name: Cache Android release Cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/engine/target
+          key: cargo-android-release-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-ndk-${{ env.PANDA_ENGINE_ANDROID_NDK_VERSION }}-${{ hashFiles('rust/engine/Cargo.lock', 'rust/engine/Cargo.toml') }}-${{ hashFiles('rust/engine/crates/**') }}
+          restore-keys: |
+            cargo-android-release-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-ndk-${{ env.PANDA_ENGINE_ANDROID_NDK_VERSION }}-
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
+
+      - name: Assemble release and benchmark
+        run: >
+          ./gradlew
           :app:assembleRelease
           :app:assembleBenchmark
           -Ppandawave.verificationAppLinkHost=ci.pandawave.dev
@@ -128,9 +231,19 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          # Pin to 1.97.1 (edition 2024). Do not use unpinned stable.
-          toolchain: 1.97.1
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
           components: rustfmt, clippy
+
+      - name: Cache host Cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/engine/target
+          key: cargo-host-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-${{ hashFiles('rust/engine/Cargo.lock', 'rust/engine/Cargo.toml') }}-${{ hashFiles('rust/engine/crates/**') }}
+          restore-keys: |
+            cargo-host-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-
 
       - name: Verify immutable Canopy SDK compatibility
         shell: pwsh
@@ -151,8 +264,6 @@ jobs:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    env:
-      PANDA_ENGINE_ANDROID_NDK_VERSION: 30.0.14904198
 
     steps:
       - name: Checkout
@@ -185,7 +296,6 @@ jobs:
           disable-animations: true
           script: >
             ./gradlew
-            --no-configuration-cache
             :app:connectedDebugAndroidTest
             -Pandroid.testInstrumentationRunnerArguments.class=com.adrianrusu.pandawave.BambooMediaBrowserSmokeTest
             -PpandaEngine.buildNative=false

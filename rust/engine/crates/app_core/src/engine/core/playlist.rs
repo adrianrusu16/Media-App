@@ -118,7 +118,7 @@ impl Engine {
                 self.mutate_playlist(snapshot, |identity, port| async move {
                     port.add_track(&identity.playlist_identity(), playlist_id, track_id)
                         .await
-                        .map(PlaylistMutation::Track)
+                        .map(|track| PlaylistMutation::Track(Box::new(track)))
                 })
                 .await
             }
@@ -335,7 +335,7 @@ impl Engine {
             }
             Ok(PlaylistMutation::Track(track)) => {
                 if snapshot.playlist_tracks_playlist_id.as_deref() == Some(&track.playlist_id) {
-                    snapshot.playlist_tracks.push(track);
+                    snapshot.playlist_tracks.push(*track);
                 }
             }
             Ok(PlaylistMutation::Deleted(id)) => {
@@ -363,7 +363,7 @@ impl Engine {
 
 enum PlaylistMutation {
     Playlist(crate::EnginePlaylist),
-    Track(crate::EnginePlaylistTrack),
+    Track(Box<crate::EnginePlaylistTrack>),
     Deleted(String),
     RemovedTrack {
         playlist_id: String,

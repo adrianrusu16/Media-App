@@ -668,11 +668,10 @@ private class CatalogRecordingEngineGateway(
     override fun searchResultsPage(offset: Int, limit: Int): List<EngineCatalogItem> =
         visibleSearch().drop(offset.coerceAtLeast(0)).take(limit.coerceAtLeast(0))
 
-    override fun historyPage(offset: Int, limit: Int, generation: Long): EngineHistoryPage =
-        EngineHistoryPage(
-            generation,
-            historyResults.drop(historyOffset + offset.coerceAtLeast(0)).take(limit.coerceAtLeast(0))
-        )
+    override fun historyPage(offset: Int, limit: Int, generation: Long): EngineHistoryPage = EngineHistoryPage(
+        generation,
+        historyResults.drop(historyOffset + offset.coerceAtLeast(0)).take(limit.coerceAtLeast(0))
+    )
 
     override fun dispatch(command: EngineCommand): EngineDispatchResult {
         commands += command
