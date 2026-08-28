@@ -1,12 +1,9 @@
 package com.adrianrusu.pandawave.feature.search
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -23,23 +20,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.adrianrusu.pandawave.core.designsystem.tokens.LocalPandaWaveDesignTokens
-import com.adrianrusu.pandawave.core.designsystem.tokens.md
-import com.adrianrusu.pandawave.core.designsystem.tokens.mediaCarouselSpacing
-import com.adrianrusu.pandawave.core.designsystem.tokens.mediaSectionSpacing
 import com.adrianrusu.pandawave.core.designsystem.tokens.sm
 import com.adrianrusu.pandawave.core.ui.artwork.BambooArtworkFallback
 import com.adrianrusu.pandawave.core.ui.artwork.toBambooArtworkModel
-import com.adrianrusu.pandawave.core.ui.discovery.BambooCategoryCard
-import com.adrianrusu.pandawave.core.ui.discovery.BambooCategoryItem
 import com.adrianrusu.pandawave.core.ui.discovery.BambooMediaAction
 import com.adrianrusu.pandawave.core.ui.discovery.BambooMediaItem
 import com.adrianrusu.pandawave.core.ui.discovery.BambooMediaListRow
 import com.adrianrusu.pandawave.core.ui.discovery.BambooSearchBar
 import com.adrianrusu.pandawave.core.ui.discovery.BambooSectionHeader
-import com.adrianrusu.pandawave.core.ui.discovery.BambooWaveform
-import com.adrianrusu.pandawave.core.ui.focus.BambooFocusableLazyRow
 import com.adrianrusu.pandawave.core.ui.focus.BambooRotaryColumn
-import com.adrianrusu.pandawave.core.ui.icons.PandaWaveIcons
 import com.adrianrusu.pandawave.feature.search.domain.SearchState
 import com.adrianrusu.pandawave.feature.search.domain.SearchTrack
 import com.adrianrusu.pandawave.feature.search.presentation.SearchViewModel
@@ -73,55 +62,21 @@ fun SearchRoute(
     modifier: Modifier = Modifier
 ) {
     val tokens = LocalPandaWaveDesignTokens.current
-    val categories = searchCategories()
 
     BambooRotaryColumn(
         modifier = modifier
             .fillMaxWidth()
             .testTag("search-route"),
-        verticalArrangement = Arrangement.spacedBy(tokens.components.mediaSectionSpacing)
+        verticalArrangement = Arrangement.spacedBy(tokens.spacing.sm)
     ) {
-        BambooSectionHeader(
-            title = stringResource(R.string.pandawave_search_title),
-            subtitle = stringResource(R.string.pandawave_search_subtitle)
+        BambooSearchBar(
+            modifier = Modifier.testTag("search-input"),
+            query = state.query,
+            onQueryChange = onQueryChange,
+            placeholder = stringResource(R.string.pandawave_search_placeholder),
+            textStyle = tokens.typography.body,
+            onVoiceClick = {}
         )
-
-        Column(verticalArrangement = Arrangement.spacedBy(tokens.components.mediaCarouselSpacing)) {
-            BambooSearchBar(
-                modifier = Modifier.testTag("search-input"),
-                query = state.query,
-                onQueryChange = onQueryChange,
-                placeholder = stringResource(R.string.pandawave_search_placeholder),
-                onVoiceClick = {}
-            )
-            BambooWaveform(active = state.query.isBlank())
-        }
-
-        Column(verticalArrangement = Arrangement.spacedBy(tokens.components.mediaCarouselSpacing)) {
-            BambooSectionHeader(title = stringResource(R.string.pandawave_search_browse_mood))
-            BambooFocusableLazyRow(
-                horizontalArrangement = Arrangement.spacedBy(tokens.components.mediaCarouselSpacing),
-                contentPadding = PaddingValues(horizontal = tokens.components.mediaCarouselSpacing)
-            ) {
-                items(categories, key = { it.id }) { category ->
-                    BambooCategoryCard(
-                        modifier = Modifier.testTag("search-category-${category.id}"),
-                        category = category,
-                        icon = when (category.id) {
-                            "chill" -> PandaWaveIcons.Relax
-                            "focus" -> PandaWaveIcons.Nature
-                            "energy" -> PandaWaveIcons.Energy
-                            else -> PandaWaveIcons.Equalizer
-                        },
-                        accentColor = when (category.id) {
-                            "energy" -> Color(tokens.colors.secondary)
-                            else -> Color(tokens.colors.primary)
-                        },
-                        onClick = { onQueryChange(category.title) }
-                    )
-                }
-            }
-        }
 
         state.errorType?.let {
             Surface(
@@ -130,7 +85,7 @@ fun SearchRoute(
                 shape = MaterialTheme.shapes.small
             ) {
                 Row(
-                    modifier = Modifier.padding(tokens.spacing.md),
+                    modifier = Modifier.padding(tokens.spacing.sm),
                     horizontalArrangement = Arrangement.spacedBy(tokens.spacing.sm),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -142,6 +97,7 @@ fun SearchRoute(
                                 R.string.pandawave_search_error
                             }
                         ),
+                        style = tokens.typography.body,
                         modifier = Modifier.weight(1f)
                     )
                     if (state.isRetryableError) {
@@ -149,7 +105,10 @@ fun SearchRoute(
                             onClick = onRetry,
                             modifier = Modifier.testTag("search-retry")
                         ) {
-                            Text(stringResource(R.string.pandawave_search_retry))
+                            Text(
+                                text = stringResource(R.string.pandawave_search_retry),
+                                style = tokens.typography.body
+                            )
                         }
                     }
                 }
@@ -172,12 +131,16 @@ fun SearchRoute(
         ) {
             Text(
                 text = stringResource(R.string.pandawave_search_empty),
+                style = tokens.typography.metadata,
                 modifier = Modifier.testTag("search-empty")
             )
         }
 
         if (state.results.isNotEmpty()) {
-            BambooSectionHeader(title = stringResource(R.string.pandawave_search_results))
+            BambooSectionHeader(
+                title = stringResource(R.string.pandawave_search_results),
+                titleStyle = tokens.typography.body
+            )
             state.results.forEach { track ->
                 BambooMediaListRow(
                     modifier = Modifier.testTag("search-result-${track.mediaId}"),
@@ -197,35 +160,14 @@ fun SearchRoute(
                 enabled = !state.isLoading,
                 modifier = Modifier.fillMaxWidth().testTag("search-next-page")
             ) {
-                Text(stringResource(R.string.pandawave_search_load_more))
+                Text(
+                    text = stringResource(R.string.pandawave_search_load_more),
+                    style = tokens.typography.body
+                )
             }
         }
     }
 }
-
-@Composable
-private fun searchCategories(): List<BambooCategoryItem> = listOf(
-    BambooCategoryItem(
-        id = "chill",
-        title = stringResource(R.string.pandawave_search_chill_title),
-        description = stringResource(R.string.pandawave_search_chill_description)
-    ),
-    BambooCategoryItem(
-        id = "focus",
-        title = stringResource(R.string.pandawave_search_focus_title),
-        description = stringResource(R.string.pandawave_search_focus_description)
-    ),
-    BambooCategoryItem(
-        id = "energy",
-        title = stringResource(R.string.pandawave_search_energy_title),
-        description = stringResource(R.string.pandawave_search_energy_description)
-    ),
-    BambooCategoryItem(
-        id = "nature",
-        title = stringResource(R.string.pandawave_search_nature_title),
-        description = stringResource(R.string.pandawave_search_nature_description)
-    )
-)
 
 private fun SearchTrack.toMediaItem() = BambooMediaItem(
     id = mediaId,

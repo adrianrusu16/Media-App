@@ -69,6 +69,18 @@ class NowPlayingUiModelTest {
     }
 
     @Test
+    fun `busy engine disables media controls`() {
+        val model = NowPlayingState(
+            playbackState = NowPlayingPlaybackState.Paused,
+            engineConnection = BambooEngineConnectionUiState.Ready,
+            canDispatch = false
+        ).toTestUiModel()
+
+        assertFalse(model.controlsEnabled)
+        assertEquals("Controls unavailable", model.availabilityLabel)
+    }
+
+    @Test
     fun `ended playback keeps the current title instead of idle copy`() {
         val model = NowPlayingState(
             title = "The Emptiness Machine",

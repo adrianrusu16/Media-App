@@ -32,6 +32,7 @@ class BambooMediaSessionPlayerTest {
         assertEquals("Song A", model.playlist.single().mediaItem.mediaMetadata.title.toString())
         assertEquals("Artist", model.playlist.single().mediaItem.mediaMetadata.artist.toString())
         assertEquals(androidx.media3.common.Player.STATE_BUFFERING, model.playbackState)
+        assertEquals(true, model.playWhenReady)
     }
 
     @Test

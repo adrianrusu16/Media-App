@@ -40,4 +40,32 @@ class NowPlayingLayoutTest {
             )
         )
     }
+
+    @Test
+    fun `all layouts fill remaining artwork space so controls stay at the bottom`() {
+        assertEquals(
+            true,
+            resolveNowPlayingLayout(
+                availableHeight = 720.dp,
+                compactHeightThreshold = 640.dp,
+                scrollHeightThreshold = 480.dp
+            ).fillsRemainingArtworkSpace
+        )
+        assertEquals(
+            true,
+            resolveNowPlayingLayout(
+                availableHeight = 572.dp,
+                compactHeightThreshold = 640.dp,
+                scrollHeightThreshold = 480.dp
+            ).fillsRemainingArtworkSpace
+        )
+        assertEquals(
+            true,
+            resolveNowPlayingLayout(
+                availableHeight = 420.dp,
+                compactHeightThreshold = 640.dp,
+                scrollHeightThreshold = 480.dp
+            ).fillsRemainingArtworkSpace
+        )
+    }
 }

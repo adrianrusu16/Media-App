@@ -1,5 +1,6 @@
 package com.adrianrusu.pandawave.core.media.adapter.playback
 
+import android.net.PandawaveTestUri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import com.adrianrusu.pandawave.core.media.adapter.playback.focus.BambooAudioFocusController
@@ -15,7 +16,7 @@ import kotlin.test.assertFalse
 
 class Media3EngineEffectExecutorTest {
     @Test
-    fun `delayed audio focus blocks the paired play effect and records the reason`() {
+    fun `delayed audio focus still starts playback`() {
         val player = RecordingEffectPlayer(playbackState = Player.STATE_READY)
         val focusController = RecordingAudioFocusController(BambooAudioFocusRequestResult.Delayed)
         val telemetrySink = RecordingEffectTelemetrySink()
@@ -33,13 +34,38 @@ class Media3EngineEffectExecutorTest {
         )
 
         assertEquals(listOf("request"), focusController.calls)
-        assertEquals(emptyList<String>(), player.calls)
+        assertEquals(listOf("play"), player.calls)
         assertEquals(
             BambooAudioFocusRequestResult.Delayed.wireValue,
             telemetrySink.events
                 .single { it.name == Media3EffectTelemetryEvents.AUDIO_FOCUS_REQUESTED }
                 .attributes[Media3EffectTelemetryAttributes.RESULT]
         )
+        assertFalse(
+            telemetrySink.events.any { event -> event.name == Media3EffectTelemetryEvents.EFFECT_IGNORED }
+        )
+    }
+
+    @Test
+    fun `failed audio focus blocks the paired play effect and records the reason`() {
+        val player = RecordingEffectPlayer(playbackState = Player.STATE_READY)
+        val focusController = RecordingAudioFocusController(BambooAudioFocusRequestResult.Failed)
+        val telemetrySink = RecordingEffectTelemetrySink()
+        val executor = effectExecutor(
+            player = player,
+            focusController = focusController,
+            telemetrySink = telemetrySink
+        )
+
+        executor.execute(
+            listOf(
+                EngineEffect(type = EngineEffect.TYPE_REQUEST_AUDIO_FOCUS),
+                EngineEffect(type = EngineEffect.TYPE_PLAY)
+            )
+        )
+
+        assertEquals(listOf("request"), focusController.calls)
+        assertEquals(emptyList<String>(), player.calls)
         assertEquals(
             Media3EffectTelemetryValues.AUDIO_FOCUS_NOT_GRANTED,
             telemetrySink.events
@@ -57,6 +83,7 @@ class Media3EngineEffectExecutorTest {
                 BambooMediaSessionStateProjection(
                     mediaItem = MediaItem.Builder()
                         .setMediaId("track-1")
+                        .setUri(PandawaveTestUri)
                         .setMimeType("audio/mpeg")
                         .build(),
                     playWhenReady = false,
@@ -100,6 +127,7 @@ class Media3EngineEffectExecutorTest {
                 BambooMediaSessionStateProjection(
                     mediaItem = MediaItem.Builder()
                         .setMediaId("track-2")
+                        .setUri(PandawaveTestUri)
                         .setMimeType("audio/mpeg")
                         .build(),
                     playWhenReady = false,
@@ -234,6 +262,146 @@ class Media3EngineEffectExecutorTest {
     }
 
     @Test
+    fun `prepare accepts the fallback current-item media id`() {
+        val player = RecordingEffectPlayer(playbackState = Player.STATE_IDLE)
+        val executor = effectExecutor(
+            player = player,
+            currentProjection = {
+                BambooMediaSessionStateProjection(
+                    mediaItem = MediaItem.Builder()
+                        .setMediaId(FALLBACK_MEDIA_ID)
+                        .setUri(PandawaveTestUri)
+                        .build(),
+                    playWhenReady = false,
+                    positionMillis = 0L
+                )
+            }
+        )
+
+        executor.execute(
+            listOf(
+                EngineEffect(
+                    type = EngineEffect.TYPE_PREPARE_PLAYBACK_SOURCE,
+                    mediaId = "track-1",
+                    playbackInstanceId = 9L
+                )
+            )
+        )
+
+        assertEquals(listOf("setMediaItem:track-1:0", "prepare"), player.calls)
+    }
+
+    @Test
+    fun `prepare without a playable uri is skipped`() {
+        val telemetrySink = RecordingEffectTelemetrySink()
+        val player = RecordingEffectPlayer(playbackState = Player.STATE_READY)
+        val executor = effectExecutor(
+            player = player,
+            telemetrySink = telemetrySink,
+            currentProjection = {
+                BambooMediaSessionStateProjection(
+                    mediaItem = MediaItem.Builder().setMediaId("track-1").build(),
+                    playWhenReady = false,
+                    positionMillis = 0L
+                )
+            }
+        )
+
+        executor.execute(
+            listOf(
+                EngineEffect(
+                    type = EngineEffect.TYPE_PREPARE_PLAYBACK_SOURCE,
+                    mediaId = "track-1",
+                    playbackInstanceId = 1L
+                )
+            )
+        )
+
+        assertEquals(emptyList<String>(), player.calls)
+        assertEquals(
+            Media3EffectTelemetryValues.MISSING_URI,
+            telemetrySink.events.last().attributes[Media3EffectTelemetryAttributes.REASON]
+        )
+    }
+
+    @Test
+    fun `prepare uses the effect message when the projection has no uri`() {
+        val player = RecordingEffectPlayer(playbackState = Player.STATE_IDLE)
+        val executor = effectExecutor(
+            player = player,
+            currentProjection = {
+                BambooMediaSessionStateProjection(
+                    mediaItem = MediaItem.Builder().setMediaId("track-1").build(),
+                    playWhenReady = false,
+                    positionMillis = 0L
+                )
+            },
+            uriParser = BambooUriParser { value ->
+                value.takeIf { it == PandawaveTestUri.toString() }?.let { PandawaveTestUri }
+            }
+        )
+
+        executor.execute(
+            listOf(
+                EngineEffect(
+                    type = EngineEffect.TYPE_PREPARE_PLAYBACK_SOURCE,
+                    mediaId = "track-1",
+                    playbackInstanceId = 11L,
+                    message = PandawaveTestUri.toString()
+                )
+            )
+        )
+
+        assertEquals(listOf("setMediaItem:track-1:0", "prepare"), player.calls)
+    }
+
+    @Test
+    fun `prepare loads the effect uri when the projection is missing`() {
+        val player = RecordingEffectPlayer(playbackState = Player.STATE_IDLE)
+        val executor = effectExecutor(
+            player = player,
+            uriParser = BambooUriParser { value ->
+                value.takeIf { it == PandawaveTestUri.toString() }?.let { PandawaveTestUri }
+            }
+        )
+
+        executor.execute(
+            listOf(
+                EngineEffect(
+                    type = EngineEffect.TYPE_PREPARE_PLAYBACK_SOURCE,
+                    mediaId = "track-1",
+                    playbackInstanceId = 12L,
+                    message = PandawaveTestUri.toString()
+                )
+            )
+        )
+
+        assertEquals(listOf("setMediaItem:track-1:0", "prepare"), player.calls)
+    }
+
+    @Test
+    fun `play loads projected media when the player has no current item`() {
+        val player = RecordingEffectPlayer(playbackState = Player.STATE_IDLE)
+        val executor = effectExecutor(
+            player = player,
+            currentProjection = {
+                BambooMediaSessionStateProjection(
+                    mediaItem = MediaItem.Builder()
+                        .setMediaId("track-1")
+                        .setUri(PandawaveTestUri)
+                        .build(),
+                    playWhenReady = true,
+                    positionMillis = 0L
+                )
+            }
+        )
+
+        executor.execute(listOf(EngineEffect(type = EngineEffect.TYPE_PLAY)))
+
+        assertEquals(listOf("setMediaItem:track-1:0", "prepare", "play"), player.calls)
+    }
+
+    @Test
     fun `decoder recovery recreates the player and restores the requested position`() {
         val player = RecordingEffectPlayer(playbackState = Player.STATE_IDLE)
         var recreations = 0
@@ -243,7 +411,10 @@ class Media3EngineEffectExecutorTest {
             telemetryLogger = TelemetryLogger(sink = TelemetrySink { }, clock = { 42L }),
             currentProjection = {
                 BambooMediaSessionStateProjection(
-                    mediaItem = MediaItem.Builder().setMediaId("track-1").build(),
+                    mediaItem = MediaItem.Builder()
+                        .setMediaId("track-1")
+                        .setUri(PandawaveTestUri)
+                        .build(),
                     playWhenReady = true,
                     positionMillis = 1_000L
                 )
@@ -300,7 +471,8 @@ private fun effectExecutor(
     player: RecordingEffectPlayer = RecordingEffectPlayer(playbackState = Player.STATE_READY),
     focusController: RecordingAudioFocusController = RecordingAudioFocusController(),
     telemetrySink: TelemetrySink = TelemetrySink { },
-    currentProjection: () -> BambooMediaSessionStateProjection? = { null }
+    currentProjection: () -> BambooMediaSessionStateProjection? = { null },
+    uriParser: BambooUriParser = BambooUriParser { null }
 ): Media3EngineEffectExecutor = Media3EngineEffectExecutor(
     player = { player },
     audioFocusController = focusController,
@@ -308,14 +480,18 @@ private fun effectExecutor(
         sink = telemetrySink,
         clock = { 42L }
     ),
-    currentProjection = currentProjection
+    currentProjection = currentProjection,
+    uriParser = uriParser
 )
 
 private class RecordingEffectPlayer(override var playbackState: Int) : Media3EffectPlayer {
     val calls = mutableListOf<String>()
+    override var hasPlayableMedia: Boolean = false
+        private set
 
     override fun setMediaItem(mediaItem: MediaItem, positionMillis: Long) {
         calls += "setMediaItem:${mediaItem.mediaId}:$positionMillis"
+        hasPlayableMedia = true
     }
 
     override fun prepare() {

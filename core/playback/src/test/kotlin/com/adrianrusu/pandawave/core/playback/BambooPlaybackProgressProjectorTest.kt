@@ -44,6 +44,22 @@ class BambooPlaybackProgressProjectorTest {
     }
 
     @Test
+    fun `buffering progress waits for actual playback`() {
+        val progress = BambooPlaybackProgressProjector.fromPlaybackState(
+            state = BambooPlaybackState(
+                playbackStatus = BambooPlaybackStatus.Recovering,
+                updatedAtEpochMillis = 1_000L,
+                positionMillis = 0L,
+                durationMillis = 40_000L
+            ),
+            nowMillis = 3_000L
+        )
+
+        assertEquals(0L, progress.positionMillis)
+        assertEquals(0F, progress.fraction)
+    }
+
+    @Test
     fun `paused progress keeps the last engine position`() {
         val progress = BambooPlaybackProgressProjector.fromPlaybackState(
             state = BambooPlaybackState(

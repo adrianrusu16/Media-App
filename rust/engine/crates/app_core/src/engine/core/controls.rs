@@ -4,6 +4,7 @@ impl Engine {
     /// Forces a refresh of the player controls based on the current state.
     pub fn refresh_controls(&mut self) {
         self.snapshot.controls = self.derive_controls(&self.snapshot);
+        Self::apply_queue_projection(&mut self.snapshot, &self.queue);
     }
 
     /// Derives player controls from the current engine state.
@@ -16,7 +17,7 @@ impl Engine {
         let can_dispatch = snapshot.can_dispatch();
         let is_playing = matches!(
             snapshot.playback_state,
-            PlaybackState::Playing | PlaybackState::Recovering
+            PlaybackState::Playing | PlaybackState::Recovering | PlaybackState::Buffering
         );
         let has_current_item = self.queue.has_current();
 

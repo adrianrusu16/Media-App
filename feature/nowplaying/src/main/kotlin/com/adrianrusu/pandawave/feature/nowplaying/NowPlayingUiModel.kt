@@ -13,7 +13,8 @@ internal data class NowPlayingUiModel(
     val primaryActionLabel: String,
     val primaryControlIcon: NowPlayingPrimaryControlIcon,
     val availabilityLabel: String,
-    val volume: NowPlayingVolumeUiModel
+    val volume: NowPlayingVolumeUiModel,
+    val queueActionEnabled: Boolean
 )
 
 internal enum class NowPlayingPrimaryControlIcon {
@@ -41,8 +42,7 @@ internal fun NowPlayingState.toNowPlayingUiModel(
     fallbackTitle: String,
     fallbackDetail: String
 ): NowPlayingUiModel {
-    val controlsEnabled = engineConnection.status == BambooEngineConnectionStatus.Ready &&
-        !hasPlaybackError
+    val controlsEnabled = canDispatchEngineCommands && !hasPlaybackError
     val primaryActionLabel = if (isPlaying) pauseLabel else playLabel
 
     return NowPlayingUiModel(
@@ -63,7 +63,10 @@ internal fun NowPlayingState.toNowPlayingUiModel(
             controlsEnabled -> primaryActionLabel
             else -> controlsUnavailableLabel
         },
-        volume = NowPlayingVolumeUiModel.from(volume)
+        volume = NowPlayingVolumeUiModel.from(volume),
+        queueActionEnabled = queue.canBrowse(
+            engineReady = engineConnection.status == BambooEngineConnectionStatus.Ready
+        )
     )
 }
 

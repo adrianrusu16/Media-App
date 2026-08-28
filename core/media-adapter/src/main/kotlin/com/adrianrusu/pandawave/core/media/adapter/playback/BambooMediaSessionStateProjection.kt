@@ -5,7 +5,6 @@ import androidx.core.net.toUri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackState
-import com.adrianrusu.pandawave.core.playback.BambooPlaybackStatus
 
 internal data class BambooMediaSessionStateProjection(
     val mediaItem: MediaItem,
@@ -68,7 +67,7 @@ internal fun BambooPlaybackState.toMediaSessionStateProjection(
                     .build()
             )
             .build(),
-        playWhenReady = playbackStatus == BambooPlaybackStatus.Playing,
+        playWhenReady = playWhenReady,
         positionMillis = positionMillis.coerceAtLeast(0L),
         volume = volume.coerceIn(MIN_VOLUME, MAX_VOLUME),
         playbackExpiresAtEpochMillis = playbackExpiresAtEpochMillis,
@@ -76,6 +75,6 @@ internal fun BambooPlaybackState.toMediaSessionStateProjection(
     )
 }
 
-private const val FALLBACK_MEDIA_ID = "pandawave.playback.current"
+internal const val FALLBACK_MEDIA_ID = "pandawave.playback.current"
 private const val MIN_VOLUME = 0F
 private const val MAX_VOLUME = 1F

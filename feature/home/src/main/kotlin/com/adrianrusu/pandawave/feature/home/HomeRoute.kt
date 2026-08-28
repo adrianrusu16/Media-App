@@ -52,10 +52,6 @@ fun HomeRoute(
         modifier = modifier.fillMaxWidth().testTag("home-route"),
         verticalArrangement = Arrangement.spacedBy(tokens.components.mediaSectionSpacing)
     ) {
-        BambooSectionHeader(
-            title = stringResource(R.string.pandawave_home_greeting),
-            subtitle = stringResource(R.string.pandawave_home_greeting_body)
-        )
         HomeFeedSection(
             title = stringResource(R.string.pandawave_home_for_you),
             tracks = state.forYou,

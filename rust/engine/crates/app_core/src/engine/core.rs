@@ -479,6 +479,7 @@ impl Engine {
 
         let mut final_snapshot = engine.snapshot.clone();
         final_snapshot.controls = engine.derive_controls(&final_snapshot);
+        Self::apply_queue_projection(&mut final_snapshot, &engine.queue);
 
         Self {
             snapshot: final_snapshot,
@@ -774,6 +775,7 @@ impl Engine {
 
     fn snapshot_projection(&self) -> EngineSnapshot {
         let mut snapshot = self.snapshot.clone();
+        Self::apply_queue_projection(&mut snapshot, &self.queue);
         snapshot.auth_state = self
             .auth_state_provider
             .as_ref()
@@ -826,6 +828,12 @@ impl Engine {
             Self::clear_playlist_projection(&mut snapshot);
         }
         snapshot
+    }
+
+    fn apply_queue_projection(snapshot: &mut EngineSnapshot, queue: &QueueManager) {
+        snapshot.queue_size = queue.len();
+        snapshot.queue_current_index = queue.current_index();
+        snapshot.queue_generation = queue.generation();
     }
 
     pub(crate) fn sync_auth_state_projection(&mut self) {

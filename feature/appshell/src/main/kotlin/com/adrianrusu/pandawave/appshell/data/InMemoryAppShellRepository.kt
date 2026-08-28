@@ -45,7 +45,8 @@ internal class InMemoryAppShellRepository(private val playbackRepository: Bamboo
 
 internal fun AppShellState.withPlaybackState(playback: BambooPlaybackState): AppShellState = copy(
     engineConnection = playback.engineConnection,
-    miniPlayer = playback.toMiniPlayerState()
+    miniPlayer = playback.toMiniPlayerState(),
+    canDispatch = playback.canDispatch
 )
 
 private fun BambooPlaybackState.toMiniPlayerState(): MiniPlayerState = MiniPlayerState(
@@ -57,7 +58,7 @@ private fun BambooPlaybackState.toMiniPlayerState(): MiniPlayerState = MiniPlaye
         durationMillis = durationMillis,
         updatedAtEpochMillis = updatedAtEpochMillis,
         playbackSpeed = playbackSpeed,
-        isPlaying = isPlaying
+        isPlaying = playWhenReady
     ),
     artwork = toBambooArtworkModel(
         id = artworkId,

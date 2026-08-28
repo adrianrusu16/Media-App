@@ -27,10 +27,15 @@ data class BambooPlaybackState(
     val browseResultsCount: Int = 0,
     val isBusy: Boolean = false,
     val canDispatch: Boolean = true,
-    val controls: BambooPlaybackControls = BambooPlaybackControls.default()
+    val controls: BambooPlaybackControls = BambooPlaybackControls.default(),
+    val queue: BambooPlaybackQueueCapability = BambooPlaybackQueueCapability.Unreported
 ) {
     val isPlaying: Boolean
         get() = playbackStatus == BambooPlaybackStatus.Playing
+
+    val playWhenReady: Boolean
+        get() = playbackStatus == BambooPlaybackStatus.Playing ||
+            playbackStatus == BambooPlaybackStatus.Recovering
 
     val canDispatchEngineCommands: Boolean
         get() = engineConnection.status == BambooEngineConnectionStatus.Ready && canDispatch
@@ -138,5 +143,27 @@ data class BambooPlaybackControls(
             skipPrevious = BambooControlState.hidden(),
             showPlayIcon = true
         )
+    }
+}
+
+/**
+ * Authoritative PandaEngine playback-queue capability.
+ *
+ * [available] is true only when PandaEngine projected queue metadata. The UI
+ * must never synthesize this from Media3 or other Android-side timeline state.
+ * [sourceLabel] is reserved for engine playback-context copy such as
+ * "Playing from See You on the Other Side" and is not reconstructed here.
+ */
+data class BambooPlaybackQueueCapability(
+    val available: Boolean,
+    val size: Int,
+    val currentIndex: Int? = null,
+    val generation: Long = 0L,
+    val sourceLabel: String? = null
+) {
+    fun canBrowse(engineReady: Boolean): Boolean = engineReady && available && size > 1
+
+    companion object {
+        val Unreported = BambooPlaybackQueueCapability(available = false, size = 0)
     }
 }

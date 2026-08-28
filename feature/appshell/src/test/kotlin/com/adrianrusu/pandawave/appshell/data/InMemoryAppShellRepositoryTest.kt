@@ -11,6 +11,7 @@ import com.adrianrusu.pandawave.core.playback.BambooPlaybackStatus
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class InMemoryAppShellRepositoryTest {
@@ -74,6 +75,26 @@ class InMemoryAppShellRepositoryTest {
             unrestrictedRepository.state.value.miniPlayer,
             restrictedRepository.state.value.miniPlayer
         )
+    }
+
+    @Test
+    fun `buffering does not advance mini player progress before audio starts`() {
+        val repository = InMemoryAppShellRepository(
+            playbackRepository = RecordingPlaybackRepository(
+                BambooPlaybackState(
+                    mediaId = "track-1",
+                    playbackStatus = BambooPlaybackStatus.Recovering,
+                    updatedAtEpochMillis = 1_000L,
+                    positionMillis = 0L,
+                    durationMillis = 40_000L
+                )
+            )
+        )
+
+        repository.start()
+
+        assertFalse(repository.state.value.miniPlayer.progressAnchor.isPlaying)
+        assertEquals(0L, repository.state.value.miniPlayer.progressAt(nowMillis = 3_000L).positionMillis)
     }
 
     @Test

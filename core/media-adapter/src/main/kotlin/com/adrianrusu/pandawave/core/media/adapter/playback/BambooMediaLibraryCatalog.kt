@@ -110,8 +110,7 @@ internal class EngineBambooCatalogSource(private val engineGateway: EngineGatewa
         }
 
     override fun item(mediaId: String): BambooCatalogNode? = synchronized(catalogLock) {
-        val canonical = PandaMediaLibraryIds.canonicalize(mediaId)
-        when (canonical) {
+        when (val canonical = PandaMediaLibraryIds.canonicalize(mediaId)) {
             PandaMediaLibraryIds.ROOT -> rootNode
 
             in syntheticNodes -> syntheticNodes.getValue(canonical)

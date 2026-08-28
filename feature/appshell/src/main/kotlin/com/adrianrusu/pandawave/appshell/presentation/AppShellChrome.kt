@@ -1,5 +1,6 @@
 package com.adrianrusu.pandawave.appshell.presentation
 
+import com.adrianrusu.pandawave.appshell.navigation.NowPlayingDestination
 import com.adrianrusu.pandawave.appshell.navigation.PandaWaveDestination
 import com.adrianrusu.pandawave.appshell.navigation.shouldShowMiniPlayer
 
@@ -13,5 +14,5 @@ internal fun resolveAppShellChrome(currentDestination: PandaWaveDestination, amb
     AppShellChrome(
         showNavigationRail = !ambientVisible,
         showMiniPlayer = !ambientVisible && currentDestination.shouldShowMiniPlayer,
-        applyContentPadding = !ambientVisible
+        applyContentPadding = !ambientVisible && currentDestination != NowPlayingDestination
     )

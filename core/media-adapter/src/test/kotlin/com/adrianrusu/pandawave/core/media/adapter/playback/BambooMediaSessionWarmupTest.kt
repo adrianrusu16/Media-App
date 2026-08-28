@@ -24,6 +24,19 @@ class BambooMediaSessionWarmupTest {
     }
 
     @Test
+    fun `reconnect replaces the existing controller connection`() {
+        val connector = RecordingMediaSessionControllerConnector()
+        val warmup = BambooMediaSessionWarmup(connector)
+
+        warmup.start()
+        warmup.reconnect()
+
+        assertEquals(2, connector.connectCount)
+        assertEquals(1, connector.connections.first().closeCount)
+        assertEquals(1, connector.connections.last().closeCount)
+    }
+
+    @Test
     fun `close before start is safe`() {
         val connector = RecordingMediaSessionControllerConnector()
         val warmup = BambooMediaSessionWarmup(connector)

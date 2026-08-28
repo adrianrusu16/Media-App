@@ -25,7 +25,8 @@ class DefaultBambooPlaybackRepository(
     telemetryLogger: TelemetryLogger,
     private val drivingStateObserver: AutomotiveDrivingStateObserver = AutomotiveDrivingStateObserver.Unavailable,
     private val engineDispatchExecutor: Executor = Executor { command -> command.run() },
-    private val resultExecutor: Executor = Executor { command -> command.run() }
+    private val resultExecutor: Executor = Executor { command -> command.run() },
+    private val mediaPipelineGate: BambooPlaybackMediaPipelineGate = BambooPlaybackMediaPipelineGate.NoOp
 ) : BambooPlaybackRepository {
     private val telemetryLogger = telemetryLogger.forModule(TelemetryModule.Playback)
     private val automotiveTelemetryLogger = telemetryLogger.forModule(TelemetryModule.Automotive)
@@ -210,7 +211,6 @@ class DefaultBambooPlaybackRepository(
         engineSnapshotSubscription = null
         engineEventSubscription?.close()
         engineEventSubscription = null
-        effectListeners.clear()
         uxRestrictionObserver.close()
         drivingStateObserver.close()
         lastDrivingState = AutomotiveDrivingState.Unknown
@@ -280,7 +280,7 @@ class DefaultBambooPlaybackRepository(
     }
 
     private fun togglePlayback() {
-        val commandType = when (state.value.isPlaying) {
+        val commandType = when (state.value.playWhenReady) {
             true -> EngineCommand.TYPE_PAUSE
             false -> EngineCommand.TYPE_PLAY
         }
@@ -421,7 +421,13 @@ class DefaultBambooPlaybackRepository(
 
         val listeners = effectListeners.toList()
         if (listeners.isEmpty()) {
-            pendingEffectsForLateObserver = effects
+            pendingEffectsForLateObserver = pendingEffectsForLateObserver + effects
+            PandaLog.w(PandaLog.Tag.MEDIA) {
+                "effects_pending count=${effects.size} types=${effects.joinToString { effect -> effect.type }} " +
+                    "queued_total=${pendingEffectsForLateObserver.size} " +
+                    "(no Media3 effect observer registered yet)"
+            }
+            mediaPipelineGate.ensureRunning()
             return
         }
 

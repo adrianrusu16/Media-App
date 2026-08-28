@@ -24,6 +24,25 @@ async fn play_command_moves_idle_to_buffering() {
 }
 
 #[tokio::test]
+async fn pause_rebases_position_from_the_last_progress_tick() {
+    let mut engine = Engine::new(1_000);
+    engine.snapshot = engine
+        .snapshot
+        .clone()
+        .with_playback_state(PlaybackState::Playing, 1_000)
+        .with_progress_tick(1_000)
+        .with_position(10_000)
+        .with_duration(Some(40_000))
+        .with_speed(1.5);
+
+    let outcome = engine.dispatch(EngineCommand::pause(), 3_000).await;
+
+    assert_eq!(PlaybackState::Paused, outcome.snapshot.playback_state);
+    assert_eq!(13_000, outcome.snapshot.position_millis);
+    assert_eq!(3_000, outcome.snapshot.last_progress_tick_epoch_millis);
+}
+
+#[tokio::test]
 async fn unknown_command_preserves_playback_state() {
     let mut engine = Engine::new(100);
     engine
@@ -436,6 +455,42 @@ async fn audio_focus_request_failure_clears_playback_intent_and_blocks_later_gai
 
     assert_eq!(PlaybackState::Paused, gain.snapshot.playback_state);
     assert!(!gain.effects.contains(&EngineEffect::Play));
+}
+
+#[tokio::test]
+async fn audio_focus_request_delayed_keeps_buffering_until_gain() {
+    let mut engine = Engine::new(100);
+    engine.dispatch(EngineCommand::play(), 125).await;
+    engine.snapshot = engine
+        .snapshot
+        .clone()
+        .with_playback_state(PlaybackState::Buffering, 140);
+
+    let delayed = engine
+        .dispatch_platform_event(
+            EnginePlatformEvent::new(
+                EnginePlatformEventType::AudioFocusRequestResult,
+                Some(r#"{"version":1,"result":"delayed"}"#.into()),
+            ),
+            150,
+        )
+        .await;
+
+    assert_eq!(PlaybackState::Buffering, delayed.snapshot.playback_state);
+    assert!(!delayed.effects.contains(&EngineEffect::Pause));
+
+    let gain = engine
+        .dispatch_platform_event(
+            EnginePlatformEvent::new(
+                EnginePlatformEventType::AudioFocusChanged,
+                Some(r#"{"version":1,"focus_change":"gain"}"#.into()),
+            ),
+            175,
+        )
+        .await;
+
+    assert_eq!(PlaybackState::Playing, gain.snapshot.playback_state);
+    assert!(gain.effects.contains(&EngineEffect::Play));
 }
 
 #[tokio::test]

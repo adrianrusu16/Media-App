@@ -16,7 +16,7 @@
     <string name="pandawave_now_playing_playing_subtitle">Preview queue</string>
     <string name="pandawave_now_playing_shuffle_unavailable">Shuffle unavailable</string>
     <string name="pandawave_now_playing_favorite_unavailable">Favorite unavailable</string>
-    <string name="pandawave_now_playing_library">Library</string>
+    <string name="pandawave_now_playing_queue">Queue</string>
     <string name="pandawave_now_playing_unknown_time">--:--</string>
     <string name="pandawave_now_playing_volume_percent">Volume %1$d percent</string>
 </resources>

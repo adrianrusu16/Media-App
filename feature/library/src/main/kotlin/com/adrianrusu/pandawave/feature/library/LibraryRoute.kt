@@ -104,11 +104,6 @@ fun LibraryRoute(
             .testTag("library-route"),
         verticalArrangement = Arrangement.spacedBy(tokens.spacing.md)
     ) {
-        BambooSectionHeader(
-            title = stringResource(R.string.pandawave_library_title),
-            subtitle = stringResource(R.string.pandawave_library_subtitle)
-        )
-
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(tokens.spacing.sm)
@@ -165,7 +160,7 @@ fun LibraryRoute(
                 shape = MaterialTheme.shapes.small
             ) {
                 Row(
-                    modifier = Modifier.padding(tokens.spacing.md),
+                    modifier = Modifier.padding(tokens.spacing.sm),
                     horizontalArrangement = Arrangement.spacedBy(tokens.spacing.sm),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -394,7 +389,7 @@ private fun PlaylistRow(playlist: LibraryPlaylist, selected: Boolean, onSelect: 
         shape = MaterialTheme.shapes.small
     ) {
         Column(
-            modifier = Modifier.padding(tokens.spacing.md),
+            modifier = Modifier.padding(tokens.spacing.sm),
             verticalArrangement = Arrangement.spacedBy(tokens.spacing.sm)
         ) {
             Text(playlist.name, style = tokens.typography.sectionTitle)
@@ -502,7 +497,7 @@ private fun PlaylistTrackRow(
         shape = MaterialTheme.shapes.small
     ) {
         Row(
-            modifier = Modifier.padding(tokens.spacing.md),
+            modifier = Modifier.padding(tokens.spacing.sm),
             horizontalArrangement = Arrangement.spacedBy(tokens.spacing.sm),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -534,7 +529,7 @@ private fun PlaylistConflictCard(conflict: PlaylistConflict, onReorderPlaylist: 
         shape = MaterialTheme.shapes.small
     ) {
         Column(
-            modifier = Modifier.padding(tokens.spacing.md),
+            modifier = Modifier.padding(tokens.spacing.sm),
             verticalArrangement = Arrangement.spacedBy(tokens.spacing.sm)
         ) {
             Text(stringResource(R.string.pandawave_library_playlist_conflict), style = tokens.typography.sectionTitle)
@@ -592,7 +587,7 @@ private fun LibraryTrackRow(
         shape = MaterialTheme.shapes.small
     ) {
         Row(
-            modifier = Modifier.padding(tokens.spacing.md),
+            modifier = Modifier.padding(tokens.spacing.sm),
             horizontalArrangement = Arrangement.spacedBy(tokens.spacing.md),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -666,7 +661,7 @@ private fun LibraryHistoryRow(entry: LibraryHistoryEntry, onPlay: (String) -> Un
         shape = MaterialTheme.shapes.small
     ) {
         Row(
-            modifier = Modifier.padding(tokens.spacing.md),
+            modifier = Modifier.padding(tokens.spacing.sm),
             horizontalArrangement = Arrangement.spacedBy(tokens.spacing.md),
             verticalAlignment = Alignment.CenterVertically
         ) {

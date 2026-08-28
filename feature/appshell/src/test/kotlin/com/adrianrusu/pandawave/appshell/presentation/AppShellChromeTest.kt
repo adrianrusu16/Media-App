@@ -38,7 +38,7 @@ class AppShellChromeTest {
             AppShellChrome(
                 showNavigationRail = true,
                 showMiniPlayer = false,
-                applyContentPadding = true
+                applyContentPadding = false
             ),
             resolveAppShellChrome(
                 currentDestination = NowPlayingDestination,

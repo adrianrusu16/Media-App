@@ -162,6 +162,15 @@ pub struct EngineSnapshot {
     pub controls: PlayerControls,
     /// The current partial hypothesis for voice interaction.
     pub voice_hypothesis: Option<String>,
+    /// Authoritative PandaEngine playback-queue size. Never inferred from Media3.
+    #[serde(default)]
+    pub queue_size: usize,
+    /// Current occurrence index in the active queue, if any.
+    #[serde(default)]
+    pub queue_current_index: Option<usize>,
+    /// Generation that advances when QueueManager replaces its items.
+    #[serde(default)]
+    pub queue_generation: u64,
 }
 
 impl EngineSnapshot {

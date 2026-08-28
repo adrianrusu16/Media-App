@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -24,6 +25,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import com.adrianrusu.pandawave.core.designsystem.tokens.LocalPandaWaveDesignTokens
+import com.adrianrusu.pandawave.core.designsystem.tokens.iconMedium
 import com.adrianrusu.pandawave.core.designsystem.tokens.navigationItemHeight
 import com.adrianrusu.pandawave.core.designsystem.tokens.navigationSelectedIndicatorCorner
 import com.adrianrusu.pandawave.core.designsystem.tokens.navigationSelectedIndicatorHeight
@@ -90,7 +92,12 @@ internal fun BambooNavigationItem(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Icon(imageVector = model.icon, contentDescription = null, tint = contentColor)
+            Icon(
+                imageVector = model.icon,
+                contentDescription = if (model.showLabel) null else model.label,
+                tint = contentColor,
+                modifier = Modifier.size(tokens.components.iconMedium)
+            )
             if (model.showLabel) {
                 Spacer(modifier = Modifier.height(tokens.spacing.xs))
                 Text(

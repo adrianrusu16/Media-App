@@ -17,3 +17,7 @@ internal fun resolveNowPlayingLayout(
     availableHeight < compactHeightThreshold -> NowPlayingLayoutMode.Compact
     else -> NowPlayingLayoutMode.Standard
 }
+
+internal val NowPlayingLayoutMode.fillsRemainingArtworkSpace: Boolean
+    get() = true
+

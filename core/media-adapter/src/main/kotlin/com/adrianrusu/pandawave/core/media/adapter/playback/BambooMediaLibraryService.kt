@@ -1,9 +1,13 @@
 package com.adrianrusu.pandawave.core.media.adapter.playback
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.pm.ServiceInfo
 import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
+import androidx.core.app.NotificationCompat
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.Player
@@ -18,6 +22,7 @@ import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
 import com.adrianrusu.pandawave.core.audio.visualizer.MutableAudioSessionRepository
 import com.adrianrusu.pandawave.core.common.trace.PandaTrace
+import com.adrianrusu.pandawave.core.media.adapter.R
 import com.adrianrusu.pandawave.core.media.adapter.playback.focus.BambooAudioFocusHandler
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
 import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineGateway
@@ -129,7 +134,7 @@ class BambooMediaLibraryService : MediaLibraryService() {
                 artworkUris = artworkUris
             )
         ).setId(SESSION_ID)
-            .setBitmapLoader(CacheBitmapLoader(DataSourceBitmapLoader(this)))
+            .setBitmapLoader(CacheBitmapLoader(DataSourceBitmapLoader.Builder(this).build()))
         sessionActivity()?.let(sessionBuilder::setSessionActivity)
         val mediaLibrarySession = sessionBuilder.build()
         applyMediaButtonPreferences(mediaLibrarySession)
@@ -149,7 +154,7 @@ class BambooMediaLibraryService : MediaLibraryService() {
         playbackRepository = playbackRepository,
         telemetryLogger = telemetryLogger,
         effectExecutor = effectExecutor,
-        playbackMetricsProvider = PlaybackCompletionMetricsProvider {
+        playbackMetricsProvider = {
             val currentPlayer = checkNotNull(player)
             PlaybackCompletionMetrics(
                 positionMillis = currentPlayer.currentPosition,
@@ -168,7 +173,7 @@ class BambooMediaLibraryService : MediaLibraryService() {
                 )
             }
         },
-        checkpointScheduler = PlaybackCheckpointScheduler { delayMillis, action ->
+        checkpointScheduler = { delayMillis, action ->
             val runnable = Runnable(action)
             mainThreadHandler.postDelayed(runnable, delayMillis)
             AutoCloseable { mainThreadHandler.removeCallbacks(runnable) }
@@ -230,6 +235,7 @@ class BambooMediaLibraryService : MediaLibraryService() {
         audioFocusHandler = focusHandler
         audioSessionObserver = exoPlayerAudioSessionObserver
         playbackEngineBridge.bootstrap()
+        startForegroundPlaybackService()
         playbackStateProjector.start()
         mediaCommandAvailabilityProjector.start()
         exoPlayer.addListener(playbackEngineBridge)
@@ -320,16 +326,24 @@ class BambooMediaLibraryService : MediaLibraryService() {
     private fun applyMediaButtonPreferences(mediaLibrarySession: MediaLibrarySession) {
         mediaLibrarySession.setMediaButtonPreferences(
             ImmutableList.of(
-                commandButton(CommandButton.ICON_PREVIOUS, Player.COMMAND_SEEK_TO_PREVIOUS),
-                commandButton(CommandButton.ICON_PLAY, Player.COMMAND_PLAY_PAUSE),
-                commandButton(CommandButton.ICON_NEXT, Player.COMMAND_SEEK_TO_NEXT)
+                bambooMediaButton(
+                    icon = CommandButton.ICON_PREVIOUS,
+                    command = Player.COMMAND_SEEK_TO_PREVIOUS,
+                    displayName = getString(R.string.pandawave_media_button_previous)
+                ),
+                bambooMediaButton(
+                    icon = CommandButton.ICON_PLAY,
+                    command = Player.COMMAND_PLAY_PAUSE,
+                    displayName = getString(R.string.pandawave_media_button_play_pause)
+                ),
+                bambooMediaButton(
+                    icon = CommandButton.ICON_NEXT,
+                    command = Player.COMMAND_SEEK_TO_NEXT,
+                    displayName = getString(R.string.pandawave_media_button_next)
+                )
             )
         )
     }
-
-    private fun commandButton(icon: Int, command: Int): CommandButton = CommandButton.Builder(icon)
-        .setPlayerCommand(command)
-        .build()
 
     private fun newPlayer(): ExoPlayer = PandaTrace.section("PW.Media3.Player.create") {
         ExoPlayer.Builder(this)
@@ -360,7 +374,29 @@ class BambooMediaLibraryService : MediaLibraryService() {
         }
     }
 
-    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? =
+    private fun startForegroundPlaybackService() {
+        val channelId = PLAYBACK_NOTIFICATION_CHANNEL_ID
+        val manager = getSystemService(NotificationManager::class.java)
+        val channel = NotificationChannel(
+            channelId,
+            getString(R.string.pandawave_playback_notification_channel),
+            NotificationManager.IMPORTANCE_LOW
+        )
+        manager.createNotificationChannel(channel)
+        val notification = NotificationCompat.Builder(this, channelId)
+            .setSmallIcon(androidx.media3.session.R.drawable.media3_notification_small_icon)
+            .setContentTitle(getString(R.string.pandawave_playback_notification_title))
+            .setContentText(getString(R.string.pandawave_playback_notification_text))
+            .setOngoing(true)
+            .build()
+        startForeground(
+            PLAYBACK_FOREGROUND_NOTIFICATION_ID,
+            notification,
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+        )
+    }
+
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession =
         PandaTrace.section("PW.Media3.Service.onGetSession") {
             ensureSession()
         }
@@ -406,6 +442,8 @@ private fun exoRuntimeState(player: ExoPlayer): PandaExoRuntimeState = PandaExoR
 
 private const val HTTP_MAX_BUFFER_MS = 120_000
 private const val HTTP_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 10_000
+private const val PLAYBACK_NOTIFICATION_CHANNEL_ID = "pandawave_playback"
+private const val PLAYBACK_FOREGROUND_NOTIFICATION_ID = 1001
 private const val SESSION_ID = "pandawave.media.session"
 private const val SESSION_ACTIVITY_REQUEST_CODE = 1
 private const val RESUMPTION_PREFERENCES = "pandawave_media_session_resumption"

@@ -7,6 +7,7 @@ import com.adrianrusu.pandawave.core.playback.BambooPlaybackControls
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackProgress
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackProgressAnchor
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackProgressProjector
+import com.adrianrusu.pandawave.core.playback.BambooPlaybackQueueCapability
 
 data class NowPlayingState(
     val mediaId: String? = null,
@@ -24,7 +25,9 @@ data class NowPlayingState(
     val ambientTimeoutSeconds: Int = 15,
     val visualizerPermissionState: VisualizerPermissionState = VisualizerPermissionState.Unknown,
     val hasPlaybackError: Boolean = false,
+    val canDispatch: Boolean = true,
     val controls: BambooPlaybackControls = BambooPlaybackControls.default(),
+    val queue: BambooPlaybackQueueCapability = BambooPlaybackQueueCapability.Unreported,
     val updatedAtEpochMillis: Long = 0L,
     val progressAnchor: BambooPlaybackProgressAnchor = BambooPlaybackProgressAnchor(),
     val volume: Float = 1F
@@ -33,7 +36,7 @@ data class NowPlayingState(
         get() = playbackState == NowPlayingPlaybackState.Playing
 
     val canDispatchEngineCommands: Boolean
-        get() = engineConnection.status == BambooEngineConnectionStatus.Ready
+        get() = engineConnection.status == BambooEngineConnectionStatus.Ready && canDispatch
 
     fun progressAt(nowMillis: Long): BambooPlaybackProgress = BambooPlaybackProgressProjector.fromAnchor(
         anchor = progressAnchor,

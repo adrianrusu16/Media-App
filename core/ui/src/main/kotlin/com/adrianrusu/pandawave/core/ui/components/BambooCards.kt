@@ -28,8 +28,6 @@ import com.adrianrusu.pandawave.core.designsystem.tokens.LocalPandaWaveDesignTok
 import com.adrianrusu.pandawave.core.designsystem.tokens.actionableCardMinHeight
 import com.adrianrusu.pandawave.core.designsystem.tokens.cardPadding
 import com.adrianrusu.pandawave.core.designsystem.tokens.cardResting
-import com.adrianrusu.pandawave.core.designsystem.tokens.lg
-import com.adrianrusu.pandawave.core.designsystem.tokens.md
 import com.adrianrusu.pandawave.core.designsystem.tokens.preferenceContentPadding
 import com.adrianrusu.pandawave.core.designsystem.tokens.preferenceControlWidth
 import com.adrianrusu.pandawave.core.designsystem.tokens.preferenceRowMinHeight
@@ -89,23 +87,26 @@ fun BambooActionCard(
     actionLabel: String,
     actionEnabled: Boolean,
     onActionClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    contentPadding: Dp? = null,
+    minHeight: Dp? = null
 ) {
     val tokens = LocalPandaWaveDesignTokens.current
 
     BambooCard(
         modifier = modifier
-            .heightIn(min = tokens.components.actionableCardMinHeight)
+            .heightIn(min = minHeight ?: tokens.components.actionableCardMinHeight)
             .bambooFocusIndicator(enabled = actionEnabled)
             .bambooBringIntoViewOnFocus()
             .clickable(
                 enabled = actionEnabled,
                 role = Role.Button,
                 onClick = onActionClick
-            )
+            ),
+        contentPadding = contentPadding
     ) {
         Row(
-            horizontalArrangement = Arrangement.spacedBy(tokens.spacing.md),
+            horizontalArrangement = Arrangement.spacedBy(tokens.spacing.sm),
             verticalAlignment = Alignment.CenterVertically
         ) {
             BambooTitleBody(
@@ -129,8 +130,8 @@ fun BambooActionCard(
                 Text(
                     text = actionLabel,
                     modifier = Modifier.padding(
-                        horizontal = tokens.spacing.lg,
-                        vertical = tokens.spacing.sm
+                        horizontal = tokens.spacing.sm,
+                        vertical = tokens.spacing.xs
                     ),
                     style = MaterialTheme.typography.labelLarge
                 )
@@ -164,7 +165,7 @@ fun BambooSwitchRow(
         contentPadding = tokens.components.preferenceContentPadding
     ) {
         Row(
-            horizontalArrangement = Arrangement.spacedBy(tokens.spacing.md),
+            horizontalArrangement = Arrangement.spacedBy(tokens.spacing.sm),
             verticalAlignment = Alignment.CenterVertically
         ) {
             BambooTitleBody(
@@ -240,7 +241,7 @@ fun BambooLoadingState(label: String, modifier: Modifier = Modifier) {
 
     BambooCard(modifier = modifier) {
         Row(
-            horizontalArrangement = Arrangement.spacedBy(tokens.spacing.md),
+            horizontalArrangement = Arrangement.spacedBy(tokens.spacing.sm),
             verticalAlignment = Alignment.CenterVertically
         ) {
             CircularProgressIndicator()

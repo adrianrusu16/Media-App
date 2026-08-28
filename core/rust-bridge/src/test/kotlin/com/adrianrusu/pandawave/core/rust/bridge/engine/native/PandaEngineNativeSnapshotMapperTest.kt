@@ -78,7 +78,10 @@ class PandaEngineNativeSnapshotMapperTest {
                 2L,
                 3L,
                 11L,
-                77L
+                77L,
+                12L,
+                4L,
+                3L
             )
         )
         val snapshot = projection.snapshot
@@ -149,6 +152,10 @@ class PandaEngineNativeSnapshotMapperTest {
         assertEquals(EngineBackendAvailability.REASON_TIMEOUT, snapshot.backendAvailability.reason)
         assertEquals(11L, snapshot.historyGeneration)
         assertEquals(77L, snapshot.lastProgressTickEpochMillis)
+        assertTrue(snapshot.queueAvailable)
+        assertEquals(12, snapshot.queueSize)
+        assertEquals(4, snapshot.queueCurrentIndex)
+        assertEquals(3L, snapshot.queueGeneration)
     }
 
     @Test

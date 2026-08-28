@@ -1251,7 +1251,7 @@ impl Engine {
         }
 
         self.snapshot = next_snapshot;
-        self.snapshot.controls = self.derive_controls(&self.snapshot);
+        self.refresh_controls();
 
         if self.snapshot.playback_state != prev_playback_state {
             info!(
@@ -1268,6 +1268,8 @@ impl Engine {
                 .await;
             self.snapshot = snapshot;
         }
+
+        Self::apply_queue_projection(&mut self.snapshot, &self.queue);
 
         let mut outcome = EngineOutcome {
             snapshot: self.snapshot.clone(),

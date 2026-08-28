@@ -126,11 +126,16 @@ async fn play_queue_preserves_order_and_exposes_boundary_transport() {
         )
         .await;
     assert_eq!(first.snapshot.media_id.as_deref(), Some("second"));
+    assert_eq!(first.snapshot.queue_size, 2);
+    assert_eq!(first.snapshot.queue_current_index, Some(0));
+    assert!(first.snapshot.queue_generation > 0);
     assert!(first.snapshot.controls.skip_prev.is_enabled);
     assert!(first.snapshot.controls.skip_next.is_enabled);
 
     let next = engine.dispatch(EngineCommand::skip_next(), 250).await;
     assert_eq!(next.snapshot.media_id.as_deref(), Some("first"));
+    assert_eq!(next.snapshot.queue_size, 2);
+    assert_eq!(next.snapshot.queue_current_index, Some(1));
     assert!(!next.snapshot.controls.skip_next.is_enabled);
     assert!(next.snapshot.controls.skip_prev.is_enabled);
 
@@ -462,6 +467,8 @@ async fn play_media_by_id_resolves_playback_source() {
         Some("https://cdn.pandawave.test/audio/track-1.mp3")
     );
     assert_eq!(outcome.snapshot.mime_type.as_deref(), Some("audio/mpeg"));
+    assert_eq!(outcome.snapshot.queue_size, 1);
+    assert_eq!(outcome.snapshot.queue_current_index, Some(0));
     assert_eq!(outcome.snapshot.duration_millis, Some(222_000));
     assert!(
         outcome

@@ -9,16 +9,21 @@ pub struct QueueManager {
     current_index: Option<usize>,
     shuffle_enabled: bool,
     repeat_mode: RepeatMode,
+    /// Advances when the queue contents are replaced, not when the cursor moves.
+    #[serde(default)]
+    generation: u64,
 }
 
 impl QueueManager {
     /// Creates a new [QueueManager] with the given items.
     pub fn new(items: Vec<MediaItem>) -> Self {
+        let generation = if items.is_empty() { 0 } else { 1 };
         Self {
             items,
             current_index: None,
             shuffle_enabled: false,
             repeat_mode: RepeatMode::None,
+            generation,
         }
     }
 
@@ -101,6 +106,17 @@ impl QueueManager {
     pub fn set_items(&mut self, items: Vec<MediaItem>) {
         self.items = items;
         self.current_index = if self.items.is_empty() { None } else { Some(0) };
+        self.generation = self.generation.saturating_add(1);
+    }
+
+    /// Returns the number of items in the authoritative playback queue.
+    pub fn len(&self) -> usize {
+        self.items.len()
+    }
+
+    /// Returns the generation that advances whenever queue contents are replaced.
+    pub fn generation(&self) -> u64 {
+        self.generation
     }
 
     /// Returns true if there is a next item in the queue.

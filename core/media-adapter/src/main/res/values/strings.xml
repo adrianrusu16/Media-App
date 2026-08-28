@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pandawave_playback_notification_channel">Playback</string>
+    <string name="pandawave_playback_notification_title">PandaWave</string>
+    <string name="pandawave_playback_notification_text">Playing music</string>
+    <string name="pandawave_media_button_previous">Previous</string>
+    <string name="pandawave_media_button_play_pause">Play or pause</string>
+    <string name="pandawave_media_button_next">Next</string>
+</resources>

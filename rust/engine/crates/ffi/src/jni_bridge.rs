@@ -652,11 +652,12 @@ pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_eng
     let Ok(index) = usize::try_from(index) else {
         return ptr::null_mut();
     };
+    let source_uri = engine.engine.snapshot().source_uri;
     let effects = engine.last_effects.lock().unwrap();
     let Some(effect) = effects.get(index) else {
         return ptr::null_mut();
     };
-    strings_to_jobject_array(&mut env, effect_to_strings(effect))
+    strings_to_jobject_array(&mut env, effect_to_strings(effect, source_uri.as_deref()))
 }
 
 #[unsafe(no_mangle)]
@@ -670,8 +671,12 @@ pub unsafe extern "system" fn Java_com_adrianrusu_pandawave_core_rust_bridge_eng
     let Some(engine) = (unsafe { (handle as *const PandaEngine).as_ref() }) else {
         return ptr::null_mut();
     };
+    let source_uri = engine.engine.snapshot().source_uri;
     let effects = engine.last_effects.lock().unwrap();
-    strings_to_jobject_array(&mut env, effects_page_to_strings(&effects, offset, limit))
+    strings_to_jobject_array(
+        &mut env,
+        effects_page_to_strings(&effects, offset, limit, source_uri.as_deref()),
+    )
 }
 
 #[unsafe(no_mangle)]

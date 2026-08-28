@@ -13,7 +13,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import com.adrianrusu.pandawave.core.designsystem.tokens.LocalPandaWaveDesignTokens
-import com.adrianrusu.pandawave.core.designsystem.tokens.md
+import com.adrianrusu.pandawave.core.designsystem.tokens.sm
+import com.adrianrusu.pandawave.core.designsystem.tokens.touchTargetMd
+import com.adrianrusu.pandawave.core.designsystem.tokens.xs
 import com.adrianrusu.pandawave.core.ui.components.BambooActionCard
 import com.adrianrusu.pandawave.core.ui.focus.BambooRotaryColumn
 import com.adrianrusu.pandawave.core.ui.overview.FeatureOverviewItem
@@ -61,7 +63,7 @@ fun ProfileRoute(
 
     BambooRotaryColumn(
         modifier = modifier.testTag("profile-route"),
-        verticalArrangement = Arrangement.spacedBy(tokens.spacing.md)
+        verticalArrangement = Arrangement.spacedBy(tokens.spacing.sm)
     ) {
         when (account) {
             ProfileUiAccount.Anonymous -> AnonymousAccountCards(
@@ -102,7 +104,7 @@ fun ProfileRoute(
                 color = Color(tokens.colors.error)
             )
         }
-        BambooActionCard(
+        ProfileActionCard(
             modifier = Modifier.testTag("profile-settings"),
             title = stringResource(R.string.pandawave_profile_preferences_title),
             body = stringResource(R.string.pandawave_profile_preferences_body),
@@ -125,7 +127,7 @@ private fun AccountSessionCards(
     when (state) {
         AccountSessionsState.SignedOut -> Unit
 
-        AccountSessionsState.Loading -> BambooActionCard(
+        AccountSessionsState.Loading -> ProfileActionCard(
             modifier = Modifier.testTag("profile-sessions-loading"),
             title = stringResource(R.string.pandawave_profile_sessions_title),
             body = stringResource(R.string.pandawave_profile_sessions_loading),
@@ -134,7 +136,7 @@ private fun AccountSessionCards(
             onActionClick = onRefresh
         )
 
-        is AccountSessionsState.Failure -> BambooActionCard(
+        is AccountSessionsState.Failure -> ProfileActionCard(
             modifier = Modifier.testTag("profile-sessions-failure"),
             title = stringResource(R.string.pandawave_profile_sessions_title),
             body = stringResource(R.string.pandawave_profile_sessions_error, state.errorType),
@@ -147,6 +149,7 @@ private fun AccountSessionCards(
             val dateFormat = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
             val operationPending = state.pendingSessionId != null || state.deletingAccount
             FeatureOverviewScreen(
+                compact = true,
                 items = listOf(
                     FeatureOverviewItem(
                         stringResource(R.string.pandawave_profile_email_title),
@@ -165,7 +168,7 @@ private fun AccountSessionCards(
                 )
             }
             state.sessions.forEachIndexed { index, session ->
-                BambooActionCard(
+                ProfileActionCard(
                     modifier = Modifier.testTag("profile-session-revoke-$index"),
                     title = session.deviceLabel.ifBlank {
                         stringResource(R.string.pandawave_profile_unknown_device)
@@ -191,7 +194,7 @@ private fun AccountSessionCards(
                 )
             }
             if (state.hasNextPage) {
-                BambooActionCard(
+                ProfileActionCard(
                     modifier = Modifier.testTag("profile-sessions-load-more"),
                     title = stringResource(R.string.pandawave_profile_sessions_more_title),
                     body = stringResource(R.string.pandawave_profile_sessions_more_body),
@@ -201,7 +204,7 @@ private fun AccountSessionCards(
                 )
             }
             var confirmDelete by rememberSaveable(state.account.id) { mutableStateOf(false) }
-            BambooActionCard(
+            ProfileActionCard(
                 modifier = Modifier.testTag("profile-account-delete"),
                 title = stringResource(R.string.pandawave_profile_delete_account_title),
                 body = stringResource(R.string.pandawave_profile_delete_account_body),
@@ -216,7 +219,7 @@ private fun AccountSessionCards(
                 onActionClick = { confirmDelete = true }
             )
             if (confirmDelete) {
-                BambooActionCard(
+                ProfileActionCard(
                     modifier = Modifier.testTag("profile-account-delete-confirm"),
                     title = stringResource(R.string.pandawave_profile_confirm_delete_account_title),
                     body = stringResource(R.string.pandawave_profile_confirm_delete_account_body),
@@ -234,7 +237,7 @@ private fun AccountSessionCards(
 
 @Composable
 private fun AnonymousAccountCards(actionsEnabled: Boolean, onLoginClick: () -> Unit, onRegisterClick: () -> Unit) {
-    BambooActionCard(
+    ProfileActionCard(
         modifier = Modifier.testTag("profile-login"),
         title = stringResource(R.string.pandawave_profile_login_title),
         body = stringResource(R.string.pandawave_profile_login_body),
@@ -242,7 +245,7 @@ private fun AnonymousAccountCards(actionsEnabled: Boolean, onLoginClick: () -> U
         actionEnabled = actionsEnabled,
         onActionClick = onLoginClick
     )
-    BambooActionCard(
+    ProfileActionCard(
         modifier = Modifier.testTag("profile-register"),
         title = stringResource(R.string.pandawave_profile_register_title),
         body = stringResource(R.string.pandawave_profile_register_body),
@@ -261,6 +264,7 @@ private fun AuthenticatedAccountCards(
 ) {
     val dateFormat = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
     FeatureOverviewScreen(
+        compact = true,
         items = listOf(
             FeatureOverviewItem(stringResource(R.string.pandawave_profile_email_title), account.email),
             FeatureOverviewItem(stringResource(R.string.pandawave_profile_status_title), account.accountStatus),
@@ -275,7 +279,7 @@ private fun AuthenticatedAccountCards(
             )
         )
     )
-    BambooActionCard(
+    ProfileActionCard(
         modifier = Modifier.testTag("profile-logout"),
         title = stringResource(R.string.pandawave_profile_logout_title),
         body = stringResource(R.string.pandawave_profile_logout_body),
@@ -299,7 +303,7 @@ private fun ProfileProjectionCards(
     when (state) {
         ProfileState.SignedOut -> Unit
 
-        ProfileState.Loading -> BambooActionCard(
+        ProfileState.Loading -> ProfileActionCard(
             modifier = Modifier.testTag("profile-loading"),
             title = stringResource(R.string.pandawave_profile_canopy_title),
             body = stringResource(R.string.pandawave_profile_loading),
@@ -308,7 +312,7 @@ private fun ProfileProjectionCards(
             onActionClick = onRefresh
         )
 
-        ProfileState.Missing -> BambooActionCard(
+        ProfileState.Missing -> ProfileActionCard(
             modifier = Modifier.testTag("profile-create"),
             title = stringResource(R.string.pandawave_profile_canopy_title),
             body = stringResource(R.string.pandawave_profile_missing),
@@ -317,7 +321,7 @@ private fun ProfileProjectionCards(
             onActionClick = { onUpsert(null) }
         )
 
-        is ProfileState.Failure -> BambooActionCard(
+        is ProfileState.Failure -> ProfileActionCard(
             modifier = Modifier.testTag("profile-failure"),
             title = stringResource(R.string.pandawave_profile_canopy_title),
             body = stringResource(R.string.pandawave_profile_error, state.errorType),
@@ -331,6 +335,7 @@ private fun ProfileProjectionCards(
                 mutableStateOf(state.profile.displayName.orEmpty())
             }
             FeatureOverviewScreen(
+                compact = true,
                 items = listOf(
                     FeatureOverviewItem(
                         title = stringResource(R.string.pandawave_profile_display_name),
@@ -346,7 +351,7 @@ private fun ProfileProjectionCards(
                 enabled = actionsEnabled,
                 label = { Text(stringResource(R.string.pandawave_profile_display_name)) }
             )
-            BambooActionCard(
+            ProfileActionCard(
                 modifier = Modifier.testTag("profile-save-display-name"),
                 title = stringResource(R.string.pandawave_profile_display_name),
                 body = stringResource(R.string.pandawave_profile_display_name_body),
@@ -354,7 +359,7 @@ private fun ProfileProjectionCards(
                 actionEnabled = actionsEnabled,
                 onActionClick = { onUpdateDisplayName(displayName) }
             )
-            BambooActionCard(
+            ProfileActionCard(
                 modifier = Modifier.testTag("profile-clear-display-name"),
                 title = stringResource(R.string.pandawave_profile_clear_display_name),
                 body = stringResource(R.string.pandawave_profile_clear_display_name_body),
@@ -362,7 +367,7 @@ private fun ProfileProjectionCards(
                 actionEnabled = actionsEnabled,
                 onActionClick = { onUpdateDisplayName(null) }
             )
-            BambooActionCard(
+            ProfileActionCard(
                 modifier = Modifier.testTag("profile-delete"),
                 title = stringResource(R.string.pandawave_profile_delete_title),
                 body = stringResource(R.string.pandawave_profile_delete_body),
@@ -372,4 +377,27 @@ private fun ProfileProjectionCards(
             )
         }
     }
+}
+
+@Composable
+private fun ProfileActionCard(
+    title: String,
+    body: String,
+    actionLabel: String,
+    actionEnabled: Boolean,
+    onActionClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val tokens = LocalPandaWaveDesignTokens.current
+
+    BambooActionCard(
+        title = title,
+        body = body,
+        actionLabel = actionLabel,
+        actionEnabled = actionEnabled,
+        onActionClick = onActionClick,
+        modifier = modifier,
+        contentPadding = tokens.spacing.xs,
+        minHeight = tokens.sizing.touchTargetMd
+    )
 }

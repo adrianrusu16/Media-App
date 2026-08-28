@@ -31,6 +31,7 @@ internal object BambooPlaybackStateProjector {
         isBusy = snapshot.isBusy,
         canDispatch = snapshot.canDispatch,
         controls = snapshot.controls.toPlaybackControls(),
+        queue = snapshot.toQueueCapability(),
         restriction = BambooPlaybackRestrictionState(
             isRestricted = snapshot.restrictionState == EngineSnapshot.RESTRICTION_RESTRICTED
         ),
@@ -44,9 +45,18 @@ internal object BambooPlaybackStateProjector {
         engineConnection = event.toConnectionUiState(current = current.engineConnection)
     )
 
+    private fun EngineSnapshot.toQueueCapability(): BambooPlaybackQueueCapability =
+        BambooPlaybackQueueCapability(
+            available = queueAvailable,
+            size = queueSize.coerceAtLeast(0),
+            currentIndex = queueCurrentIndex,
+            generation = queueGeneration
+        )
+
     private fun String.toPlaybackStatus(): BambooPlaybackStatus = when (this) {
         EngineSnapshot.PLAYBACK_PLAYING -> BambooPlaybackStatus.Playing
         EngineSnapshot.PLAYBACK_PAUSED -> BambooPlaybackStatus.Paused
+        EngineSnapshot.PLAYBACK_BUFFERING,
         EngineSnapshot.PLAYBACK_RECOVERING -> BambooPlaybackStatus.Recovering
         EngineSnapshot.PLAYBACK_ENDED -> BambooPlaybackStatus.Ended
         else -> BambooPlaybackStatus.Idle

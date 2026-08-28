@@ -102,7 +102,11 @@ internal object PandaEngineNativeSnapshotMapper {
                     nativeValues[SNAPSHOT_BACKEND_AVAILABILITY_INDEX].toInt(),
                     nativeValues[SNAPSHOT_BACKEND_UNAVAILABLE_REASON_INDEX].toInt()
                 ),
-                lastProgressTickEpochMillis = nativeValues[SNAPSHOT_LAST_PROGRESS_TICK_INDEX]
+                lastProgressTickEpochMillis = nativeValues[SNAPSHOT_LAST_PROGRESS_TICK_INDEX],
+                queueAvailable = nativeValues.size >= SNAPSHOT_QUEUE_PROJECTION_COUNT,
+                queueSize = nativeValues.queueSize(),
+                queueCurrentIndex = nativeValues.queueCurrentIndex(),
+                queueGeneration = nativeValues.queueGeneration()
             ),
             metadataRevision = nativeValues[SNAPSHOT_METADATA_REVISION_INDEX],
             backendStatus = nativeValues[SNAPSHOT_HAS_BACKEND_STATUS_INDEX]
@@ -189,6 +193,21 @@ internal object PandaEngineNativeSnapshotMapper {
 
     private fun Long.toBoolean(): Boolean = this != 0L
 
+    private fun LongArray.queueSize(): Int {
+        if (size < SNAPSHOT_QUEUE_PROJECTION_COUNT) return 0
+        return this[SNAPSHOT_QUEUE_SIZE_INDEX].toInt().coerceAtLeast(0)
+    }
+
+    private fun LongArray.queueCurrentIndex(): Int? {
+        if (size < SNAPSHOT_QUEUE_PROJECTION_COUNT) return null
+        return this[SNAPSHOT_QUEUE_CURRENT_INDEX].takeIf { index -> index >= 0L }?.toInt()
+    }
+
+    private fun LongArray.queueGeneration(): Long {
+        if (size < SNAPSHOT_QUEUE_PROJECTION_COUNT) return 0L
+        return this[SNAPSHOT_QUEUE_GENERATION_INDEX]
+    }
+
     private const val PLAYBACK_IDLE = 0
     private const val PLAYBACK_PLAYING = 1
     private const val PLAYBACK_PAUSED = 2
@@ -222,6 +241,7 @@ internal object PandaEngineNativeSnapshotMapper {
     private const val PREFERENCE_SOURCE_REMOTE_PROFILE = 3
 
     private const val SNAPSHOT_VALUE_COUNT = 62
+    private const val SNAPSHOT_QUEUE_PROJECTION_COUNT = 65
     private const val SNAPSHOT_PLAYBACK_INDEX = 0
     private const val SNAPSHOT_RESTRICTION_INDEX = 1
     private const val SNAPSHOT_UPDATED_AT_INDEX = 2
@@ -283,6 +303,9 @@ internal object PandaEngineNativeSnapshotMapper {
     private const val SNAPSHOT_BACKEND_UNAVAILABLE_REASON_INDEX = 59
     private const val SNAPSHOT_HISTORY_GENERATION_INDEX = 60
     private const val SNAPSHOT_LAST_PROGRESS_TICK_INDEX = 61
+    private const val SNAPSHOT_QUEUE_SIZE_INDEX = 62
+    private const val SNAPSHOT_QUEUE_CURRENT_INDEX = 63
+    private const val SNAPSHOT_QUEUE_GENERATION_INDEX = 64
     private const val AUTH_ANONYMOUS = 0
     private const val AUTH_AUTHENTICATED = 1
 

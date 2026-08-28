@@ -39,7 +39,8 @@ class InMemoryNowPlayingRepositoryTest {
                 durationMillis = 40_000L,
                 playbackSpeed = 1.5F,
                 volume = 0.72F,
-                hasError = true
+                hasError = true,
+                canDispatch = false
             )
         )
         val repository = InMemoryNowPlayingRepository(playbackRepository = playback)
@@ -56,6 +57,7 @@ class InMemoryNowPlayingRepositoryTest {
         assertTrue(repository.state.value.isParked)
         assertTrue(repository.state.value.isUxUnrestricted)
         assertTrue(repository.state.value.hasPlaybackError)
+        assertEquals(false, repository.state.value.canDispatch)
         assertEquals(0.72F, repository.state.value.volume)
         assertEquals(13_000L, repository.state.value.progressAt(nowMillis = 2_100L).positionMillis)
         assertEquals(0.325F, repository.state.value.progressAt(nowMillis = 2_100L).fraction)

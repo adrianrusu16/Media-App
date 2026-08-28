@@ -60,7 +60,11 @@ data class EngineSnapshot(
     val backendAvailability: EngineBackendAvailability = EngineBackendAvailability.connecting(),
     val lastProgressTickEpochMillis: Long = 0L,
     val artworkId: String? = null,
-    val artworkVersion: String? = null
+    val artworkVersion: String? = null,
+    val queueAvailable: Boolean = false,
+    val queueSize: Int = 0,
+    val queueCurrentIndex: Int? = null,
+    val queueGeneration: Long = 0L
 ) : Parcelable {
     constructor(parcel: Parcel) : this(
         playbackState = parcel.readString().orEmpty(),
@@ -136,7 +140,11 @@ data class EngineSnapshot(
         ),
         lastProgressTickEpochMillis = parcel.readLong(),
         artworkId = parcel.readString(),
-        artworkVersion = parcel.readString()
+        artworkVersion = parcel.readString(),
+        queueAvailable = parcel.readBooleanValue(),
+        queueSize = parcel.readInt(),
+        queueCurrentIndex = parcel.readNullableInt(),
+        queueGeneration = parcel.readLong()
     )
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
@@ -205,6 +213,10 @@ data class EngineSnapshot(
         parcel.writeLong(lastProgressTickEpochMillis)
         parcel.writeString(artworkId)
         parcel.writeString(artworkVersion)
+        parcel.writeBooleanValue(queueAvailable)
+        parcel.writeInt(queueSize)
+        parcel.writeNullableInt(queueCurrentIndex)
+        parcel.writeLong(queueGeneration)
     }
 
     override fun describeContents(): Int = 0
@@ -381,6 +393,19 @@ private fun Parcel.writeNullableLong(value: Long?) {
     writeBooleanValue(value != null)
     if (value != null) {
         writeLong(value)
+    }
+}
+
+private fun Parcel.readNullableInt(): Int? = if (readBooleanValue()) {
+    readInt()
+} else {
+    null
+}
+
+private fun Parcel.writeNullableInt(value: Int?) {
+    writeBooleanValue(value != null)
+    if (value != null) {
+        writeInt(value)
     }
 }
 

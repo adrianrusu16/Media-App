@@ -303,6 +303,7 @@ class DefaultBambooPlaybackRepositoryTest {
         assertEquals(
             listOf(
                 listOf(
+                    EngineEffect(type = EngineEffect.TYPE_SESSION_STARTED),
                     EngineEffect(type = EngineEffect.TYPE_REQUEST_AUDIO_FOCUS),
                     EngineEffect(type = EngineEffect.TYPE_PLAY)
                 )
@@ -468,6 +469,37 @@ class DefaultBambooPlaybackRepositoryTest {
             STARTUP_COMMAND_TYPES + listOf(
                 EngineCommand.TYPE_PLAY
             ),
+            engine.commands.map { it.type }
+        )
+    }
+
+    @Test
+    fun `toggle during buffering recovery pauses instead of sending play again`() {
+        val engine = RecordingEngineGateway(
+            initialSnapshot = EngineSnapshot.idle(nowMillis = 1L).copy(
+                playbackState = EngineSnapshot.PLAYBACK_BUFFERING
+            )
+        )
+        val repository = DefaultBambooPlaybackRepository(
+            engine = engine,
+            uxRestrictionObserver = FakeUxRestrictionObserver(
+                restrictions = AutomotiveUxRestrictions.unrestricted(
+                    AutomotiveUxRestrictions.Source.NotAutomotive
+                )
+            ),
+            telemetryLogger = testTelemetryLogger()
+        )
+
+        repository.start()
+        assertEquals(BambooPlaybackStatus.Recovering, repository.state.value.playbackStatus)
+        assertTrue(repository.state.value.playWhenReady)
+
+        repository.dispatch(BambooPlaybackIntent.TogglePlayback)
+
+        assertEquals(BambooPlaybackStatus.Paused, repository.state.value.playbackStatus)
+        assertFalse(repository.state.value.playWhenReady)
+        assertEquals(
+            STARTUP_COMMAND_TYPES + listOf(EngineCommand.TYPE_PAUSE),
             engine.commands.map { it.type }
         )
     }

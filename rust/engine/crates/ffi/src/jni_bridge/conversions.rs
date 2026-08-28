@@ -327,8 +327,11 @@ pub(super) fn effects_page_to_strings(
     effects: &[panda_engine_core::EngineEffect],
     offset: i32,
     limit: i32,
+    source_uri: Option<&str>,
 ) -> Vec<String> {
-    pack_page(effects, offset, limit, effect_to_strings)
+    pack_page(effects, offset, limit, |effect| {
+        effect_to_strings(effect, source_uri)
+    })
 }
 
 pub(super) fn history_entry_to_strings(
@@ -409,7 +412,10 @@ pub(super) fn metadata_to_strings(snapshot: &panda_engine_core::EngineSnapshot) 
     packed
 }
 
-pub(super) fn effect_to_strings(effect: &panda_engine_core::EngineEffect) -> Vec<String> {
+pub(super) fn effect_to_strings(
+    effect: &panda_engine_core::EngineEffect,
+    source_uri: Option<&str>,
+) -> Vec<String> {
     let media_id = match effect {
         panda_engine_core::EngineEffect::PreparePlaybackSource { media_id, .. }
         | panda_engine_core::EngineEffect::RecreatePlayerAndLoad { media_id, .. }
@@ -418,6 +424,10 @@ pub(super) fn effect_to_strings(effect: &panda_engine_core::EngineEffect) -> Vec
     };
     let message = match effect {
         panda_engine_core::EngineEffect::NotifyUser { message } => message.as_str(),
+        panda_engine_core::EngineEffect::PreparePlaybackSource { .. }
+        | panda_engine_core::EngineEffect::RecreatePlayerAndLoad { .. } => {
+            source_uri.unwrap_or("")
+        }
         _ => "",
     };
     let position_millis = match effect {
@@ -565,7 +575,7 @@ pub(super) fn snapshot_to_jlong_array(env: &mut JNIEnv, snapshot: FfiEngineSnaps
     array.into_raw()
 }
 
-fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 62] {
+fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 65] {
     [
         snapshot.playback_state as jlong,
         snapshot.restriction_state as jlong,
@@ -629,6 +639,9 @@ fn snapshot_to_jlong_values(snapshot: FfiEngineSnapshot) -> [jlong; 62] {
         snapshot.backend_unavailable_reason as jlong,
         snapshot.history_generation as jlong,
         snapshot.last_progress_tick_epoch_millis as jlong,
+        snapshot.queue_size as jlong,
+        snapshot.queue_current_index,
+        snapshot.queue_generation as jlong,
     ]
 }
 
@@ -712,6 +725,9 @@ mod tests {
             backend_unavailable_reason: crate::FFI_BACKEND_REASON_TIMEOUT,
             history_generation: 11,
             last_progress_tick_epoch_millis: 77,
+            queue_size: 12,
+            queue_current_index: 4,
+            queue_generation: 3,
             playback_state: FFI_PLAYBACK_PLAYING,
             restriction_state: FFI_RESTRICTION_UNKNOWN,
             updated_at_epoch_millis: 42,
@@ -758,8 +774,11 @@ mod tests {
         };
 
         let values = snapshot_to_jlong_values(snapshot);
-        assert_eq!(values.len(), 62);
+        assert_eq!(values.len(), 65);
         assert_eq!(values[61], 77);
+        assert_eq!(values[62], 12);
+        assert_eq!(values[63], 4);
+        assert_eq!(values[64], 3);
         assert_eq!(
             &values[..45],
             &[
@@ -842,6 +861,30 @@ mod tests {
             ]
         );
     }
+    #[test]
+    fn prepare_playback_source_packs_snapshot_source_uri_as_message() {
+        let effect = panda_engine_core::EngineEffect::PreparePlaybackSource {
+            media_id: "track-1".into(),
+            playback_instance_id: 42,
+            position_millis: 0,
+        };
+        let packed = effect_to_strings(
+            &effect,
+            Some("http://10.0.2.2:8080/stream/track-1"),
+        );
+        assert_eq!(packed[1], "track-1");
+        assert_eq!(packed[2], "http://10.0.2.2:8080/stream/track-1");
+    }
+
+    #[test]
+    fn notify_user_keeps_its_message_when_source_uri_is_present() {
+        let effect = panda_engine_core::EngineEffect::NotifyUser {
+            message: "hello".into(),
+        };
+        let packed = effect_to_strings(&effect, Some("http://ignored.test/stream"));
+        assert_eq!(packed[2], "hello");
+    }
+
     #[test]
     fn packing_appends_artwork_identity_without_reordering_uri_slots() {
         let catalog = panda_engine_core::MediaItem {

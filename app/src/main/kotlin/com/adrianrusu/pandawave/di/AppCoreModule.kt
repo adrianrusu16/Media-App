@@ -19,7 +19,9 @@ import com.adrianrusu.pandawave.core.automotive.driving.PlatformAutomotiveDrivin
 import com.adrianrusu.pandawave.core.automotive.ux.AutomotiveUxRestrictionObserver
 import com.adrianrusu.pandawave.core.automotive.ux.PlatformAutomotiveUxRestrictionObserver
 import com.adrianrusu.pandawave.core.common.log.PandaLog
+import com.adrianrusu.pandawave.core.media.adapter.playback.BambooMediaSessionWarmup
 import com.adrianrusu.pandawave.core.model.theme.ThemePreferenceRepository
+import com.adrianrusu.pandawave.core.playback.BambooPlaybackMediaPipelineGate
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
 import com.adrianrusu.pandawave.core.playback.DefaultBambooPlaybackRepository
 import com.adrianrusu.pandawave.core.preferences.AmbientModePreferenceRepository
@@ -125,10 +127,19 @@ object AppCoreModule {
 
     @Provides
     @Singleton
+    fun provideBambooPlaybackMediaPipelineGate(
+        mediaSessionWarmup: BambooMediaSessionWarmup
+    ): BambooPlaybackMediaPipelineGate = BambooPlaybackMediaPipelineGate {
+        mediaSessionWarmup.reconnect()
+    }
+
+    @Provides
+    @Singleton
     fun provideBambooPlaybackRepository(
         engine: EngineGateway,
         @ApplicationContext context: Context,
-        telemetryLogger: TelemetryLogger
+        telemetryLogger: TelemetryLogger,
+        mediaPipelineGate: BambooPlaybackMediaPipelineGate
     ): BambooPlaybackRepository {
         val isAutomotive = context.packageManager.hasSystemFeature(PackageManager.FEATURE_AUTOMOTIVE)
         val mainHandler = Handler(Looper.getMainLooper())
@@ -155,7 +166,8 @@ object AppCoreModule {
                 } else {
                     mainHandler.post(runnable)
                 }
-            }
+            },
+            mediaPipelineGate = mediaPipelineGate
         )
     }
 

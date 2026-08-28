@@ -6,8 +6,9 @@ import com.adrianrusu.pandawave.core.ui.miniplayer.MiniPlayerState
 
 data class AppShellState(
     val engineConnection: BambooEngineConnectionUiState = BambooEngineConnectionUiState.Connecting,
-    val miniPlayer: MiniPlayerState = MiniPlayerState.Empty
+    val miniPlayer: MiniPlayerState = MiniPlayerState.Empty,
+    val canDispatch: Boolean = true
 ) {
     val canDispatchEngineCommands: Boolean
-        get() = engineConnection.status == BambooEngineConnectionStatus.Ready
+        get() = engineConnection.status == BambooEngineConnectionStatus.Ready && canDispatch
 }

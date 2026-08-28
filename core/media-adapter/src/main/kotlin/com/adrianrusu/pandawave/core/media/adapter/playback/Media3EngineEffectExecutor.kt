@@ -1,5 +1,7 @@
 package com.adrianrusu.pandawave.core.media.adapter.playback
 
+import android.net.Uri
+import androidx.core.net.toUri
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -26,9 +28,13 @@ internal class Media3EngineEffectExecutor(
     private val currentProjection: () -> BambooMediaSessionStateProjection? = { null },
     private val recreatePlayer: () -> Unit = {},
     private val notifyUser: (String) -> Unit = {},
-    private val onAudioFocusRequestResult: (BambooAudioFocusRequestResult) -> Unit = {}
+    private val onAudioFocusRequestResult: (BambooAudioFocusRequestResult) -> Unit = {},
+    private val uriParser: BambooUriParser = BambooUriParser { value ->
+        runCatching { value.toUri() }.getOrNull()
+    }
 ) : BambooPlaybackEffectExecutor {
     private val telemetryLogger = telemetryLogger.forModule(TelemetryModule.Media3)
+    private var lastLoadedSource: LoadedPlaybackSource? = null
 
     override fun execute(effects: List<EngineEffect>) {
         var focusRequestResult: BambooAudioFocusRequestResult? = null
@@ -39,10 +45,9 @@ internal class Media3EngineEffectExecutor(
                 }
 
                 effect.type == EngineEffect.TYPE_PLAY &&
-                    focusRequestResult != null &&
-                    focusRequestResult != BambooAudioFocusRequestResult.Granted -> {
+                    focusRequestResult == BambooAudioFocusRequestResult.Failed -> {
                     logEffectReceived(effect)
-                    logAudioFocusNotGranted(effect, checkNotNull(focusRequestResult))
+                    logAudioFocusNotGranted(effect, BambooAudioFocusRequestResult.Failed)
                 }
 
                 else -> execute(effect)
@@ -99,51 +104,46 @@ internal class Media3EngineEffectExecutor(
     }
 
     private fun play() {
-        val player = player()
-        if (player.playbackState == Player.STATE_IDLE) {
-            player.prepare()
+        if (!player().hasPlayableMedia) {
+            loadCurrentSource(reason = PLAY_RELOAD_REASON)
         }
-        if (player.playbackState == Player.STATE_ENDED) {
-            player.seekTo(MIN_POSITION_MILLIS)
+        val preparedPlayer = player()
+        if (preparedPlayer.playbackState == Player.STATE_IDLE) {
+            preparedPlayer.prepare()
+        }
+        if (preparedPlayer.playbackState == Player.STATE_ENDED) {
+            preparedPlayer.seekTo(MIN_POSITION_MILLIS)
         }
 
-        player.play()
+        preparedPlayer.play()
     }
 
     private fun preparePlaybackSource(effect: EngineEffect) {
         val mediaId = effect.mediaId ?: return logMissingPayload(effect)
-        val projection = currentProjection() ?: return logMissingProjection(effect)
-        if (projection.mediaItem.mediaId != mediaId) {
-            return logStaleProjection(effect)
+        val playbackInstanceId = effect.playbackInstanceId ?: return logMissingPayload(effect)
+        val projection = currentProjection()
+        if (projection != null) {
+            val projectionMediaId = projection.mediaItem.mediaId
+            if (projectionMediaId != mediaId && projectionMediaId != FALLBACK_MEDIA_ID) {
+                return logStaleProjection(effect)
+            }
         }
 
-        val playbackInstanceId = effect.playbackInstanceId ?: return logMissingPayload(effect)
-        val startPositionMillis = effect.positionMillis ?: projection.positionMillis
-        val mediaItem = projection.mediaItem.buildUpon().setTag(playbackInstanceId).build()
-        val remainingMs = projection.playbackExpiresAtEpochMillis?.let { expiry ->
-            expiry - System.currentTimeMillis()
+        val uri = playableUri(projection, effect) ?: return if (projection == null) {
+            logMissingProjection(effect)
+        } else {
+            logMissingUri(effect)
         }
-        telemetryLogger.info(
-            name = Media3EffectTelemetryEvents.SOURCE_PREPARED,
-            attributes = buildMap {
-                put(Media3EffectTelemetryAttributes.EFFECT_TYPE, effect.type)
-                put(Media3EffectTelemetryAttributes.PLAYBACK_INSTANCE_ID, playbackInstanceId.toString())
-                put(Media3EffectTelemetryAttributes.POSITION_MILLIS, startPositionMillis.toString())
-                put(Media3EffectTelemetryAttributes.URI_SCHEME, mediaItem.localConfiguration?.uri?.scheme.orEmpty())
-                put(Media3EffectTelemetryAttributes.URI_HOST, mediaItem.localConfiguration?.uri?.host.orEmpty())
-                put(Media3EffectTelemetryAttributes.URI_PATH, mediaItem.localConfiguration?.uri?.path.orEmpty())
-                remainingMs?.let { remaining ->
-                    put(Media3EffectTelemetryAttributes.REMAINING_MS, remaining.toString())
-                }
-            }
+        val startPositionMillis = effect.positionMillis ?: projection?.positionMillis ?: MIN_POSITION_MILLIS
+        loadMediaItem(
+            mediaId = mediaId,
+            uri = uri,
+            playbackInstanceId = playbackInstanceId,
+            startPositionMillis = startPositionMillis,
+            projection = projection,
+            logPrepared = true,
+            effectType = effect.type
         )
-        PandaLog.i(PandaLog.Tag.PLAYER) {
-            "source_prepared instance=$playbackInstanceId trackId=$mediaId position_ms=$startPositionMillis " +
-                "uri_scheme=${mediaItem.localConfiguration?.uri?.scheme.orEmpty()} " +
-                "uri_host=${mediaItem.localConfiguration?.uri?.host.orEmpty()} " +
-                "uri_path=${mediaItem.localConfiguration?.uri?.path.orEmpty()} remaining_ms=$remainingMs"
-        }
-        player().setMediaItem(mediaItem, startPositionMillis)
         player().prepare()
     }
 
@@ -174,6 +174,91 @@ internal class Media3EngineEffectExecutor(
         player().setPlaybackSpeed(speed.coerceAtLeast(MIN_PLAYBACK_SPEED))
     }
 
+    private fun loadCurrentSource(reason: String) {
+        val projection = currentProjection()
+        val uri = projection?.mediaItem?.localConfiguration?.uri ?: lastLoadedSource?.uri ?: return
+        val mediaId = projection?.mediaItem?.mediaId
+            ?.takeUnless { mediaId -> mediaId.isBlank() || mediaId == FALLBACK_MEDIA_ID }
+            ?: lastLoadedSource?.mediaId
+            ?: return
+        val playbackInstanceId = lastLoadedSource?.playbackInstanceId
+        val startPositionMillis = projection?.positionMillis
+            ?: lastLoadedSource?.positionMillis
+            ?: MIN_POSITION_MILLIS
+        PandaLog.i(PandaLog.Tag.PLAYER) {
+            "play_reloaded_source reason=$reason trackId=$mediaId instance=$playbackInstanceId " +
+                "position_ms=$startPositionMillis uri_host=${uri.host.orEmpty()}"
+        }
+        loadMediaItem(
+            mediaId = mediaId,
+            uri = uri,
+            playbackInstanceId = playbackInstanceId,
+            startPositionMillis = startPositionMillis,
+            projection = projection,
+            logPrepared = false,
+            effectType = EngineEffect.TYPE_PLAY
+        )
+    }
+
+    private fun loadMediaItem(
+        mediaId: String,
+        uri: Uri,
+        playbackInstanceId: Long?,
+        startPositionMillis: Long,
+        projection: BambooMediaSessionStateProjection?,
+        logPrepared: Boolean,
+        effectType: String
+    ) {
+        val mediaItem = (projection?.mediaItem ?: MediaItem.Builder().build())
+            .buildUpon()
+            .setMediaId(mediaId)
+            .setUri(uri)
+            .apply { playbackInstanceId?.let(::setTag) }
+            .build()
+        if (logPrepared) {
+            val remainingMs = projection?.playbackExpiresAtEpochMillis?.let { expiry ->
+                expiry - System.currentTimeMillis()
+            }
+            telemetryLogger.info(
+                name = Media3EffectTelemetryEvents.SOURCE_PREPARED,
+                attributes = buildMap {
+                    put(Media3EffectTelemetryAttributes.EFFECT_TYPE, effectType)
+                    playbackInstanceId?.let { id ->
+                        put(Media3EffectTelemetryAttributes.PLAYBACK_INSTANCE_ID, id.toString())
+                    }
+                    put(Media3EffectTelemetryAttributes.POSITION_MILLIS, startPositionMillis.toString())
+                    put(Media3EffectTelemetryAttributes.URI_SCHEME, uri.scheme.orEmpty())
+                    put(Media3EffectTelemetryAttributes.URI_HOST, uri.host.orEmpty())
+                    put(Media3EffectTelemetryAttributes.URI_PATH, uri.path.orEmpty())
+                    remainingMs?.let { remaining ->
+                        put(Media3EffectTelemetryAttributes.REMAINING_MS, remaining.toString())
+                    }
+                }
+            )
+            PandaLog.i(PandaLog.Tag.PLAYER) {
+                "source_prepared instance=$playbackInstanceId trackId=$mediaId position_ms=$startPositionMillis " +
+                    "uri_scheme=${uri.scheme.orEmpty()} uri_host=${uri.host.orEmpty()} " +
+                    "uri_path=${uri.path.orEmpty()} remaining_ms=$remainingMs"
+            }
+        }
+        lastLoadedSource = LoadedPlaybackSource(
+            mediaId = mediaId,
+            uri = uri,
+            playbackInstanceId = playbackInstanceId,
+            positionMillis = startPositionMillis
+        )
+        player().setMediaItem(mediaItem, startPositionMillis)
+    }
+
+    private fun playableUri(
+        projection: BambooMediaSessionStateProjection?,
+        effect: EngineEffect
+    ): Uri? {
+        projection?.mediaItem?.localConfiguration?.uri?.let { return it }
+        val fromEffect = effect.message?.trim()?.takeIf { message -> message.isNotEmpty() } ?: return null
+        return uriParser.parse(fromEffect)
+    }
+
     private fun logMissingPayload(effect: EngineEffect) {
         telemetryLogger.debug(
             name = Media3EffectTelemetryEvents.EFFECT_IGNORED,
@@ -195,12 +280,29 @@ internal class Media3EngineEffectExecutor(
     }
 
     private fun logStaleProjection(effect: EngineEffect) {
+        PandaLog.w(PandaLog.Tag.PLAYER) {
+            "source_prepare_skipped reason=stale_projection trackId=${effect.mediaId.orEmpty()}"
+        }
         telemetryLogger.debug(
             name = Media3EffectTelemetryEvents.EFFECT_IGNORED,
             attributes = mapOf(
                 Media3EffectTelemetryAttributes.EFFECT_TYPE to effect.type,
                 Media3EffectTelemetryAttributes.MEDIA_ID_PRESENT to (effect.mediaId != null).toString(),
                 Media3EffectTelemetryAttributes.REASON to Media3EffectTelemetryValues.STALE_PROJECTION
+            )
+        )
+    }
+
+    private fun logMissingUri(effect: EngineEffect) {
+        PandaLog.e(PandaLog.Tag.PLAYER) {
+            "source_prepare_skipped reason=missing_uri trackId=${effect.mediaId.orEmpty()}"
+        }
+        telemetryLogger.warning(
+            name = Media3EffectTelemetryEvents.EFFECT_IGNORED,
+            attributes = mapOf(
+                Media3EffectTelemetryAttributes.EFFECT_TYPE to effect.type,
+                Media3EffectTelemetryAttributes.MEDIA_ID_PRESENT to (effect.mediaId != null).toString(),
+                Media3EffectTelemetryAttributes.REASON to Media3EffectTelemetryValues.MISSING_URI
             )
         )
     }
@@ -215,6 +317,8 @@ internal class Media3EngineEffectExecutor(
 
 internal interface Media3EffectPlayer {
     val playbackState: Int
+
+    val hasPlayableMedia: Boolean
 
     fun setMediaItem(mediaItem: MediaItem, positionMillis: Long)
 
@@ -236,6 +340,9 @@ internal interface Media3EffectPlayer {
 internal class PlayerMedia3EffectPlayer(private val player: Player) : Media3EffectPlayer {
     override val playbackState: Int
         get() = player.playbackState
+
+    override val hasPlayableMedia: Boolean
+        get() = player.currentMediaItem?.localConfiguration?.uri != null
 
     override fun setMediaItem(mediaItem: MediaItem, positionMillis: Long) {
         player.setMediaItem(mediaItem, positionMillis)
@@ -301,8 +408,17 @@ internal object Media3EffectTelemetryValues {
     const val MISSING_PAYLOAD = "missing_payload"
     const val MISSING_PROJECTION = "missing_projection"
     const val STALE_PROJECTION = "stale_projection"
+    const val MISSING_URI = "missing_uri"
     const val AUDIO_FOCUS_NOT_GRANTED = "audio_focus_not_granted"
 }
 
 private const val MIN_POSITION_MILLIS = 0L
 private const val MIN_PLAYBACK_SPEED = 0F
+private const val PLAY_RELOAD_REASON = "missing_current_media"
+
+private data class LoadedPlaybackSource(
+    val mediaId: String,
+    val uri: Uri,
+    val playbackInstanceId: Long?,
+    val positionMillis: Long
+)

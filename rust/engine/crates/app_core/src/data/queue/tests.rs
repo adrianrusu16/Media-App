@@ -110,12 +110,17 @@ fn test_has_previous_with_repeat_modes() {
 fn test_set_items_resets_current_index() {
     let mut qm = QueueManager::new(vec![]);
     assert_eq!(qm.current_index(), None);
+    assert_eq!(qm.len(), 0);
+    assert_eq!(qm.generation(), 0);
 
     qm.set_items(mock_items());
     assert_eq!(qm.current_index(), Some(0));
+    assert_eq!(qm.len(), 2);
+    assert_eq!(qm.generation(), 1);
 
     qm.set_items(vec![]);
     assert_eq!(qm.current_index(), None);
+    assert_eq!(qm.generation(), 2);
 }
 
 #[test]

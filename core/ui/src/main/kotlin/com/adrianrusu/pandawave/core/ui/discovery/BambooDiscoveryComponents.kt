@@ -33,6 +33,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import com.adrianrusu.pandawave.core.designsystem.tokens.LocalPandaWaveDesignTokens
 import com.adrianrusu.pandawave.core.designsystem.tokens.cardResting
@@ -70,7 +71,13 @@ import com.adrianrusu.pandawave.core.ui.focus.bambooFocusIndicator
 import com.adrianrusu.pandawave.core.ui.icons.PandaWaveIcons
 
 @Composable
-fun BambooSectionHeader(title: String, modifier: Modifier = Modifier, subtitle: String? = null) {
+fun BambooSectionHeader(
+    title: String,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null,
+    titleStyle: TextStyle = MaterialTheme.typography.titleLarge,
+    subtitleStyle: TextStyle = MaterialTheme.typography.bodyMedium
+) {
     val tokens = LocalPandaWaveDesignTokens.current
 
     Column(
@@ -81,7 +88,7 @@ fun BambooSectionHeader(title: String, modifier: Modifier = Modifier, subtitle: 
             modifier = Modifier.semantics { heading() },
             text = title,
             color = MaterialTheme.colorScheme.onSurface,
-            style = MaterialTheme.typography.titleLarge,
+            style = titleStyle,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
         )
@@ -89,7 +96,7 @@ fun BambooSectionHeader(title: String, modifier: Modifier = Modifier, subtitle: 
             Text(
                 text = subtitle,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyMedium,
+                style = subtitleStyle,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
@@ -126,44 +133,37 @@ fun BambooMediaHeroCard(
         tonalElevation = tokens.elevation.cardResting,
         shape = MaterialTheme.shapes.medium
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(tokens.spacing.lg),
-            verticalArrangement = Arrangement.spacedBy(tokens.spacing.lg)
+                .padding(tokens.spacing.sm),
+            horizontalArrangement = Arrangement.spacedBy(tokens.spacing.sm),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             BambooArtwork(
                 artwork = item.artwork,
                 fallback = item.artworkFallback,
                 contentDescription = null,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(tokens.components.mediaTileHeroArtworkHeight)
+                modifier = Modifier.size(tokens.components.mediaTileHeroArtworkHeight)
             )
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(tokens.spacing.md),
-                verticalAlignment = Alignment.Bottom
-            ) {
-                BambooMediaCopy(
-                    item = item,
-                    modifier = Modifier.weight(1f),
-                    titleStyle = MaterialTheme.typography.titleMedium
-                )
-                if (enabled) {
-                    Surface(
-                        color = resolvedAccent,
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
-                        shape = CircleShape
-                    ) {
-                        Icon(
-                            modifier = Modifier
-                                .padding(tokens.spacing.sm)
-                                .size(tokens.components.iconSmall),
-                            imageVector = PandaWaveIcons.Play,
-                            contentDescription = null
-                        )
-                    }
+            BambooMediaCopy(
+                item = item,
+                modifier = Modifier.weight(1f),
+                titleStyle = MaterialTheme.typography.titleMedium
+            )
+            if (enabled) {
+                Surface(
+                    color = resolvedAccent,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    shape = CircleShape
+                ) {
+                    Icon(
+                        modifier = Modifier
+                            .padding(tokens.spacing.sm)
+                            .size(tokens.components.iconSmall),
+                        imageVector = PandaWaveIcons.Play,
+                        contentDescription = null
+                    )
                 }
             }
         }
@@ -246,8 +246,8 @@ fun BambooMediaListRow(
         shape = MaterialTheme.shapes.small
     ) {
         Row(
-            modifier = Modifier.padding(tokens.spacing.md),
-            horizontalArrangement = Arrangement.spacedBy(tokens.spacing.md),
+            modifier = Modifier.padding(tokens.spacing.sm),
+            horizontalArrangement = Arrangement.spacedBy(tokens.spacing.sm),
             verticalAlignment = Alignment.CenterVertically
         ) {
             BambooArtwork(
@@ -379,6 +379,7 @@ fun BambooSearchBar(
     onQueryChange: (String) -> Unit,
     placeholder: String,
     modifier: Modifier = Modifier,
+    textStyle: TextStyle = MaterialTheme.typography.titleMedium,
     onVoiceClick: (() -> Unit)? = null
 ) {
     OutlinedTextField(
@@ -388,7 +389,7 @@ fun BambooSearchBar(
         value = query,
         onValueChange = onQueryChange,
         singleLine = true,
-        textStyle = MaterialTheme.typography.titleMedium,
+        textStyle = textStyle,
         leadingIcon = {
             Icon(
                 imageVector = PandaWaveIcons.Search,
@@ -408,6 +409,7 @@ fun BambooSearchBar(
         placeholder = {
             Text(
                 text = placeholder,
+                style = textStyle,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )

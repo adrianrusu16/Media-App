@@ -143,6 +143,23 @@ class BambooPlaybackStateProjectorTest {
     }
 
     @Test
+    fun `buffering snapshot is recoverable playback that still wants to play`() {
+        val snapshot = EngineSnapshot.idle(nowMillis = 1L).copy(
+            playbackState = EngineSnapshot.PLAYBACK_BUFFERING,
+            mediaId = "track-1"
+        )
+
+        val state = BambooPlaybackStateProjector.fromEngineSnapshot(
+            current = BambooPlaybackState(engineConnection = BambooEngineConnectionUiState.Ready),
+            snapshot = snapshot
+        )
+
+        assertEquals(BambooPlaybackStatus.Recovering, state.playbackStatus)
+        assertTrue(state.playWhenReady)
+        assertFalse(state.isPlaying)
+    }
+
+    @Test
     fun `engine events project connection readiness`() {
         val queuedState = BambooPlaybackStateProjector.fromEngineEvent(
             current = BambooPlaybackState(engineConnection = BambooEngineConnectionUiState.Ready),

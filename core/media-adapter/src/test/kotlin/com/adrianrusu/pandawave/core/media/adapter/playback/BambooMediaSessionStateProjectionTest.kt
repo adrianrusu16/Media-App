@@ -69,6 +69,16 @@ class BambooMediaSessionStateProjectionTest {
     }
 
     @Test
+    fun `recovering state keeps playWhenReady so the session can route audio`() {
+        val projection = BambooPlaybackState(
+            mediaId = "track-1",
+            playbackStatus = BambooPlaybackStatus.Recovering
+        ).toMediaSessionStateProjection()
+
+        assertTrue(projection.playWhenReady)
+    }
+
+    @Test
     fun `negative playback position is clamped for media3`() {
         val projection = BambooPlaybackState(
             positionMillis = -1L

@@ -22,7 +22,7 @@ data class BambooPlaybackProgressAnchor(
             durationMillis = state.durationMillis,
             updatedAtEpochMillis = state.updatedAtEpochMillis,
             playbackSpeed = state.playbackSpeed,
-            isPlaying = state.isPlaying
+            isPlaying = state.playWhenReady
         )
     }
 }

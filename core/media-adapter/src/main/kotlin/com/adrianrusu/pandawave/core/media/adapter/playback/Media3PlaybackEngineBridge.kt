@@ -51,11 +51,14 @@ class Media3PlaybackEngineBridge(
     private var hasLoggedFirstAudio = false
 
     fun bootstrap() {
-        if (effectSubscription == null) {
-            effectSubscription = playbackRepository.observeEffects { effects ->
-                projectPlatformPlaybackState {
-                    effectExecutor.execute(effects)
-                }
+        effectSubscription?.close()
+        effectSubscription = playbackRepository.observeEffects { effects ->
+            if (effects.isEmpty()) return@observeEffects
+            PandaLog.i(PandaLog.Tag.PLAYER) {
+                "effects_received count=${effects.size} types=${effects.joinToString { effect -> effect.type }}"
+            }
+            projectPlatformPlaybackState {
+                effectExecutor.execute(effects)
             }
         }
 

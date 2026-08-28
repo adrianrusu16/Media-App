@@ -131,7 +131,7 @@ fun AppShellScreen(
                     label = destination.localizedLabel(),
                     icon = destination.icon,
                     selected = destination == currentDestination.selectedRailDestination,
-                    showLabel = true
+                    showLabel = false
                 )
             }
             if (chrome.showNavigationRail) {
@@ -201,6 +201,7 @@ private fun AppShellContent(
             )
     ) {
         NavDisplay(
+            modifier = Modifier.fillMaxSize(),
             backStack = backStack,
             onBack = { navigator.pop() },
             entryDecorators = listOf(
@@ -294,10 +295,7 @@ private fun AppShellContent(
                 entry<NowPlayingDestination> {
                     NowPlayingRoute(
                         modifier = Modifier.fillMaxSize(),
-                        onAmbientVisibilityChanged = onAmbientVisibilityChanged,
-                        onLibraryClick = {
-                            navigator.selectPrimary(LibraryDestination)
-                        }
+                        onAmbientVisibilityChanged = onAmbientVisibilityChanged
                     )
                 }
             }

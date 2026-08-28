@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <dimen name="pandawave_type_display_size">32sp</dimen>
-    <dimen name="pandawave_type_display_line_height">40sp</dimen>
+    <dimen name="pandawave_type_display_size">28sp</dimen>
+    <dimen name="pandawave_type_display_line_height">34sp</dimen>
     <integer name="pandawave_type_display_weight">700</integer>
-    <dimen name="pandawave_type_section_title_size">22sp</dimen>
-    <dimen name="pandawave_type_section_title_line_height">28sp</dimen>
+    <dimen name="pandawave_type_section_title_size">18sp</dimen>
+    <dimen name="pandawave_type_section_title_line_height">24sp</dimen>
     <integer name="pandawave_type_section_title_weight">600</integer>
-    <dimen name="pandawave_type_body_size">16sp</dimen>
-    <dimen name="pandawave_type_body_line_height">24sp</dimen>
+    <dimen name="pandawave_type_body_size">14sp</dimen>
+    <dimen name="pandawave_type_body_line_height">20sp</dimen>
     <integer name="pandawave_type_body_weight">400</integer>
-    <dimen name="pandawave_type_metadata_size">14sp</dimen>
-    <dimen name="pandawave_type_metadata_line_height">20sp</dimen>
+    <dimen name="pandawave_type_metadata_size">12sp</dimen>
+    <dimen name="pandawave_type_metadata_line_height">16sp</dimen>
     <integer name="pandawave_type_metadata_weight">400</integer>
-    <dimen name="pandawave_type_control_label_size">14sp</dimen>
-    <dimen name="pandawave_type_control_label_line_height">20sp</dimen>
+    <dimen name="pandawave_type_control_label_size">12sp</dimen>
+    <dimen name="pandawave_type_control_label_line_height">16sp</dimen>
     <integer name="pandawave_type_control_label_weight">600</integer>
 </resources>

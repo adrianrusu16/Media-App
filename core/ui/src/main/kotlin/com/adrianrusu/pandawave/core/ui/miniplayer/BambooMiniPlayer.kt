@@ -32,7 +32,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import com.adrianrusu.pandawave.core.designsystem.tokens.LocalPandaWaveDesignTokens
 import com.adrianrusu.pandawave.core.designsystem.tokens.cardResting
-import com.adrianrusu.pandawave.core.designsystem.tokens.lg
 import com.adrianrusu.pandawave.core.designsystem.tokens.md
 import com.adrianrusu.pandawave.core.designsystem.tokens.miniPlayerArtworkSize
 import com.adrianrusu.pandawave.core.designsystem.tokens.miniPlayerHeight
@@ -80,13 +79,13 @@ fun BambooMiniPlayer(
     ) {
         Column(
             modifier = Modifier.padding(
-                horizontal = tokens.spacing.lg,
+                horizontal = tokens.spacing.md,
                 vertical = tokens.components.miniPlayerInternalSpacing
             ),
             verticalArrangement = Arrangement.spacedBy(tokens.components.miniPlayerInternalSpacing)
         ) {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(tokens.spacing.lg),
+                horizontalArrangement = Arrangement.spacedBy(tokens.spacing.md),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 MiniPlayerArtwork(artwork = state.artwork)

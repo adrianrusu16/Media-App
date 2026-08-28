@@ -211,7 +211,7 @@ impl Engine {
                         }
                         self.recovery.source_refresh_attempted_for =
                             self.current_playback_instance_id;
-                        self.snapshot.controls = self.derive_controls(&self.snapshot);
+                        self.refresh_controls();
                         if self.recovery.desired_play_when_ready {
                             effects.push(EngineEffect::RequestAudioFocus);
                             effects.push(EngineEffect::Play);
@@ -274,7 +274,7 @@ impl Engine {
                     .with_playback_state(PlaybackState::Recovering, now_epoch_millis)
                     .with_error(None)
                     .with_busy(true);
-                self.snapshot.controls = self.derive_controls(&self.snapshot);
+                self.refresh_controls();
                 let mut effects = vec![EngineEffect::RecreatePlayerAndLoad {
                     media_id,
                     playback_instance_id: replacement_instance_id,
@@ -305,7 +305,7 @@ impl Engine {
                 .with_error(Some(EngineError::player_error(
                     "Playback could not continue because the device audio decoder failed.",
                 )));
-            self.snapshot.controls = self.derive_controls(&self.snapshot);
+            self.refresh_controls();
             let effects = vec![EngineEffect::NotifyUser {
                 message: "Playback could not continue because the device audio decoder failed."
                     .to_owned(),
@@ -401,16 +401,10 @@ impl Engine {
                     }
                 }
                 AudioFocusRequestResult::Delayed => {
-                    if matches!(
-                        prev_playback_state,
-                        PlaybackState::Playing
-                            | PlaybackState::Buffering
-                            | PlaybackState::Recovering
-                    ) {
-                        PlaybackState::Paused
-                    } else {
-                        prev_playback_state
-                    }
+                    // Delayed gain is not a refusal. Keep buffering/playing so
+                    // the platform player can start and audio can route when
+                    // the car later grants focus.
+                    prev_playback_state
                 }
                 AudioFocusRequestResult::Granted | AudioFocusRequestResult::Unknown => {
                     prev_playback_state
@@ -437,6 +431,7 @@ impl Engine {
             };
             next_snapshot.controls = self.derive_controls(&next_snapshot);
             self.snapshot = next_snapshot;
+            Self::apply_queue_projection(&mut self.snapshot, &self.queue);
             self.sync_auth_state_projection();
             let outcome = EngineOutcome {
                 snapshot: self.snapshot.clone(),
@@ -589,6 +584,7 @@ impl Engine {
         self.maybe_auto_record_history(now_epoch_millis, &mut snapshot)
             .await;
         self.snapshot = snapshot;
+        Self::apply_queue_projection(&mut self.snapshot, &self.queue);
 
         let middleware = Arc::clone(&self.middleware);
         let outcome = EngineOutcome {
