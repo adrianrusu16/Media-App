@@ -30,6 +30,9 @@ abstract class BuildPandaEngineAndroidTask extends DefaultTask {
     abstract Property<String> getRustcExecutable()
 
     @Input
+    abstract Property<String> getCargoProfile()
+
+    @Input
     abstract Property<String> getRustTarget()
 
     @Input
@@ -80,6 +83,7 @@ abstract class BuildPandaEngineAndroidTask extends DefaultTask {
     @Inject
     BuildPandaEngineAndroidTask(ExecOperations execOperations) {
         this.execOperations = execOperations
+        cargoProfile.convention("release")
     }
 
     @TaskAction
@@ -108,9 +112,12 @@ abstract class BuildPandaEngineAndroidTask extends DefaultTask {
         String inheritedPath = System.getenv("PATH") ?: ""
         String cargoPath = toolchainBin.absolutePath + File.pathSeparator + inheritedPath
 
+        File cargoTargetDirectory = new File(engineDirectory.get().asFile, "target")
+
         execOperations.exec { ExecSpec spec ->
             spec.workingDir(engineDirectory.get().asFile)
             spec.environment("PATH", cargoPath)
+            spec.environment("CARGO_TARGET_DIR", cargoTargetDirectory.absolutePath)
             spec.environment(ccEnvironmentVariable, linker.absolutePath)
             spec.environment(normalizedCcEnvironmentVariable, linker.absolutePath)
             spec.commandLine(
@@ -118,7 +125,8 @@ abstract class BuildPandaEngineAndroidTask extends DefaultTask {
                 "build",
                 "-p",
                 "panda_engine_ffi",
-                "--release",
+                "--profile",
+                cargoProfile.get(),
                 "--target",
                 rustTarget.get()
             )
