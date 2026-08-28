@@ -98,8 +98,8 @@ jobs:
           qualityCheck
           :app:lintRelease
           test
-          -PpandaEngine.buildNative=false
-          -Ppandawave.verificationAppLinkHost=ci.pandawave.dev
+          --project-prop=pandaEngine.buildNative=false
+          --project-prop=pandawave.verificationAppLinkHost=ci.pandawave.dev
           --console=plain
 
   android-debug:
@@ -153,7 +153,7 @@ jobs:
         run: >
           ./gradlew
           :app:assembleDebug
-          -PpandaEngine.debugAbis=x86_64
+          --project-prop=pandaEngine.debugAbis=x86_64
           --console=plain
 
   android-release:
@@ -212,7 +212,7 @@ jobs:
           ./gradlew
           :app:assembleRelease
           :app:assembleBenchmark
-          -Ppandawave.verificationAppLinkHost=ci.pandawave.dev
+          --project-prop=pandawave.verificationAppLinkHost=ci.pandawave.dev
           --console=plain
 
   rust:
@@ -297,6 +297,6 @@ jobs:
           script: >
             ./gradlew
             :app:connectedDebugAndroidTest
-            -Pandroid.testInstrumentationRunnerArguments.class=com.adrianrusu.pandawave.BambooMediaBrowserSmokeTest
-            -PpandaEngine.buildNative=false
+            --project-prop=android.testInstrumentationRunnerArguments.class=com.adrianrusu.pandawave.BambooMediaBrowserSmokeTest
+            --project-prop=pandaEngine.buildNative=false
             --console=plain

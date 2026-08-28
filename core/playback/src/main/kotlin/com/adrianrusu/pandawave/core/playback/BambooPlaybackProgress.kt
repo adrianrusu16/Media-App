@@ -22,7 +22,12 @@ data class BambooPlaybackProgressAnchor(
             durationMillis = state.durationMillis,
             updatedAtEpochMillis = state.updatedAtEpochMillis,
             playbackSpeed = state.playbackSpeed,
-            isPlaying = state.playWhenReady
+            // `playWhenReady` is an intent: it is also true while the player
+            // is buffering/recovering. Interpolating from that state makes
+            // the UI run ahead of the decoder and then jump back on the first
+            // real position checkpoint. Only interpolate after Media3 has
+            // reported actual playback.
+            isPlaying = state.isPlaying
         )
     }
 }

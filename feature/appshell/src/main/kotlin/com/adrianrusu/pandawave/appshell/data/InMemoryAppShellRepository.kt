@@ -58,7 +58,9 @@ private fun BambooPlaybackState.toMiniPlayerState(): MiniPlayerState = MiniPlaye
         durationMillis = durationMillis,
         updatedAtEpochMillis = updatedAtEpochMillis,
         playbackSpeed = playbackSpeed,
-        isPlaying = playWhenReady
+        // Keep the progress clock frozen until the decoder is actually
+        // playing. `playWhenReady` is also true during buffering/recovery.
+        isPlaying = isPlaying
     ),
     artwork = toBambooArtworkModel(
         id = artworkId,

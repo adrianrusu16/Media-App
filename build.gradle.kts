@@ -25,7 +25,14 @@ detekt {
     basePath = rootDir
 }
 
+val spotlessFull = providers.gradleProperty("spotlessFull").isPresent
+
 spotless {
+    if (!spotlessFull) {
+        // Keep the default developer workflow focused on files changed from the shared baseline.
+        ratchetFrom("origin/master")
+    }
+
     lineEndings = LineEnding.UNIX
 
     val generatedAndLocalCaches = listOf(

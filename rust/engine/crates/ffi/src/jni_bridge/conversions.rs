@@ -425,9 +425,7 @@ pub(super) fn effect_to_strings(
     let message = match effect {
         panda_engine_core::EngineEffect::NotifyUser { message } => message.as_str(),
         panda_engine_core::EngineEffect::PreparePlaybackSource { .. }
-        | panda_engine_core::EngineEffect::RecreatePlayerAndLoad { .. } => {
-            source_uri.unwrap_or("")
-        }
+        | panda_engine_core::EngineEffect::RecreatePlayerAndLoad { .. } => source_uri.unwrap_or(""),
         _ => "",
     };
     let position_millis = match effect {
@@ -868,10 +866,7 @@ mod tests {
             playback_instance_id: 42,
             position_millis: 0,
         };
-        let packed = effect_to_strings(
-            &effect,
-            Some("http://10.0.2.2:8080/stream/track-1"),
-        );
+        let packed = effect_to_strings(&effect, Some("http://10.0.2.2:8080/stream/track-1"));
         assert_eq!(packed[1], "track-1");
         assert_eq!(packed[2], "http://10.0.2.2:8080/stream/track-1");
     }

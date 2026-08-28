@@ -114,6 +114,11 @@ impl QueueManager {
         self.items.len()
     }
 
+    /// Returns whether the authoritative playback queue contains no items.
+    pub fn is_empty(&self) -> bool {
+        self.items.is_empty()
+    }
+
     /// Returns the generation that advances whenever queue contents are replaced.
     pub fn generation(&self) -> u64 {
         self.generation

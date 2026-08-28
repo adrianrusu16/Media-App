@@ -33,6 +33,10 @@ class BambooMediaSessionWarmupTest {
 
         assertEquals(2, connector.connectCount)
         assertEquals(1, connector.connections.first().closeCount)
+        assertEquals(0, connector.connections.last().closeCount)
+
+        warmup.close()
+
         assertEquals(1, connector.connections.last().closeCount)
     }
 

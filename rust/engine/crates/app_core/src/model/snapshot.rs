@@ -367,6 +367,32 @@ impl EngineSnapshot {
         self
     }
 
+    /// Rebase the platform-owned position to the instant a transport command
+    /// is handled. Position checkpoints arrive asynchronously from Media3,
+    /// so a pause command can otherwise expose the last checkpoint and make
+    /// the UI jump backwards by the time spent playing since that checkpoint.
+    ///
+    /// This is only a command-time baseline; subsequent platform checkpoints
+    /// remain authoritative and can correct the estimate.
+    #[must_use]
+    pub fn with_position_rebased_at(mut self, now_epoch_millis: u64) -> Self {
+        let elapsed_millis = now_epoch_millis.saturating_sub(self.last_progress_tick_epoch_millis);
+        let speed = if self.playback_speed.is_finite() {
+            self.playback_speed.max(0.0)
+        } else {
+            0.0
+        };
+        let elapsed_position_millis = (elapsed_millis as f64 * f64::from(speed)) as u64;
+        let rebased_position_millis = self.position_millis.saturating_add(elapsed_position_millis);
+        self.position_millis = self
+            .duration_millis
+            .map_or(rebased_position_millis, |duration| {
+                rebased_position_millis.min(duration)
+            });
+        self.last_progress_tick_epoch_millis = now_epoch_millis;
+        self
+    }
+
     /// Functional update for the busy state, returning a new snapshot.
     #[must_use]
     pub fn with_busy(mut self, is_busy: bool) -> Self {

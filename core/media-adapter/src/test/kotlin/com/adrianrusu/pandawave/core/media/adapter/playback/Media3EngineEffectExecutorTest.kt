@@ -242,7 +242,8 @@ class Media3EngineEffectExecutorTest {
             listOf(
                 EngineEffect(
                     type = EngineEffect.TYPE_PREPARE_PLAYBACK_SOURCE,
-                    mediaId = "track-1"
+                    mediaId = "track-1",
+                    playbackInstanceId = 1L
                 )
             )
         )

@@ -75,6 +75,15 @@ fn test_empty_queue_handling() {
 }
 
 #[test]
+fn test_is_empty_matches_queue_contents() {
+    let mut qm = QueueManager::new(vec![]);
+    assert!(qm.is_empty());
+
+    qm.set_items(mock_items());
+    assert!(!qm.is_empty());
+}
+
+#[test]
 fn test_next_item_repeat_none_is_unavailable_on_last_without_mutating_cursor() {
     let mut qm = QueueManager::new(mock_items());
     qm.set_current_index(1);

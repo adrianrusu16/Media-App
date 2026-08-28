@@ -62,12 +62,18 @@ impl Engine {
         let next_playback_state =
             StateMachine::next_state_from_command(prev_playback_state, &command.command_type);
 
-        let mut next_snapshot = self
-            .snapshot
-            .clone()
-            .with_playback_state(next_playback_state, now_epoch_millis)
-            .with_error(None)
-            .with_busy(false);
+        let mut next_snapshot = (if prev_playback_state == PlaybackState::Playing
+            && next_playback_state == PlaybackState::Paused
+        {
+            self.snapshot
+                .clone()
+                .with_position_rebased_at(now_epoch_millis)
+        } else {
+            self.snapshot.clone()
+        })
+        .with_playback_state(next_playback_state, now_epoch_millis)
+        .with_error(None)
+        .with_busy(false);
 
         if prev_playback_state != PlaybackState::Playing
             && next_playback_state == PlaybackState::Playing
