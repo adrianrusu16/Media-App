@@ -131,7 +131,7 @@ fn ffi_nested_dispatch_from_observer_is_rejected_without_deadlock() {
 }
 
 #[test]
-fn ffi_dispatch_handles_async_future_panic_and_returns_invalid_outcome() {
+fn ffi_dispatch_handles_async_future_panic_and_returns_typed_error_outcome() {
     let engine = panda_engine_create(1000);
     unsafe {
         (*engine)
@@ -140,9 +140,30 @@ fn ffi_dispatch_handles_async_future_panic_and_returns_invalid_outcome() {
     }
 
     let query = CString::new(r#"{"version":1,"query":"panic","page":{"page_size":25}}"#).unwrap();
-    let outcome = unsafe { panda_engine_dispatch(engine, FFI_COMMAND_SEARCH, query.as_ptr(), 700) };
+    let (tx, rx) = std::sync::mpsc::channel();
+    let engine_addr = engine as usize;
+    let query_addr = query.as_ptr() as usize;
+    std::thread::spawn(move || {
+        let outcome = unsafe {
+            panda_engine_dispatch(
+                engine_addr as *mut PandaEngine,
+                FFI_COMMAND_SEARCH,
+                query_addr as *const c_char,
+                700,
+            )
+        };
+        let _ = tx.send(outcome);
+    });
 
-    assert_eq!(outcome, FfiEngineOutcome::invalid());
+    let outcome = rx
+        .recv_timeout(Duration::from_secs(1))
+        .expect("panic path timed out; off-actor operation did not complete");
+
+    assert_eq!(outcome.event_type, FFI_EVENT_COMMAND_APPLIED);
+    assert_eq!(outcome.applied_command_type, FFI_COMMAND_SEARCH);
+    assert!(outcome.snapshot.has_error);
+    assert_eq!(outcome.snapshot.error_type, FFI_ERROR_UNKNOWN);
+    assert!(outcome.snapshot.can_dispatch);
 
     unsafe {
         panda_engine_destroy(engine);

@@ -5,6 +5,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -45,6 +46,7 @@ fun BambooNavigationRail(
             .focusGroup()
             .testTag("navigation-rail-zone"),
         containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        windowInsets = WindowInsets(0, 0, 0, 0),
         header = {
             Surface(
                 modifier = Modifier

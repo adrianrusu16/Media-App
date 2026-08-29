@@ -1,7 +1,10 @@
+use std::future::Future;
+use std::panic::AssertUnwindSafe;
 use std::sync::Arc;
 
 use crate::engine::core::{PrefetchedHistoryPage, PrefetchedHistorySettings, PrefetchedOperation};
 use crate::model::command::{EngineCommand, EngineCommandType};
+use futures_util::FutureExt;
 use tracing::info;
 
 use super::super::ids::{CommandId, OperationId};
@@ -319,12 +322,10 @@ impl EngineActorState {
                 let Some(port) = self.engine.actor_account_port() else {
                     return false;
                 };
-                tokio::spawn(async move {
-                    let result = port
-                        .get_account(&identity)
+                spawn_panic_safe_operation_worker(operation, completion_tx, async move {
+                    port.get_account(&identity)
                         .await
-                        .map(EngineOperationResult::AccountProjection);
-                    let _ = completion_tx.send(operation.completion(result)).await;
+                        .map(EngineOperationResult::AccountProjection)
                 });
             }
             EngineOperationRequest::SearchPage {
@@ -333,29 +334,27 @@ impl EngineActorState {
                 catalog_operation_id,
             } => {
                 let repository = self.engine.actor_repository();
-                tokio::spawn(async move {
-                    let result = repository.search_catalog(&query, page).await.map(|paged| {
+                spawn_panic_safe_operation_worker(operation, completion_tx, async move {
+                    repository.search_catalog(&query, page).await.map(|paged| {
                         EngineOperationResult::SearchPage {
                             catalog_operation_id: catalog_operation_id.unwrap_or_default(),
                             items: paged.items,
                             next_page_token: paged.next_page_token,
                         }
-                    });
-                    let _ = completion_tx.send(operation.completion(result)).await;
+                    })
                 });
             }
             EngineOperationRequest::PlaylistPage { identity, page } => {
                 let Some(port) = self.engine.actor_playlist_port() else {
                     return false;
                 };
-                tokio::spawn(async move {
-                    let result = port.list(&identity, page).await.map(|paged| {
+                spawn_panic_safe_operation_worker(operation, completion_tx, async move {
+                    port.list(&identity, page).await.map(|paged| {
                         EngineOperationResult::PlaylistPage {
                             playlists: paged.items,
                             next_page_token: paged.next_page_token,
                         }
-                    });
-                    let _ = completion_tx.send(operation.completion(result)).await;
+                    })
                 });
             }
             EngineOperationRequest::HistorySettings {
@@ -365,8 +364,8 @@ impl EngineActorState {
                 let Some(port) = self.engine.actor_history_port() else {
                     return false;
                 };
-                tokio::spawn(async move {
-                    let result = match port.get_settings(&identity).await {
+                spawn_panic_safe_operation_worker(operation, completion_tx, async move {
+                    match port.get_settings(&identity).await {
                         Ok(settings) => {
                             let reconciliation = if settings.enabled {
                                 reconcile_anonymous_entries(
@@ -385,20 +384,17 @@ impl EngineActorState {
                             })
                         }
                         Err(error) => Err(error),
-                    };
-                    let _ = completion_tx.send(operation.completion(result)).await;
+                    }
                 });
             }
             EngineOperationRequest::HistorySettingsUpdate { identity, enabled } => {
                 let Some(port) = self.engine.actor_history_port() else {
                     return false;
                 };
-                tokio::spawn(async move {
-                    let result = port
-                        .update_settings(&identity, enabled)
+                spawn_panic_safe_operation_worker(operation, completion_tx, async move {
+                    port.update_settings(&identity, enabled)
                         .await
-                        .map(EngineOperationResult::HistorySettingsUpdate);
-                    let _ = completion_tx.send(operation.completion(result)).await;
+                        .map(EngineOperationResult::HistorySettingsUpdate)
                 });
             }
             EngineOperationRequest::HistoryPage {
@@ -410,7 +406,7 @@ impl EngineActorState {
                 let Some(port) = self.engine.actor_history_port() else {
                     return false;
                 };
-                tokio::spawn(async move {
+                spawn_panic_safe_operation_worker(operation, completion_tx, async move {
                     let reconciliation = reconcile_anonymous_entries(
                         Arc::clone(&port),
                         &identity,
@@ -418,14 +414,13 @@ impl EngineActorState {
                         settings_enabled,
                     )
                     .await;
-                    let result = port.list(&identity, page).await.map(|paged| {
+                    port.list(&identity, page).await.map(|paged| {
                         EngineOperationResult::HistoryPage {
                             items: paged.items,
                             next_page_token: paged.next_page_token,
                             reconciliation,
                         }
-                    });
-                    let _ = completion_tx.send(operation.completion(result)).await;
+                    })
                 });
             }
             EngineOperationRequest::HistoryDelete {
@@ -435,36 +430,30 @@ impl EngineActorState {
                 let Some(port) = self.engine.actor_history_port() else {
                     return false;
                 };
-                tokio::spawn(async move {
-                    let result = port
-                        .delete_entry(&identity, &history_id)
+                spawn_panic_safe_operation_worker(operation, completion_tx, async move {
+                    port.delete_entry(&identity, &history_id)
                         .await
-                        .map(|()| EngineOperationResult::HistoryDeleted);
-                    let _ = completion_tx.send(operation.completion(result)).await;
+                        .map(|()| EngineOperationResult::HistoryDeleted)
                 });
             }
             EngineOperationRequest::HistoryClear { identity } => {
                 let Some(port) = self.engine.actor_history_port() else {
                     return false;
                 };
-                tokio::spawn(async move {
-                    let result = port
-                        .clear(&identity)
+                spawn_panic_safe_operation_worker(operation, completion_tx, async move {
+                    port.clear(&identity)
                         .await
-                        .map(EngineOperationResult::HistoryCleared);
-                    let _ = completion_tx.send(operation.completion(result)).await;
+                        .map(EngineOperationResult::HistoryCleared)
                 });
             }
             EngineOperationRequest::PlaybackResolution { media_id } => {
                 let Some(port) = self.engine.actor_playback_port() else {
                     return false;
                 };
-                tokio::spawn(async move {
-                    let result = port
-                        .resolve_playback(&media_id)
+                spawn_panic_safe_operation_worker(operation, completion_tx, async move {
+                    port.resolve_playback(&media_id)
                         .await
-                        .map(EngineOperationResult::PlaybackResolved);
-                    let _ = completion_tx.send(operation.completion(result)).await;
+                        .map(EngineOperationResult::PlaybackResolved)
                 });
             }
             EngineOperationRequest::LibraryPage {
@@ -475,17 +464,16 @@ impl EngineActorState {
                 let Some(port) = self.engine.actor_library_port() else {
                     return false;
                 };
-                tokio::spawn(async move {
+                spawn_panic_safe_operation_worker(operation, completion_tx, async move {
                     let listed = if saved {
                         port.list_saved(&identity, page).await
                     } else {
                         port.list_liked(&identity, page).await
                     };
-                    let result = listed.map(|paged| EngineOperationResult::LibraryPage {
+                    listed.map(|paged| EngineOperationResult::LibraryPage {
                         items: paged.items,
                         next_page_token: paged.next_page_token,
-                    });
-                    let _ = completion_tx.send(operation.completion(result)).await;
+                    })
                 });
             }
             EngineOperationRequest::LibraryMutation {
@@ -496,8 +484,8 @@ impl EngineActorState {
                 let Some(port) = self.engine.actor_library_port() else {
                     return false;
                 };
-                tokio::spawn(async move {
-                    let result = match mutation {
+                spawn_panic_safe_operation_worker(operation, completion_tx, async move {
+                    match mutation {
                         crate::EngineLibraryMutation::Save => port
                             .save(&identity, &track_id)
                             .await
@@ -514,8 +502,7 @@ impl EngineActorState {
                             .unlike(&identity, &track_id)
                             .await
                             .map(|()| EngineOperationResult::LibraryMutation(None)),
-                    };
-                    let _ = completion_tx.send(operation.completion(result)).await;
+                    }
                 });
             }
         }
@@ -589,6 +576,31 @@ impl EngineActorState {
         })
         .await;
     }
+}
+
+fn spawn_panic_safe_operation_worker<F>(
+    operation: EngineOperation,
+    completion_tx: tokio::sync::mpsc::Sender<EngineOperationCompletion>,
+    work: F,
+) where
+    F: Future<Output = Result<EngineOperationResult, crate::EngineError>> + Send + 'static,
+{
+    tokio::spawn(async move {
+        let result = AssertUnwindSafe(work).catch_unwind().await;
+        let result = match result {
+            Ok(result) => result,
+            Err(_) => Err(operation_worker_panic_error()),
+        };
+        let _ = completion_tx.send(operation.completion(result)).await;
+    });
+}
+
+fn operation_worker_panic_error() -> crate::EngineError {
+    crate::EngineError::new(
+        crate::EngineErrorType::Unknown,
+        "asynchronous engine operation failed",
+        false,
+    )
 }
 
 async fn reconcile_anonymous_entries(

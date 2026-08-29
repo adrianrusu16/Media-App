@@ -109,10 +109,15 @@ Copy-Item -Recurse "$env:USERPROFILE\.gradle\*" C:\GradleHome
   `-PpandaEngine.buildNative=false` (no NDK, no Android Rust targets)
 - `android-debug`: one `x86_64` `android-dev` native assemble after fast
   validation
-- `android-release`: production ABIs + `assembleRelease` /
-  `assembleBenchmark` on `master`, `release*` branches, and
-  `workflow_dispatch`
+- `android-release`: production ABIs + `assembleRelease` on `master`,
+  `release*` branches, and `workflow_dispatch`
+- `benchmark`: `assembleBenchmark` and benchmark test APK assembly on
+  `release*` branches and `workflow_dispatch`; it does not run on normal
+  `master` pushes
 - Connected MediaBrowser smoke stays `buildNative=false`
+
+CI timing notices and the post-merge baseline procedure are documented in
+[`docs/ci-performance.md`](ci-performance.md).
 
 ## AIDL
 

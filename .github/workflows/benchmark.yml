@@ -1,0 +1,106 @@
+name: Benchmark
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "release"
+      - "release/**"
+
+permissions:
+  contents: read
+
+env:
+  PANDA_ENGINE_ANDROID_NDK_VERSION: 30.0.14904198
+  RUST_TOOLCHAIN: "1.97.1"
+
+concurrency:
+  group: benchmark-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  benchmark:
+    name: Android benchmark artifacts
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Start benchmark timer
+        run: echo "CI_BENCHMARK_START=$(date +%s)" >> "$GITHUB_ENV"
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: |
+          start=$(date +%s)
+          set +e
+          yes | sdkmanager --licenses
+          status=$?
+          sdkmanager "platform-tools" "platforms;android-36.1" "ndk;$PANDA_ENGINE_ANDROID_NDK_VERSION"
+          install_status=$?
+          if [ "$status" -eq 0 ]; then status=$install_status; fi
+          end=$(date +%s)
+          echo "::notice title=CI timing::benchmark Android SDK install $((end - start))s"
+          exit "$status"
+
+      - name: Set up Rust for Android
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          targets: aarch64-linux-android, armv7-linux-androideabi, i686-linux-android, x86_64-linux-android
+
+      - name: Restore Android benchmark Cargo artifacts
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/engine/target
+          key: cargo-android-benchmark-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-ndk-${{ env.PANDA_ENGINE_ANDROID_NDK_VERSION }}-${{ hashFiles('rust/engine/Cargo.lock', 'rust/engine/Cargo.toml') }}-${{ hashFiles('rust/engine/crates/**') }}
+          restore-keys: |
+            cargo-android-benchmark-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-ndk-${{ env.PANDA_ENGINE_ANDROID_NDK_VERSION }}-
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
+
+      - name: Assemble benchmark artifacts
+        run: |
+          start=$(date +%s)
+          set +e
+          ./gradlew :app:assembleBenchmark :benchmark:assembleBenchmarkBenchmark \
+            --project-prop=pandawave.verificationAppLinkHost=ci.pandawave.dev \
+            --console=plain
+          status=$?
+          end=$(date +%s)
+          echo "::notice title=CI timing::benchmark artifact assembly $((end - start))s"
+          exit "$status"
+
+      - name: Save Android benchmark Cargo artifacts
+        if: success()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/engine/target
+          key: cargo-android-benchmark-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-ndk-${{ env.PANDA_ENGINE_ANDROID_NDK_VERSION }}-${{ hashFiles('rust/engine/Cargo.lock', 'rust/engine/Cargo.toml') }}-${{ hashFiles('rust/engine/crates/**') }}
+
+      - name: Benchmark timing summary
+        if: always()
+        run: |
+          end=$(date +%s)
+          start=${CI_BENCHMARK_START:-$end}
+          echo "::notice title=CI timing::benchmark total $((end - start))s"

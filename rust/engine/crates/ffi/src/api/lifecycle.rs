@@ -161,22 +161,6 @@ mod android_tracing {
     }
 }
 
-#[cfg(test)]
-mod logging_tests {
-    use super::*;
-
-    #[test]
-    fn native_logging_levels_map_to_tracing_filters() {
-        assert_eq!(TracingLevelFilter::OFF, tracing_level(0));
-        assert_eq!(TracingLevelFilter::ERROR, tracing_level(1));
-        assert_eq!(TracingLevelFilter::WARN, tracing_level(2));
-        assert_eq!(TracingLevelFilter::INFO, tracing_level(3));
-        assert_eq!(TracingLevelFilter::DEBUG, tracing_level(4));
-        assert_eq!(TracingLevelFilter::TRACE, tracing_level(5));
-        assert_eq!(TracingLevelFilter::INFO, tracing_level(99));
-    }
-}
-
 #[unsafe(no_mangle)]
 pub extern "C" fn panda_engine_create(now_epoch_millis: u64) -> *mut PandaEngine {
     let _trace = crate::perfetto_trace::section("PW.Native.create");
@@ -270,5 +254,21 @@ pub unsafe extern "C" fn panda_engine_enable_vosk(
         }
     } else {
         false
+    }
+}
+
+#[cfg(test)]
+mod logging_tests {
+    use super::*;
+
+    #[test]
+    fn native_logging_levels_map_to_tracing_filters() {
+        assert_eq!(TracingLevelFilter::OFF, tracing_level(0));
+        assert_eq!(TracingLevelFilter::ERROR, tracing_level(1));
+        assert_eq!(TracingLevelFilter::WARN, tracing_level(2));
+        assert_eq!(TracingLevelFilter::INFO, tracing_level(3));
+        assert_eq!(TracingLevelFilter::DEBUG, tracing_level(4));
+        assert_eq!(TracingLevelFilter::TRACE, tracing_level(5));
+        assert_eq!(TracingLevelFilter::INFO, tracing_level(99));
     }
 }

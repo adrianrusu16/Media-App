@@ -2,7 +2,13 @@ name: CI
 
 on:
   push:
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
   pull_request:
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
   workflow_dispatch:
 
 permissions:
@@ -29,6 +35,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Start Android fast timer
+        run: echo "CI_ANDROID_FAST_START=$(date +%s)" >> "$GITHUB_ENV"
+
       - name: Set up JDK
         uses: actions/setup-java@v5
         with:
@@ -40,8 +49,16 @@ jobs:
 
       - name: Install Android SDK packages
         run: |
+          start=$(date +%s)
+          set +e
           yes | sdkmanager --licenses
+          status=$?
           sdkmanager "platform-tools" "platforms;android-36.1"
+          install_status=$?
+          if [ "$status" -eq 0 ]; then status=$install_status; fi
+          end=$(date +%s)
+          echo "::notice title=CI timing::android-fast Android SDK install $((end - start))s"
+          exit "$status"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
@@ -93,14 +110,24 @@ jobs:
           fi
 
       - name: Quality, lint, and test
-        run: >
-          ./gradlew
-          qualityCheck
-          :app:lintRelease
-          test
-          --project-prop=pandaEngine.buildNative=false
-          --project-prop=pandawave.verificationAppLinkHost=ci.pandawave.dev
-          --console=plain
+        run: |
+          start=$(date +%s)
+          set +e
+          ./gradlew qualityCheck :app:lintRelease test \
+            --project-prop=pandaEngine.buildNative=false \
+            --project-prop=pandawave.verificationAppLinkHost=ci.pandawave.dev \
+            --console=plain
+          status=$?
+          end=$(date +%s)
+          echo "::notice title=CI timing::android-fast Gradle quality/lint/test $((end - start))s"
+          exit "$status"
+
+      - name: Android fast timing summary
+        if: always()
+        run: |
+          end=$(date +%s)
+          start=${CI_ANDROID_FAST_START:-$end}
+          echo "::notice title=CI timing::android-fast total $((end - start))s"
 
   android-debug:
     name: Android debug native
@@ -111,6 +138,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Start Android debug timer
+        run: echo "CI_ANDROID_DEBUG_START=$(date +%s)" >> "$GITHUB_ENV"
 
       - name: Set up JDK
         uses: actions/setup-java@v5
@@ -123,8 +153,16 @@ jobs:
 
       - name: Install Android SDK packages
         run: |
+          start=$(date +%s)
+          set +e
           yes | sdkmanager --licenses
+          status=$?
           sdkmanager "platform-tools" "platforms;android-36.1" "ndk;$PANDA_ENGINE_ANDROID_NDK_VERSION"
+          install_status=$?
+          if [ "$status" -eq 0 ]; then status=$install_status; fi
+          end=$(date +%s)
+          echo "::notice title=CI timing::android-debug Android SDK install $((end - start))s"
+          exit "$status"
 
       - name: Set up Rust for Android
         uses: dtolnay/rust-toolchain@stable
@@ -133,7 +171,8 @@ jobs:
           targets: x86_64-linux-android
 
       - name: Cache Android debug Cargo artifacts
-        uses: actions/cache@v4
+        id: restore-debug-cargo-cache
+        uses: actions/cache/restore@v4
         with:
           path: |
             ~/.cargo/registry
@@ -150,11 +189,33 @@ jobs:
         run: chmod +x gradlew
 
       - name: Assemble debug with one ABI
-        run: >
-          ./gradlew
-          :app:assembleDebug
-          --project-prop=pandaEngine.debugAbis=x86_64
-          --console=plain
+        run: |
+          start=$(date +%s)
+          set +e
+          ./gradlew :app:assembleDebug \
+            --project-prop=pandaEngine.debugAbis=x86_64 \
+            --console=plain
+          status=$?
+          end=$(date +%s)
+          echo "::notice title=CI timing::android-debug native assemble $((end - start))s"
+          exit "$status"
+
+      - name: Save Android debug Cargo artifacts
+        if: success()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/engine/target
+          key: cargo-android-debug-x86_64-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-ndk-${{ env.PANDA_ENGINE_ANDROID_NDK_VERSION }}-${{ hashFiles('rust/engine/Cargo.lock', 'rust/engine/Cargo.toml') }}-${{ hashFiles('rust/engine/crates/**') }}
+
+      - name: Android debug timing summary
+        if: always()
+        run: |
+          end=$(date +%s)
+          start=${CI_ANDROID_DEBUG_START:-$end}
+          echo "::notice title=CI timing::android-debug total $((end - start))s"
 
   android-release:
     name: Android release validation
@@ -170,6 +231,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Start Android release timer
+        run: echo "CI_ANDROID_RELEASE_START=$(date +%s)" >> "$GITHUB_ENV"
+
       - name: Set up JDK
         uses: actions/setup-java@v5
         with:
@@ -181,8 +245,16 @@ jobs:
 
       - name: Install Android SDK packages
         run: |
+          start=$(date +%s)
+          set +e
           yes | sdkmanager --licenses
+          status=$?
           sdkmanager "platform-tools" "platforms;android-36.1" "ndk;$PANDA_ENGINE_ANDROID_NDK_VERSION"
+          install_status=$?
+          if [ "$status" -eq 0 ]; then status=$install_status; fi
+          end=$(date +%s)
+          echo "::notice title=CI timing::android-release Android SDK install $((end - start))s"
+          exit "$status"
 
       - name: Set up Rust for Android
         uses: dtolnay/rust-toolchain@stable
@@ -191,7 +263,8 @@ jobs:
           targets: aarch64-linux-android, armv7-linux-androideabi, i686-linux-android, x86_64-linux-android
 
       - name: Cache Android release Cargo artifacts
-        uses: actions/cache@v4
+        id: restore-release-cargo-cache
+        uses: actions/cache/restore@v4
         with:
           path: |
             ~/.cargo/registry
@@ -207,13 +280,34 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
 
-      - name: Assemble release and benchmark
-        run: >
-          ./gradlew
-          :app:assembleRelease
-          :app:assembleBenchmark
-          --project-prop=pandawave.verificationAppLinkHost=ci.pandawave.dev
-          --console=plain
+      - name: Assemble release
+        run: |
+          start=$(date +%s)
+          set +e
+          ./gradlew :app:assembleRelease \
+            --project-prop=pandawave.verificationAppLinkHost=ci.pandawave.dev \
+            --console=plain
+          status=$?
+          end=$(date +%s)
+          echo "::notice title=CI timing::android-release native release assemble $((end - start))s"
+          exit "$status"
+
+      - name: Save Android release Cargo artifacts
+        if: success()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/engine/target
+          key: cargo-android-release-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-ndk-${{ env.PANDA_ENGINE_ANDROID_NDK_VERSION }}-${{ hashFiles('rust/engine/Cargo.lock', 'rust/engine/Cargo.toml') }}-${{ hashFiles('rust/engine/crates/**') }}
+
+      - name: Android release timing summary
+        if: always()
+        run: |
+          end=$(date +%s)
+          start=${CI_ANDROID_RELEASE_START:-$end}
+          echo "::notice title=CI timing::android-release total $((end - start))s"
 
   rust:
     name: Rust validation
@@ -228,6 +322,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Start Rust timer
+        run: echo "CI_RUST_START=$(date +%s)" >> "$GITHUB_ENV"
+
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -235,7 +332,8 @@ jobs:
           components: rustfmt, clippy
 
       - name: Cache host Cargo artifacts
-        uses: actions/cache@v4
+        id: restore-host-cargo-cache
+        uses: actions/cache/restore@v4
         with:
           path: |
             ~/.cargo/registry
@@ -254,10 +352,52 @@ jobs:
         run: cargo fmt --check
 
       - name: Lint
-        run: cargo clippy -- -D warnings
+        run: |
+          start=$(date +%s)
+          set +e
+          cargo clippy --locked --workspace --all-targets -- -D warnings
+          status=$?
+          end=$(date +%s)
+          echo "::notice title=CI timing::rust clippy $((end - start))s"
+          exit "$status"
 
-      - name: Test
-        run: cargo test
+      - name: Compile tests without running
+        run: |
+          start=$(date +%s)
+          set +e
+          cargo test --locked --workspace --no-run
+          status=$?
+          end=$(date +%s)
+          echo "::notice title=CI timing::rust compile tests $((end - start))s"
+          exit "$status"
+
+      - name: Save host Cargo artifacts
+        if: success()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/engine/target
+          key: cargo-host-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-${{ hashFiles('rust/engine/Cargo.lock', 'rust/engine/Cargo.toml') }}-${{ hashFiles('rust/engine/crates/**') }}
+
+      - name: Run Rust tests
+        timeout-minutes: 5
+        run: |
+          start=$(date +%s)
+          set +e
+          cargo test --locked --workspace --no-fail-fast
+          status=$?
+          end=$(date +%s)
+          echo "::notice title=CI timing::rust execution $((end - start))s"
+          exit "$status"
+
+      - name: Rust timing summary
+        if: always()
+        run: |
+          end=$(date +%s)
+          start=${CI_RUST_START:-$end}
+          echo "::notice title=CI timing::rust total $((end - start))s"
 
   connected:
     name: MediaBrowser smoke (emulator)

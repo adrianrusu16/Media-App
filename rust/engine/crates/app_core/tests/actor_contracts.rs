@@ -12,12 +12,13 @@ use panda_engine_core::engine::actor::{
 use panda_engine_core::{
     Account, AccountPort, AuthSession, AuthState, AuthStateProvider, Engine, EngineAccountIdentity,
     EngineCommand, EngineCommandType, EngineCreatePlaylist, EngineEffect, EngineError,
-    EngineHistoryEntry, EngineHistoryIdentity, EngineHistorySettings, EngineHistorySettingsUpdate,
-    EngineLibraryIdentity, EngineLibraryRelationshipKind, EngineLibraryTrack, EnginePageRequest,
-    EnginePageToken, EnginePagedResult, EnginePlaybackRecord, EnginePlaybackSource, EnginePlaylist,
-    EnginePlaylistIdentity, EnginePlaylistTrack, EngineUpdatePlaylist, HistoryPort,
-    HistoryReconciliation, LibraryPort, MediaItem, MediaRepository, Middleware, MiddlewarePipeline,
-    PlaybackPort, PlaylistPort, ThemePreference,
+    EngineErrorType, EngineHistoryEntry, EngineHistoryIdentity, EngineHistorySettings,
+    EngineHistorySettingsUpdate, EngineLibraryIdentity, EngineLibraryRelationshipKind,
+    EngineLibraryTrack, EnginePageRequest, EnginePageToken, EnginePagedResult,
+    EnginePlaybackRecord, EnginePlaybackSource, EnginePlaylist, EnginePlaylistIdentity,
+    EnginePlaylistTrack, EngineUpdatePlaylist, HistoryPort, HistoryReconciliation, LibraryPort,
+    MediaItem, MediaRepository, Middleware, MiddlewarePipeline, PlaybackPort, PlaylistPort,
+    ThemePreference,
 };
 use tokio::sync::Notify;
 use tokio::time::{advance, timeout};
@@ -611,6 +612,45 @@ async fn search_pagination_applies_current_pages_and_rejects_a_stale_continuatio
         actor.handle.latest_snapshot().snapshot.search_results,
         vec![media_item("replacement-1")]
     );
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn off_actor_search_panic_completes_with_typed_error_and_actor_stays_usable() {
+    let mut engine = Engine::new(0);
+    engine.set_repository(Box::new(PanicSearchRepository));
+    let actor = spawn_actor(engine, ActorConfig::default());
+
+    let search = timeout(
+        Duration::from_secs(1),
+        actor
+            .handle
+            .submit_and_wait(EngineCommand::search("panic".into()), 10),
+    )
+    .await
+    .expect("panicking off-actor search did not reach a terminal outcome")
+    .expect("actor outcome channel closed after off-actor search panic");
+
+    assert_eq!(search.status, ActorOutcomeStatus::Completed);
+    assert_eq!(
+        search.snapshot.last_error,
+        Some(EngineError::new(
+            EngineErrorType::Unknown,
+            "asynchronous engine operation failed",
+            false,
+        ))
+    );
+
+    let follow_up = timeout(
+        Duration::from_secs(1),
+        actor.handle.submit_and_wait(EngineCommand::play(), 20),
+    )
+    .await
+    .expect("actor stopped processing commands after off-actor search panic")
+    .expect("actor outcome channel closed after off-actor search panic");
+    assert_eq!(follow_up.status, ActorOutcomeStatus::Completed);
+
+    actor.handle.request_shutdown().unwrap();
+    actor.task.wait().await.unwrap();
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -1793,6 +1833,31 @@ impl LibraryPort for PendingLibraryPort {
 /// catalog searches never resolve.
 struct PendingSearchRepository {
     items: Vec<MediaItem>,
+}
+
+struct PanicSearchRepository;
+
+#[async_trait]
+impl MediaRepository for PanicSearchRepository {
+    fn get_by_id(&self, _: &str) -> Option<MediaItem> {
+        None
+    }
+
+    fn get_next(&self, _: &str) -> Option<MediaItem> {
+        None
+    }
+
+    fn get_previous(&self, _: &str) -> Option<MediaItem> {
+        None
+    }
+
+    async fn browse(&self, _: &str) -> anyhow::Result<Vec<MediaItem>> {
+        Ok(Vec::new())
+    }
+
+    async fn search(&self, _: &str) -> anyhow::Result<Vec<MediaItem>> {
+        panic!("panic from actor repository search")
+    }
 }
 
 #[async_trait]
