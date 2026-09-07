@@ -42,8 +42,6 @@ data class EngineEffect(
         const val TYPE_PAUSE = "pause"
         const val TYPE_STOP = "stop"
         const val TYPE_SEEK = "seek"
-        const val TYPE_REQUEST_AUDIO_FOCUS = "request_audio_focus"
-        const val TYPE_ABANDON_AUDIO_FOCUS = "abandon_audio_focus"
         const val TYPE_UPDATE_METADATA = "update_metadata"
         const val TYPE_SESSION_STARTED = "session_started"
         const val TYPE_SESSION_ENDED = "session_ended"

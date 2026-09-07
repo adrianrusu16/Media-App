@@ -3,8 +3,6 @@ package com.adrianrusu.pandawave.core.media.adapter.playback
 import android.net.PandawaveTestUri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
-import com.adrianrusu.pandawave.core.media.adapter.playback.focus.BambooAudioFocusController
-import com.adrianrusu.pandawave.core.media.adapter.playback.focus.BambooAudioFocusRequestResult
 import com.adrianrusu.pandawave.core.rust.bridge.aidl.EngineEffect
 import com.adrianrusu.pandawave.core.telemetry.TelemetryEvent
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
@@ -15,65 +13,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
 class Media3EngineEffectExecutorTest {
-    @Test
-    fun `delayed audio focus still starts playback`() {
-        val player = RecordingEffectPlayer(playbackState = Player.STATE_READY)
-        val focusController = RecordingAudioFocusController(BambooAudioFocusRequestResult.Delayed)
-        val telemetrySink = RecordingEffectTelemetrySink()
-        val executor = effectExecutor(
-            player = player,
-            focusController = focusController,
-            telemetrySink = telemetrySink
-        )
-
-        executor.execute(
-            listOf(
-                EngineEffect(type = EngineEffect.TYPE_REQUEST_AUDIO_FOCUS),
-                EngineEffect(type = EngineEffect.TYPE_PLAY)
-            )
-        )
-
-        assertEquals(listOf("request"), focusController.calls)
-        assertEquals(listOf("play"), player.calls)
-        assertEquals(
-            BambooAudioFocusRequestResult.Delayed.wireValue,
-            telemetrySink.events
-                .single { it.name == Media3EffectTelemetryEvents.AUDIO_FOCUS_REQUESTED }
-                .attributes[Media3EffectTelemetryAttributes.RESULT]
-        )
-        assertFalse(
-            telemetrySink.events.any { event -> event.name == Media3EffectTelemetryEvents.EFFECT_IGNORED }
-        )
-    }
-
-    @Test
-    fun `failed audio focus blocks the paired play effect and records the reason`() {
-        val player = RecordingEffectPlayer(playbackState = Player.STATE_READY)
-        val focusController = RecordingAudioFocusController(BambooAudioFocusRequestResult.Failed)
-        val telemetrySink = RecordingEffectTelemetrySink()
-        val executor = effectExecutor(
-            player = player,
-            focusController = focusController,
-            telemetrySink = telemetrySink
-        )
-
-        executor.execute(
-            listOf(
-                EngineEffect(type = EngineEffect.TYPE_REQUEST_AUDIO_FOCUS),
-                EngineEffect(type = EngineEffect.TYPE_PLAY)
-            )
-        )
-
-        assertEquals(listOf("request"), focusController.calls)
-        assertEquals(emptyList<String>(), player.calls)
-        assertEquals(
-            Media3EffectTelemetryValues.AUDIO_FOCUS_NOT_GRANTED,
-            telemetrySink.events
-                .last { it.name == Media3EffectTelemetryEvents.EFFECT_IGNORED }
-                .attributes[Media3EffectTelemetryAttributes.REASON]
-        )
-    }
-
     @Test
     fun `prepare playback source effect sets projected media item before play`() {
         val player = RecordingEffectPlayer(playbackState = Player.STATE_IDLE)
@@ -203,21 +142,6 @@ class Media3EngineEffectExecutorTest {
             ),
             player.calls
         )
-    }
-
-    @Test
-    fun `audio focus effects call focus controller`() {
-        val focusController = RecordingAudioFocusController()
-        val executor = effectExecutor(focusController = focusController)
-
-        executor.execute(
-            listOf(
-                EngineEffect(type = EngineEffect.TYPE_REQUEST_AUDIO_FOCUS),
-                EngineEffect(type = EngineEffect.TYPE_ABANDON_AUDIO_FOCUS)
-            )
-        )
-
-        assertEquals(listOf("request", "abandon"), focusController.calls)
     }
 
     @Test
@@ -408,7 +332,6 @@ class Media3EngineEffectExecutorTest {
         var recreations = 0
         val executor = Media3EngineEffectExecutor(
             player = { player },
-            audioFocusController = RecordingAudioFocusController(),
             telemetryLogger = TelemetryLogger(sink = TelemetrySink { }, clock = { 42L }),
             currentProjection = {
                 BambooMediaSessionStateProjection(
@@ -470,13 +393,11 @@ class Media3EngineEffectExecutorTest {
 
 private fun effectExecutor(
     player: RecordingEffectPlayer = RecordingEffectPlayer(playbackState = Player.STATE_READY),
-    focusController: RecordingAudioFocusController = RecordingAudioFocusController(),
     telemetrySink: TelemetrySink = TelemetrySink { },
     currentProjection: () -> BambooMediaSessionStateProjection? = { null },
     uriParser: BambooUriParser = BambooUriParser { null }
 ): Media3EngineEffectExecutor = Media3EngineEffectExecutor(
     player = { player },
-    audioFocusController = focusController,
     telemetryLogger = TelemetryLogger(
         sink = telemetrySink,
         clock = { 42L }
@@ -522,21 +443,6 @@ private class RecordingEffectPlayer(override var playbackState: Int) : Media3Eff
 
     override fun updateMediaMetadata(metadata: androidx.media3.common.MediaMetadata) {
         calls += "updateMediaMetadata:${metadata.title ?: "none"}"
-    }
-}
-
-private class RecordingAudioFocusController(
-    private val requestResult: BambooAudioFocusRequestResult = BambooAudioFocusRequestResult.Granted
-) : BambooAudioFocusController {
-    val calls = mutableListOf<String>()
-
-    override fun requestAudioFocus(): BambooAudioFocusRequestResult {
-        calls += "request"
-        return requestResult
-    }
-
-    override fun abandonAudioFocus() {
-        calls += "abandon"
     }
 }
 

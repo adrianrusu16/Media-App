@@ -23,7 +23,6 @@ import androidx.media3.session.MediaSession
 import com.adrianrusu.pandawave.core.audio.visualizer.MutableAudioSessionRepository
 import com.adrianrusu.pandawave.core.common.trace.PandaTrace
 import com.adrianrusu.pandawave.core.media.adapter.R
-import com.adrianrusu.pandawave.core.media.adapter.playback.focus.BambooAudioFocusHandler
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
 import com.adrianrusu.pandawave.core.rust.bridge.gateway.EngineGateway
 import com.adrianrusu.pandawave.core.telemetry.TelemetryLogger
@@ -60,7 +59,6 @@ class BambooMediaLibraryService : MediaLibraryService() {
     private var engineBridge: Media3PlaybackEngineBridge? = null
     private var stateProjector: BambooMediaSessionStateProjector? = null
     private var commandAvailabilityProjector: BambooMediaSessionCommandAvailabilityProjector? = null
-    private var audioFocusHandler: BambooAudioFocusHandler? = null
     private var audioSessionObserver: ExoPlayerAudioSessionObserver? = null
     private var catalogExecutor: java.util.concurrent.ExecutorService? = null
     private var resumptionStore: MediaSessionPlaybackResumptionStore? = null
@@ -94,26 +92,17 @@ class BambooMediaLibraryService : MediaLibraryService() {
             player = exoPlayer,
             repository = audioSessionRepository
         ).also(ExoPlayerAudioSessionObserver::start)
-        lateinit var playbackEngineBridge: Media3PlaybackEngineBridge
-        val focusHandler = BambooAudioFocusHandler(
-            context = this,
-            onFocusChange = { change -> playbackEngineBridge.dispatchAudioFocusChange(change) }
-        )
         val artworkUris = MediaHostArtworkUriProjector(packageName)
         val effectExecutor = Media3EngineEffectExecutor(
             player = { PlayerMedia3EffectPlayer(checkNotNull(player)) },
-            audioFocusController = focusHandler,
             telemetryLogger = telemetryLogger,
             currentProjection = {
                 playbackRepository.state.value.toMediaSessionStateProjection(artworkUris = artworkUris)
             },
             recreatePlayer = ::recreatePlayerForDecoderFailure,
-            notifyUser = ::showPlaybackFailure,
-            onAudioFocusRequestResult = { result ->
-                playbackEngineBridge.dispatchAudioFocusRequestResult(result)
-            }
+            notifyUser = ::showPlaybackFailure
         )
-        playbackEngineBridge = createEngineBridge(effectExecutor)
+        val playbackEngineBridge = createEngineBridge(effectExecutor)
         playbackEngineBridge.dispatchVolume(exoPlayer.volume)
         val pandaPlayer = createSessionPlayer(playbackEngineBridge, artworkUris)
         val catalogDispatcher = this.catalogExecutor ?: Executors.newSingleThreadExecutor { runnable ->
@@ -144,7 +133,6 @@ class BambooMediaLibraryService : MediaLibraryService() {
             playbackEngineBridge = playbackEngineBridge,
             mediaLibrarySession = mediaLibrarySession,
             artworkUris = artworkUris,
-            focusHandler = focusHandler,
             exoPlayerAudioSessionObserver = exoPlayerAudioSessionObserver
         )
         return mediaLibrarySession
@@ -210,7 +198,6 @@ class BambooMediaLibraryService : MediaLibraryService() {
         playbackEngineBridge: Media3PlaybackEngineBridge,
         mediaLibrarySession: MediaLibrarySession,
         artworkUris: ArtworkUriProjector,
-        focusHandler: BambooAudioFocusHandler,
         exoPlayerAudioSessionObserver: ExoPlayerAudioSessionObserver
     ) {
         val playbackStateProjector = BambooMediaSessionStateProjector(
@@ -232,7 +219,6 @@ class BambooMediaLibraryService : MediaLibraryService() {
         session = mediaLibrarySession
         stateProjector = playbackStateProjector
         commandAvailabilityProjector = mediaCommandAvailabilityProjector
-        audioFocusHandler = focusHandler
         audioSessionObserver = exoPlayerAudioSessionObserver
         playbackEngineBridge.bootstrap()
         startForegroundPlaybackService()
@@ -353,7 +339,7 @@ class BambooMediaLibraryService : MediaLibraryService() {
                     .setUsage(C.USAGE_MEDIA)
                     .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
                     .build(),
-                false
+                true
             )
             .setLoadControl(
                 DefaultLoadControl.Builder()
@@ -405,8 +391,6 @@ class BambooMediaLibraryService : MediaLibraryService() {
         PandaTrace.section("PW.Media3.Service.onDestroy") {
             generationSubscription?.close()
             generationSubscription = null
-            audioFocusHandler?.stop()
-            audioFocusHandler = null
             commandAvailabilityProjector?.close()
             commandAvailabilityProjector = null
             stateProjector?.close()
@@ -434,6 +418,7 @@ class BambooMediaLibraryService : MediaLibraryService() {
 
 private fun exoRuntimeState(player: ExoPlayer): PandaExoRuntimeState = PandaExoRuntimeState(
     playbackState = player.playbackState,
+    playbackSuppressionReason = player.playbackSuppressionReason,
     currentMediaId = player.currentMediaItem?.mediaId,
     positionMs = player.currentPosition,
     durationMs = player.duration,

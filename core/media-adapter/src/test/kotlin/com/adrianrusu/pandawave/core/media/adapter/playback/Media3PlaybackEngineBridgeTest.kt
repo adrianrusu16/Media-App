@@ -1,7 +1,6 @@
 package com.adrianrusu.pandawave.core.media.adapter.playback
 
 import androidx.media3.common.Player
-import com.adrianrusu.pandawave.core.media.adapter.playback.focus.BambooAudioFocusChange
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackIntent
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackIntentNames
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
@@ -20,31 +19,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 class Media3PlaybackEngineBridgeTest {
-    @Test
-    fun `audio focus changes dispatch typed engine events and structured telemetry`() {
-        val repository = RecordingPlaybackRepository()
-        val telemetrySink = RecordingTelemetrySink()
-        val bridge = Media3PlaybackEngineBridge(
-            playbackRepository = repository,
-            telemetryLogger = testTelemetryLogger(telemetrySink)
-        )
-
-        bridge.dispatchAudioFocusChange(BambooAudioFocusChange.LossTransient)
-
-        val event = repository.intents.single() as BambooPlaybackIntent.PlatformEvent
-        assertEquals(EnginePlatformEvent.TYPE_AUDIO_FOCUS_CHANGED, event.type)
-        assertEquals(
-            """{"version":1,"focus_change":"loss_transient"}""",
-            event.payload
-        )
-        assertEquals(
-            "loss_transient",
-            telemetrySink.events.single {
-                it.name == Media3PlaybackTelemetryEvents.AUDIO_FOCUS_CHANGED
-            }.attributes[Media3PlaybackTelemetryAttributes.FOCUS_CHANGE]
-        )
-    }
-
     @Test
     fun `playing schedules recurring safe position checkpoints and pausing sends a final checkpoint`() {
         val repository = RecordingPlaybackRepository()
@@ -254,6 +228,89 @@ class Media3PlaybackEngineBridgeTest {
             listOf(BambooPlaybackIntent.Play, BambooPlaybackIntent.Pause),
             repository.intents
         )
+    }
+
+    @Test
+    fun `transient suppression stops checkpoints and regain resumes without another play intent`() {
+        val repository = RecordingPlaybackRepository()
+        val scheduler = RecordingPlaybackCheckpointScheduler()
+        val bridge = Media3PlaybackEngineBridge(
+            playbackRepository = repository,
+            telemetryLogger = testTelemetryLogger(),
+            playbackMetricsProvider = PlaybackCompletionMetricsProvider {
+                PlaybackCompletionMetrics(positionMillis = 18_300L, durationMillis = 120_000L)
+            },
+            playbackInstanceIdProvider = { 42L },
+            playerSnapshotProvider = {
+                Media3PlayerSnapshot(
+                    positionMillis = 18_300L,
+                    playWhenReady = true,
+                    playbackState = Player.STATE_READY
+                )
+            },
+            checkpointScheduler = scheduler,
+            checkpointIntervalMillis = 10_000L
+        )
+
+        bridge.onIsPlayingChanged(true)
+        repository.intents.clear()
+        bridge.onIsPlayingChanged(false)
+
+        assertTrue(scheduler.pendingDelays().isEmpty())
+        assertTrue(repository.intents.none { it == BambooPlaybackIntent.Pause })
+
+        bridge.onIsPlayingChanged(true)
+
+        assertEquals(listOf(10_000L), scheduler.pendingDelays())
+        assertTrue(
+            repository.intents.none { intent ->
+                intent == BambooPlaybackIntent.Play || intent == BambooPlaybackIntent.Pause
+            }
+        )
+    }
+
+    @Test
+    fun `user pause while transiently suppressed prevents a bridge play on later runtime changes`() {
+        val repository = RecordingPlaybackRepository()
+        var playWhenReady = true
+        val bridge = Media3PlaybackEngineBridge(
+            playbackRepository = repository,
+            telemetryLogger = testTelemetryLogger(),
+            playerSnapshotProvider = {
+                Media3PlayerSnapshot(
+                    positionMillis = 18_300L,
+                    playWhenReady = playWhenReady,
+                    playbackState = Player.STATE_READY
+                )
+            }
+        )
+
+        bridge.onIsPlayingChanged(true)
+        bridge.onIsPlayingChanged(false)
+        repository.intents.clear()
+        playWhenReady = false
+        bridge.onPlayWhenReadyChanged(false, Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST)
+        bridge.onIsPlayingChanged(true)
+
+        assertEquals(
+            listOf<BambooPlaybackIntent>(BambooPlaybackIntent.Pause),
+            repository.intents.filter { intent ->
+                intent == BambooPlaybackIntent.Play || intent == BambooPlaybackIntent.Pause
+            }
+        )
+    }
+
+    @Test
+    fun `permanent audio focus loss converges engine intent to paused`() {
+        val repository = RecordingPlaybackRepository()
+        val bridge = Media3PlaybackEngineBridge(repository, testTelemetryLogger())
+
+        bridge.onPlayWhenReadyChanged(
+            false,
+            Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS
+        )
+
+        assertEquals(listOf<BambooPlaybackIntent>(BambooPlaybackIntent.Pause), repository.intents)
     }
 
     @Test

@@ -272,10 +272,7 @@ class DefaultBambooPlaybackRepositoryTest {
         assertEquals(
             listOf(
                 listOf(EngineEffect(type = EngineEffect.TYPE_SESSION_STARTED)),
-                listOf(
-                    EngineEffect(type = EngineEffect.TYPE_REQUEST_AUDIO_FOCUS),
-                    EngineEffect(type = EngineEffect.TYPE_PLAY)
-                )
+                listOf(EngineEffect(type = EngineEffect.TYPE_PLAY))
             ),
             effects
         )
@@ -304,7 +301,6 @@ class DefaultBambooPlaybackRepositoryTest {
             listOf(
                 listOf(
                     EngineEffect(type = EngineEffect.TYPE_SESSION_STARTED),
-                    EngineEffect(type = EngineEffect.TYPE_REQUEST_AUDIO_FOCUS),
                     EngineEffect(type = EngineEffect.TYPE_PLAY)
                 )
             ),
@@ -783,10 +779,7 @@ private class RecordingEngineGateway(
     }
 
     private fun effectsFor(command: EngineCommand): List<EngineEffect> = when (command.type) {
-        EngineCommand.TYPE_PLAY -> listOf(
-            EngineEffect(type = EngineEffect.TYPE_REQUEST_AUDIO_FOCUS),
-            EngineEffect(type = EngineEffect.TYPE_PLAY)
-        )
+        EngineCommand.TYPE_PLAY -> listOf(EngineEffect(type = EngineEffect.TYPE_PLAY))
 
         EngineCommand.TYPE_PAUSE -> listOf(EngineEffect(type = EngineEffect.TYPE_PAUSE))
 

@@ -122,17 +122,6 @@ mod tests {
     }
 
     #[test]
-    fn untyped_audio_focus_preserves_paused_state() {
-        assert_eq!(
-            PlaybackState::Paused,
-            StateMachine::next_state_from_platform_event(
-                PlaybackState::Paused,
-                &EnginePlatformEventType::AudioFocusChanged
-            )
-        );
-    }
-
-    #[test]
     fn test_error_to_buffering_on_play_command() {
         assert_eq!(
             PlaybackState::Buffering,
@@ -242,17 +231,6 @@ mod tests {
             StateMachine::next_state_from_platform_event(
                 PlaybackState::Error,
                 &EnginePlatformEventType::MediaLoaded
-            )
-        );
-    }
-
-    #[test]
-    fn untyped_audio_focus_preserves_playing_state() {
-        assert_eq!(
-            PlaybackState::Playing,
-            StateMachine::next_state_from_platform_event(
-                PlaybackState::Playing,
-                &EnginePlatformEventType::AudioFocusChanged
             )
         );
     }

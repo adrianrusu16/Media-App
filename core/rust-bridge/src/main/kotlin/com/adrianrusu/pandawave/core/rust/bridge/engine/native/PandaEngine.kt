@@ -677,21 +677,17 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
         private const val PLATFORM_EVENT_SUSPEND_TO_RAM = 2
         private const val PLATFORM_EVENT_RESUME_FROM_RAM = 3
         private const val PLATFORM_EVENT_UX_RESTRICTIONS_CHANGED = 4
-        private const val PLATFORM_EVENT_AUDIO_FOCUS_CHANGED = 5
         private const val PLATFORM_EVENT_MEDIA_LOADED = 6
         private const val PLATFORM_EVENT_MEDIA_ERROR = 7
         private const val PLATFORM_EVENT_VEHICLE_DRIVING_STATE_CHANGED = 8
         private const val PLATFORM_EVENT_PLAYBACK_COMPLETED = 9
         private const val PLATFORM_EVENT_PLAYBACK_POSITION_CHECKPOINT = 10
-        private const val PLATFORM_EVENT_AUDIO_FOCUS_REQUEST_RESULT = 11
         private const val PLATFORM_EVENT_UNKNOWN = -1
 
         private const val EFFECT_PLAY = 0
         private const val EFFECT_PAUSE = 1
         private const val EFFECT_STOP = 2
         private const val EFFECT_SEEK = 3
-        private const val EFFECT_REQUEST_AUDIO_FOCUS = 4
-        private const val EFFECT_ABANDON_AUDIO_FOCUS = 5
         private const val EFFECT_UPDATE_METADATA = 6
         private const val EFFECT_SESSION_STARTED = 7
         private const val EFFECT_SESSION_ENDED = 8
@@ -862,8 +858,6 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             EnginePlatformEvent.TYPE_SUSPEND_TO_RAM -> PLATFORM_EVENT_SUSPEND_TO_RAM
             EnginePlatformEvent.TYPE_RESUME_FROM_RAM -> PLATFORM_EVENT_RESUME_FROM_RAM
             EnginePlatformEvent.TYPE_UX_RESTRICTIONS_CHANGED -> PLATFORM_EVENT_UX_RESTRICTIONS_CHANGED
-            EnginePlatformEvent.TYPE_AUDIO_FOCUS_CHANGED -> PLATFORM_EVENT_AUDIO_FOCUS_CHANGED
-            EnginePlatformEvent.TYPE_AUDIO_FOCUS_REQUEST_RESULT -> PLATFORM_EVENT_AUDIO_FOCUS_REQUEST_RESULT
             EnginePlatformEvent.TYPE_MEDIA_LOADED -> PLATFORM_EVENT_MEDIA_LOADED
             EnginePlatformEvent.TYPE_MEDIA_ERROR -> PLATFORM_EVENT_MEDIA_ERROR
             EnginePlatformEvent.TYPE_VEHICLE_DRIVING_STATE_CHANGED -> PLATFORM_EVENT_VEHICLE_DRIVING_STATE_CHANGED
@@ -877,8 +871,6 @@ class PandaEngine private constructor(private val nativeHandle: Long, private va
             EFFECT_PAUSE -> EngineEffect.TYPE_PAUSE
             EFFECT_STOP -> EngineEffect.TYPE_STOP
             EFFECT_SEEK -> EngineEffect.TYPE_SEEK
-            EFFECT_REQUEST_AUDIO_FOCUS -> EngineEffect.TYPE_REQUEST_AUDIO_FOCUS
-            EFFECT_ABANDON_AUDIO_FOCUS -> EngineEffect.TYPE_ABANDON_AUDIO_FOCUS
             EFFECT_UPDATE_METADATA -> EngineEffect.TYPE_UPDATE_METADATA
             EFFECT_SESSION_STARTED -> EngineEffect.TYPE_SESSION_STARTED
             EFFECT_SESSION_ENDED -> EngineEffect.TYPE_SESSION_ENDED

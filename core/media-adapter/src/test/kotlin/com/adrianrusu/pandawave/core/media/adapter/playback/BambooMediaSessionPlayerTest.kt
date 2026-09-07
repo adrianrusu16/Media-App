@@ -1,5 +1,6 @@
 package com.adrianrusu.pandawave.core.media.adapter.playback
 
+import androidx.media3.common.Player
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackIntent
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackState
@@ -13,6 +14,50 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 class BambooMediaSessionPlayerTest {
+    @Test
+    fun `session model preserves playing intent while ExoPlayer is transiently suppressed`() {
+        val model = PandaMediaSessionPlayerState.from(
+            playback = BambooPlaybackState(
+                mediaId = "track-1",
+                playbackStatus = BambooPlaybackStatus.Playing
+            ),
+            queue = Media3QueueProjection(),
+            exo = PandaExoRuntimeState(
+                playbackState = Player.STATE_READY,
+                currentMediaId = "track-1",
+                playbackSuppressionReason =
+                    Player.PLAYBACK_SUPPRESSION_REASON_TRANSIENT_AUDIO_FOCUS_LOSS
+            ),
+            artworkUris = PassthroughArtworkUriProjector
+        )
+
+        assertEquals(true, model.playWhenReady)
+        assertEquals(
+            Player.PLAYBACK_SUPPRESSION_REASON_TRANSIENT_AUDIO_FOCUS_LOSS,
+            model.playbackSuppressionReason
+        )
+
+    }
+
+    @Test
+    fun `session model reports no suppression for normal playback`() {
+        val model = PandaMediaSessionPlayerState.from(
+            playback = BambooPlaybackState(
+                mediaId = "track-1",
+                playbackStatus = BambooPlaybackStatus.Playing
+            ),
+            queue = Media3QueueProjection(),
+            exo = PandaExoRuntimeState(
+                playbackState = Player.STATE_READY,
+                currentMediaId = "track-1"
+            ),
+            artworkUris = PassthroughArtworkUriProjector
+        )
+
+        assertEquals(true, model.playWhenReady)
+        assertEquals(Player.PLAYBACK_SUPPRESSION_REASON_NONE, model.playbackSuppressionReason)
+    }
+
     @Test
     fun `first play publishes engine metadata before exoplayer has a current item`() {
         val playback = BambooPlaybackState(
@@ -31,7 +76,7 @@ class BambooMediaSessionPlayerTest {
         assertEquals("track-1", model.playlist.single().mediaItem.mediaId)
         assertEquals("Song A", model.playlist.single().mediaItem.mediaMetadata.title.toString())
         assertEquals("Artist", model.playlist.single().mediaItem.mediaMetadata.artist.toString())
-        assertEquals(androidx.media3.common.Player.STATE_BUFFERING, model.playbackState)
+        assertEquals(Player.STATE_BUFFERING, model.playbackState)
         assertEquals(true, model.playWhenReady)
     }
 

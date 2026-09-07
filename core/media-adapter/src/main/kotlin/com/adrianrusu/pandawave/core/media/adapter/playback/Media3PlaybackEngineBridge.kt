@@ -2,8 +2,6 @@ package com.adrianrusu.pandawave.core.media.adapter.playback
 
 import androidx.media3.common.Player
 import com.adrianrusu.pandawave.core.common.log.PandaLog
-import com.adrianrusu.pandawave.core.media.adapter.playback.focus.BambooAudioFocusChange
-import com.adrianrusu.pandawave.core.media.adapter.playback.focus.BambooAudioFocusRequestResult
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackIntent
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackRepository
 import com.adrianrusu.pandawave.core.playback.BambooPlaybackTelemetryAttributes
@@ -74,31 +72,6 @@ class Media3PlaybackEngineBridge(
     fun dispatchPlatformEvent(type: String, payload: String? = null) {
         playbackRepository.dispatch(
             BambooPlaybackIntent.PlatformEvent(type = type, payload = payload)
-        )
-    }
-
-    fun dispatchAudioFocusChange(change: BambooAudioFocusChange) {
-        telemetryLogger.info(
-            name = Media3PlaybackTelemetryEvents.AUDIO_FOCUS_CHANGED,
-            attributes = mapOf(Media3PlaybackTelemetryAttributes.FOCUS_CHANGE to change.wireValue)
-        )
-        dispatchPlatformEvent(
-            EnginePlatformEvent.TYPE_AUDIO_FOCUS_CHANGED,
-            EngineCommandPayloads.audioFocusChanged(change.wireValue)
-        )
-    }
-
-    fun dispatchAudioFocusRequestResult(
-        result: BambooAudioFocusRequestResult,
-        playbackInstanceId: Long? = playbackInstanceIdProvider()
-    ) {
-        telemetryLogger.info(
-            name = Media3PlaybackTelemetryEvents.AUDIO_FOCUS_REQUEST_RESULT,
-            attributes = mapOf(Media3PlaybackTelemetryAttributes.RESULT to result.wireValue)
-        )
-        dispatchPlatformEvent(
-            EnginePlatformEvent.TYPE_AUDIO_FOCUS_REQUEST_RESULT,
-            EngineCommandPayloads.audioFocusRequestResult(result.wireValue, playbackInstanceId)
         )
     }
 
@@ -551,8 +524,6 @@ private fun androidx.media3.common.PlaybackException.decoderName(): String? = ca
 private val DECODER_NAME_PATTERN = Regex("(?:Decoder failed:|decoder(?:Name)?[=:])\\s*([^\\s,]+)")
 
 internal object Media3PlaybackTelemetryEvents {
-    const val AUDIO_FOCUS_CHANGED = "media3.audio_focus.changed"
-    const val AUDIO_FOCUS_REQUEST_RESULT = "media3.audio_focus.request_result"
     const val PLAY_WHEN_READY_RECEIVED = "media3.play_when_ready.received"
     const val PLAY_WHEN_READY_IGNORED = "media3.play_when_ready.ignored"
     const val PLAYER_COMMAND_DISPATCHED = "media3.player_command.dispatched"
@@ -570,14 +541,12 @@ internal object Media3PlaybackTelemetryAttributes {
     const val CATALOG_QUERY_LENGTH = "catalog_query_length"
     const val COMPLETION_RATIO = "completion_ratio"
     const val DURATION_MILLIS = "duration_millis"
-    const val FOCUS_CHANGE = "focus_change"
     const val MEDIA_ID_PRESENT = "media_id_present"
     const val PLAY_WHEN_READY = "play_when_ready"
     const val PLAYBACK_INSTANCE_ID = "playback_instance_id"
     const val PLAYER_COMMAND = "player_command"
     const val POSITION_MILLIS = "position_millis"
     const val REASON = "reason"
-    const val RESULT = "result"
     const val SOURCE = "source"
     const val SPEED = "speed"
     const val TRIGGER = "trigger"

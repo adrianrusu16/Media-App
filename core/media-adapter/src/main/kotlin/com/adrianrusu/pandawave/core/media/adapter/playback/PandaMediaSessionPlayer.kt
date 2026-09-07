@@ -29,34 +29,7 @@ internal class PandaMediaSessionPlayer(
         invalidateState()
     }
 
-    override fun getState(): State {
-        val snapshot = model()
-        val commands = Player.Commands.Builder().apply {
-            snapshot.availableCommands.forEach { command -> add(command) }
-        }.build()
-        val playlist = snapshot.playlist.map { item ->
-            MediaItemData.Builder(item.uid)
-                .setMediaItem(item.mediaItem)
-                .setDurationUs(durationUs(item.durationMs))
-                .setIsSeekable(true)
-                .build()
-        }
-        val builder = State.Builder()
-            .setAvailableCommands(commands)
-            .setPlayWhenReady(snapshot.playWhenReady, PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST)
-            .setPlaybackState(snapshot.playbackState)
-            .setVolume(snapshot.volume)
-            .setPlaybackParameters(PlaybackParameters(snapshot.playbackSpeed))
-        if (playlist.isNotEmpty()) {
-            builder.setPlaylist(ImmutableList.copyOf(playlist))
-                .setCurrentMediaItemIndex(snapshot.currentIndex)
-                .setContentPositionMs(snapshot.positionMs)
-        }
-        snapshot.errorType?.let { type ->
-            PandaMediaSessionErrorMapper.playbackException(type)?.let(builder::setPlayerError)
-        }
-        return builder.build()
-    }
+    override fun getState(): State = model().toMedia3PlayerState()
 
     override fun handleSetPlayWhenReady(playWhenReady: Boolean): ListenableFuture<*> {
         playbackEngineBridge.dispatchPlayWhenReady(playWhenReady)
@@ -104,6 +77,35 @@ internal class PandaMediaSessionPlayer(
         }
         return completed()
     }
+}
+
+internal fun PandaMediaSessionPlayerModel.toMedia3PlayerState(): SimpleBasePlayer.State {
+    val commands = Player.Commands.Builder().apply {
+        availableCommands.forEach { command -> add(command) }
+    }.build()
+    val mediaItems = playlist.map { item ->
+        SimpleBasePlayer.MediaItemData.Builder(item.uid)
+            .setMediaItem(item.mediaItem)
+            .setDurationUs(durationUs(item.durationMs))
+            .setIsSeekable(true)
+            .build()
+    }
+    val builder = SimpleBasePlayer.State.Builder()
+        .setAvailableCommands(commands)
+        .setPlayWhenReady(playWhenReady, Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST)
+        .setPlaybackState(playbackState)
+        .setPlaybackSuppressionReason(playbackSuppressionReason)
+        .setVolume(volume)
+        .setPlaybackParameters(PlaybackParameters(playbackSpeed))
+    if (mediaItems.isNotEmpty()) {
+        builder.setPlaylist(ImmutableList.copyOf(mediaItems))
+            .setCurrentMediaItemIndex(currentIndex)
+            .setContentPositionMs(positionMs)
+    }
+    errorType?.let { type ->
+        PandaMediaSessionErrorMapper.playbackException(type)?.let(builder::setPlayerError)
+    }
+    return builder.build()
 }
 
 private fun durationUs(durationMs: Long): Long = when {

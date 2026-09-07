@@ -89,10 +89,7 @@ internal class FakePandaEngine(private val clock: () -> Long = System::currentTi
     }
 
     private fun effectsFor(command: EngineCommand): List<EngineEffect> = when (command.type) {
-        EngineCommand.TYPE_PLAY -> listOf(
-            EngineEffect(type = EngineEffect.TYPE_REQUEST_AUDIO_FOCUS),
-            EngineEffect(type = EngineEffect.TYPE_PLAY)
-        )
+        EngineCommand.TYPE_PLAY -> listOf(EngineEffect(type = EngineEffect.TYPE_PLAY))
 
         EngineCommand.TYPE_PAUSE -> listOf(EngineEffect(type = EngineEffect.TYPE_PAUSE))
 
@@ -127,7 +124,6 @@ internal class FakePandaEngine(private val clock: () -> Long = System::currentTi
                 type = EngineEffect.TYPE_UPDATE_METADATA,
                 mediaId = mediaId.takeUnless { value -> value.isBlank() }
             ),
-            EngineEffect(type = EngineEffect.TYPE_REQUEST_AUDIO_FOCUS),
             EngineEffect(type = EngineEffect.TYPE_PLAY)
         )
     }

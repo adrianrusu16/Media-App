@@ -24,17 +24,6 @@ object EngineCommandPayloads {
         }
     }.toString()
 
-    fun audioFocusChanged(focusChange: String): String = buildJsonObject {
-        put(KEY_VERSION, PAYLOAD_VERSION)
-        put("focus_change", focusChange)
-    }.toString()
-
-    fun audioFocusRequestResult(result: String, playbackInstanceId: Long? = null): String = buildJsonObject {
-        put(KEY_VERSION, PAYLOAD_VERSION)
-        put("result", result)
-        playbackInstanceId?.let { put("playback_instance_id", it) }
-    }.toString()
-
     fun playbackObservation(playbackInstanceId: Long, kind: String? = null, durationMillis: Long? = null): String =
         buildJsonObject {
             put(KEY_VERSION, PAYLOAD_VERSION)

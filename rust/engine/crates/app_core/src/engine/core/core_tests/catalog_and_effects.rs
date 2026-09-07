@@ -413,7 +413,7 @@ async fn play_command_emits_effects() {
 
     let outcome = engine.dispatch(EngineCommand::play(), 200).await;
 
-    // Should emit PreparePlaybackSource, UpdateMetadata, RequestAudioFocus, and Play
+    // Android focus policy belongs to Media3; PandaEngine emits only media operations.
     assert!(
         outcome
             .effects
@@ -428,7 +428,6 @@ async fn play_command_emits_effects() {
         title: "Song 1".to_string(),
         artist: "Artist 1".to_string(),
     }));
-    assert!(outcome.effects.contains(&EngineEffect::RequestAudioFocus));
     assert!(outcome.effects.contains(&EngineEffect::Play));
 }
 
@@ -511,7 +510,6 @@ async fn play_media_by_id_reasserts_play_when_replacing_item_while_buffering() {
         .dispatch(EngineCommand::play_media_by_id("track-1".to_string()), 200)
         .await;
     assert_eq!(first.snapshot.playback_state, PlaybackState::Buffering);
-    assert!(first.effects.contains(&EngineEffect::RequestAudioFocus));
     assert!(first.effects.contains(&EngineEffect::Play));
 
     let second = engine
@@ -535,7 +533,6 @@ async fn play_media_by_id_reasserts_play_when_replacing_item_while_buffering() {
         title: "Second Track".to_string(),
         artist: "PandaWave".to_string(),
     }));
-    assert!(second.effects.contains(&EngineEffect::RequestAudioFocus));
     assert!(second.effects.contains(&EngineEffect::Play));
 }
 

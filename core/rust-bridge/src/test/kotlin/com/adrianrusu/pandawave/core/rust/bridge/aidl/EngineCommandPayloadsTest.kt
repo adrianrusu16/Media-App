@@ -25,16 +25,6 @@ class EngineCommandPayloadsTest {
     }
 
     @Test
-    fun `audio focus payload carries typed focus change`() {
-        val payload = Json.parseToJsonElement(
-            EngineCommandPayloads.audioFocusChanged("loss_transient")
-        ).jsonObject
-
-        assertEquals("1", payload.getValue("version").jsonPrimitive.content)
-        assertEquals("loss_transient", payload.getValue("focus_change").jsonPrimitive.content)
-    }
-
-    @Test
     fun `decoder failure payload carries typed diagnostics and intent`() {
         val payload = Json.parseToJsonElement(
             EngineCommandPayloads.decoderFailed(

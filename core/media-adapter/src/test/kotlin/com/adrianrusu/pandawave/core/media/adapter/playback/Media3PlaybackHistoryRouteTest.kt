@@ -17,6 +17,39 @@ import kotlinx.coroutines.flow.StateFlow
 
 class Media3PlaybackHistoryRouteTest {
     @Test
+    fun `transient suppression does not report completion or reset history`() {
+        val repository = HistoryRoutePlaybackRepository()
+        val bridge = Media3PlaybackEngineBridge(
+            playbackRepository = repository,
+            telemetryLogger = TelemetryLogger(sink = RecordingHistoryTelemetrySink(), clock = { 1L }),
+            playbackMetricsProvider = PlaybackCompletionMetricsProvider {
+                PlaybackCompletionMetrics(positionMillis = 400L, durationMillis = 1_000L)
+            },
+            playbackInstanceIdProvider = { 42L },
+            playerSnapshotProvider = {
+                Media3PlayerSnapshot(
+                    positionMillis = 400L,
+                    playWhenReady = true,
+                    playbackState = Player.STATE_READY
+                )
+            }
+        )
+
+        bridge.onIsPlayingChanged(true)
+        repository.intents.clear()
+        bridge.onIsPlayingChanged(false)
+
+        assertTrue(
+            repository.intents.none { intent ->
+                intent is BambooPlaybackIntent.PlatformEvent &&
+                    intent.type == EnginePlatformEvent.TYPE_PLAYBACK_COMPLETED
+            }
+        )
+        assertEquals("track-1", repository.state.value.mediaId)
+        assertEquals(0L, repository.state.value.positionMillis)
+    }
+
+    @Test
     fun `ended playback reports completion to PandaEngine route`() {
         val repository = HistoryRoutePlaybackRepository()
         val telemetrySink = RecordingHistoryTelemetrySink()

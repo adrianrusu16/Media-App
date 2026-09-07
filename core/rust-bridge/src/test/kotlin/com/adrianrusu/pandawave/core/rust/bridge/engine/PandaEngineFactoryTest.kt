@@ -70,14 +70,11 @@ class PandaEngineFactoryTest {
         )
 
         assertEquals(
-            listOf(
-                EngineEffect(type = EngineEffect.TYPE_REQUEST_AUDIO_FOCUS),
-                EngineEffect(type = EngineEffect.TYPE_PLAY)
-            ),
+            listOf(EngineEffect(type = EngineEffect.TYPE_PLAY)),
             result.effects
         )
-        assertEquals(2, engine.effectCount())
-        assertEquals(EngineEffect(type = EngineEffect.TYPE_PLAY), engine.effect(index = 1))
+        assertEquals(1, engine.effectCount())
+        assertEquals(EngineEffect(type = EngineEffect.TYPE_PLAY), engine.effect(index = 0))
     }
 
     @Test
@@ -142,7 +139,6 @@ class PandaEngineFactoryTest {
                     type = EngineEffect.TYPE_UPDATE_METADATA,
                     mediaId = "track-42"
                 ),
-                EngineEffect(type = EngineEffect.TYPE_REQUEST_AUDIO_FOCUS),
                 EngineEffect(type = EngineEffect.TYPE_PLAY)
             ),
             result.effects

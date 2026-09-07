@@ -4,6 +4,15 @@ use std::ffi::{CString, c_char};
 use std::ptr;
 
 #[test]
+fn removed_audio_focus_discriminants_leave_abi_holes() {
+    assert_eq!(6, FFI_PLATFORM_EVENT_MEDIA_LOADED);
+    assert_eq!(10, FFI_PLATFORM_EVENT_PLAYBACK_POSITION_CHECKPOINT);
+    assert_eq!(6, FFI_EFFECT_UPDATE_METADATA);
+    assert_eq!(15, FFI_EFFECT_PREPARE_PLAYBACK_SOURCE);
+    assert_eq!(16, FFI_EFFECT_RECREATE_PLAYER_AND_LOAD);
+}
+
+#[test]
 fn dispatch_play_returns_buffering_snapshot() {
     let engine = panda_engine_create(1000);
     unsafe { panda_engine_dispatch(engine, FFI_COMMAND_START_SESSION, ptr::null(), 500) };
@@ -183,7 +192,6 @@ fn dispatch_play_emits_effects_in_ffi() {
 
     assert!(types.contains(&FFI_EFFECT_PREPARE_PLAYBACK_SOURCE));
     assert!(types.contains(&FFI_EFFECT_PLAY));
-    assert!(types.contains(&FFI_EFFECT_REQUEST_AUDIO_FOCUS));
     assert_eq!(types[0], unsafe { panda_engine_get_effect_type(engine, 0) });
 
     let prepare_effect_index = effect_index(engine, FFI_EFFECT_PREPARE_PLAYBACK_SOURCE).unwrap();

@@ -1202,7 +1202,6 @@ impl Engine {
         match (prev_playback_state, next_snapshot.playback_state) {
             (prev, next) if prev != next => match next {
                 PlaybackState::Buffering => {
-                    effects.push(EngineEffect::RequestAudioFocus);
                     effects.push(EngineEffect::Play);
                 }
                 PlaybackState::Playing => {
@@ -1217,11 +1216,9 @@ impl Engine {
                 }
                 PlaybackState::Idle => {
                     effects.push(EngineEffect::Stop);
-                    effects.push(EngineEffect::AbandonAudioFocus);
                 }
                 PlaybackState::Ended => {
                     effects.push(EngineEffect::Pause);
-                    effects.push(EngineEffect::AbandonAudioFocus);
                 }
                 _ => {}
             },
@@ -1235,9 +1232,6 @@ impl Engine {
                 PlaybackState::Buffering | PlaybackState::Recovering
             )
         {
-            if !effects.contains(&EngineEffect::RequestAudioFocus) {
-                effects.push(EngineEffect::RequestAudioFocus);
-            }
             if !effects.contains(&EngineEffect::Play) {
                 effects.push(EngineEffect::Play);
             }

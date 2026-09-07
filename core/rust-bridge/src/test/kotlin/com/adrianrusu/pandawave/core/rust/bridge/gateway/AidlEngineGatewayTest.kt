@@ -255,10 +255,7 @@ class AidlEngineGatewayTest {
         )
 
         assertEquals(
-            listOf(
-                EngineEffect(type = EngineEffect.TYPE_REQUEST_AUDIO_FOCUS),
-                EngineEffect(type = EngineEffect.TYPE_PLAY)
-            ),
+            listOf(EngineEffect(type = EngineEffect.TYPE_PLAY)),
             result.effects
         )
     }
@@ -278,10 +275,7 @@ class AidlEngineGatewayTest {
 
         assertEquals(EngineSnapshot.PLAYBACK_PLAYING, result.snapshot.playbackState)
         assertEquals(
-            listOf(
-                EngineEffect(type = EngineEffect.TYPE_REQUEST_AUDIO_FOCUS),
-                EngineEffect(type = EngineEffect.TYPE_PLAY)
-            ),
+            listOf(EngineEffect(type = EngineEffect.TYPE_PLAY)),
             result.effects
         )
         assertEquals(0, service.snapshotReads)
@@ -1083,10 +1077,7 @@ private class RecordingEngineService(
     }
 
     private fun effectsFor(command: EngineCommand): List<EngineEffect> = when (command.type) {
-        EngineCommand.TYPE_PLAY -> listOf(
-            EngineEffect(type = EngineEffect.TYPE_REQUEST_AUDIO_FOCUS),
-            EngineEffect(type = EngineEffect.TYPE_PLAY)
-        )
+        EngineCommand.TYPE_PLAY -> listOf(EngineEffect(type = EngineEffect.TYPE_PLAY))
 
         EngineCommand.TYPE_PAUSE -> listOf(EngineEffect(type = EngineEffect.TYPE_PAUSE))
 

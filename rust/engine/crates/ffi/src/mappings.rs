@@ -11,8 +11,6 @@ pub(crate) fn effect_to_ffi(effect: &EngineEffect) -> i32 {
         EngineEffect::Pause => FFI_EFFECT_PAUSE,
         EngineEffect::Stop => FFI_EFFECT_STOP,
         EngineEffect::Seek(_) => FFI_EFFECT_SEEK,
-        EngineEffect::RequestAudioFocus => FFI_EFFECT_REQUEST_AUDIO_FOCUS,
-        EngineEffect::AbandonAudioFocus => FFI_EFFECT_ABANDON_AUDIO_FOCUS,
         EngineEffect::UpdateMetadata { .. } => FFI_EFFECT_UPDATE_METADATA,
         EngineEffect::SessionStarted { .. } => FFI_EFFECT_SESSION_STARTED,
         EngineEffect::SessionEnded => FFI_EFFECT_SESSION_ENDED,
@@ -129,7 +127,6 @@ pub(crate) fn platform_event_from_ffi(
         FFI_PLATFORM_EVENT_UX_RESTRICTIONS_CHANGED => {
             EnginePlatformEventType::UxRestrictionsChanged
         }
-        FFI_PLATFORM_EVENT_AUDIO_FOCUS_CHANGED => EnginePlatformEventType::AudioFocusChanged,
         FFI_PLATFORM_EVENT_MEDIA_LOADED => EnginePlatformEventType::MediaLoaded,
         FFI_PLATFORM_EVENT_MEDIA_ERROR => EnginePlatformEventType::MediaError,
         FFI_PLATFORM_EVENT_VEHICLE_DRIVING_STATE_CHANGED => {
@@ -138,9 +135,6 @@ pub(crate) fn platform_event_from_ffi(
         FFI_PLATFORM_EVENT_PLAYBACK_COMPLETED => EnginePlatformEventType::PlaybackCompleted,
         FFI_PLATFORM_EVENT_PLAYBACK_POSITION_CHECKPOINT => {
             EnginePlatformEventType::PlaybackPositionCheckpoint
-        }
-        FFI_PLATFORM_EVENT_AUDIO_FOCUS_REQUEST_RESULT => {
-            EnginePlatformEventType::AudioFocusRequestResult
         }
         _ => EnginePlatformEventType::Unknown(event_type.to_string()),
     }

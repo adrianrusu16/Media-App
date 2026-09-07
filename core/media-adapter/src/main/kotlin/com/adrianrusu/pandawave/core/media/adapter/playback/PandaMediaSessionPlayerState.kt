@@ -11,6 +11,7 @@ internal data class PandaTimelineItem(val uid: String, val mediaItem: MediaItem,
 
 internal data class PandaExoRuntimeState(
     val playbackState: Int = Player.STATE_IDLE,
+    val playbackSuppressionReason: Int = Player.PLAYBACK_SUPPRESSION_REASON_NONE,
     val currentMediaId: String? = null,
     val positionMs: Long = 0L,
     val durationMs: Long = C.TIME_UNSET,
@@ -21,6 +22,7 @@ internal data class PandaMediaSessionPlayerModel(
     val availableCommands: Set<Int>,
     val playWhenReady: Boolean,
     val playbackState: Int,
+    val playbackSuppressionReason: Int,
     val volume: Float,
     val positionMs: Long,
     val bufferedPositionMs: Long,
@@ -48,6 +50,7 @@ internal object PandaMediaSessionPlayerState {
             ),
             playWhenReady = playWhenReady,
             playbackState = playbackState(playback, exo, timeline.isNotEmpty()),
+            playbackSuppressionReason = exo.playbackSuppressionReason,
             volume = playback.volume.coerceIn(MIN_VOLUME, MAX_VOLUME),
             positionMs = positionMs(playback, exo),
             bufferedPositionMs = exo.bufferedPositionMs.coerceAtLeast(0L),

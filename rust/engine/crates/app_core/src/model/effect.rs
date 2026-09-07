@@ -14,10 +14,6 @@ pub enum EngineEffect {
     Seek(u64),
     /// Request the platform to set the playback speed.
     SetSpeed(f32),
-    /// Request audio focus from the system.
-    RequestAudioFocus,
-    /// Abandon audio focus.
-    AbandonAudioFocus,
     /// Request the platform to create a new MediaSession.
     SessionStarted { session_id: String },
     /// Request the platform to destroy the current MediaSession.
@@ -67,10 +63,6 @@ impl EngineEffect {
     pub const STOP_WIRE: &'static str = "stop";
     /// Wire value for Seek effect.
     pub const SEEK_WIRE: &'static str = "seek";
-    /// Wire value for RequestAudioFocus effect.
-    pub const REQUEST_AUDIO_FOCUS_WIRE: &'static str = "request_audio_focus";
-    /// Wire value for AbandonAudioFocus effect.
-    pub const ABANDON_AUDIO_FOCUS_WIRE: &'static str = "abandon_audio_focus";
     /// Wire value for SetSpeed effect.
     pub const SET_SPEED_WIRE: &'static str = "set_speed";
     /// Wire value for SessionStarted effect.
@@ -102,8 +94,6 @@ impl EngineEffect {
             Self::Stop => Self::STOP_WIRE,
             Self::Seek(_) => Self::SEEK_WIRE,
             Self::SetSpeed(_) => Self::SET_SPEED_WIRE,
-            Self::RequestAudioFocus => Self::REQUEST_AUDIO_FOCUS_WIRE,
-            Self::AbandonAudioFocus => Self::ABANDON_AUDIO_FOCUS_WIRE,
             Self::SessionStarted { .. } => Self::SESSION_STARTED_WIRE,
             Self::SessionEnded => Self::SESSION_ENDED_WIRE,
             Self::NotifyUser { .. } => Self::NOTIFY_USER_WIRE,
