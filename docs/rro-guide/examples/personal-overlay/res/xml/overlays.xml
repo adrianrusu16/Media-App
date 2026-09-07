@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<overlay>
+    <item target="color/pandawave_theme_forest_tech_dark_primary" value="@color/personal_primary" />
+    <item target="dimen/pandawave_navigation_rail_width" value="@dimen/personal_rail_width" />
+</overlay>

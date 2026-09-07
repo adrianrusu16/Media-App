@@ -1,0 +1,7 @@
+runtime_resource_overlay {
+    name: "PandaWaveOemOverlay",
+    product_specific: true,
+    sdk_version: "current",
+    resource_dirs: ["res"],
+    manifest: "AndroidManifest.xml",
+}

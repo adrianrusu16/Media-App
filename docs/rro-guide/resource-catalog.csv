@@ -1,0 +1,217 @@
+﻿type,name,default,night,group,usage,note,policy,source_path
+color,pandawave_ambient_visualizer_active,#93D87E,—,"Aliases, selectors and independent colors",Provider,Ambient visualizer active,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_ambient_visualizer_idle,#2A3A28,—,"Aliases, selectors and independent colors",Provider,Ambient visualizer idle,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+fraction,pandawave_ambient_visualizer_idle_alpha,45%,—,Opacity fractions,Provider,Ambient visualizer idle alpha,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+fraction,pandawave_ambient_visualizer_active_min_alpha,35%,—,Opacity fractions,Provider,Ambient visualizer active min alpha,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+fraction,pandawave_ambient_visualizer_active_max_alpha,95%,—,Opacity fractions,Provider,Ambient visualizer active max alpha,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+dimen,pandawave_ambient_artwork_min_size,240dp,—,Ambient and voice geometry,Provider,Ambient artwork min size,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_ambient_artwork_max_size,440dp,—,Ambient and voice geometry,Provider,Ambient artwork max size,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_ambient_visualizer_height,328dp,—,Ambient and voice geometry,Provider,Ambient visualizer height,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_ambient_visualizer_bar_width,6dp,—,Ambient and voice geometry,Provider,Ambient visualizer bar width,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_ambient_visualizer_bar_gap,4dp,—,Ambient and voice geometry,Provider,Ambient visualizer bar gap,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_ambient_visualizer_bar_radius,3dp,—,Ambient and voice geometry,Provider,Ambient visualizer bar radius,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_ambient_visualizer_min_bar_height,8dp,—,Ambient and voice geometry,Provider,Ambient visualizer min bar height,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_ambient_visualizer_max_bar_height,350dp,—,Ambient and voice geometry,Provider,350dp exceeds 328dp visualizer height; verify actual clipping,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+integer,pandawave_ambient_entry_duration_millis,350,—,Motion integers,Provider,Ambient entry duration millis,public,core/designsystem/src/main/res/values/pandawave_motion.xml
+integer,pandawave_ambient_exit_duration_millis,200,—,Motion integers,Provider,Ambient exit duration millis,public,core/designsystem/src/main/res/values/pandawave_motion.xml
+color,pandawave_button_colors,selector XML,—,"Aliases, selectors and independent colors",Declared only,Selector; no main-source selector consumer found,public,core/designsystem/src/main/res/color/pandawave_button_colors.xml
+color,pandawave_color_error,@color/pandawave_theme_bamboo_grove_light_error,@color/pandawave_theme_moonlit_bamboo_dark_error,"Aliases, selectors and independent colors",Declared only,Android configuration alias; not app-theme selection,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_color_on_error,@color/pandawave_theme_bamboo_grove_light_on_error,@color/pandawave_theme_moonlit_bamboo_dark_on_error,"Aliases, selectors and independent colors",Declared only,Android configuration alias; not app-theme selection,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_color_on_primary,@color/pandawave_theme_bamboo_grove_light_on_primary,@color/pandawave_theme_moonlit_bamboo_dark_on_primary,"Aliases, selectors and independent colors",XML chain,Android configuration alias; not app-theme selection,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_color_on_primary_container,@color/pandawave_theme_bamboo_grove_light_on_primary_container,@color/pandawave_theme_moonlit_bamboo_dark_on_primary_container,"Aliases, selectors and independent colors",XML chain,Android configuration alias; not app-theme selection,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_color_on_secondary,@color/pandawave_theme_bamboo_grove_light_on_secondary,@color/pandawave_theme_moonlit_bamboo_dark_on_secondary,"Aliases, selectors and independent colors",XML chain,Android configuration alias; not app-theme selection,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_color_on_secondary_container,@color/pandawave_theme_bamboo_grove_light_on_secondary_container,@color/pandawave_theme_moonlit_bamboo_dark_on_secondary_container,"Aliases, selectors and independent colors",Declared only,Android configuration alias; not app-theme selection,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_color_on_surface,@color/pandawave_theme_bamboo_grove_light_on_surface,@color/pandawave_theme_moonlit_bamboo_dark_on_surface,"Aliases, selectors and independent colors",XML chain,Android configuration alias; not app-theme selection,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_color_on_surface_variant,@color/pandawave_theme_bamboo_grove_light_on_surface_variant,@color/pandawave_theme_moonlit_bamboo_dark_on_surface_variant,"Aliases, selectors and independent colors",XML chain,Android configuration alias; not app-theme selection,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_color_outline,@color/pandawave_theme_bamboo_grove_light_outline,@color/pandawave_theme_moonlit_bamboo_dark_outline,"Aliases, selectors and independent colors",Declared only,Android configuration alias; not app-theme selection,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_color_primary,@color/pandawave_theme_bamboo_grove_light_primary,@color/pandawave_theme_moonlit_bamboo_dark_primary,"Aliases, selectors and independent colors",XML chain,Android configuration alias; not app-theme selection,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_color_primary_container,@color/pandawave_theme_bamboo_grove_light_primary_container,@color/pandawave_theme_moonlit_bamboo_dark_primary_container,"Aliases, selectors and independent colors",XML chain,Android configuration alias; not app-theme selection,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_color_secondary,@color/pandawave_theme_bamboo_grove_light_secondary,@color/pandawave_theme_moonlit_bamboo_dark_secondary,"Aliases, selectors and independent colors",XML chain,Android configuration alias; not app-theme selection,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_color_secondary_container,@color/pandawave_theme_bamboo_grove_light_secondary_container,@color/pandawave_theme_moonlit_bamboo_dark_secondary_container,"Aliases, selectors and independent colors",XML chain,Android configuration alias; not app-theme selection,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_color_surface,@color/pandawave_theme_bamboo_grove_light_surface,@color/pandawave_theme_moonlit_bamboo_dark_surface,"Aliases, selectors and independent colors",Declared only,Android configuration alias; not app-theme selection,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_color_surface_container,@color/pandawave_theme_bamboo_grove_light_surface_container,@color/pandawave_theme_moonlit_bamboo_dark_surface_container,"Aliases, selectors and independent colors",Declared only,Android configuration alias; not app-theme selection,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_color_surface_container_high,@color/pandawave_theme_bamboo_grove_light_surface_container_high,@color/pandawave_theme_moonlit_bamboo_dark_surface_container_high,"Aliases, selectors and independent colors",Declared only,Android configuration alias; not app-theme selection,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_icon_button_colors,selector XML,—,"Aliases, selectors and independent colors",Declared only,Selector; no main-source selector consumer found,public,core/designsystem/src/main/res/color/pandawave_icon_button_colors.xml
+color,pandawave_launcher_background,#93D87E,—,"Aliases, selectors and independent colors",XML chain,Launcher background,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_media_item_colors,selector XML,—,"Aliases, selectors and independent colors",Declared only,Selector; no main-source selector consumer found,public,core/designsystem/src/main/res/color/pandawave_media_item_colors.xml
+color,pandawave_navigation_item_colors,selector XML,—,"Aliases, selectors and independent colors",Declared only,Selector; no main-source selector consumer found,public,core/designsystem/src/main/res/color/pandawave_navigation_item_colors.xml
+color,pandawave_preference_item_colors,selector XML,—,"Aliases, selectors and independent colors",Declared only,Selector; no main-source selector consumer found,public,core/designsystem/src/main/res/color/pandawave_preference_item_colors.xml
+color,pandawave_splash_background,#131313,—,"Aliases, selectors and independent colors",XML chain,Splash background,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_bamboo_grove_light_error,#BA1A1A,—,Palette — Bamboo Grove Light,Provider,Error,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_bamboo_grove_light_on_error,#FFFFFF,—,Palette — Bamboo Grove Light,Provider,On error,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_bamboo_grove_light_on_primary,#FFFFFF,—,Palette — Bamboo Grove Light,Provider,On primary,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_bamboo_grove_light_on_primary_container,#0B2111,—,Palette — Bamboo Grove Light,XML chain,Not loaded into provider color model,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_bamboo_grove_light_on_secondary,#FFFFFF,—,Palette — Bamboo Grove Light,Provider,On secondary,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_bamboo_grove_light_on_secondary_container,#211A0B,—,Palette — Bamboo Grove Light,XML chain,Not loaded into provider color model,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_bamboo_grove_light_on_surface,#171E1B,—,Palette — Bamboo Grove Light,Provider,On surface,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_bamboo_grove_light_on_surface_variant,#405041,—,Palette — Bamboo Grove Light,Provider,On surface variant,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_bamboo_grove_light_outline,#707A70,—,Palette — Bamboo Grove Light,XML chain,Not loaded into provider color model,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_bamboo_grove_light_primary,#49694F,—,Palette — Bamboo Grove Light,Provider,Primary,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_bamboo_grove_light_primary_container,#CCE8CF,—,Palette — Bamboo Grove Light,XML chain,Not loaded into provider color model,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_bamboo_grove_light_secondary,#4B3D24,—,Palette — Bamboo Grove Light,Provider,Secondary,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_bamboo_grove_light_secondary_container,#EEDDB8,—,Palette — Bamboo Grove Light,XML chain,Not loaded into provider color model,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_bamboo_grove_light_surface,#F7F4EA,—,Palette — Bamboo Grove Light,Provider,Surface,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_bamboo_grove_light_surface_container,#EEECE2,—,Palette — Bamboo Grove Light,XML chain,Not loaded into provider color model,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_bamboo_grove_light_surface_container_high,#E5E3D9,—,Palette — Bamboo Grove Light,Provider,Loaded as surfaceVariant,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_forest_tech_dark_error,#FFB4AB,—,Palette — Forest Tech Dark,Provider,Error,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_forest_tech_dark_on_error,#690005,—,Palette — Forest Tech Dark,Provider,On error,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_forest_tech_dark_on_primary,#043900,—,Palette — Forest Tech Dark,Provider,On primary,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_forest_tech_dark_on_primary_container,#B4F49E,—,Palette — Forest Tech Dark,Declared only,Not loaded into provider color model,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_forest_tech_dark_on_secondary,#2F3131,—,Palette — Forest Tech Dark,Provider,On secondary,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_forest_tech_dark_on_secondary_container,#E2E2E3,—,Palette — Forest Tech Dark,Declared only,Not loaded into provider color model,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_forest_tech_dark_on_surface,#E5E2E1,—,Palette — Forest Tech Dark,Provider,On surface,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_forest_tech_dark_on_surface_variant,#C1C9B9,—,Palette — Forest Tech Dark,Provider,On surface variant,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_forest_tech_dark_outline,#8B9385,—,Palette — Forest Tech Dark,Declared only,Not loaded into provider color model,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_forest_tech_dark_primary,#93D87E,—,Palette — Forest Tech Dark,Provider,Primary,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_forest_tech_dark_primary_container,#1C4F17,—,Palette — Forest Tech Dark,Declared only,Not loaded into provider color model,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_forest_tech_dark_secondary,#C6C6C7,—,Palette — Forest Tech Dark,Provider,Secondary,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_forest_tech_dark_secondary_container,#454747,—,Palette — Forest Tech Dark,Declared only,Not loaded into provider color model,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_forest_tech_dark_surface,#131313,—,Palette — Forest Tech Dark,Provider,Surface,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_forest_tech_dark_surface_container,#1C1B1B,—,Palette — Forest Tech Dark,Declared only,Not loaded into provider color model,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_forest_tech_dark_surface_container_high,#272626,—,Palette — Forest Tech Dark,Provider,Loaded as surfaceVariant,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_forest_tech_light_error,#BA1A1A,—,Palette — Forest Tech Light,Provider,Error,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_forest_tech_light_on_error,#FFFFFF,—,Palette — Forest Tech Light,Provider,On error,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_forest_tech_light_on_primary,#FFFFFF,—,Palette — Forest Tech Light,Provider,On primary,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_forest_tech_light_on_primary_container,#072100,—,Palette — Forest Tech Light,Declared only,Not loaded into provider color model,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_forest_tech_light_on_secondary,#FFFFFF,—,Palette — Forest Tech Light,Provider,On secondary,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_forest_tech_light_on_secondary_container,#191C1C,—,Palette — Forest Tech Light,Declared only,Not loaded into provider color model,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_forest_tech_light_on_surface,#172018,—,Palette — Forest Tech Light,Provider,On surface,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_forest_tech_light_on_surface_variant,#424D3D,—,Palette — Forest Tech Light,Provider,On surface variant,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_forest_tech_light_outline,#72796E,—,Palette — Forest Tech Light,Declared only,Not loaded into provider color model,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_forest_tech_light_primary,#2D6B1F,—,Palette — Forest Tech Light,Provider,Primary,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_forest_tech_light_primary_container,#B5F29E,—,Palette — Forest Tech Light,Declared only,Not loaded into provider color model,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_forest_tech_light_secondary,#4D4F4F,—,Palette — Forest Tech Light,Provider,Secondary,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_forest_tech_light_secondary_container,#E0E3E3,—,Palette — Forest Tech Light,Declared only,Not loaded into provider color model,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_forest_tech_light_surface,#F6F8F0,—,Palette — Forest Tech Light,Provider,Surface,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_forest_tech_light_surface_container,#ECEFE7,—,Palette — Forest Tech Light,Declared only,Not loaded into provider color model,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_forest_tech_light_surface_container_high,#E2E6DD,—,Palette — Forest Tech Light,Provider,Loaded as surfaceVariant,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_moonlit_bamboo_dark_error,#FFB4AB,—,Palette — Moonlit Bamboo Dark,Provider,Error,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_moonlit_bamboo_dark_on_error,#690005,—,Palette — Moonlit Bamboo Dark,Provider,On error,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_moonlit_bamboo_dark_on_primary,#1D2A20,—,Palette — Moonlit Bamboo Dark,Provider,On primary,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_moonlit_bamboo_dark_on_primary_container,#CBDDC1,—,Palette — Moonlit Bamboo Dark,XML chain,Not loaded into provider color model,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_moonlit_bamboo_dark_on_secondary,#2E2D12,—,Palette — Moonlit Bamboo Dark,Provider,On secondary,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_moonlit_bamboo_dark_on_secondary_container,#DDD994,—,Palette — Moonlit Bamboo Dark,XML chain,Not loaded into provider color model,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_moonlit_bamboo_dark_on_surface,#ECE8DC,—,Palette — Moonlit Bamboo Dark,Provider,On surface,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_moonlit_bamboo_dark_on_surface_variant,#C2CCBB,—,Palette — Moonlit Bamboo Dark,Provider,On surface variant,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_moonlit_bamboo_dark_outline,#8C9788,—,Palette — Moonlit Bamboo Dark,XML chain,Not loaded into provider color model,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_moonlit_bamboo_dark_primary,#AFC5A2,—,Palette — Moonlit Bamboo Dark,Provider,Primary,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_moonlit_bamboo_dark_primary_container,#344638,—,Palette — Moonlit Bamboo Dark,XML chain,Not loaded into provider color model,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_moonlit_bamboo_dark_secondary,#C0BE78,—,Palette — Moonlit Bamboo Dark,Provider,Secondary,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_moonlit_bamboo_dark_secondary_container,#474620,—,Palette — Moonlit Bamboo Dark,XML chain,Not loaded into provider color model,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_moonlit_bamboo_dark_surface,#111815,—,Palette — Moonlit Bamboo Dark,Provider,Surface,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_moonlit_bamboo_dark_surface_container,#1B231F,—,Palette — Moonlit Bamboo Dark,XML chain,Not loaded into provider color model,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+color,pandawave_theme_moonlit_bamboo_dark_surface_container_high,#26332A,—,Palette — Moonlit Bamboo Dark,Provider,Loaded as surfaceVariant,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+dimen,pandawave_actionable_card_min_height,56dp,—,Media and card geometry,Provider,Actionable card min height,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_app_content_padding,12dp,—,"Shared spacing, geometry and focus",Provider,App content padding,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_card_padding,12dp,—,Media and card geometry,Provider,Card padding,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_category_card_max_width,228dp,—,Media and card geometry,Provider,Category card max width,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_category_card_min_height,112dp,—,Media and card geometry,Provider,Category card min height,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_category_card_min_width,162dp,—,Media and card geometry,Provider,Category card min width,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_elevation_card_resting,1dp,—,"Shared spacing, geometry and focus",Provider,Elevation card resting,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_feedback_icon_size,48dp,—,Preferences and feedback geometry,Provider,Feedback icon size,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_feedback_max_width,480dp,—,Preferences and feedback geometry,Provider,Feedback max width,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_feedback_spacing,16dp,—,Preferences and feedback geometry,Provider,Feedback spacing,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_focus_outline_padding,2dp,—,"Shared spacing, geometry and focus",Provider,Focus outline padding,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_focus_outline_width,3dp,—,"Shared spacing, geometry and focus",Provider,Focus outline width,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_icon_size_lg,36dp,—,"Shared spacing, geometry and focus",Provider,Icon size lg,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_icon_size_md,22dp,—,"Shared spacing, geometry and focus",Provider,Icon size md,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_icon_size_sm,20dp,—,"Shared spacing, geometry and focus",Provider,Icon size sm,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_layout_compact_width_threshold,960dp,—,"Shared spacing, geometry and focus",Provider,Input/layout-sensitive; validate on target HU,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_layout_text_max_width,720dp,—,"Shared spacing, geometry and focus",Provider,Layout text max width,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_media_carousel_spacing,16dp,—,Media and card geometry,Provider,Media carousel spacing,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_media_row_artwork_size,52dp,—,Media and card geometry,Provider,Media row artwork size,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_media_row_min_height,72dp,—,Media and card geometry,Provider,Media row min height,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_media_section_spacing,16dp,—,Media and card geometry,Provider,Media section spacing,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_media_tile_compact_artwork_height,68dp,—,Media and card geometry,Provider,Media tile compact artwork height,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_media_tile_compact_max_width,132dp,—,Media and card geometry,Provider,Media tile compact max width,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_media_tile_compact_min_height,96dp,—,Media and card geometry,Provider,Media tile compact min height,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_media_tile_compact_min_width,74dp,—,Media and card geometry,Provider,Media tile compact min width,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_media_tile_hero_artwork_height,96dp,—,Media and card geometry,Provider,Media tile hero artwork height,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_media_tile_hero_max_width,340dp,—,Media and card geometry,Provider,Media tile hero max width,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_media_tile_hero_min_height,120dp,—,Media and card geometry,Provider,Media tile hero min height,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_media_tile_hero_min_width,280dp,—,Media and card geometry,Provider,Media tile hero min width,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_media_tile_standard_artwork_height,84dp,—,Media and card geometry,Provider,Media tile standard artwork height,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_media_tile_standard_max_width,198dp,—,Media and card geometry,Provider,Media tile standard max width,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_media_tile_standard_min_height,126dp,—,Media and card geometry,Provider,Media tile standard min height,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_media_tile_standard_min_width,146dp,—,Media and card geometry,Provider,Media tile standard min width,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_miniplayer_artwork_size,56dp,—,"Mini-player, progress and volume",Provider,Miniplayer artwork size,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_miniplayer_height,80dp,—,"Mini-player, progress and volume",Provider,Miniplayer height,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_miniplayer_internal_spacing,6dp,—,"Mini-player, progress and volume",Provider,Miniplayer internal spacing,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_miniplayer_transport_button_size,48dp,—,"Mini-player, progress and volume",Provider,Miniplayer transport button size,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_navigation_item_height,76dp,—,Navigation geometry,Provider,Navigation item height,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_navigation_item_spacing,12dp,—,Navigation geometry,Provider,Navigation item spacing,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_navigation_logo_size,64dp,—,Navigation geometry,Provider,Navigation logo size,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_navigation_rail_width,100dp,—,Navigation geometry,Provider,Navigation rail width,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_navigation_selected_indicator_corner,2dp,—,Navigation geometry,Provider,Navigation selected indicator corner,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_navigation_selected_indicator_height,52dp,—,Navigation geometry,Provider,Navigation selected indicator height,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_navigation_selected_indicator_inset,14dp,—,Navigation geometry,Provider,Navigation selected indicator inset,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_navigation_selected_indicator_width,4dp,—,Navigation geometry,Provider,Navigation selected indicator width,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_now_playing_artwork_compact,202dp,—,Now Playing geometry,Provider,Loaded; current interactive route does not read this field; artwork fills remaining space,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_now_playing_artwork_standard,316dp,—,Now Playing geometry,Provider,Loaded; current interactive route does not read this field; artwork fills remaining space,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_now_playing_compact_height_threshold,640dp,—,Now Playing geometry,Provider,Loaded; current interactive route does not read this field; artwork fills remaining space,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_now_playing_footer_height,52dp,—,Now Playing geometry,Provider,Now playing footer height,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_now_playing_primary_button,48dp,—,Now Playing geometry,Provider,Now playing primary button,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_now_playing_quick_action_height,48dp,—,Now Playing geometry,Provider,Now playing quick action height,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_now_playing_quick_action_width,68dp,—,Now Playing geometry,Provider,Now playing quick action width,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_now_playing_scroll_height_threshold,480dp,—,Now Playing geometry,Provider,Loaded; current interactive route does not read this field; artwork fills remaining space,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_now_playing_secondary_transport_size,36dp,—,Now Playing geometry,Provider,Now playing secondary transport size,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_now_playing_transport_spacing,12dp,—,Now Playing geometry,Provider,Now playing transport spacing,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_preference_content_padding,16dp,—,Preferences and feedback geometry,Provider,Preference content padding,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_preference_control_width,56dp,—,Preferences and feedback geometry,Provider,Preference control width,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_preference_icon_size,24dp,—,Preferences and feedback geometry,Provider,Preference icon size,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_preference_row_min_height,52dp,—,Preferences and feedback geometry,Provider,Preference row min height,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_progress_thumb_size,26dp,—,"Mini-player, progress and volume",Provider,Progress thumb size,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_progress_track_height,6dp,—,"Mini-player, progress and volume",Provider,Progress track height,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_rotary_step_threshold,24dp,—,"Shared spacing, geometry and focus",Provider,Input/layout-sensitive; validate on target HU,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_shape_corner_md,8dp,—,"Shared spacing, geometry and focus",Provider,Shape corner md,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_shape_corner_sm,4dp,—,"Shared spacing, geometry and focus",Provider,Shape corner sm,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_spacing_lg,28dp,—,"Shared spacing, geometry and focus",Provider,Spacing lg,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_spacing_md,20dp,—,"Shared spacing, geometry and focus",Provider,Spacing md,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_spacing_sm,12dp,—,"Shared spacing, geometry and focus",Provider,Spacing sm,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_spacing_xl,36dp,—,"Shared spacing, geometry and focus",Provider,Spacing xl,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_spacing_xs,6dp,—,"Shared spacing, geometry and focus",Provider,Spacing xs,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_touch_target_lg,56dp,—,"Shared spacing, geometry and focus",Provider,Input/layout-sensitive; validate on target HU,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_touch_target_md,48dp,—,"Shared spacing, geometry and focus",Provider,Input/layout-sensitive; validate on target HU,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_type_body_line_height,20sp,—,Typography,Provider,Type body line height,public,core/designsystem/src/main/res/values/pandawave_typography.xml
+dimen,pandawave_type_body_size,14sp,—,Typography,Provider,Type body size,public,core/designsystem/src/main/res/values/pandawave_typography.xml
+dimen,pandawave_type_control_label_line_height,16sp,—,Typography,Provider,Type control label line height,public,core/designsystem/src/main/res/values/pandawave_typography.xml
+dimen,pandawave_type_control_label_size,12sp,—,Typography,Provider,Type control label size,public,core/designsystem/src/main/res/values/pandawave_typography.xml
+dimen,pandawave_type_display_line_height,34sp,—,Typography,Provider,Type display line height,public,core/designsystem/src/main/res/values/pandawave_typography.xml
+dimen,pandawave_type_display_size,28sp,—,Typography,Provider,Type display size,public,core/designsystem/src/main/res/values/pandawave_typography.xml
+dimen,pandawave_type_metadata_line_height,16sp,—,Typography,Provider,Type metadata line height,public,core/designsystem/src/main/res/values/pandawave_typography.xml
+dimen,pandawave_type_metadata_size,12sp,—,Typography,Provider,Type metadata size,public,core/designsystem/src/main/res/values/pandawave_typography.xml
+dimen,pandawave_type_section_title_line_height,24sp,—,Typography,Provider,Type section title line height,public,core/designsystem/src/main/res/values/pandawave_typography.xml
+dimen,pandawave_type_section_title_size,18sp,—,Typography,Provider,Type section title size,public,core/designsystem/src/main/res/values/pandawave_typography.xml
+dimen,pandawave_voice_bar_gap,5dp,—,Ambient and voice geometry,Provider,Voice bar gap,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_voice_bar_idle_height,7dp,—,Ambient and voice geometry,Provider,Voice bar idle height,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_voice_bar_width,3dp,—,Ambient and voice geometry,Provider,Voice bar width,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_voice_indicator_bars_height,22dp,—,Ambient and voice geometry,Provider,Voice indicator bars height,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_voice_indicator_bars_width,22dp,—,Ambient and voice geometry,Provider,Voice indicator bars width,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_voice_indicator_border_width,1dp,—,Ambient and voice geometry,Provider,Voice indicator border width,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_volume_control_height,40dp,—,"Mini-player, progress and volume",Provider,Volume control height,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_volume_control_max_width,380dp,—,"Mini-player, progress and volume",Provider,Volume control max width,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_waveform_bar_width,6dp,—,Ambient and voice geometry,Provider,Waveform bar width,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+dimen,pandawave_waveform_height,36dp,—,Ambient and voice geometry,Provider,Waveform height,public,core/designsystem/src/main/res/values/pandawave_dimensions.xml
+drawable,pandawave_ic_launcher_foreground,Vector 108dp × 108dp; viewport 108 × 108,—,Branding drawables,XML chain,Ic launcher foreground,public,core/designsystem/src/main/res/drawable/pandawave_ic_launcher_foreground.xml
+drawable,pandawave_ic_launcher_monochrome,Vector 108dp × 108dp; viewport 108 × 108,—,Branding drawables,XML chain,Ic launcher monochrome,public,core/designsystem/src/main/res/drawable/pandawave_ic_launcher_monochrome.xml
+drawable,pandawave_ic_logo,Vector 48dp × 48dp; viewport 100 × 100,—,Branding drawables,Direct code,Ic logo,public,core/designsystem/src/main/res/drawable/pandawave_ic_logo.xml
+drawable,pandawave_ic_panda_paw,Vector 48dp × 48dp; viewport 24 × 24,—,Branding drawables,Direct code,Ic panda paw,public,core/designsystem/src/main/res/drawable/pandawave_ic_panda_paw.xml
+drawable,pandawave_ic_splash_mark,Inset 0dp; @drawable/pandawave_ic_launcher_foreground,—,Branding drawables,XML chain,Ic splash mark,public,core/designsystem/src/main/res/drawable/pandawave_ic_splash_mark.xml
+fraction,pandawave_state_disabled_alpha,38%,—,Opacity fractions,XML chain,XML selector alpha; not a global Compose alpha,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+fraction,pandawave_state_focus_alpha,100%,—,Opacity fractions,XML chain,XML selector alpha; not a global Compose alpha,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+fraction,pandawave_state_pressed_alpha,88%,—,Opacity fractions,XML chain,XML selector alpha; not a global Compose alpha,public,core/designsystem/src/main/res/values/pandawave_colors.xml
+integer,pandawave_max_browse_columns_restricted,2,—,Restriction integers,Provider,Loaded; no production read of this token field found; no provider range check,public,core/designsystem/src/main/res/values/pandawave_limits.xml
+integer,pandawave_max_browse_columns_unrestricted,4,—,Restriction integers,Provider,Loaded; no production read of this token field found; no provider range check,public,core/designsystem/src/main/res/values/pandawave_limits.xml
+integer,pandawave_max_visible_actions_restricted,3,—,Restriction integers,Provider,Loaded; no production read of this token field found; no provider range check,public,core/designsystem/src/main/res/values/pandawave_limits.xml
+integer,pandawave_motion_duration_long_millis,320,—,Motion integers,Declared only,No direct production consumer found,public,core/designsystem/src/main/res/values/pandawave_motion.xml
+integer,pandawave_motion_duration_medium_millis,220,—,Motion integers,Declared only,No direct production consumer found,public,core/designsystem/src/main/res/values/pandawave_motion.xml
+integer,pandawave_motion_duration_short_millis,120,—,Motion integers,Declared only,No direct production consumer found,public,core/designsystem/src/main/res/values/pandawave_motion.xml
+integer,pandawave_motion_easing_standard,0,—,Motion integers,Declared only,No consumer found; no supported easing-value mapping established,public,core/designsystem/src/main/res/values/pandawave_motion.xml
+integer,pandawave_motion_voice_activation_millis,650,—,Motion integers,Provider,Motion voice activation millis,public,core/designsystem/src/main/res/values/pandawave_motion.xml
+integer,pandawave_motion_voice_cycle_millis,3000,—,Motion integers,Provider,Motion voice cycle millis,public,core/designsystem/src/main/res/values/pandawave_motion.xml
+integer,pandawave_splash_exit_animation_duration_millis,220,—,Motion integers,Direct code,Splash exit animation duration millis,public,core/designsystem/src/main/res/values/pandawave_motion.xml
+integer,pandawave_type_body_weight,400,—,Typography,Provider,Type body weight,public,core/designsystem/src/main/res/values/pandawave_typography.xml
+integer,pandawave_type_control_label_weight,600,—,Typography,Provider,Type control label weight,public,core/designsystem/src/main/res/values/pandawave_typography.xml
+integer,pandawave_type_display_weight,700,—,Typography,Provider,Type display weight,public,core/designsystem/src/main/res/values/pandawave_typography.xml
+integer,pandawave_type_metadata_weight,400,—,Typography,Provider,Type metadata weight,public,core/designsystem/src/main/res/values/pandawave_typography.xml
+integer,pandawave_type_section_title_weight,600,—,Typography,Provider,Type section title weight,public,core/designsystem/src/main/res/values/pandawave_typography.xml

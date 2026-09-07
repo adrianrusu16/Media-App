@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.example.pandawave.overlay.personal"
+    android:versionCode="1" android:versionName="1.0">
+    <uses-sdk android:minSdkVersion="33" android:targetSdkVersion="36" />
+    <application android:hasCode="false" android:label="PandaWave personal overlay" />
+    <overlay android:targetPackage="com.adrianrusu.pandawave"
+        android:targetName="PandaWaveDesignTokens"
+        android:isStatic="false" android:resourcesMap="@xml/overlays" />
+</manifest>

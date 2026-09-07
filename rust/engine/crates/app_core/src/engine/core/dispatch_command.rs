@@ -1231,10 +1231,9 @@ impl Engine {
                 next_snapshot.playback_state,
                 PlaybackState::Buffering | PlaybackState::Recovering
             )
+            && !effects.contains(&EngineEffect::Play)
         {
-            if !effects.contains(&EngineEffect::Play) {
-                effects.push(EngineEffect::Play);
-            }
+            effects.push(EngineEffect::Play);
         }
 
         let backend_unavailable = next_snapshot.last_error.as_ref().and_then(|error| {

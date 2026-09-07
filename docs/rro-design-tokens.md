@@ -1,5 +1,8 @@
 # RRO Design Tokens
 
+For the complete resource inventory, annotated screenshots, personal testing steps
+and OEM integration instructions, see the [PandaWave RRO Guide](rro-guide/RRO_GUIDE.md).
+
 PandaWave exposes OEM-customizable design tokens through Android resources in
 `:core:designsystem`.
 

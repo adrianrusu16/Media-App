@@ -1,0 +1,680 @@
+[
+  {
+    "section": "Navigation rail and page spacing",
+    "path": "docs/images/navigation/navigation_rail_selected_destination.png",
+    "capture": "Home selected in the left rail; page content starts to its right.",
+    "supplied": false,
+    "original": null,
+    "anchor": "31-navigation-rail-and-page-spacing",
+    "resources": [
+      "pandawave_navigation_rail_width",
+      "pandawave_navigation_logo_size",
+      "pandawave_navigation_item_height",
+      "pandawave_navigation_item_spacing",
+      "pandawave_navigation_selected_indicator_width",
+      "pandawave_navigation_selected_indicator_height",
+      "pandawave_navigation_selected_indicator_inset",
+      "pandawave_navigation_selected_indicator_corner",
+      "pandawave_app_content_padding"
+    ],
+    "additional_images": [],
+    "capture_source": "artifacts/rro-captures/home-top.png",
+    "sha256": "3b7f8d89b7ca3979be73ccf9f0bddc05ef5a3625555654ebd13e5887f4ce8ea4",
+    "pixels": [
+      1408,
+      792
+    ],
+    "status": "captured",
+    "caption": "Home selected in the left rail; page content starts to its right."
+  },
+  {
+    "section": "Home overview",
+    "path": "docs/images/home/home_recommendations_overview.png",
+    "capture": "Home overview: For You hero cards, compact recommendation tiles and the persistent mini-player.",
+    "supplied": false,
+    "original": null,
+    "anchor": "32-home-overview",
+    "resources": [
+      "pandawave_app_content_padding",
+      "pandawave_media_section_spacing",
+      "pandawave_media_carousel_spacing",
+      "pandawave_card_padding",
+      "pandawave_shape_corner_md",
+      "pandawave_elevation_card_resting"
+    ],
+    "additional_images": [],
+    "capture_source": "artifacts/rro-captures/home-top.png",
+    "sha256": "3b7f8d89b7ca3979be73ccf9f0bddc05ef5a3625555654ebd13e5887f4ce8ea4",
+    "pixels": [
+      1408,
+      792
+    ],
+    "status": "captured",
+    "caption": "Home overview: For You hero cards, compact recommendation tiles and the persistent mini-player."
+  },
+  {
+    "section": "Home featured cards",
+    "path": "docs/images/home/home_featured_media_card.png",
+    "capture": "The horizontal For You cards at the top use the hero resource family. The So Cold card shows complete artwork, metadata and play action.",
+    "supplied": false,
+    "original": null,
+    "anchor": "33-home-featured-cards",
+    "resources": [
+      "pandawave_media_tile_hero_min_width",
+      "pandawave_media_tile_hero_max_width",
+      "pandawave_media_tile_hero_min_height",
+      "pandawave_media_tile_hero_artwork_height",
+      "pandawave_media_carousel_spacing"
+    ],
+    "additional_images": [],
+    "capture_source": "artifacts/rro-captures/home-top.png",
+    "sha256": "3b7f8d89b7ca3979be73ccf9f0bddc05ef5a3625555654ebd13e5887f4ce8ea4",
+    "pixels": [
+      1408,
+      792
+    ],
+    "status": "captured",
+    "caption": "The horizontal For You cards at the top use the hero resource family. The So Cold card shows complete artwork, metadata and play action."
+  },
+  {
+    "section": "Home recommendation cards",
+    "path": "docs/images/home/home_standard_recommendation_cards.png",
+    "capture": "No production renderer was found using the four standard tile sizing tokens. Home recommendations use the compact variant in section 3.5. There is no correct standard-card screenshot to supply for this build.",
+    "supplied": false,
+    "original": null,
+    "anchor": "34-home-recommendation-cards",
+    "resources": [
+      "pandawave_media_tile_standard_min_width",
+      "pandawave_media_tile_standard_max_width",
+      "pandawave_media_tile_standard_min_height",
+      "pandawave_media_tile_standard_artwork_height",
+      "pandawave_media_carousel_spacing"
+    ],
+    "additional_images": [],
+    "status": "unavailable",
+    "caption": "No production renderer was found using the four standard tile sizing tokens. Home recommendations use the compact variant in section 3.5. There is no correct standard-card screenshot to supply for this build."
+  },
+  {
+    "section": "Compact media cards",
+    "path": "docs/images/home/home_compact_media_cards.png",
+    "capture": "The Recommendations row uses BambooMediaTile and the compact sizing resources, including its 68dp artwork height. Long titles are ellipsized.",
+    "supplied": false,
+    "original": null,
+    "anchor": "35-compact-media-cards",
+    "resources": [
+      "pandawave_media_tile_compact_min_width",
+      "pandawave_media_tile_compact_max_width",
+      "pandawave_media_tile_compact_min_height",
+      "pandawave_media_tile_compact_artwork_height",
+      "pandawave_media_carousel_spacing"
+    ],
+    "additional_images": [],
+    "capture_source": "artifacts/rro-captures/home-top.png",
+    "sha256": "3b7f8d89b7ca3979be73ccf9f0bddc05ef5a3625555654ebd13e5887f4ce8ea4",
+    "pixels": [
+      1408,
+      792
+    ],
+    "status": "captured",
+    "caption": "The Recommendations row uses BambooMediaTile and the compact sizing resources, including its 68dp artwork height. Long titles are ellipsized."
+  },
+  {
+    "section": "Library and history rows",
+    "path": "docs/images/library/library_history_media_rows.png",
+    "capture": "Capture Library with History selected and at least three rows, including a long title.",
+    "supplied": true,
+    "original": "F05-library-history.png",
+    "anchor": "36-library-and-history-rows",
+    "resources": [
+      "pandawave_media_row_artwork_size",
+      "pandawave_media_row_min_height",
+      "pandawave_card_padding",
+      "pandawave_type_body_size",
+      "pandawave_type_metadata_size"
+    ],
+    "additional_images": [],
+    "status": "original_reference",
+    "caption": "Original supplied reference; build, theme, density and capture date were not recorded. The current account has no listening-history rows, so the populated original is retained."
+  },
+  {
+    "section": "Library categories and playlists",
+    "path": "docs/images/library/library_playlist_form_empty_state.png",
+    "capture": "Actual Playlists screen with empty name/description fields, disabled Create action and no playlists. This form does not demonstrate category-card sizing.",
+    "supplied": false,
+    "original": null,
+    "anchor": "37-library-categories-and-playlists",
+    "resources": [
+      "pandawave_category_card_min_width",
+      "pandawave_category_card_max_width",
+      "pandawave_category_card_min_height",
+      "pandawave_card_padding",
+      "pandawave_type_section_title_size"
+    ],
+    "additional_images": [],
+    "capture_source": "artifacts/rro-captures/playlists.png",
+    "sha256": "70f6502fa3dab20ab8b685e64ed30639edee1259454ecfa0322c7f94a9e1c328",
+    "pixels": [
+      1408,
+      792
+    ],
+    "status": "captured",
+    "caption": "Actual Playlists screen with empty name/description fields, disabled Create action and no playlists. This form does not demonstrate category-card sizing."
+  },
+  {
+    "section": "Search input and results",
+    "path": "docs/images/search/search_query_and_media_results.png",
+    "capture": "Search for korn, with four result rows and the keyboard dismissed. The query field remains focused.",
+    "supplied": false,
+    "original": null,
+    "anchor": "38-search-input-and-results",
+    "resources": [
+      "pandawave_app_content_padding",
+      "pandawave_media_row_artwork_size",
+      "pandawave_media_row_min_height",
+      "pandawave_icon_size_sm",
+      "pandawave_type_body_size",
+      "pandawave_type_metadata_size"
+    ],
+    "additional_images": [],
+    "capture_source": "artifacts/rro-captures/search-korn.png",
+    "sha256": "71eee8afe0a27f6da01c76d2899360410552a148e8f0214f4c7682dcd485a450",
+    "pixels": [
+      1408,
+      792
+    ],
+    "status": "captured",
+    "caption": "Search for korn, with four result rows and the keyboard dismissed. The query field remains focused."
+  },
+  {
+    "section": "Now Playing artwork and track information",
+    "path": "docs/images/nowplaying/now_playing_artwork_and_track_details.png",
+    "capture": "APT. on Now Playing, with artwork, title and artist line. The track is at its end.",
+    "supplied": false,
+    "original": null,
+    "anchor": "39-now-playing-artwork-and-track-information",
+    "resources": [
+      "pandawave_type_body_size",
+      "pandawave_type_body_line_height",
+      "pandawave_type_body_weight",
+      "pandawave_type_control_label_size",
+      "pandawave_type_control_label_line_height",
+      "pandawave_type_control_label_weight",
+      "pandawave_app_content_padding",
+      "pandawave_now_playing_artwork_standard",
+      "pandawave_now_playing_artwork_compact"
+    ],
+    "additional_images": [],
+    "capture_source": "artifacts/rro-captures/now-playing-initial.png",
+    "sha256": "81beafa2774b2d833c44a1952b64614ff2fe3ad5b9ae16b964f611e286b1bed2",
+    "pixels": [
+      1408,
+      792
+    ],
+    "status": "captured",
+    "caption": "APT. on Now Playing, with artwork, title and artist line. The track is at its end."
+  },
+  {
+    "section": "Now Playing transport controls",
+    "path": "docs/images/nowplaying/now_playing_transport_controls.png",
+    "capture": "The center transport group shows Previous, the paw-shaped Play control and disabled Next. Shuffle and Favorite are also unavailable.",
+    "supplied": false,
+    "original": null,
+    "anchor": "310-now-playing-transport-controls",
+    "resources": [
+      "pandawave_now_playing_primary_button",
+      "pandawave_now_playing_secondary_transport_size",
+      "pandawave_now_playing_transport_spacing",
+      "pandawave_touch_target_md",
+      "pandawave_ic_panda_paw"
+    ],
+    "additional_images": [],
+    "capture_source": "artifacts/rro-captures/now-playing-initial.png",
+    "sha256": "81beafa2774b2d833c44a1952b64614ff2fe3ad5b9ae16b964f611e286b1bed2",
+    "pixels": [
+      1408,
+      792
+    ],
+    "status": "captured",
+    "caption": "The center transport group shows Previous, the paw-shaped Play control and disabled Next. Shuffle and Favorite are also unavailable."
+  },
+  {
+    "section": "Now Playing progress and volume",
+    "path": "docs/images/nowplaying/now_playing_progress_volume_and_footer.png",
+    "capture": "Progress and time labels sit above transport; the footer contains Queue, volume and the decorative Hey Panda indicator.",
+    "supplied": false,
+    "original": null,
+    "anchor": "311-now-playing-progress-and-volume",
+    "resources": [
+      "pandawave_progress_track_height",
+      "pandawave_progress_thumb_size",
+      "pandawave_volume_control_height",
+      "pandawave_volume_control_max_width",
+      "pandawave_now_playing_footer_height",
+      "pandawave_now_playing_quick_action_width",
+      "pandawave_now_playing_quick_action_height"
+    ],
+    "additional_images": [],
+    "capture_source": "artifacts/rro-captures/now-playing-initial.png",
+    "sha256": "81beafa2774b2d833c44a1952b64614ff2fe3ad5b9ae16b964f611e286b1bed2",
+    "pixels": [
+      1408,
+      792
+    ],
+    "status": "captured",
+    "caption": "Progress and time labels sit above transport; the footer contains Queue, volume and the decorative Hey Panda indicator."
+  },
+  {
+    "section": "Persistent mini-player",
+    "path": "docs/images/miniplayer/mini_player_artwork_metadata_and_controls.png",
+    "capture": "The full-width bottom mini-player shows artwork, APT. metadata, transport actions and progress at the end of the track.",
+    "supplied": false,
+    "original": null,
+    "anchor": "312-persistent-mini-player",
+    "resources": [
+      "pandawave_miniplayer_height",
+      "pandawave_miniplayer_artwork_size",
+      "pandawave_miniplayer_transport_button_size",
+      "pandawave_miniplayer_internal_spacing",
+      "pandawave_progress_track_height",
+      "pandawave_type_body_size",
+      "pandawave_type_metadata_size"
+    ],
+    "additional_images": [],
+    "capture_source": "artifacts/rro-captures/home-top.png",
+    "sha256": "3b7f8d89b7ca3979be73ccf9f0bddc05ef5a3625555654ebd13e5887f4ce8ea4",
+    "pixels": [
+      1408,
+      792
+    ],
+    "status": "captured",
+    "caption": "The full-width bottom mini-player shows artwork, APT. metadata, transport actions and progress at the end of the track."
+  },
+  {
+    "section": "Profile and account preferences",
+    "path": "docs/images/profile/profile_account_details_and_preferences.png",
+    "capture": "Signed-in Profile shows account/session rows and the start of the display-name field. The screenshot contains the emulator test-account email.",
+    "supplied": false,
+    "original": null,
+    "anchor": "313-profile-and-account-preferences",
+    "resources": [
+      "pandawave_preference_row_min_height",
+      "pandawave_preference_content_padding",
+      "pandawave_preference_icon_size",
+      "pandawave_preference_control_width",
+      "pandawave_type_body_size",
+      "pandawave_type_metadata_size"
+    ],
+    "additional_images": [],
+    "capture_source": "artifacts/rro-captures/profile-top.png",
+    "sha256": "9c739db1f2945ff2822d485c02f78436f0ef18c621c7a1f37539eb4dd9bb1fa5",
+    "pixels": [
+      1408,
+      792
+    ],
+    "status": "captured",
+    "caption": "Signed-in Profile shows account/session rows and the start of the display-name field. The screenshot contains the emulator test-account email."
+  },
+  {
+    "section": "Login and registration forms",
+    "path": "docs/images/auth/authentication_form_fields_and_actions.png",
+    "capture": "Not captured: the emulator is signed in. A parked, signed-out test session is needed to capture the login/registration form without revoking the existing session.",
+    "supplied": false,
+    "original": null,
+    "anchor": "314-login-and-registration-forms",
+    "resources": [
+      "pandawave_app_content_padding",
+      "pandawave_layout_text_max_width",
+      "pandawave_actionable_card_min_height",
+      "pandawave_touch_target_md",
+      "pandawave_type_body_size",
+      "pandawave_type_control_label_size",
+      "pandawave_focus_outline_width"
+    ],
+    "additional_images": [],
+    "status": "unavailable",
+    "caption": "Not captured: the emulator is signed in. A parked, signed-out test session is needed to capture the login/registration form without revoking the existing session."
+  },
+  {
+    "section": "Empty, loading and error feedback",
+    "path": "docs/images/feedback/library_saved_empty_state.png",
+    "capture": "Saved Library in its empty state: No saved tracks yet. This route uses a plain text message, so it does not demonstrate the shared feedback icon or geometry tokens.",
+    "supplied": false,
+    "original": null,
+    "anchor": "315-empty-loading-and-error-feedback",
+    "resources": [
+      "pandawave_feedback_icon_size",
+      "pandawave_feedback_max_width",
+      "pandawave_feedback_spacing",
+      "pandawave_type_section_title_size",
+      "pandawave_type_body_size"
+    ],
+    "additional_images": [],
+    "capture_source": "artifacts/rro-captures/library.png",
+    "sha256": "0dc64bd30b32564a936a6467b52f5edc4b47e0f390de34fd12f6d3b5b592a780",
+    "pixels": [
+      1408,
+      792
+    ],
+    "status": "captured",
+    "caption": "Saved Library in its empty state: No saved tracks yet. This route uses a plain text message, so it does not demonstrate the shared feedback icon or geometry tokens."
+  },
+  {
+    "section": "Ambient artwork and visualizer",
+    "path": "docs/images/ambient/ambient_artwork_and_idle_visualizer.png",
+    "capture": "Ambient layout with APT. artwork and the dim idle visualizer. This is an idle frame, not an active audio-amplitude capture.",
+    "supplied": false,
+    "original": null,
+    "anchor": "316-ambient-artwork-and-visualizer",
+    "resources": [
+      "pandawave_ambient_artwork_min_size",
+      "pandawave_ambient_artwork_max_size",
+      "pandawave_ambient_visualizer_height",
+      "pandawave_ambient_visualizer_bar_width",
+      "pandawave_ambient_visualizer_bar_gap",
+      "pandawave_ambient_visualizer_bar_radius",
+      "pandawave_ambient_visualizer_min_bar_height",
+      "pandawave_ambient_visualizer_max_bar_height",
+      "pandawave_ambient_visualizer_active",
+      "pandawave_ambient_visualizer_idle"
+    ],
+    "additional_images": [],
+    "capture_source": "artifacts/rro-captures/ambient-initial.png",
+    "sha256": "11ea58252aa95b65fbfce38922b8d389b2d2a8e04d91b0400d749df5caee08b3",
+    "pixels": [
+      1408,
+      792
+    ],
+    "status": "captured",
+    "caption": "Ambient layout with APT. artwork and the dim idle visualizer. This is an idle frame, not an active audio-amplitude capture."
+  },
+  {
+    "section": "Ambient idle and active transitions",
+    "path": "docs/images/ambient/ambient_idle_reference.png",
+    "capture": "Idle ambient reference on Forest Tech Dark. An active amplitude-source comparison remains to be captured; a still image cannot validate transition durations.",
+    "supplied": false,
+    "original": null,
+    "anchor": "317-ambient-idle-and-active-transitions",
+    "resources": [
+      "pandawave_ambient_visualizer_idle_alpha",
+      "pandawave_ambient_visualizer_active_min_alpha",
+      "pandawave_ambient_visualizer_active_max_alpha",
+      "pandawave_ambient_entry_duration_millis",
+      "pandawave_ambient_exit_duration_millis"
+    ],
+    "additional_images": [],
+    "capture_source": "artifacts/rro-captures/ambient-initial.png",
+    "sha256": "11ea58252aa95b65fbfce38922b8d389b2d2a8e04d91b0400d749df5caee08b3",
+    "pixels": [
+      1408,
+      792
+    ],
+    "status": "captured",
+    "caption": "Idle ambient reference on Forest Tech Dark. An active amplitude-source comparison remains to be captured; a still image cannot validate transition durations."
+  },
+  {
+    "section": "Voice indicator and waveform",
+    "path": "docs/images/voice/now_playing_decorative_voice_indicator.png",
+    "capture": "Hey Panda bars at the lower right of Now Playing. BambooVoiceIndicator is called with its default isActive=true; the bars do not indicate microphone listening.",
+    "supplied": false,
+    "original": null,
+    "anchor": "318-voice-indicator-and-waveform",
+    "resources": [
+      "pandawave_voice_indicator_border_width",
+      "pandawave_voice_indicator_bars_width",
+      "pandawave_voice_indicator_bars_height",
+      "pandawave_voice_bar_width",
+      "pandawave_voice_bar_gap",
+      "pandawave_voice_bar_idle_height",
+      "pandawave_waveform_height",
+      "pandawave_waveform_bar_width",
+      "pandawave_motion_voice_cycle_millis",
+      "pandawave_motion_voice_activation_millis"
+    ],
+    "additional_images": [],
+    "capture_source": "artifacts/rro-captures/now-playing-initial.png",
+    "sha256": "81beafa2774b2d833c44a1952b64614ff2fe3ad5b9ae16b964f611e286b1bed2",
+    "pixels": [
+      1408,
+      792
+    ],
+    "status": "captured",
+    "caption": "Hey Panda bars at the lower right of Now Playing. BambooVoiceIndicator is called with its default isActive=true; the bars do not indicate microphone listening."
+  },
+  {
+    "section": "Focus and disabled controls",
+    "path": "docs/images/accessibility/keyboard_focus_and_disabled_playback_controls.png",
+    "capture": "Keyboard Tab focus on the Library navigation item; Now Playing also shows disabled Next, Shuffle, Favorite and Queue. This is keyboard focus evidence, not a rotary-device acceptance test.",
+    "supplied": false,
+    "original": null,
+    "anchor": "319-focus-and-disabled-controls",
+    "resources": [
+      "pandawave_focus_outline_width",
+      "pandawave_focus_outline_padding",
+      "pandawave_rotary_step_threshold",
+      "pandawave_touch_target_md",
+      "pandawave_touch_target_lg",
+      "pandawave_state_disabled_alpha",
+      "pandawave_state_pressed_alpha",
+      "pandawave_state_focus_alpha"
+    ],
+    "additional_images": [],
+    "capture_source": "artifacts/rro-captures/keyboard-focus-final.png",
+    "sha256": "2cc0ccf7c382b07a8f3657027db2829b214c4872e23b3d18dae70e41b1a735e8",
+    "pixels": [
+      1408,
+      792
+    ],
+    "status": "captured",
+    "caption": "Keyboard Tab focus on the Library navigation item; Now Playing also shows disabled Next, Shuffle, Favorite and Queue. This is keyboard focus evidence, not a rotary-device acceptance test."
+  },
+  {
+    "section": "Driving-restricted screens",
+    "path": "docs/images/restrictions/home_under_aaos_driving_restrictions.png",
+    "capture": "Home captured after AAOS emulate-driving-state drive reported no_dialpad, no_filtering, no_keyboard, no_setup, no_text_message and no_video. This frame does not prove enforcement or a two-column layout.",
+    "supplied": false,
+    "original": null,
+    "anchor": "320-driving-restricted-screens",
+    "resources": [
+      "pandawave_max_browse_columns_unrestricted",
+      "pandawave_max_browse_columns_restricted",
+      "pandawave_max_visible_actions_restricted"
+    ],
+    "additional_images": [],
+    "capture_source": "artifacts/rro-captures/restricted-home.png",
+    "sha256": "3d5a7de8c1c08055027d9797b860daf609a2414d09fb13476404d82f53467edd",
+    "pixels": [
+      1408,
+      792
+    ],
+    "status": "captured",
+    "caption": "Home captured after AAOS emulate-driving-state drive reported no_dialpad, no_filtering, no_keyboard, no_setup, no_text_message and no_video. This frame does not prove enforcement or a two-column layout."
+  },
+  {
+    "section": "AAOS launcher and ownership boundaries",
+    "path": "docs/images/branding/aaos_launcher_pandawave_media_card.png",
+    "capture": "Capture the AAOS launcher with the PandaWave card/icon, top status strip and bottom dock visible.",
+    "supplied": true,
+    "original": "F02-aaos-launcher.png",
+    "anchor": "321-aaos-launcher-and-ownership-boundaries",
+    "resources": [
+      "pandawave_ic_launcher_foreground",
+      "pandawave_ic_launcher_monochrome",
+      "pandawave_launcher_background"
+    ],
+    "additional_images": [],
+    "status": "original_reference",
+    "caption": "Original supplied reference; build, theme, density and capture date were not recorded. The current launcher showed Radio rather than a PandaWave media card; the original PandaWave card reference is retained."
+  },
+  {
+    "section": "Splash screen and launcher icon variants",
+    "path": "docs/images/branding/pandawave_cold_start_splash.png",
+    "capture": "Cold-start splash showing the PandaWave mark. The personal canary was enabled, but it changes only the Forest Tech Dark primary and rail width, not these splash resources. Monochrome launcher behavior was not captured.",
+    "supplied": false,
+    "original": null,
+    "anchor": "322-splash-screen-and-launcher-icon-variants",
+    "resources": [
+      "pandawave_ic_splash_mark",
+      "pandawave_splash_background",
+      "pandawave_splash_exit_animation_duration_millis",
+      "pandawave_ic_launcher_foreground",
+      "pandawave_ic_launcher_monochrome",
+      "pandawave_launcher_background",
+      "pandawave_ic_logo"
+    ],
+    "additional_images": [],
+    "capture_source": "artifacts/rro-captures/canary-home-after.png",
+    "sha256": "1c7ba764966d67e5866be8b5a0de17e18e4329b0a3a1084f381b25353fd359c4",
+    "pixels": [
+      1408,
+      792
+    ],
+    "status": "captured",
+    "caption": "Cold-start splash showing the PandaWave mark. The personal canary was enabled, but it changes only the Forest Tech Dark primary and rail width, not these splash resources. Monochrome launcher behavior was not captured."
+  },
+  {
+    "section": "Theme colors across the app",
+    "path": "docs/images/themes/forest_tech_dark_theme_preferences.png",
+    "capture": "Forest Tech Dark selected on the theme preference screen. The other three named themes are shown below at the same scroll position.",
+    "supplied": false,
+    "original": null,
+    "anchor": "323-theme-colors-across-the-app",
+    "resources": [
+      "pandawave_theme_forest_tech_dark_primary",
+      "pandawave_theme_forest_tech_dark_on_primary",
+      "pandawave_theme_forest_tech_dark_secondary",
+      "pandawave_theme_forest_tech_dark_on_secondary",
+      "pandawave_theme_forest_tech_dark_surface",
+      "pandawave_theme_forest_tech_dark_on_surface",
+      "pandawave_theme_forest_tech_dark_surface_container_high",
+      "pandawave_theme_forest_tech_dark_on_surface_variant",
+      "pandawave_theme_forest_tech_dark_error",
+      "pandawave_theme_forest_tech_dark_on_error"
+    ],
+    "additional_images": [
+      {
+        "path": "docs/images/themes/bamboo_grove_light_theme_preferences.png",
+        "caption": "Bamboo Grove Light",
+        "capture_source": "artifacts/rro-captures/theme-bamboo.png",
+        "sha256": "77c6b01e3401f86203a608235fa0fa609024824f67c837742981d52844e3bf89",
+        "pixels": [
+          1408,
+          792
+        ]
+      },
+      {
+        "path": "docs/images/themes/moonlit_bamboo_dark_theme_preferences.png",
+        "caption": "Moonlit Bamboo Dark",
+        "capture_source": "artifacts/rro-captures/theme-moonlit.png",
+        "sha256": "83f4affbe10e0e1c8f6e360ec7c00362634611ffbe5965c68dc8a905f68be99f",
+        "pixels": [
+          1408,
+          792
+        ]
+      },
+      {
+        "path": "docs/images/themes/forest_tech_light_theme_preferences.png",
+        "caption": "Forest Tech Light",
+        "capture_source": "artifacts/rro-captures/theme-forest-light.png",
+        "sha256": "43ebb11b2a607f48c62b7039a3e088e2eb2afb1465f6a42e46586aeb3b5992d4",
+        "pixels": [
+          1408,
+          792
+        ]
+      }
+    ],
+    "capture_source": "artifacts/rro-captures/theme-forest-dark.png",
+    "sha256": "dace4b62e3f423c14300ffb561598ac280ca7e4e4b623b05be11e1d4cf70b3c5",
+    "pixels": [
+      1408,
+      792
+    ],
+    "status": "captured",
+    "caption": "Forest Tech Dark selected on the theme preference screen. The other three named themes are shown below at the same scroll position."
+  },
+  {
+    "section": "Typography and long text",
+    "path": "docs/images/typography/typography_hierarchy_and_long_text.png",
+    "capture": "Home section headings, card titles and metadata at font scale 1.0. The narrow compact cards show real title and album truncation; this is not a large-font acceptance test.",
+    "supplied": false,
+    "original": null,
+    "anchor": "324-typography-and-long-text",
+    "resources": [
+      "pandawave_type_display_size",
+      "pandawave_type_display_line_height",
+      "pandawave_type_display_weight",
+      "pandawave_type_section_title_size",
+      "pandawave_type_section_title_line_height",
+      "pandawave_type_section_title_weight",
+      "pandawave_type_body_size",
+      "pandawave_type_body_line_height",
+      "pandawave_type_body_weight",
+      "pandawave_type_metadata_size",
+      "pandawave_type_metadata_line_height",
+      "pandawave_type_metadata_weight",
+      "pandawave_type_control_label_size",
+      "pandawave_type_control_label_line_height",
+      "pandawave_type_control_label_weight"
+    ],
+    "additional_images": [],
+    "capture_source": "artifacts/rro-captures/home-top.png",
+    "sha256": "3b7f8d89b7ca3979be73ccf9f0bddc05ef5a3625555654ebd13e5887f4ce8ea4",
+    "pixels": [
+      1408,
+      792
+    ],
+    "status": "captured",
+    "caption": "Home section headings, card titles and metadata at font scale 1.0. The narrow compact cards show real title and album truncation; this is not a large-font acceptance test."
+  },
+  {
+    "section": "Before and after an overlay",
+    "path": "docs/images/validation/home_cyan_primary_wide_rail_overlay.png",
+    "capture": "Home with the personal canary enabled: cyan primary and a 108dp navigation rail. Matching baseline and Now Playing frames follow below.",
+    "supplied": false,
+    "original": null,
+    "anchor": "325-before-and-after-an-overlay",
+    "resources": [
+      "pandawave_theme_forest_tech_dark_primary",
+      "pandawave_navigation_rail_width"
+    ],
+    "additional_images": [
+      {
+        "path": "docs/images/validation/home_baseline_green_primary_standard_rail.png",
+        "caption": "Baseline Home: green primary, 100dp rail",
+        "capture_source": "artifacts/rro-captures/baseline-home-restored.png",
+        "sha256": "fe0bb3556d0e56017c325b1d6f8531fc3cb6f06aa27d980c3faf7046437ec21b",
+        "pixels": [
+          1408,
+          792
+        ]
+      },
+      {
+        "path": "docs/images/validation/now_playing_cyan_primary_overlay.png",
+        "caption": "Overlay Now Playing: cyan primary",
+        "capture_source": "artifacts/rro-captures/canary-np-final.png",
+        "sha256": "77f3026e1f7d5768b50d782e33bd117a183e7cfec6a89a094a5b88707c89b6d5",
+        "pixels": [
+          1408,
+          792
+        ]
+      },
+      {
+        "path": "docs/images/validation/now_playing_baseline_green_primary.png",
+        "caption": "Baseline Now Playing: green primary",
+        "capture_source": "artifacts/rro-captures/baseline-np-final.png",
+        "sha256": "c929f773dc41f2d6759f58dc9634c78ff67b3cc4077aaaf32549136b9d045863",
+        "pixels": [
+          1408,
+          792
+        ]
+      }
+    ],
+    "capture_source": "artifacts/rro-captures/canary-home-final.png",
+    "sha256": "97f816af020641e02b15dcf3b2e999a70824921380326f44dadf6d05a9911c1e",
+    "pixels": [
+      1408,
+      792
+    ],
+    "status": "captured",
+    "caption": "Home with the personal canary enabled: cyan primary and a 108dp navigation rail. Matching baseline and Now Playing frames follow below."
+  }
+]

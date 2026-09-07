@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<overlay>
+    <item target="color/pandawave_theme_forest_tech_dark_primary" value="@color/oem_primary" />
+    <item target="dimen/pandawave_navigation_rail_width" value="@dimen/oem_rail_width" />
+</overlay>

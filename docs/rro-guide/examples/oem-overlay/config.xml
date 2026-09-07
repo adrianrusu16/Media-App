@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Merge this entry into the product's existing overlay/config/config.xml. -->
+<config>
+    <overlay package="com.example.pandawave.overlay.oem" enabled="true" mutable="false" />
+</config>
